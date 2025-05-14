@@ -1,0 +1,412 @@
+Software Design Document: REDLINE
+Project: REDLINEVersion: 10.3Date: May 14, 2025Author: Bret KuhneUpdated by: Grok (xAI)
+1. Introduction
+1.1 Purpose
+This SDD defines the architecture and implementation of the REDLINE module, a standalone application for loading, storing, preprocessing, and converting stock market data with a Tkinter GUI. It is designed to run in a Docker or Podman container based on Ubuntu 24.04 LTS, ensuring cross-platform compatibility without requiring external environments like Conda.
+1.2 Scope
+
+Functionality:
+Load stock market data from files (CSV, JSON, DuckDB, Parquet, Polars, Keras).
+Store data in a shared DuckDB database (redline_data.duckdb) with format metadata.
+Preprocess data for machine learning (ML) and reinforcement learning (RL) models.
+Convert data between supported formats (CSV, JSON, DuckDB, PyArrow, Polars, Keras).
+Provide a Tkinter GUI with tabs for data loading, format conversion, and data viewing.
+
+
+Containerization:
+Runs in a Docker or Podman container using Ubuntu 24.04 LTS.
+Installs dependencies via apt and pip within the container.
+Persists redline_data.duckdb using a volume mount.
+
+
+Standalone Operation:
+Operates independently, with outputs stored in redline_data.duckdb for use by other systems (e.g., ML, RL, or Trading Simulators).
+No dependency on external modules or API credentials.
+
+
+
+1.3 Dependencies
+
+External Libraries:
+pandas: Data manipulation.
+sqlalchemy: Database connectivity.
+duckdb: Lightweight SQL database.
+configparser: Configuration parsing.
+tkinter: GUI framework (via python3-tk on Ubuntu).
+ttk: Tkinter widgets.
+pyarrow: Parquet and Arrow data handling.
+polars: High-performance DataFrame library.
+tensorflow: ML model support.
+
+
+System Dependencies (installed in container):
+python3: Python runtime.
+python3-pip: Python package manager.
+python3-tk: Tkinter support.
+libpq-dev: Required for database connectivity.
+
+
+Other Modules: None; outputs to redline_data.duckdb for external systems.
+
+2. System Design
+2.1 System Architecture
+REDLINE operates as a standalone application within a Docker or Podman container based on Ubuntu 24.04 LTS. It initializes a Tkinter GUI and manages data operations via a shared DuckDB database.
+Architecture Diagram:
+[User] ↔ [Docker/Podman Container: Ubuntu 24.04 LTS]
+           ↓
+[Tkinter GUI (StockAnalyzerGUI: ttk.Notebook)]
+           ↓
+[DataLoader: Load/Convert/Preprocess Data]
+           ↓
+[DatabaseConnector: Read/Write redline_data.duckdb]
+           ↓
+[DataAdapter: Preprocess for ML/RL]
+           ↓
+[Output: redline_data.duckdb (tickers_data, preprocessed)]
+
+2.2 Module Descriptions
+2.2.1 REDLINE Module
+
+Purpose: Handles loading, storing, preprocessing, and format conversion of stock market data with a Tkinter GUI.
+Inputs:
+File paths (CSV, JSON, DuckDB, Parquet).
+Configuration (data_config.ini).
+
+
+Outputs:
+DuckDB tables in redline_data.duckdb.
+Preprocessed data for ML/RL models.
+
+
+Methods:
+run(task: str): Entry point for tasks (load, convert, preprocess).
+initialize_gui(): Sets up Tkinter GUI with tabs.
+
+
+Configuration (data_config.ini):[Data]
+db_path = /app/redline_data.duckdb
+csv_dir = /app/data
+json_dir = /app/data/json
+parquet_dir = /app/data/parquet
+
+
+Error Handling:
+Logs to redline.log using logging.
+Displays GUI errors via tkinter.messagebox.
+
+
+
+2.3 GUI Design
+
+Name: StockAnalyzerGUI
+Framework: Tkinter (via python3-tk in container)
+Components:
+Notebook (ttk.Notebook):
+Data Loader Tab:
+Widgets: Label ("Select Input Files"), Listbox (input_listbox, MULTIPLE select, width=50), Combobox (input_format, values=["csv", "json", "duckdb", "pyarrow", "polars", "keras"]), Combobox (output_format, same values), Button ("Browse Files", calls browse_files), Button ("Load and Convert", calls load_and_convert).
+Functionality:
+browse_files: Opens filedialog.askopenfilenames to select files (CSV, JSON, DuckDB, Parquet, Keras .h5).
+load_and_convert: Validates files, loads via DataLoader.load_data, converts via DataLoader.convert_format, saves to redline_data.duckdb via DatabaseConnector.write_shared_data, shows success/error.
+
+
+
+
+Data View Tab:
+Widgets: Treeview (data_tree, columns=["Ticker", "Date", "Close", "Format"], show="headings"), Button ("Refresh Data", calls refresh_data).
+Functionality:
+refresh_data: Queries redline_data.duckdb via DatabaseConnector.read_shared_data, populates Treeview with ticker data.
+
+
+
+
+
+
+
+
+
+2.4 Data Flow
+
+GUI Select Files: User selects files and formats in Data Loader tab → Calls DataLoader.load_data.
+DataLoader Load Data: Loads data in specified format → Calls DataLoader.convert_format.
+DataLoader Convert Format: Converts to user-specified output format → Calls DatabaseConnector.write_shared_data.
+DatabaseConnector Save: Saves to redline_data.duckdb:tickers_data with format metadata → Calls DataAdapter.prepare_training_data or prepare_rl_state.
+DataAdapter Preprocess: Preprocesses for ML/RL → Calls DatabaseConnector.write_shared_data for preprocessed table.
+GUI Display: Displays data and metadata in Data View tab via refresh_data.
+
+2.5 Database
+
+Name: redline_data.duckdb
+Location: /app/redline_data.duckdb (container volume)
+Schema:
+Table: tickers_data
+Columns: ticker (VARCHAR), table_name (VARCHAR), fields (VARCHAR[]), data_path (VARCHAR), timestamp (DATETIME), env_name (VARCHAR), env_status (VARCHAR), row_count (INTEGER), format (VARCHAR, values=["pandas", "polars", "pyarrow", "json", "keras"]).
+Indexes: idx_ticker (on ticker), idx_format (on format).
+
+
+Table: preprocessed
+Columns: ticker (VARCHAR), sequence (BLOB), features (VARCHAR[]), timestamp (DATETIME), format (VARCHAR, values=["numpy", "tensorflow"]).
+Indexes: idx_ticker_preprocessed (on ticker).
+
+
+
+
+
+2.6 Classes
+2.6.1 DataLoader
+
+Purpose: Loads, converts, and stores stock data from various file formats.
+Inputs: File paths, data_config.ini.
+Outputs: DuckDB tables in redline_data.duckdb.
+Methods:
+load_data(file_paths: list[str], format: str): Loads data, returns list[Union[pd.DataFrame, pl.DataFrame, pa.Table]].
+validate_data(file_path: str, format: str): Checks for required columns (ticker, timestamp, close), returns bool.
+convert_format(data: Union[pd.DataFrame, pl.DataFrame, pa.Table], from_format: str, to_format: str): Converts between formats, returns converted data.
+save_to_shared(table: str, data: Union[pd.DataFrame, pl.DataFrame, pa.Table], format: str): Writes to redline_data.duckdb.
+
+
+
+2.6.2 DatabaseConnector
+
+Purpose: Manages DuckDB connections.
+Inputs: DB path, table name, format.
+Outputs: Data in specified format, metadata.
+Methods:
+create_connection(db_path: str): Creates SQLAlchemy engine, returns engine.
+read_shared_data(table: str, format: str): Reads data, returns Union[pd.DataFrame, pl.DataFrame, pa.Table].
+write_shared_data(table: str, data: Union[pd.DataFrame, pl.DataFrame, pa.Table], format: str): Writes data with metadata.
+
+
+
+2.6.3 DataAdapter
+
+Purpose: Preprocesses data for ML/RL models.
+Inputs: Data, config parameters (sequence length, features).
+Outputs: Scaled sequences, RL states, Keras datasets.
+Methods:
+prepare_training_data(data: Union[list[pd.DataFrame], list[pl.DataFrame], list[pa.Table]], format: str): Creates ML sequences, returns Union[list[np.ndarray], tf.data.Dataset].
+prepare_rl_state(data: Union[pd.DataFrame, pl.DataFrame, pa.Table], portfolio: dict, format: str): Generates RL states, returns Union[np.ndarray, tf.Tensor].
+summarize_preprocessed(data: Union[list[np.ndarray], tf.data.Dataset], format: str): Summarizes data for GUI, returns dict.
+
+
+
+2.7 Implementation Details
+2.7.1 Containerization
+
+Environment: Ubuntu 24.04 LTS container (Docker or Podman).
+Dockerfile:FROM ubuntu:24.04
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-tk \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+RUN pip3 install pandas sqlalchemy duckdb configparser pyarrow polars tensorflow
+WORKDIR /app
+COPY data_module.py data_config.ini ./
+VOLUME /app/data /app/redline_data.duckdb
+CMD ["python3", "-m", "data_module", "--task=load"]
+
+
+Execution:
+Build: docker build -t redline . or podman build -t redline .
+Run: docker run --rm -v $(pwd)/data:/app/data -v $(pwd)/redline_data.duckdb:/app/redline_data.duckdb redline
+GUI: Tkinter requires X11 forwarding or VNC; alternatively, run GUI locally.
+
+
+
+2.7.2 Standalone Operation
+
+Execution: python3 -m data_module --task=<task> (tasks: load, convert, preprocess).
+Tasks:
+load: Ingests data into redline_data.duckdb.
+convert: Converts between formats.
+preprocess: Generates ML/RL-ready data.
+
+
+Fallback: Uses cached JSON/Parquet data if file access fails.
+
+2.7.3 Testing
+
+Unit Tests:
+Test DataLoader.load_data for all formats.
+Test DataLoader.convert_format for all format pairs.
+Test DatabaseConnector.write_shared_data for dynamic tables.
+Test GUI load_and_convert with mock data.
+
+
+Integration Tests:
+Verify data in redline_data.duckdb with format metadata.
+Ensure preprocessed data displays in GUI.
+Test round-trip conversion (CSV → Polars → PyArrow → DuckDB).
+
+
+Mock Testing: Use unittest.mock for file access simulation.
+
+2.8 Assumptions
+
+redline_data.duckdb exists or can be created in container volume.
+Input files have required columns (ticker, timestamp, close).
+Docker or Podman installed on host.
+X11 forwarding or VNC for GUI (if run in container).
+
+2.9 Future Enhancements
+
+Support API data sources (e.g., Stooq, Alpaca) with credential management via a configuration tab.
+Support drag-and-drop file inputs.
+Add progress bar for file loading/conversion.
+Enable data export (CSV, JSON, Parquet).
+Support additional data sources (e.g., Bloomberg).
+Implement data caching for offline operation.
+
+3. Sample Implementation
+Below is a sample data_module.py implementing the REDLINE module, integrating DataLoader, DatabaseConnector, and DataAdapter with the Tkinter GUI, using redline_data.duckdb.
+#!/usr/bin/env python3
+"""REDLINE module for stock market data management in a Docker/Podman container."""
+
+import logging
+import sys
+import configparser
+import pandas as pd
+import polars as pl
+import pyarrow as pa
+import duckdb
+import sqlalchemy
+from sqlalchemy import create_engine
+import tensorflow as tf
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox
+from typing import Union, List, Dict
+import argparse
+
+# Configure logging
+logging.basicConfig(filename='redline.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+class DataLoader:
+    def __init__(self, config_path: str = 'data_config.ini'):
+        self.config = configparser.ConfigParser()
+        self.config.read(config_path)
+        self.db_path = self.config['Data'].get('db_path', '/app/redline_data.duckdb')
+        self.csv_dir = self.config['Data'].get('csv_dir', '/app/data')
+        self.json_dir = self.config['Data'].get('json_dir', '/app/data/json')
+        self.parquet_dir = self.config['Data'].get('parquet_dir', '/app/data/parquet')
+
+    def load_data(self, file_paths: List[str], format: str) -> List[Union[pd.DataFrame, pl.DataFrame, pa.Table]]:
+        data = []
+        for path in file_paths:
+            if not self.validate_data(path, format):
+                raise ValueError(f"Invalid data in {path} for format {format}")
+            try:
+                if format == 'csv':
+                    data.append(pd.read_csv(path))
+                elif format == 'json':
+                    data.append(pd.read_json(path))
+                elif format == 'duckdb':
+                    conn = duckdb.connect(path)
+                    data.append(conn.execute("SELECT * FROM tickers_data").fetchdf())
+                    conn.close()
+                elif format == 'pyarrow':
+                    data.append(pa.parquet.read_table(path))
+                elif format == 'polars':
+                    data.append(pl.read_parquet(path))
+                elif format == 'keras':
+                    data.append(tf.keras.models.load_model(path))
+                logging.info(f"Loaded {path} as {format}")
+            except Exception as e:
+                logging.error(f"Failed to load {path}: {str(e)}")
+                raise
+        return data
+
+    def validate_data(self, file_path: str, format: str) -> bool:
+        try:
+            if format in ['csv', 'json']:
+                df = pd.read_csv(file_path) if format == 'csv' else pd.read_json(file_path)
+                required = ['ticker', 'timestamp', 'close']
+                return all(col in df.columns for col in required)
+            return True  # Simplified for other formats
+        except Exception as e:
+            logging.error(f"Validation failed for {file_path}: {str(e)}")
+            return False
+
+    def convert_format(self, data: Union[pd.DataFrame, pl.DataFrame, pa.Table], from_format: str, to_format: str) -> Union[pd.DataFrame, pl.DataFrame, pa.Table, dict]:
+        if from_format == to_format:
+            return data
+        if isinstance(data, list):
+            return [self.convert_format(d, from_format, to_format) for d in data]
+        try:
+            if from_format == 'pandas':
+                if to_format == 'polars':
+                    return pl.from_pandas(data)
+                elif to_format == 'pyarrow':
+                    return pa.Table.from_pandas(data)
+            elif from_format == 'polars':
+                if to_format == 'pandas':
+                    return data.to_pandas()
+                elif to_format == 'pyarrow':
+                    return data.to_arrow()
+            elif from_format == 'pyarrow':
+                if to_format == 'pandas':
+                    return data.to_pandas()
+                elif to_format == 'polars':
+                    return pl.from_arrow(data)
+            logging.info(f"Converted from {from_format} to {to_format}")
+            return data
+        except Exception as e:
+            logging.error(f"Conversion failed from {from_format} to {to_format}: {str(e)}")
+            raise
+
+    def save_to_shared(self, table: str, data: Union[pd.DataFrame, pl.DataFrame, pa.Table], format: str) -> None:
+        try:
+            conn = duckdb.connect(self.db_path)
+            if isinstance(data, pl.DataFrame):
+                data = data.to_pandas()
+            elif isinstance(data, pa.Table):
+                data = data.to_pandas()
+            conn.execute(f"CREATE TABLE IF NOT EXISTS {table} (ticker VARCHAR, table_name VARCHAR, fields VARCHAR[], data_path VARCHAR, timestamp DATETIME, env_name VARCHAR, env_status VARCHAR, row_count INTEGER, format VARCHAR)")
+            data['format'] = format
+            data.to_sql(table, create_engine(f'duckdb:///{self.db_path}'), if_exists='append', index=False)
+            conn.close()
+            logging.info(f"Saved data to {table} in format {format}")
+        except Exception as e:
+            logging.error(f"Failed to save to {table}: {str(e)}")
+            raise
+
+class DatabaseConnector:
+    def __init__(self, db_path: str = '/app/redline_data.duckdb'):
+        self.db_path = db_path
+
+    def create_connection(self, db_path: str) -> sqlalchemy.engine.Engine:
+        return create_engine(f'duckdb:///{db_path}')
+
+    def read_shared_data(self, table: str, format: str) -> Union[pd.DataFrame, pl.DataFrame, pa.Table]:
+        try:
+            conn = duckdb.connect(self.db_path)
+            df = conn.execute(f"SELECT ticker, timestamp, close, format FROM {table}").fetchdf()
+            conn.close()
+            if format == 'polars':
+                return pl.from_pandas(df)
+            elif format == 'pyarrow':
+                return pa.Table.from_pandas(df)
+            return df
+        except Exception as e:
+            logging.error(f"Failed to read from {table}: {str(e)}")
+            raise
+
+    def write_shared_data(self, table: str, data: Union[pd.DataFrame, pl.DataFrame, pa.Table], format: str) -> None:
+        try:
+            conn = duckdb.connect(self.db_path)
+            if isinstance(data, pl.DataFrame):
+                data = data.to_pandas()
+            elif isinstance(data, pa.Table):
+                data = data.to_pandas()
+            data['format'] = format
+            data.to_sql(table, create_engine(f'duckdb:///{self.db_path}'), if_exists='append', index=False)
+            conn.close()
+            logging.info(f"Wrote data to {table} in format {format}")
+        except Exception as e:
+            logging.error(f"Failed to write to {table}: {str(e)}")
+            raise
+
+class DataAdapter:
+    def prepare_training_data(self, data: Union[List[pd.DataFrame], List[pl.DataFrame], List[pa.Table]], format: str) -> Union[List[np.ndarray], tf.data
+
+
