@@ -124,13 +124,37 @@ class DataLoader:
             elif isinstance(data, pa.Table):
                 data = data.to_pandas()
             data['format'] = format
+            # Select only columns that match the table schema, remove 'per'
+            expected_cols = ['ticker', 'timestamp', 'open', 'high', 'low', 'close', 'vol', 'openint', 'format']
+            for col in expected_cols:
+                if col not in data.columns:
+                    data[col] = None
+            data = data[expected_cols]
+            # Clean numeric columns to ensure no arrays/lists and cast to float
+            for col in ['open', 'high', 'low', 'close', 'vol', 'openint']:
+                if col in data.columns:
+                    data[col] = data[col].apply(lambda x: float(x) if pd.notnull(x) and not isinstance(x, (list, tuple, dict)) else None)
+            # Diagnostic: print dtypes and sample values
+            print("Column dtypes before saving:")
+            print(data.dtypes)
+            for col in ['open', 'high', 'low', 'close', 'vol', 'openint']:
+                if col in data.columns:
+                    print(f"Sample values for {col}:")
+                    print(data[col].head(10).to_list())
             # Create table if not exists and insert data using DuckDB native
             conn = duckdb.connect(self.db_path)
-            # Create table if not exists
+            conn.execute(f"DROP TABLE IF EXISTS {table}")
             create_table_sql = f"""
             CREATE TABLE IF NOT EXISTS {table} (
-                ticker VARCHAR, table_name VARCHAR, fields VARCHAR[], data_path VARCHAR,
-                timestamp VARCHAR, env_name VARCHAR, env_status VARCHAR, row_count INTEGER, format VARCHAR
+                ticker VARCHAR,
+                timestamp VARCHAR,
+                open DOUBLE,
+                high DOUBLE,
+                low DOUBLE,
+                close DOUBLE,
+                vol DOUBLE,
+                openint DOUBLE,
+                format VARCHAR
             )
             """
             conn.execute(create_table_sql)
@@ -155,6 +179,8 @@ class DataLoader:
             cl = c.strip('<>').strip().upper()
             if cl == 'TICKER':
                 col_map[c] = 'ticker'
+            elif cl == 'PER':
+                col_map[c] = 'per'
             elif cl == 'DATE':
                 col_map[c] = 'date'
             elif cl == 'TIME':
@@ -178,10 +204,16 @@ class DataLoader:
             df['timestamp'] = df['date'].astype(str) + ' ' + df['time'].astype(str)
         elif 'date' in df.columns:
             df['timestamp'] = df['date'].astype(str)
-        # Only keep required columns if present
+        # Define the columns you want to keep
         keep = [c for c in ['ticker', 'timestamp', 'open', 'high', 'low', 'close', 'vol', 'openint'] if c in df.columns]
+        # Drop 'date', 'time', and 'per' columns after creating 'timestamp', but only if not in keep
+        for col in ['date', 'time', 'per']:
+            if col in df.columns and col not in keep:
+                df = df.drop(columns=[col])
+        # Now select only the columns you want to keep
+        df = df[keep]
         if all(k in df.columns for k in ['ticker', 'timestamp', 'close']):
-            return df[keep]
+            return df
         return df
 
 class DatabaseConnector:
@@ -194,7 +226,7 @@ class DatabaseConnector:
     def read_shared_data(self, table: str, format: str) -> Union[pd.DataFrame, pl.DataFrame, pa.Table]:
         try:
             conn = duckdb.connect(self.db_path)
-            df = conn.execute(f"SELECT ticker, timestamp, close, format FROM {table}").fetchdf()
+            df = conn.execute(f"SELECT * FROM {table}").fetchdf()
             conn.close()
             if format == 'polars':
                 return pl.from_pandas(df)
@@ -213,12 +245,36 @@ class DatabaseConnector:
             elif isinstance(data, pa.Table):
                 data = data.to_pandas()
             data['format'] = format
+            # Select only columns that match the table schema, remove 'per'
+            expected_cols = ['ticker', 'timestamp', 'open', 'high', 'low', 'close', 'vol', 'openint', 'format']
+            for col in expected_cols:
+                if col not in data.columns:
+                    data[col] = None
+            data = data[expected_cols]
+            # Clean numeric columns to ensure no arrays/lists and cast to float
+            for col in ['open', 'high', 'low', 'close', 'vol', 'openint']:
+                if col in data.columns:
+                    data[col] = data[col].apply(lambda x: float(x) if pd.notnull(x) and not isinstance(x, (list, tuple, dict)) else None)
+            # Diagnostic: print dtypes and sample values
+            print("Column dtypes before saving:")
+            print(data.dtypes)
+            for col in ['open', 'high', 'low', 'close', 'vol', 'openint']:
+                if col in data.columns:
+                    print(f"Sample values for {col}:")
+                    print(data[col].head(10).to_list())
             conn = duckdb.connect(self.db_path)
-            # Create table if not exists
+            conn.execute(f"DROP TABLE IF EXISTS {table}")
             create_table_sql = f"""
             CREATE TABLE IF NOT EXISTS {table} (
-                ticker VARCHAR, table_name VARCHAR, fields VARCHAR[], data_path VARCHAR,
-                timestamp VARCHAR, env_name VARCHAR, env_status VARCHAR, row_count INTEGER, format VARCHAR
+                ticker VARCHAR,
+                timestamp VARCHAR,
+                open DOUBLE,
+                high DOUBLE,
+                low DOUBLE,
+                close DOUBLE,
+                vol DOUBLE,
+                openint DOUBLE,
+                format VARCHAR
             )
             """
             conn.execute(create_table_sql)
@@ -304,12 +360,13 @@ class StockAnalyzerGUI:
         self.file_listbox.pack()
         ttk.Button(view_frame, text="View File", command=self.view_selected_file).pack()
         self.refresh_file_list()
-        # Existing data tree and refresh button
-        self.data_tree = ttk.Treeview(view_frame, columns=['Ticker', 'Date', 'Close', 'Format'], show='headings')
-        self.data_tree.heading('Ticker', text='Ticker')
-        self.data_tree.heading('Date', text='Date')
-        self.data_tree.heading('Close', text='Close')
-        self.data_tree.heading('Format', text='Format')
+        # Add a horizontal scrollbar for the data_tree
+        tree_frame = ttk.Frame(view_frame)
+        tree_frame.pack(fill='both', expand=True)
+        xscroll = ttk.Scrollbar(tree_frame, orient='horizontal')
+        self.data_tree = ttk.Treeview(tree_frame, columns=['Ticker', 'Date', 'Close', 'Format'], show='headings', xscrollcommand=xscroll.set)
+        xscroll.config(command=self.data_tree.xview)
+        xscroll.pack(side='bottom', fill='x')
         self.data_tree.pack(fill='both', expand=True)
         ttk.Button(view_frame, text="Refresh Data", command=self.refresh_data).pack()
 
@@ -355,12 +412,13 @@ class StockAnalyzerGUI:
             messagebox.showerror("Error", f"Load and convert failed: {str(e)}")
 
     def refresh_file_list(self):
-        # List txt, csv, json files in the data directory
+        # List all supported files in the data directory
         self.file_listbox.delete(0, tk.END)
         data_dir = 'data'  # preferred data directory
+        supported_exts = ('.txt', '.csv', '.json', '.duckdb', '.parquet', '.h5')
         if os.path.isdir(data_dir):
             for fname in os.listdir(data_dir):
-                if fname.endswith(('.txt', '.csv', '.json')):
+                if fname.endswith(supported_exts):
                     self.file_listbox.insert(tk.END, os.path.join(data_dir, fname))
 
     def view_selected_file(self):
@@ -408,8 +466,20 @@ class StockAnalyzerGUI:
             for item in self.data_tree.get_children():
                 self.data_tree.delete(item)
             data = self.connector.read_shared_data('tickers_data', 'pandas')
+            # Always show 9 columns if present
+            screenshot_cols = ['ticker', 'timestamp', 'open', 'high', 'low', 'close', 'vol', 'openint', 'format']
+            screenshot_cols = [col for col in screenshot_cols if col in data.columns]
+            self.data_tree['columns'] = screenshot_cols
+            self.data_tree['show'] = 'headings'
+            for col in screenshot_cols:
+                self.data_tree.heading(col, text=col)
+                self.data_tree.column(col, width=100)
             for _, row in data.iterrows():
-                self.data_tree.insert('', 'end', values=(row['ticker'], row['timestamp'], row['close'], row['format']))
+                self.data_tree.insert('', 'end', values=tuple(row[col] for col in screenshot_cols))
+            # Print a screenshot-like output to the terminal
+            print("\n=== Data Table Screenshot ===")
+            print(data[screenshot_cols].head(10).to_string(index=False))
+            print("============================\n")
         except Exception as e:
             logging.error(f"Refresh data failed: {str(e)}")
             print(f"Refresh data failed: {str(e)}")
