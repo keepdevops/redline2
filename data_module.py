@@ -251,6 +251,7 @@ class StockAnalyzerGUI:
     def browse_files(self):
         filetypes = [
             ('CSV Files', '*.csv'),
+            ('TXT Files', '*.txt'),
             ('JSON Files', '*.json'),
             ('DuckDB Files', '*.duckdb'),
             ('Parquet Files', '*.parquet'),
