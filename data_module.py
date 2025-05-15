@@ -108,6 +108,41 @@ class DataLoader:
             logging.error(f"Failed to save to {table}: {str(e)}")
             raise
 
+    def _standardize_txt_columns(self, df):
+        # Accept both <TICKER> and TICKER, <CLOSE> and CLOSE, etc.
+        col_map = {}
+        for c in df.columns:
+            cl = c.strip('<>').upper()
+            if cl == 'TICKER':
+                col_map[c] = 'ticker'
+            elif cl == 'DATE':
+                col_map[c] = 'date'
+            elif cl == 'TIME':
+                col_map[c] = 'time'
+            elif cl == 'CLOSE':
+                col_map[c] = 'close'
+            elif cl == 'OPEN':
+                col_map[c] = 'open'
+            elif cl == 'HIGH':
+                col_map[c] = 'high'
+            elif cl == 'LOW':
+                col_map[c] = 'low'
+            elif cl == 'VOL':
+                col_map[c] = 'vol'
+            elif cl == 'OPENINT':
+                col_map[c] = 'openint'
+        df = df.rename(columns=col_map)
+        # Combine date and time into timestamp if present
+        if 'date' in df.columns and 'time' in df.columns:
+            df['timestamp'] = df['date'].astype(str) + ' ' + df['time'].astype(str)
+        elif 'date' in df.columns:
+            df['timestamp'] = df['date'].astype(str)
+        # Only keep required columns if present
+        keep = [c for c in ['ticker', 'timestamp', 'open', 'high', 'low', 'close', 'vol', 'openint'] if c in df.columns]
+        if all(k in df.columns for k in ['ticker', 'timestamp', 'close']):
+            return df[keep]
+        return df
+
 class DatabaseConnector:
     def __init__(self, db_path: str = '/app/redline_data.duckdb'):
         self.db_path = db_path
