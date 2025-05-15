@@ -28,6 +28,15 @@ logging.basicConfig(filename='redline.log', level=logging.INFO, format='%(asctim
 
 class DataLoader:
     SCHEMA = ['ticker', 'timestamp', 'open', 'high', 'low', 'close', 'vol', 'openint', 'format']
+    EXT_TO_FORMAT = {
+        '.csv': 'csv',
+        '.txt': 'txt',
+        '.json': 'json',
+        '.duckdb': 'duckdb',
+        '.parquet': 'parquet',
+        '.feather': 'feather',
+        '.h5': 'keras'
+    }
 
     @staticmethod
     def clean_and_select_columns(data: pd.DataFrame) -> pd.DataFrame:
@@ -227,6 +236,84 @@ class DataLoader:
             return df
         return df
 
+    @staticmethod
+    def load_file_by_type(file_path, filetype=None):
+        import duckdb
+        import tensorflow as tf
+        import pandas as pd
+        import numpy as np
+        ext = os.path.splitext(file_path)[1].lower()
+        if not filetype:
+            filetype = DataLoader.EXT_TO_FORMAT.get(ext, None)
+        if filetype == 'csv':
+            return pd.read_csv(file_path)
+        elif filetype == 'json':
+            try:
+                return pd.read_json(file_path, lines=True)
+            except Exception:
+                return pd.read_json(file_path)
+        elif filetype == 'txt':
+            df = pd.read_csv(file_path, delimiter='\t')
+            if df.shape[1] == 1:
+                df = pd.read_csv(file_path, delimiter=',')
+            # Use the standardize method if available
+            if hasattr(DataLoader, '_standardize_txt_columns'):
+                df = DataLoader._standardize_txt_columns(DataLoader, df)
+            return df
+        elif filetype == 'parquet':
+            return pd.read_parquet(file_path)
+        elif filetype == 'feather':
+            return pd.read_feather(file_path)
+        elif filetype == 'duckdb':
+            conn = duckdb.connect(file_path)
+            tables = conn.execute("SHOW TABLES").fetchall()
+            if not tables:
+                conn.close()
+                raise ValueError("No tables found in DuckDB file")
+            table_name = tables[0][0]
+            df = conn.execute(f"SELECT * FROM {table_name} LIMIT 100").fetchdf()
+            conn.close()
+            return df
+        elif filetype == 'keras':
+            return tf.keras.models.load_model(file_path)
+        else:
+            raise ValueError(f"Unsupported file type: {filetype}")
+
+    @staticmethod
+    def save_file_by_type(df, file_path, filetype):
+        import duckdb
+        import numpy as np
+        import tensorflow as tf
+        if filetype == 'csv':
+            df.to_csv(file_path, index=False)
+        elif filetype == 'txt':
+            df.to_csv(file_path, sep='\t', index=False)
+        elif filetype == 'json':
+            df.to_json(file_path, orient='records', lines=True)
+        elif filetype == 'feather':
+            df.reset_index(drop=True).to_feather(file_path)
+        elif filetype == 'parquet':
+            df.to_parquet(file_path)
+        elif filetype == 'keras':
+            from tensorflow.keras import Sequential, Input
+            from tensorflow.keras.layers import Dense
+            model = Sequential([
+                Input(shape=(len(df.columns),)),
+                Dense(32, activation='relu'),
+                Dense(1)
+            ])
+            model.save(file_path)
+        elif filetype == 'duckdb':
+            conn = duckdb.connect(file_path)
+            conn.register('temp_df', df)
+            conn.execute("CREATE TABLE IF NOT EXISTS tickers_data AS SELECT * FROM temp_df")
+            conn.unregister('temp_df')
+            conn.close()
+        elif filetype == 'tensorflow':
+            np.savez(file_path, data=df.to_numpy())
+        else:
+            raise ValueError(f"Unsupported save file type: {filetype}")
+
 class DatabaseConnector:
     def __init__(self, db_path: str = '/app/redline_data.duckdb'):
         self.db_path = db_path
@@ -351,8 +438,7 @@ class StockAnalyzerGUI:
         self.output_format = ttk.Combobox(loader_frame, values=['csv', 'txt', 'json', 'duckdb', 'pyarrow', 'polars', 'keras', 'feather'])
         self.output_format.pack()
         ttk.Button(loader_frame, text="Browse Files", command=self.browse_files).pack()
-        ttk.Button(loader_frame, text="Load and Convert", command=self.load_and_convert).pack()
-        ttk.Button(loader_frame, text="Batch Convert", command=self.batch_convert_files).pack()
+        ttk.Button(loader_frame, text="Merge/Consolidate Files", command=self.load_and_convert).pack()
         # Progress bar for batch conversion
         self.progress_var = tk.DoubleVar()
         self.progress_bar = ttk.Progressbar(loader_frame, variable=self.progress_var, maximum=100)
@@ -390,45 +476,117 @@ class StockAnalyzerGUI:
         ]
         files = filedialog.askopenfilenames(filetypes=filetypes)
         self.input_listbox.delete(0, tk.END)
+        detected_types = []
         for file in files:
-            self.input_listbox.insert(tk.END, file)
+            ext = os.path.splitext(file)[1].lower()
+            fmt = DataLoader.EXT_TO_FORMAT.get(ext, 'unknown')
+            detected_types.append(fmt)
+            display_name = f"{file} [{fmt}]"
+            self.input_listbox.insert(tk.END, display_name)
+        # Set input format to the most common detected type
+        if detected_types:
+            from collections import Counter
+            most_common = Counter(detected_types).most_common(1)[0][0]
+            if most_common != 'unknown':
+                self.input_format.set(most_common)
 
     def load_and_convert(self):
         try:
-            files = self.input_listbox.get(0, tk.END)
+            entries = self.input_listbox.get(0, tk.END)
             input_format = self.input_format.get()
             output_format = self.output_format.get()
-            if not files or not input_format or not output_format:
+            if not entries or not input_format or not output_format:
                 print("Error: Select files and formats")
                 messagebox.showerror("Error", "Select files and formats")
                 return
-            data = self.loader.load_data(list(files), input_format)
-            if not data:
-                print("Error: No data loaded from file(s). Check file format and contents.")
-                messagebox.showerror("Error", "No data loaded from file(s). Check file format and contents.")
+            # Load all selected files and concatenate them
+            dfs = []
+            total = len(entries)
+            self.progress_var.set(0)
+            self.progress_bar.pack(fill='x', padx=10, pady=5)
+            self.progress_bar.update()
+            for idx, entry in enumerate(entries):
+                path = entry.split(' [')[0]
+                try:
+                    df = DataLoader.load_file_by_type(path, input_format)
+                    if df is not None and hasattr(df, 'columns') and len(df.columns) > 0:
+                        dfs.append(df)
+                    else:
+                        print(f"Skipped file (empty or no columns): {path}")
+                except Exception as e:
+                    print(f"Skipped file (load error): {path} ({e})")
+                # Update progress
+                progress = ((idx + 1) / total) * 100
+                self.progress_var.set(progress)
+                self.progress_bar.update()
+            if not dfs:
+                print("Error: No valid data loaded from file(s). Check file format and contents.")
+                messagebox.showerror("Error", "No valid data loaded from file(s). Check file format and contents.")
+                self.progress_bar.pack_forget()
                 return
+            import pandas as pd
+            if len(dfs) > 1:
+                data = pd.concat(dfs, ignore_index=True)
+            else:
+                data = dfs[0]
+
+            # Data cleaning: deduplicate
+            before_dedup = len(data)
+            data = data.drop_duplicates()
+            after_dedup = len(data)
+            dropped_dupes = before_dedup - after_dedup
+
+            # Ask user if they want to drop rows with missing values
+            dropna = messagebox.askyesno("Data Cleaning", f"{dropped_dupes} duplicate rows removed.\nDo you want to drop rows with missing values?")
+            if dropna:
+                before_dropna = len(data)
+                data = data.dropna()
+                after_dropna = len(data)
+                dropped_na = before_dropna - after_dropna
+                messagebox.showinfo("Data Cleaning", f"{dropped_na} rows with missing values dropped.")
+
             converted = self.loader.convert_format(data, input_format, output_format)
-            if isinstance(converted, list) and not converted:
-                print("Error: Conversion returned no data.")
-                messagebox.showerror("Error", "Conversion returned no data.")
+            # Save as a single output file
+            from tkinter import filedialog
+            out_ext = '.' + output_format if not output_format.startswith('.') else output_format
+            save_path = filedialog.asksaveasfilename(defaultextension=out_ext, filetypes=[(output_format.upper() + ' Files', '*' + out_ext)], initialdir='data')
+            if not save_path:
+                self.progress_bar.pack_forget()
                 return
-            self.loader.save_to_shared('tickers_data', converted[0] if isinstance(converted, list) else converted, output_format)
-            print("Success: Data loaded and converted")
-            messagebox.showinfo("Success", "Data loaded and converted")
+            DataLoader.save_file_by_type(converted, save_path, output_format)
+            self.refresh_file_list()
+            self.progress_bar.pack_forget()
+            print("Success: Files merged/consolidated, cleaned, and saved as one file")
+            messagebox.showinfo("Success", "Files merged/consolidated, cleaned, and saved as one file")
+
+            # Automatically select and preview the new file in Data View
+            for idx in range(self.file_listbox.size()):
+                entry = self.file_listbox.get(idx)
+                if save_path in entry:
+                    self.file_listbox.selection_clear(0, tk.END)
+                    self.file_listbox.selection_set(idx)
+                    self.file_listbox.see(idx)
+                    self.view_selected_file()
+                    self.refresh_data()
+                    break
         except Exception as e:
-            logging.error(f"Load and convert failed: {str(e)}")
-            print(f"Load and convert failed: {str(e)}")
-            messagebox.showerror("Error", f"Load and convert failed: {str(e)}")
+            logging.error(f"Merge/Consolidate failed: {str(e)}")
+            print(f"Merge/Consolidate failed: {str(e)}")
+            messagebox.showerror("Error", f"Merge/Consolidate failed: {str(e)}")
 
     def refresh_file_list(self):
-        # List all supported files in the data directory
+        # Recursively list all supported files in the data directory and subdirectories
         self.file_listbox.delete(0, tk.END)
         data_dir = 'data'  # preferred data directory
-        supported_exts = ('.txt', '.csv', '.json', '.duckdb', '.parquet', '.feather', '.h5')
-        if os.path.isdir(data_dir):
-            for fname in os.listdir(data_dir):
+        supported_exts = tuple(DataLoader.EXT_TO_FORMAT.keys())
+        for root, _, files in os.walk(data_dir):
+            for fname in files:
                 if fname.endswith(supported_exts):
-                    self.file_listbox.insert(tk.END, os.path.join(data_dir, fname))
+                    fpath = os.path.join(root, fname)
+                    ext = os.path.splitext(fname)[1].lower()
+                    fmt = DataLoader.EXT_TO_FORMAT.get(ext, 'unknown')
+                    display_name = f"{fpath} [{fmt}]"
+                    self.file_listbox.insert(tk.END, display_name)
 
     def view_selected_file(self):
         selection = self.file_listbox.curselection()
@@ -437,48 +595,14 @@ class StockAnalyzerGUI:
             return
         file_path = self.file_listbox.get(selection[0])
         print("Viewing file:", file_path)
+        # Remove [type] if present
+        file_path = file_path.split(' [')[0]
         ext = os.path.splitext(file_path)[1].lower()
+        fmt = DataLoader.EXT_TO_FORMAT.get(ext, None)
         try:
-            if ext == '.csv':
-                df = pd.read_csv(file_path)
-            elif ext == '.json':
+            if fmt == 'keras':
                 try:
-                    df = pd.read_json(file_path, lines=True)
-                except ValueError:
-                    df = pd.read_json(file_path)
-            elif ext == '.txt':
-                df = pd.read_csv(file_path, delimiter='\t')
-                if df.shape[1] == 1:
-                    df = pd.read_csv(file_path, delimiter=',')
-                df = self.loader._standardize_txt_columns(df)
-            elif ext == '.feather':
-                df = pd.read_feather(file_path)
-            elif ext == '.parquet':
-                df = pd.read_parquet(file_path)
-            elif ext == '.duckdb':
-                try:
-                    conn = duckdb.connect(file_path)
-                    tables = conn.execute("SHOW TABLES").fetchall()
-                    if not tables:
-                        messagebox.showerror("Error", "No tables found in DuckDB file")
-                        return
-                    if len(tables) == 1:
-                        table_name = tables[0][0]
-                    else:
-                        # Prompt user to select a table
-                        table_names = [t[0] for t in tables]
-                        table_name = askstring("Select Table", f"Available tables: {', '.join(table_names)}\nEnter table name to preview:", initialvalue=table_names[0])
-                        if not table_name or table_name not in table_names:
-                            messagebox.showerror("Error", "Invalid or no table selected.")
-                            return
-                    df = conn.execute(f"SELECT * FROM {table_name} LIMIT 100").fetchdf()
-                    conn.close()
-                except Exception as e:
-                    messagebox.showerror("Error", f"Failed to preview DuckDB file: {str(e)}")
-                    return
-            elif ext == '.h5':
-                try:
-                    model = tf.keras.models.load_model(file_path)
+                    model = DataLoader.load_file_by_type(file_path, fmt)
                     import io
                     stream = io.StringIO()
                     model.summary(print_fn=lambda x: stream.write(x + '\n'))
@@ -492,12 +616,22 @@ class StockAnalyzerGUI:
                 except Exception as e:
                     messagebox.showerror("Error", f"Failed to load Keras model: {str(e)}")
                     return
-            else:
-                messagebox.showerror("Error", "Unsupported file type")
-                return
+            df = DataLoader.load_file_by_type(file_path, fmt)
             print("DF columns:", df.columns)
             print(df.head())
-            self.show_dataframe_popup(df)
+            # Dynamically update the Data View table to show this file's data
+            self.data_tree.delete(*self.data_tree.get_children())
+            # Set columns and headings
+            cols = list(df.columns)
+            self.data_tree['columns'] = cols
+            self.data_tree['show'] = 'headings'
+            for col in cols:
+                self.data_tree.heading(col, text=col)
+                self.data_tree.column(col, width=100, stretch=True, anchor='center')
+            for _, row in df.iterrows():
+                self.data_tree.insert('', 'end', values=tuple(row))
+            # Optionally, show a popup as well
+            # self.show_dataframe_popup(df)
         except Exception as e:
             print("Failed to read file:", file_path)
             logging.exception(f"Failed to preview file: {file_path}")
@@ -516,29 +650,71 @@ class StockAnalyzerGUI:
 
     def refresh_data(self):
         try:
+            # If a file is selected in the file_listbox, show its data
+            selection = self.file_listbox.curselection()
+            if selection:
+                file_path = self.file_listbox.get(selection[0])
+                file_path = file_path.split(' [')[0]
+                ext = os.path.splitext(file_path)[1].lower()
+                fmt = DataLoader.EXT_TO_FORMAT.get(ext, None)
+                try:
+                    if fmt == 'keras':
+                        # Show model summary in popup, skip table
+                        model = DataLoader.load_file_by_type(file_path, fmt)
+                        import io
+                        stream = io.StringIO()
+                        model.summary(print_fn=lambda x: stream.write(x + '\n'))
+                        summary_str = stream.getvalue()
+                        popup = tk.Toplevel(self.root)
+                        popup.title("Keras Model Summary")
+                        text = tk.Text(popup, wrap='word')
+                        text.insert('1.0', summary_str)
+                        text.pack(fill='both', expand=True)
+                        return
+                    df = DataLoader.load_file_by_type(file_path, fmt)
+                    self.data_tree.delete(*self.data_tree.get_children())
+                    cols = list(df.columns)
+                    self.data_tree['columns'] = cols
+                    self.data_tree['show'] = 'headings'
+                    for col in cols:
+                        self.data_tree.heading(col, text=col)
+                        self.data_tree.column(col, width=100, stretch=True, anchor='center')
+                    for _, row in df.iterrows():
+                        self.data_tree.insert('', 'end', values=tuple(row))
+                    for col in cols:
+                        self.data_tree.column(col, width=tkFont.Font().measure(col) + 20)
+                    if not hasattr(self, 'yscroll'):
+                        self.yscroll = ttk.Scrollbar(self.data_tree.master, orient='vertical', command=self.data_tree.yview)
+                        self.data_tree.configure(yscrollcommand=self.yscroll.set)
+                        self.yscroll.pack(side='right', fill='y')
+                    print("\n=== Data Table Screenshot ===")
+                    print(df.head(10).to_string(index=False))
+                    print("============================\n")
+                    return
+                except Exception as e:
+                    logging.exception(f"Refresh data failed for selected file: {str(e)}")
+                    print(f"Refresh data failed for selected file: {str(e)}")
+                    messagebox.showerror("Error", f"Refresh data failed for selected file: {str(e)}")
+                    return
+            # Otherwise, fall back to showing tickers_data from DuckDB
             for item in self.data_tree.get_children():
                 self.data_tree.delete(item)
             data = self.connector.read_shared_data('tickers_data', 'pandas')
-            # Always show 9 columns if present
             screenshot_cols = ['ticker', 'timestamp', 'open', 'high', 'low', 'close', 'vol', 'openint', 'format']
             screenshot_cols = [col for col in screenshot_cols if col in data.columns]
             self.data_tree['columns'] = screenshot_cols
             self.data_tree['show'] = 'headings'
-            # Add vertical scrollbar and enable column resizing
             for col in screenshot_cols:
                 self.data_tree.heading(col, text=col)
                 self.data_tree.column(col, width=100, stretch=True, anchor='center')
             for _, row in data.iterrows():
                 self.data_tree.insert('', 'end', values=tuple(row[col] for col in screenshot_cols))
-            # Auto-size columns to fit content
             for col in screenshot_cols:
                 self.data_tree.column(col, width=tkFont.Font().measure(col) + 20)
-            # Add vertical scrollbar if not already present
             if not hasattr(self, 'yscroll'):
                 self.yscroll = ttk.Scrollbar(self.data_tree.master, orient='vertical', command=self.data_tree.yview)
                 self.data_tree.configure(yscrollcommand=self.yscroll.set)
                 self.yscroll.pack(side='right', fill='y')
-            # Print a screenshot-like output to the terminal
             print("\n=== Data Table Screenshot ===")
             print(data[screenshot_cols].head(10).to_string(index=False))
             print("============================\n")
@@ -554,25 +730,15 @@ class StockAnalyzerGUI:
             return
         file_path = self.input_listbox.get(selection[0])
         print("Previewing file:", file_path)
+        # Remove [type] if present
+        file_path = file_path.split(' [')[0]
         ext = os.path.splitext(file_path)[1].lower()
+        fmt = DataLoader.EXT_TO_FORMAT.get(ext, None)
         try:
-            if ext == '.csv':
-                df = pd.read_csv(file_path)
-            elif ext == '.json':
-                df = pd.read_json(file_path)
-            elif ext == '.txt':
-                df = pd.read_csv(file_path, delimiter='\t')
-                if df.shape[1] == 1:
-                    df = pd.read_csv(file_path, delimiter=',')
-                df = self.loader._standardize_txt_columns(df)
-            elif ext == '.feather':
-                df = pd.read_feather(file_path)
-            elif ext == '.parquet':
-                df = pd.read_parquet(file_path)
-            elif ext == '.h5':
+            if fmt == 'keras':
                 # For Keras, show model summary as text
                 try:
-                    model = tf.keras.models.load_model(file_path)
+                    model = DataLoader.load_file_by_type(file_path, fmt)
                     import io
                     stream = io.StringIO()
                     model.summary(print_fn=lambda x: stream.write(x + '\n'))
@@ -586,23 +752,7 @@ class StockAnalyzerGUI:
                 except Exception as e:
                     messagebox.showerror("Error", f"Failed to load Keras model: {str(e)}")
                     return
-            elif ext == '.duckdb':
-                # List tables and preview the first one
-                try:
-                    conn = duckdb.connect(file_path)
-                    tables = conn.execute("SHOW TABLES").fetchall()
-                    if not tables:
-                        messagebox.showerror("Error", "No tables found in DuckDB file")
-                        return
-                    table_name = tables[0][0]
-                    df = conn.execute(f"SELECT * FROM {table_name} LIMIT 100").fetchdf()
-                    conn.close()
-                except Exception as e:
-                    messagebox.showerror("Error", f"Failed to preview DuckDB file: {str(e)}")
-                    return
-            else:
-                messagebox.showerror("Error", "Unsupported file type")
-                return
+            df = DataLoader.load_file_by_type(file_path, fmt)
             print("DF columns:", df.columns)
             print(df.head())
             self.show_dataframe_popup(df)
@@ -617,49 +767,22 @@ class StockAnalyzerGUI:
             messagebox.showerror("Error", "No file selected")
             return
         file_path = self.input_listbox.get(selection[0])
-        input_format = self.input_format.get()
+        file_path = file_path.split(' [')[0]
         ext = os.path.splitext(file_path)[1].lower()
-        print(f"Preprocessing file: {file_path} as format: {input_format}")
+        input_format = self.input_format.get()
+        fmt = DataLoader.EXT_TO_FORMAT.get(ext, input_format)
+        print(f"Preprocessing file: {file_path} as format: {fmt}")
         try:
-            # Load the file in the selected format
-            if input_format == 'csv' or ext == '.csv':
-                df = pd.read_csv(file_path)
-            elif input_format == 'json' or ext == '.json':
-                df = pd.read_json(file_path)
-            elif input_format == 'txt' or ext == '.txt':
-                df = pd.read_csv(file_path, delimiter='\t')
-                if df.shape[1] == 1:
-                    df = pd.read_csv(file_path, delimiter=',')
-                df = self.loader._standardize_txt_columns(df)
-            elif input_format == 'feather' or ext == '.feather':
-                df = pd.read_feather(file_path)
-            elif input_format == 'parquet' or ext == '.parquet':
-                df = pd.read_parquet(file_path)
-            elif input_format == 'h5' or ext == '.h5':
+            if fmt == 'keras':
                 try:
-                    model = tf.keras.models.load_model(file_path)
+                    model = DataLoader.load_file_by_type(file_path, fmt)
                     summary = f"Model inputs: {model.inputs}\nModel outputs: {model.outputs}"
                     messagebox.showinfo("Preprocess Result", summary)
                     return
                 except Exception as e:
                     messagebox.showerror("Error", f"Failed to load Keras model: {str(e)}")
                     return
-            elif input_format == 'duckdb' or ext == '.duckdb':
-                try:
-                    conn = duckdb.connect(file_path)
-                    tables = conn.execute("SHOW TABLES").fetchall()
-                    if not tables:
-                        messagebox.showerror("Error", "No tables found in DuckDB file")
-                        return
-                    table_name = tables[0][0]
-                    df = conn.execute(f"SELECT * FROM {table_name} LIMIT 100").fetchdf()
-                    conn.close()
-                except Exception as e:
-                    messagebox.showerror("Error", f"Failed to preprocess DuckDB file: {str(e)}")
-                    return
-            else:
-                messagebox.showerror("Error", "Unsupported file type for preprocessing")
-                return
+            df = DataLoader.load_file_by_type(file_path, fmt)
 
             # ML Preprocessing: Normalize numeric columns
             numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
@@ -675,38 +798,26 @@ class StockAnalyzerGUI:
             save_format = save_format.lower().strip()
             # Prompt for filename
             base_name = os.path.splitext(os.path.basename(file_path))[0]
+            save_path = None
             if save_format == 'json':
                 save_path = filedialog.asksaveasfilename(defaultextension='.json', initialfile=base_name+'_preprocessed.json', filetypes=[('JSON Files', '*.json')], initialdir='data')
-                if not save_path:
-                    return
-                df.to_json(save_path, orient='records', lines=True)
-            elif save_format == 'keras':
-                # Save as a dummy Keras model with the same shape as the data, using Input layer to avoid warning
-                save_path = filedialog.asksaveasfilename(defaultextension='.h5', initialfile=base_name+'_preprocessed.h5', filetypes=[('Keras Model', '*.h5')], initialdir='data')
-                if not save_path:
-                    return
-                from tensorflow.keras import Sequential, Input
-                from tensorflow.keras.layers import Dense
-                model = Sequential([
-                    Input(shape=(len(df.columns),)),
-                    Dense(32, activation='relu'),
-                    Dense(1)
-                ])
-                model.save(save_path)
-            elif save_format == 'tensorflow':
-                # Save as a numpy npz file (simple TF dataset serialization)
-                save_path = filedialog.asksaveasfilename(defaultextension='.npz', initialfile=base_name+'_preprocessed.npz', filetypes=[('NumPy Zip', '*.npz')], initialdir='data')
-                if not save_path:
-                    return
-                np.savez(save_path, data=df.to_numpy())
             elif save_format == 'feather':
                 save_path = filedialog.asksaveasfilename(defaultextension='.feather', initialfile=base_name+'_preprocessed.feather', filetypes=[('Feather Files', '*.feather')], initialdir='data')
-                if not save_path:
-                    return
-                df.reset_index(drop=True).to_feather(save_path)
-            else:
-                messagebox.showerror("Error", f"Unsupported save format: {save_format}")
+            elif save_format == 'keras':
+                save_path = filedialog.asksaveasfilename(defaultextension='.h5', initialfile=base_name+'_preprocessed.h5', filetypes=[('Keras Model', '*.h5')], initialdir='data')
+            elif save_format == 'tensorflow':
+                save_path = filedialog.asksaveasfilename(defaultextension='.npz', initialfile=base_name+'_preprocessed.npz', filetypes=[('NumPy Zip', '*.npz')], initialdir='data')
+            elif save_format == 'parquet':
+                save_path = filedialog.asksaveasfilename(defaultextension='.parquet', initialfile=base_name+'_preprocessed.parquet', filetypes=[('Parquet Files', '*.parquet')], initialdir='data')
+            elif save_format == 'csv':
+                save_path = filedialog.asksaveasfilename(defaultextension='.csv', initialfile=base_name+'_preprocessed.csv', filetypes=[('CSV Files', '*.csv')], initialdir='data')
+            elif save_format == 'txt':
+                save_path = filedialog.asksaveasfilename(defaultextension='.txt', initialfile=base_name+'_preprocessed.txt', filetypes=[('TXT Files', '*.txt')], initialdir='data')
+            elif save_format == 'duckdb':
+                save_path = filedialog.asksaveasfilename(defaultextension='.duckdb', initialfile=base_name+'_preprocessed.duckdb', filetypes=[('DuckDB Files', '*.duckdb')], initialdir='data')
+            if not save_path:
                 return
+            DataLoader.save_file_by_type(df, save_path, save_format)
 
             # Refresh file list
             self.refresh_file_list()
@@ -714,83 +825,6 @@ class StockAnalyzerGUI:
         except Exception as e:
             logging.exception(f"Failed to preprocess file: {file_path}")
             messagebox.showerror("Error", f"Failed to preprocess file: {str(e)}")
-
-    def batch_convert_files(self):
-        files = self.input_listbox.get(0, tk.END)
-        input_format = self.input_format.get()
-        output_format = self.output_format.get()
-        if not files or not input_format or not output_format:
-            messagebox.showerror("Error", "Select files and formats for batch conversion")
-            return
-        # Disable button to prevent re-entry
-        self.root.config(cursor="watch")
-        self.progress_var.set(0)
-        self.progress_bar.pack(fill='x', padx=10, pady=5)
-        self.progress_bar.update()
-        def worker():
-            success_count = 0
-            fail_count = 0
-            total = len(files)
-            def update_progress(val):
-                self.progress_var.set(val)
-                self.progress_bar.update()
-            for idx, path in enumerate(files):
-                try:
-                    # Load
-                    data = self.loader.load_data([path], input_format)[0]
-                    # Convert
-                    converted = self.loader.convert_format(data, input_format, output_format)
-                    # Save
-                    base_name = os.path.splitext(os.path.basename(path))[0]
-                    ext_map = {
-                        'csv': '.csv', 'txt': '.txt', 'json': '.json', 'duckdb': '.duckdb',
-                        'pyarrow': '.parquet', 'polars': '.parquet', 'keras': '.h5', 'feather': '.feather'
-                    }
-                    out_ext = ext_map.get(output_format, '.' + output_format)
-                    out_path = os.path.join('data', base_name + '_converted' + out_ext)
-                    if output_format == 'csv':
-                        converted.to_csv(out_path, index=False)
-                    elif output_format == 'txt':
-                        converted.to_csv(out_path, sep='\t', index=False)
-                    elif output_format == 'json':
-                        converted.to_json(out_path, orient='records', lines=True)
-                    elif output_format == 'feather':
-                        converted.reset_index(drop=True).to_feather(out_path)
-                    elif output_format == 'parquet' or output_format == 'pyarrow' or output_format == 'polars':
-                        converted.to_parquet(out_path)
-                    elif output_format == 'keras':
-                        from tensorflow.keras import Sequential, Input
-                        from tensorflow.keras.layers import Dense
-                        model = Sequential([
-                            Input(shape=(len(converted.columns),)),
-                            Dense(32, activation='relu'),
-                            Dense(1)
-                        ])
-                        model.save(out_path)
-                    elif output_format == 'duckdb':
-                        import duckdb
-                        conn = duckdb.connect(out_path)
-                        conn.execute("CREATE TABLE IF NOT EXISTS tickers_data AS SELECT * FROM temp_df")
-                        conn.register('temp_df', converted)
-                        conn.execute("INSERT INTO tickers_data SELECT * FROM temp_df")
-                        conn.unregister('temp_df')
-                        conn.close()
-                    else:
-                        fail_count += 1
-                        continue
-                    success_count += 1
-                except Exception as e:
-                    logging.exception(f"Batch convert failed for {path}: {str(e)}")
-                    fail_count += 1
-                # Update progress
-                progress = ((idx + 1) / total) * 100
-                self.root.after(0, update_progress, progress)
-            # Refresh file list in main thread
-            self.root.after(0, self.refresh_file_list)
-            self.root.after(0, lambda: messagebox.showinfo("Batch Convert", f"Batch conversion complete. Success: {success_count}, Failed: {fail_count}"))
-            self.root.after(0, lambda: self.root.config(cursor=""))
-            self.root.after(0, self.progress_bar.pack_forget)
-        threading.Thread(target=worker, daemon=True).start()
 
 def run(task: str = 'gui'):
     loader = DataLoader()

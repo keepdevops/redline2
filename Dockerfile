@@ -23,6 +23,7 @@ RUN python3 -m pip install \
     pyarrow \
     polars \
     tensorflow \
+    scikit-learn \
     --break-system-packages
 
 # Set working directory
