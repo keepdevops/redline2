@@ -450,9 +450,10 @@ class StockAnalyzerGUI:
         self.notebook.add(view_frame, text='Data View')
         # Add file listbox and view button
         ttk.Label(view_frame, text="Available Data Files:").pack()
-        self.file_listbox = tk.Listbox(view_frame, width=60)
+        self.file_listbox = tk.Listbox(view_frame, width=60, selectmode='extended')
         self.file_listbox.pack()
         ttk.Button(view_frame, text="View File", command=self.view_selected_file).pack()
+        ttk.Button(view_frame, text="Remove File", command=self.remove_selected_file).pack()
         self.refresh_file_list()
         # Add a horizontal scrollbar for the data_tree
         tree_frame = ttk.Frame(view_frame)
@@ -553,34 +554,8 @@ class StockAnalyzerGUI:
             if not save_path:
                 self.progress_bar.pack_forget()
                 return
-            # If file exists, append to it and deduplicate
-            if os.path.exists(save_path):
-                try:
-                    existing_df = DataLoader.load_file_by_type(save_path, output_format)
-                    # Only append if columns match
-                    if set(existing_df.columns) == set(converted.columns):
-                        combined = pd.concat([existing_df, converted], ignore_index=True)
-                        before_dedup2 = len(combined)
-                        combined = combined.drop_duplicates()
-                        after_dedup2 = len(combined)
-                        dropped_dupes2 = before_dedup2 - after_dedup2
-                        # Ask user if they want to drop rows with missing values
-                        dropna2 = messagebox.askyesno("Data Cleaning", f"{dropped_dupes2} duplicate rows removed after appending to existing file.\nDo you want to drop rows with missing values?")
-                        if dropna2:
-                            before_dropna2 = len(combined)
-                            combined = combined.dropna()
-                            after_dropna2 = len(combined)
-                            dropped_na2 = before_dropna2 - after_dropna2
-                            messagebox.showinfo("Data Cleaning", f"{dropped_na2} rows with missing values dropped after append.")
-                        DataLoader.save_file_by_type(combined, save_path, output_format)
-                    else:
-                        messagebox.showerror("Error", "Existing file columns do not match new data. Not appending.")
-                        return
-                except Exception as e:
-                    messagebox.showerror("Error", f"Failed to append to existing file: {str(e)}")
-                    return
-            else:
-                DataLoader.save_file_by_type(converted, save_path, output_format)
+            # Always overwrite the file (no append)
+            DataLoader.save_file_by_type(converted, save_path, output_format)
             self.refresh_file_list()
             self.progress_bar.pack_forget()
             print("Success: Files merged/consolidated, cleaned, and saved as one file")
@@ -852,6 +827,34 @@ class StockAnalyzerGUI:
         except Exception as e:
             logging.exception(f"Failed to preprocess file: {file_path}")
             messagebox.showerror("Error", f"Failed to preprocess file: {str(e)}")
+
+    def remove_selected_file(self):
+        selection = self.file_listbox.curselection()
+        if not selection:
+            messagebox.showerror("Error", "No file(s) selected to remove")
+            return
+        import os
+        removed = 0
+        failed = 0
+        for idx in selection:
+            file_entry = self.file_listbox.get(idx)
+            file_path = file_entry.split(' [')[0]
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    removed += 1
+                else:
+                    failed += 1
+            except Exception as e:
+                logging.exception(f"Failed to remove file: {file_path}")
+                failed += 1
+        self.refresh_file_list()
+        # Clear the data view table
+        self.data_tree.delete(*self.data_tree.get_children())
+        message = f"Removed {removed} file(s)."
+        if failed:
+            message += f" Failed to remove {failed} file(s)."
+        messagebox.showinfo("File Removal", message)
 
 def run(task: str = 'gui'):
     loader = DataLoader()
