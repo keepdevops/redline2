@@ -1,10 +1,10 @@
 
 
-echo "RUN=================="
-echo "RUN=================="
-echo "RUN=================="
-echo "RUN=================="
-echo "RUN=================="
+echo "RUN====ARM-OSX=============="
+echo "RUN====ARM-OSX=============="
+echo "RUN====ARM-OSX=============="
+echo "RUN====ARM-OSX=============="
+echo "RUN====ARM-OSX=============="
 
 
 
