@@ -15,6 +15,8 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from typing import Union, List, Dict
 import argparse
+import os
+import traceback
 
 # Configure logging
 logging.basicConfig(filename='redline.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -35,34 +37,56 @@ class DataLoader:
                 raise ValueError(f"Invalid data in {path} for format {format}")
             try:
                 if format == 'csv':
-                    data.append(pd.read_csv(path))
+                    df = pd.read_csv(path)
+                elif format == 'txt':
+                    df = pd.read_csv(path, delimiter='\t')
+                    if df.shape[1] == 1:
+                        df = pd.read_csv(path, delimiter=',')
+                    df = self._standardize_txt_columns(df)
+                    print(f'Loaded DataFrame shape: {df.shape}')
                 elif format == 'json':
-                    data.append(pd.read_json(path))
+                    df = pd.read_json(path)
                 elif format == 'duckdb':
                     conn = duckdb.connect(path)
-                    data.append(conn.execute("SELECT * FROM tickers_data").fetchdf())
+                    df = conn.execute("SELECT * FROM tickers_data").fetchdf()
                     conn.close()
                 elif format == 'pyarrow':
-                    data.append(pa.parquet.read_table(path))
+                    df = pa.parquet.read_table(path)
                 elif format == 'polars':
-                    data.append(pl.read_parquet(path))
+                    df = pl.read_parquet(path)
                 elif format == 'keras':
-                    data.append(tf.keras.models.load_model(path))
+                    df = tf.keras.models.load_model(path)
+                else:
+                    df = None
+                if format in ['csv', 'txt', 'json', 'duckdb']:
+                    data.append(df)
+                else:
+                    data.append(df)
                 logging.info(f"Loaded {path} as {format}")
             except Exception as e:
                 logging.error(f"Failed to load {path}: {str(e)}")
+                print(f"Failed to load {path}: {str(e)}")
                 raise
         return data
 
     def validate_data(self, file_path: str, format: str) -> bool:
         try:
-            if format in ['csv', 'json']:
-                df = pd.read_csv(file_path) if format == 'csv' else pd.read_json(file_path)
+            if format in ['csv', 'json', 'txt']:
+                if format == 'csv':
+                    df = pd.read_csv(file_path)
+                elif format == 'txt':
+                    df = pd.read_csv(file_path, delimiter='\t')
+                    if df.shape[1] == 1:
+                        df = pd.read_csv(file_path, delimiter=',')
+                    df = self._standardize_txt_columns(df)
+                else:
+                    df = pd.read_json(file_path)
                 required = ['ticker', 'timestamp', 'close']
                 return all(col in df.columns for col in required)
             return True  # Simplified for other formats
         except Exception as e:
             logging.error(f"Validation failed for {file_path}: {str(e)}")
+            print(f"Validation failed for {file_path}: {str(e)}")
             return False
 
     def convert_format(self, data: Union[pd.DataFrame, pl.DataFrame, pa.Table], from_format: str, to_format: str) -> Union[pd.DataFrame, pl.DataFrame, pa.Table, dict]:
@@ -94,25 +118,41 @@ class DataLoader:
 
     def save_to_shared(self, table: str, data: Union[pd.DataFrame, pl.DataFrame, pa.Table], format: str) -> None:
         try:
-            conn = duckdb.connect(self.db_path)
+            # Convert to pandas DataFrame if needed
             if isinstance(data, pl.DataFrame):
                 data = data.to_pandas()
             elif isinstance(data, pa.Table):
                 data = data.to_pandas()
-            conn.execute(f"CREATE TABLE IF NOT EXISTS {table} (ticker VARCHAR, table_name VARCHAR, fields VARCHAR[], data_path VARCHAR, timestamp DATETIME, env_name VARCHAR, env_status VARCHAR, row_count INTEGER, format VARCHAR)")
             data['format'] = format
-            data.to_sql(table, create_engine(f'duckdb:///{self.db_path}'), if_exists='append', index=False)
+            # Create table if not exists and insert data using DuckDB native
+            conn = duckdb.connect(self.db_path)
+            # Create table if not exists
+            create_table_sql = f"""
+            CREATE TABLE IF NOT EXISTS {table} (
+                ticker VARCHAR, table_name VARCHAR, fields VARCHAR[], data_path VARCHAR,
+                timestamp VARCHAR, env_name VARCHAR, env_status VARCHAR, row_count INTEGER, format VARCHAR
+            )
+            """
+            conn.execute(create_table_sql)
+            # Insert data
+            conn.register('temp_df', data)
+            insert_sql = f"INSERT INTO {table} SELECT * FROM temp_df"
+            conn.execute(insert_sql)
+            conn.unregister('temp_df')
             conn.close()
             logging.info(f"Saved data to {table} in format {format}")
         except Exception as e:
             logging.error(f"Failed to save to {table}: {str(e)}")
+            print(f"Failed to save to {table}: {str(e)}")
             raise
 
     def _standardize_txt_columns(self, df):
-        # Accept both <TICKER> and TICKER, <CLOSE> and CLOSE, etc.
+        print('Original columns:', list(df.columns))
+        # Remove BOM and strip whitespace from column names
+        df.columns = [c.lstrip('\ufeff').strip() for c in df.columns]
         col_map = {}
         for c in df.columns:
-            cl = c.strip('<>').upper()
+            cl = c.strip('<>').strip().upper()
             if cl == 'TICKER':
                 col_map[c] = 'ticker'
             elif cl == 'DATE':
@@ -132,6 +172,7 @@ class DataLoader:
             elif cl == 'OPENINT':
                 col_map[c] = 'openint'
         df = df.rename(columns=col_map)
+        print('Mapped columns:', list(df.columns))
         # Combine date and time into timestamp if present
         if 'date' in df.columns and 'time' in df.columns:
             df['timestamp'] = df['date'].astype(str) + ' ' + df['time'].astype(str)
@@ -147,8 +188,8 @@ class DatabaseConnector:
     def __init__(self, db_path: str = '/app/redline_data.duckdb'):
         self.db_path = db_path
 
-    def create_connection(self, db_path: str) -> sqlalchemy.engine.Engine:
-        return create_engine(f'duckdb:///{db_path}')
+    def create_connection(self, db_path: str):
+        return duckdb.connect(db_path)
 
     def read_shared_data(self, table: str, format: str) -> Union[pd.DataFrame, pl.DataFrame, pa.Table]:
         try:
@@ -162,21 +203,35 @@ class DatabaseConnector:
             return df
         except Exception as e:
             logging.error(f"Failed to read from {table}: {str(e)}")
+            print(f"Failed to read from {table}: {str(e)}")
             raise
 
     def write_shared_data(self, table: str, data: Union[pd.DataFrame, pl.DataFrame, pa.Table], format: str) -> None:
         try:
-            conn = duckdb.connect(self.db_path)
             if isinstance(data, pl.DataFrame):
                 data = data.to_pandas()
             elif isinstance(data, pa.Table):
                 data = data.to_pandas()
             data['format'] = format
-            data.to_sql(table, create_engine(f'duckdb:///{self.db_path}'), if_exists='append', index=False)
+            conn = duckdb.connect(self.db_path)
+            # Create table if not exists
+            create_table_sql = f"""
+            CREATE TABLE IF NOT EXISTS {table} (
+                ticker VARCHAR, table_name VARCHAR, fields VARCHAR[], data_path VARCHAR,
+                timestamp VARCHAR, env_name VARCHAR, env_status VARCHAR, row_count INTEGER, format VARCHAR
+            )
+            """
+            conn.execute(create_table_sql)
+            # Insert data
+            conn.register('temp_df', data)
+            insert_sql = f"INSERT INTO {table} SELECT * FROM temp_df"
+            conn.execute(insert_sql)
+            conn.unregister('temp_df')
             conn.close()
             logging.info(f"Wrote data to {table} in format {format}")
         except Exception as e:
             logging.error(f"Failed to write to {table}: {str(e)}")
+            print(f"Failed to write to {table}: {str(e)}")
             raise
 
 class DataAdapter:
@@ -217,6 +272,7 @@ class StockAnalyzerGUI:
         self.root.title("REDLINE Stock Analyzer")
         self.loader = loader
         self.connector = connector
+        self.adapter = DataAdapter()
         self.notebook = ttk.Notebook(self.root)
         self.notebook.pack(fill='both', expand=True)
         self.setup_tabs()
@@ -228,11 +284,13 @@ class StockAnalyzerGUI:
         ttk.Label(loader_frame, text="Select Input Files:").pack()
         self.input_listbox = tk.Listbox(loader_frame, selectmode='multiple', width=50)
         self.input_listbox.pack()
+        ttk.Button(loader_frame, text="Preview File", command=self.preview_selected_loader_file).pack()
+        ttk.Button(loader_frame, text="Preprocess File", command=self.preprocess_selected_loader_file).pack()
         ttk.Label(loader_frame, text="Input Format").pack()
         self.input_format = ttk.Combobox(loader_frame, values=['csv', 'txt', 'json', 'duckdb', 'pyarrow', 'polars', 'keras'])
         self.input_format.pack()
         ttk.Label(loader_frame, text="Output Format").pack()
-        self.output_format = ttk.Combobox(loader_frame, values=['csv', 'json', 'duckdb', 'pyarrow', 'polars', 'keras'])
+        self.output_format = ttk.Combobox(loader_frame, values=['csv', 'txt', 'json', 'duckdb', 'pyarrow', 'polars', 'keras'])
         self.output_format.pack()
         ttk.Button(loader_frame, text="Browse Files", command=self.browse_files).pack()
         ttk.Button(loader_frame, text="Load and Convert", command=self.load_and_convert).pack()
@@ -240,6 +298,13 @@ class StockAnalyzerGUI:
         # Data View Tab
         view_frame = ttk.Frame(self.notebook)
         self.notebook.add(view_frame, text='Data View')
+        # Add file listbox and view button
+        ttk.Label(view_frame, text="Available Data Files:").pack()
+        self.file_listbox = tk.Listbox(view_frame, width=60)
+        self.file_listbox.pack()
+        ttk.Button(view_frame, text="View File", command=self.view_selected_file).pack()
+        self.refresh_file_list()
+        # Existing data tree and refresh button
         self.data_tree = ttk.Treeview(view_frame, columns=['Ticker', 'Date', 'Close', 'Format'], show='headings')
         self.data_tree.heading('Ticker', text='Ticker')
         self.data_tree.heading('Date', text='Date')
@@ -268,15 +333,75 @@ class StockAnalyzerGUI:
             input_format = self.input_format.get()
             output_format = self.output_format.get()
             if not files or not input_format or not output_format:
+                print("Error: Select files and formats")
                 messagebox.showerror("Error", "Select files and formats")
                 return
             data = self.loader.load_data(list(files), input_format)
+            if not data:
+                print("Error: No data loaded from file(s). Check file format and contents.")
+                messagebox.showerror("Error", "No data loaded from file(s). Check file format and contents.")
+                return
             converted = self.loader.convert_format(data, input_format, output_format)
+            if isinstance(converted, list) and not converted:
+                print("Error: Conversion returned no data.")
+                messagebox.showerror("Error", "Conversion returned no data.")
+                return
             self.loader.save_to_shared('tickers_data', converted[0] if isinstance(converted, list) else converted, output_format)
+            print("Success: Data loaded and converted")
             messagebox.showinfo("Success", "Data loaded and converted")
         except Exception as e:
             logging.error(f"Load and convert failed: {str(e)}")
+            print(f"Load and convert failed: {str(e)}")
             messagebox.showerror("Error", f"Load and convert failed: {str(e)}")
+
+    def refresh_file_list(self):
+        # List txt, csv, json files in the data directory
+        self.file_listbox.delete(0, tk.END)
+        data_dir = 'data'  # preferred data directory
+        if os.path.isdir(data_dir):
+            for fname in os.listdir(data_dir):
+                if fname.endswith(('.txt', '.csv', '.json')):
+                    self.file_listbox.insert(tk.END, os.path.join(data_dir, fname))
+
+    def view_selected_file(self):
+        selection = self.file_listbox.curselection()
+        if not selection:
+            messagebox.showerror("Error", "No file selected")
+            return
+        file_path = self.file_listbox.get(selection[0])
+        print("Viewing file:", file_path)
+        ext = os.path.splitext(file_path)[1].lower()
+        try:
+            if ext == '.csv':
+                df = pd.read_csv(file_path)
+            elif ext == '.json':
+                df = pd.read_json(file_path)
+            elif ext == '.txt':
+                df = pd.read_csv(file_path, delimiter='\t')
+                if df.shape[1] == 1:
+                    df = pd.read_csv(file_path, delimiter=',')
+                df = self.loader._standardize_txt_columns(df)
+            else:
+                messagebox.showerror("Error", "Unsupported file type")
+                return
+            print("DF columns:", df.columns)
+            print(df.head())
+            self.show_dataframe_popup(df)
+        except Exception as e:
+            print("Failed to read file:", file_path)
+            traceback.print_exc()
+            messagebox.showerror("Error", f"Failed to read file: {str(e)}")
+
+    def show_dataframe_popup(self, df):
+        popup = tk.Toplevel(self.root)
+        popup.title("File Contents")
+        tree = ttk.Treeview(popup, columns=list(df.columns), show='headings')
+        for col in df.columns:
+            tree.heading(col, text=col)
+            tree.column(col, width=100)
+        for _, row in df.iterrows():
+            tree.insert('', 'end', values=list(row))
+        tree.pack(fill='both', expand=True)
 
     def refresh_data(self):
         try:
@@ -287,7 +412,69 @@ class StockAnalyzerGUI:
                 self.data_tree.insert('', 'end', values=(row['ticker'], row['timestamp'], row['close'], row['format']))
         except Exception as e:
             logging.error(f"Refresh data failed: {str(e)}")
+            print(f"Refresh data failed: {str(e)}")
             messagebox.showerror("Error", f"Refresh data failed: {str(e)}")
+
+    def preview_selected_loader_file(self):
+        selection = self.input_listbox.curselection()
+        if not selection:
+            messagebox.showerror("Error", "No file selected")
+            return
+        file_path = self.input_listbox.get(selection[0])
+        print("Previewing file:", file_path)
+        ext = os.path.splitext(file_path)[1].lower()
+        try:
+            if ext == '.csv':
+                df = pd.read_csv(file_path)
+            elif ext == '.json':
+                df = pd.read_json(file_path)
+            elif ext == '.txt':
+                df = pd.read_csv(file_path, delimiter='\t')
+                if df.shape[1] == 1:
+                    df = pd.read_csv(file_path, delimiter=',')
+                df = self.loader._standardize_txt_columns(df)
+            else:
+                messagebox.showerror("Error", "Unsupported file type")
+                return
+            print("DF columns:", df.columns)
+            print(df.head())
+            self.show_dataframe_popup(df)
+        except Exception as e:
+            print("Failed to read file:", file_path)
+            traceback.print_exc()
+            messagebox.showerror("Error", f"Failed to read file: {str(e)}")
+
+    def preprocess_selected_loader_file(self):
+        selection = self.input_listbox.curselection()
+        if not selection:
+            messagebox.showerror("Error", "No file selected")
+            return
+        file_path = self.input_listbox.get(selection[0])
+        input_format = self.input_format.get()
+        ext = os.path.splitext(file_path)[1].lower()
+        print(f"Preprocessing file: {file_path} as format: {input_format}")
+        try:
+            # Load the file in the selected format
+            if input_format == 'csv' or ext == '.csv':
+                df = pd.read_csv(file_path)
+            elif input_format == 'json' or ext == '.json':
+                df = pd.read_json(file_path)
+            elif input_format == 'txt' or ext == '.txt':
+                df = pd.read_csv(file_path, delimiter='\t')
+                if df.shape[1] == 1:
+                    df = pd.read_csv(file_path, delimiter=',')
+                df = self.loader._standardize_txt_columns(df)
+            else:
+                messagebox.showerror("Error", "Unsupported file type for preprocessing")
+                return
+            # Preprocess
+            preprocessed = self.adapter.prepare_training_data([df], 'numpy')  # or 'tensorflow', etc.
+            summary = self.adapter.summarize_preprocessed(preprocessed, 'numpy')
+            print(f"Preprocess summary: {summary}")
+            messagebox.showinfo("Preprocess Result", f"Format: {summary['format']}, Size: {summary['size']}")
+        except Exception as e:
+            traceback.print_exc()
+            messagebox.showerror("Error", f"Failed to preprocess file: {str(e)}")
 
 def run(task: str = 'gui'):
     loader = DataLoader()
