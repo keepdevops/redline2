@@ -229,7 +229,7 @@ class StockAnalyzerGUI:
         self.input_listbox = tk.Listbox(loader_frame, selectmode='multiple', width=50)
         self.input_listbox.pack()
         ttk.Label(loader_frame, text="Input Format").pack()
-        self.input_format = ttk.Combobox(loader_frame, values=['csv', 'json', 'duckdb', 'pyarrow', 'polars', 'keras'])
+        self.input_format = ttk.Combobox(loader_frame, values=['csv', 'txt', 'json', 'duckdb', 'pyarrow', 'polars', 'keras'])
         self.input_format.pack()
         ttk.Label(loader_frame, text="Output Format").pack()
         self.output_format = ttk.Combobox(loader_frame, values=['csv', 'json', 'duckdb', 'pyarrow', 'polars', 'keras'])
