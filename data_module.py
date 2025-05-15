@@ -37,6 +37,17 @@ class DataLoader:
         '.feather': 'feather',
         '.h5': 'keras'
     }
+    # Centralized mapping for file dialog info: format -> (extension, description, pattern)
+    FORMAT_DIALOG_INFO = {
+        'csv':     ('.csv',     'CSV Files', '*.csv'),
+        'txt':     ('.txt',     'TXT Files', '*.txt'),
+        'json':    ('.json',    'JSON Files', '*.json'),
+        'duckdb':  ('.duckdb',  'DuckDB Files', '*.duckdb'),
+        'parquet': ('.parquet', 'Parquet Files', '*.parquet'),
+        'feather': ('.feather', 'Feather Files', '*.feather'),
+        'keras':   ('.h5',      'Keras Model', '*.h5'),
+        'tensorflow': ('.npz',  'NumPy Zip', '*.npz')
+    }
 
     @staticmethod
     def clean_and_select_columns(data: pd.DataFrame) -> pd.DataFrame:
@@ -466,15 +477,8 @@ class StockAnalyzerGUI:
         ttk.Button(view_frame, text="Refresh Data", command=self.refresh_data).pack()
 
     def browse_files(self):
-        filetypes = [
-            ('CSV Files', '*.csv'),
-            ('TXT Files', '*.txt'),
-            ('JSON Files', '*.json'),
-            ('DuckDB Files', '*.duckdb'),
-            ('Parquet Files', '*.parquet'),
-            ('Feather Files', '*.feather'),
-            ('Keras Models', '*.h5')
-        ]
+        # Use centralized mapping for filetypes
+        filetypes = [(desc, pattern) for (_, desc, pattern) in DataLoader.FORMAT_DIALOG_INFO.values()]
         files = filedialog.askopenfilenames(filetypes=filetypes)
         self.input_listbox.delete(0, tk.END)
         detected_types = []
@@ -492,89 +496,101 @@ class StockAnalyzerGUI:
                 self.input_format.set(most_common)
 
     def load_and_convert(self):
-        try:
-            entries = self.input_listbox.get(0, tk.END)
-            input_format = self.input_format.get()
-            output_format = self.output_format.get()
-            if not entries or not input_format or not output_format:
-                print("Error: Select files and formats")
-                messagebox.showerror("Error", "Select files and formats")
-                return
-            # Load all selected files and concatenate them
-            dfs = []
-            total = len(entries)
-            self.progress_var.set(0)
-            self.progress_bar.pack(fill='x', padx=10, pady=5)
-            self.progress_bar.update()
-            for idx, entry in enumerate(entries):
-                path = entry.split(' [')[0]
-                try:
-                    df = DataLoader.load_file_by_type(path, input_format)
-                    if df is not None and hasattr(df, 'columns') and len(df.columns) > 0:
-                        dfs.append(df)
-                    else:
-                        print(f"Skipped file (empty or no columns): {path}")
-                except Exception as e:
-                    print(f"Skipped file (load error): {path} ({e})")
-                # Update progress
-                progress = ((idx + 1) / total) * 100
-                self.progress_var.set(progress)
-                self.progress_bar.update()
-            if not dfs:
-                print("Error: No valid data loaded from file(s). Check file format and contents.")
-                messagebox.showerror("Error", "No valid data loaded from file(s). Check file format and contents.")
-                self.progress_bar.pack_forget()
-                return
-            import pandas as pd
-            if len(dfs) > 1:
-                data = pd.concat(dfs, ignore_index=True)
-            else:
-                data = dfs[0]
+        def worker():
+            try:
+                entries = self.input_listbox.get(0, tk.END)
+                input_format = self.input_format.get()
+                output_format = self.output_format.get()
+                if not entries or not input_format or not output_format:
+                    print("Error: Select files and formats")
+                    self.run_in_main_thread(messagebox.showerror, "Error", "Select files and formats")
+                    return
+                # Load all selected files and concatenate them
+                dfs = []
+                total = len(entries)
+                self.run_in_main_thread(self.progress_var.set, 0)
+                self.run_in_main_thread(self.progress_bar.pack, {'fill':'x', 'padx':10, 'pady':5})
+                self.run_in_main_thread(self.progress_bar.update)
+                for idx, entry in enumerate(entries):
+                    path = entry.split(' [')[0]
+                    try:
+                        df = DataLoader.load_file_by_type(path, input_format)
+                        if df is not None and hasattr(df, 'columns') and len(df.columns) > 0:
+                            dfs.append(df)
+                        else:
+                            print(f"Skipped file (empty or no columns): {path}")
+                    except Exception as e:
+                        print(f"Skipped file (load error): {path} ({e})")
+                    # Update progress
+                    progress = ((idx + 1) / total) * 100
+                    self.run_in_main_thread(self.progress_var.set, progress)
+                    self.run_in_main_thread(self.progress_bar.update)
+                if not dfs:
+                    print("Error: No valid data loaded from file(s). Check file format and contents.")
+                    self.run_in_main_thread(messagebox.showerror, "Error", "No valid data loaded from file(s). Check file format and contents.")
+                    self.run_in_main_thread(self.progress_bar.pack_forget)
+                    return
+                import pandas as pd
+                if len(dfs) > 1:
+                    data = pd.concat(dfs, ignore_index=True)
+                else:
+                    data = dfs[0]
 
-            # Data cleaning: deduplicate
-            before_dedup = len(data)
-            data = data.drop_duplicates()
-            after_dedup = len(data)
-            dropped_dupes = before_dedup - after_dedup
+                # Data cleaning: deduplicate
+                before_dedup = len(data)
+                data = data.drop_duplicates()
+                after_dedup = len(data)
+                dropped_dupes = before_dedup - after_dedup
 
-            # Ask user if they want to drop rows with missing values
-            dropna = messagebox.askyesno("Data Cleaning", f"{dropped_dupes} duplicate rows removed.\nDo you want to drop rows with missing values?")
-            if dropna:
-                before_dropna = len(data)
-                data = data.dropna()
-                after_dropna = len(data)
-                dropped_na = before_dropna - after_dropna
-                messagebox.showinfo("Data Cleaning", f"{dropped_na} rows with missing values dropped.")
+                # Now schedule the rest (dialogs and saving) in the main thread
+                self.run_in_main_thread(self.data_cleaning_and_save, data, input_format, output_format, dropped_dupes)
+            except Exception as e:
+                logging.error(f"Merge/Consolidate failed: {str(e)}")
+                print(f"Merge/Consolidate failed: {str(e)}")
+                self.run_in_main_thread(messagebox.showerror, "Error", f"Merge/Consolidate failed: {str(e)}")
+        threading.Thread(target=worker, daemon=True).start()
 
-            converted = self.loader.convert_format(data, input_format, output_format)
-            # Save as a single output file
-            from tkinter import filedialog
-            out_ext = '.' + output_format if not output_format.startswith('.') else output_format
-            save_path = filedialog.asksaveasfilename(defaultextension=out_ext, filetypes=[(output_format.upper() + ' Files', '*' + out_ext)], initialdir='data')
-            if not save_path:
-                self.progress_bar.pack_forget()
-                return
-            # Always overwrite the file (no append)
-            DataLoader.save_file_by_type(converted, save_path, output_format)
-            self.refresh_file_list()
+    def data_cleaning_and_save(self, data, input_format, output_format, dropped_dupes):
+        # This runs in the main thread
+        dropna = messagebox.askyesno("Data Cleaning", f"{dropped_dupes} duplicate rows removed.\nDo you want to drop rows with missing values?")
+        if dropna:
+            before_dropna = len(data)
+            data = data.dropna()
+            after_dropna = len(data)
+            dropped_na = before_dropna - after_dropna
+            messagebox.showinfo("Data Cleaning", f"{dropped_na} rows with missing values dropped.")
+        # Save as a single output file
+        from tkinter import filedialog
+        base_name = "merged_data"
+        dialog_info = DataLoader.FORMAT_DIALOG_INFO.get(output_format, ('.dat', 'All Files', '*.*'))
+        out_ext, desc, pattern = dialog_info
+        save_path = filedialog.asksaveasfilename(
+            defaultextension=out_ext,
+            filetypes=[(desc, pattern)],
+            initialdir='data',
+            initialfile=base_name + out_ext
+        )
+        if not save_path:
             self.progress_bar.pack_forget()
-            print("Success: Files merged/consolidated, cleaned, and saved as one file")
-            messagebox.showinfo("Success", "Files merged/consolidated, cleaned, and saved as one file")
+            return
+        # Always overwrite the file (no append)
+        converted = self.loader.convert_format(data, input_format, output_format)
+        DataLoader.save_file_by_type(converted, save_path, output_format)
+        self.refresh_file_list()
+        self.progress_bar.pack_forget()
+        print("Success: Files merged/consolidated, cleaned, and saved as one file")
+        messagebox.showinfo("Success", "Files merged/consolidated, cleaned, and saved as one file")
 
-            # Automatically select and preview the new file in Data View
-            for idx in range(self.file_listbox.size()):
-                entry = self.file_listbox.get(idx)
-                if save_path in entry:
-                    self.file_listbox.selection_clear(0, tk.END)
-                    self.file_listbox.selection_set(idx)
-                    self.file_listbox.see(idx)
-                    self.view_selected_file()
-                    self.refresh_data()
-                    break
-        except Exception as e:
-            logging.error(f"Merge/Consolidate failed: {str(e)}")
-            print(f"Merge/Consolidate failed: {str(e)}")
-            messagebox.showerror("Error", f"Merge/Consolidate failed: {str(e)}")
+        # Automatically select and preview the new file in Data View
+        for idx in range(self.file_listbox.size()):
+            entry = self.file_listbox.get(idx)
+            if save_path in entry:
+                self.file_listbox.selection_clear(0, tk.END)
+                self.file_listbox.selection_set(idx)
+                self.file_listbox.see(idx)
+                self.view_selected_file()
+                self.refresh_data()
+                break
 
     def refresh_file_list(self):
         # Recursively list all supported files in the data directory and subdirectories
@@ -616,10 +632,10 @@ class StockAnalyzerGUI:
                             text = tk.Text(popup, wrap='word')
                             text.insert('1.0', summary_str)
                             text.pack(fill='both', expand=True)
-                        self.root.after(0, show_keras)
+                        self.run_in_main_thread(show_keras)
                         return
                     except Exception as e:
-                        self.root.after(0, lambda: messagebox.showerror("Error", f"Failed to load Keras model: {str(e)}"))
+                        self.run_in_main_thread(lambda: messagebox.showerror("Error", f"Failed to load Keras model: {str(e)}"))
                         return
                 df = DataLoader.load_file_by_type(file_path, fmt)
                 print("DF columns:", df.columns)
@@ -637,11 +653,11 @@ class StockAnalyzerGUI:
                         if i >= max_rows:
                             break
                         self.data_tree.insert('', 'end', values=tuple(row))
-                self.root.after(0, update_table)
+                self.run_in_main_thread(update_table)
             except Exception as e:
                 print("Failed to read file:", file_path)
                 logging.exception(f"Failed to preview file: {file_path}")
-                self.root.after(0, lambda: messagebox.showerror("Error", f"Failed to read file: {str(e)}"))
+                self.run_in_main_thread(lambda: messagebox.showerror("Error", f"Failed to read file: {str(e)}"))
         threading.Thread(target=worker, daemon=True).start()
 
     def show_dataframe_popup(self, df):
@@ -806,22 +822,15 @@ class StockAnalyzerGUI:
             # Prompt for filename
             base_name = os.path.splitext(os.path.basename(file_path))[0]
             save_path = None
-            if save_format == 'json':
-                save_path = filedialog.asksaveasfilename(defaultextension='.json', initialfile=base_name+'_preprocessed.json', filetypes=[('JSON Files', '*.json')], initialdir='data')
-            elif save_format == 'feather':
-                save_path = filedialog.asksaveasfilename(defaultextension='.feather', initialfile=base_name+'_preprocessed.feather', filetypes=[('Feather Files', '*.feather')], initialdir='data')
-            elif save_format == 'keras':
-                save_path = filedialog.asksaveasfilename(defaultextension='.h5', initialfile=base_name+'_preprocessed.h5', filetypes=[('Keras Model', '*.h5')], initialdir='data')
-            elif save_format == 'tensorflow':
-                save_path = filedialog.asksaveasfilename(defaultextension='.npz', initialfile=base_name+'_preprocessed.npz', filetypes=[('NumPy Zip', '*.npz')], initialdir='data')
-            elif save_format == 'parquet':
-                save_path = filedialog.asksaveasfilename(defaultextension='.parquet', initialfile=base_name+'_preprocessed.parquet', filetypes=[('Parquet Files', '*.parquet')], initialdir='data')
-            elif save_format == 'csv':
-                save_path = filedialog.asksaveasfilename(defaultextension='.csv', initialfile=base_name+'_preprocessed.csv', filetypes=[('CSV Files', '*.csv')], initialdir='data')
-            elif save_format == 'txt':
-                save_path = filedialog.asksaveasfilename(defaultextension='.txt', initialfile=base_name+'_preprocessed.txt', filetypes=[('TXT Files', '*.txt')], initialdir='data')
-            elif save_format == 'duckdb':
-                save_path = filedialog.asksaveasfilename(defaultextension='.duckdb', initialfile=base_name+'_preprocessed.duckdb', filetypes=[('DuckDB Files', '*.duckdb')], initialdir='data')
+            # Use centralized mapping for extension and filetype
+            dialog_info = DataLoader.FORMAT_DIALOG_INFO.get(save_format, ('.dat', 'All Files', '*.*'))
+            out_ext, desc, pattern = dialog_info
+            save_path = filedialog.asksaveasfilename(
+                defaultextension=out_ext,
+                initialfile=base_name+'_preprocessed'+out_ext,
+                filetypes=[(desc, pattern)],
+                initialdir='data'
+            )
             if not save_path:
                 return
             DataLoader.save_file_by_type(df, save_path, save_format)
@@ -834,32 +843,38 @@ class StockAnalyzerGUI:
             messagebox.showerror("Error", f"Failed to preprocess file: {str(e)}")
 
     def remove_selected_file(self):
-        selection = self.file_listbox.curselection()
-        if not selection:
-            messagebox.showerror("Error", "No file(s) selected to remove")
-            return
-        import os
-        removed = 0
-        failed = 0
-        for idx in reversed(selection):
-            file_entry = self.file_listbox.get(idx)
-            file_path = file_entry.split(' [')[0]
-            try:
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-                    removed += 1
-                else:
+        def worker():
+            selection = self.file_listbox.curselection()
+            if not selection:
+                self.run_in_main_thread(messagebox.showerror, "Error", "No file(s) selected to remove")
+                return
+            import os
+            removed = 0
+            failed = 0
+            for idx in reversed(selection):
+                file_entry = self.file_listbox.get(idx)
+                file_path = file_entry.split(' [')[0]
+                try:
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                        removed += 1
+                    else:
+                        failed += 1
+                except Exception as e:
+                    logging.exception(f"Failed to remove file: {file_path}")
                     failed += 1
-            except Exception as e:
-                logging.exception(f"Failed to remove file: {file_path}")
-                failed += 1
-        self.refresh_file_list()
-        # Clear the data view table
-        self.data_tree.delete(*self.data_tree.get_children())
-        message = f"Removed {removed} file(s)."
-        if failed:
-            message += f" Failed to remove {failed} file(s)."
-        messagebox.showinfo("File Removal", message)
+            def update_gui():
+                self.refresh_file_list()
+                self.data_tree.delete(*self.data_tree.get_children())
+                message = f"Removed {removed} file(s)."
+                if failed:
+                    message += f" Failed to remove {failed} file(s)."
+                messagebox.showinfo("File Removal", message)
+            self.run_in_main_thread(update_gui)
+        threading.Thread(target=worker, daemon=True).start()
+
+    def run_in_main_thread(self, func, *args, **kwargs):
+        self.root.after(0, lambda: func(*args, **kwargs))
 
 def run(task: str = 'gui'):
     loader = DataLoader()
