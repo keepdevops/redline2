@@ -601,43 +601,48 @@ class StockAnalyzerGUI:
         file_path = file_path.split(' [')[0]
         ext = os.path.splitext(file_path)[1].lower()
         fmt = DataLoader.EXT_TO_FORMAT.get(ext, None)
-        try:
-            if fmt == 'keras':
-                try:
-                    model = DataLoader.load_file_by_type(file_path, fmt)
-                    import io
-                    stream = io.StringIO()
-                    model.summary(print_fn=lambda x: stream.write(x + '\n'))
-                    summary_str = stream.getvalue()
-                    popup = tk.Toplevel(self.root)
-                    popup.title("Keras Model Summary")
-                    text = tk.Text(popup, wrap='word')
-                    text.insert('1.0', summary_str)
-                    text.pack(fill='both', expand=True)
-                    return
-                except Exception as e:
-                    messagebox.showerror("Error", f"Failed to load Keras model: {str(e)}")
-                    return
-            df = DataLoader.load_file_by_type(file_path, fmt)
-            print("DF columns:", df.columns)
-            print(df.head())
-            # Dynamically update the Data View table to show this file's data
-            self.data_tree.delete(*self.data_tree.get_children())
-            # Set columns and headings
-            cols = list(df.columns)
-            self.data_tree['columns'] = cols
-            self.data_tree['show'] = 'headings'
-            for col in cols:
-                self.data_tree.heading(col, text=col)
-                self.data_tree.column(col, width=100, stretch=True, anchor='center')
-            for _, row in df.iterrows():
-                self.data_tree.insert('', 'end', values=tuple(row))
-            # Optionally, show a popup as well
-            # self.show_dataframe_popup(df)
-        except Exception as e:
-            print("Failed to read file:", file_path)
-            logging.exception(f"Failed to preview file: {file_path}")
-            messagebox.showerror("Error", f"Failed to read file: {str(e)}")
+        def worker():
+            try:
+                if fmt == 'keras':
+                    try:
+                        model = DataLoader.load_file_by_type(file_path, fmt)
+                        import io
+                        stream = io.StringIO()
+                        model.summary(print_fn=lambda x: stream.write(x + '\n'))
+                        summary_str = stream.getvalue()
+                        def show_keras():
+                            popup = tk.Toplevel(self.root)
+                            popup.title("Keras Model Summary")
+                            text = tk.Text(popup, wrap='word')
+                            text.insert('1.0', summary_str)
+                            text.pack(fill='both', expand=True)
+                        self.root.after(0, show_keras)
+                        return
+                    except Exception as e:
+                        self.root.after(0, lambda: messagebox.showerror("Error", f"Failed to load Keras model: {str(e)}"))
+                        return
+                df = DataLoader.load_file_by_type(file_path, fmt)
+                print("DF columns:", df.columns)
+                print(df.head())
+                def update_table():
+                    self.data_tree.delete(*self.data_tree.get_children())
+                    cols = list(df.columns)
+                    self.data_tree['columns'] = cols
+                    self.data_tree['show'] = 'headings'
+                    for col in cols:
+                        self.data_tree.heading(col, text=col)
+                        self.data_tree.column(col, width=100, stretch=True, anchor='center')
+                    max_rows = 1000
+                    for i, (_, row) in enumerate(df.iterrows()):
+                        if i >= max_rows:
+                            break
+                        self.data_tree.insert('', 'end', values=tuple(row))
+                self.root.after(0, update_table)
+            except Exception as e:
+                print("Failed to read file:", file_path)
+                logging.exception(f"Failed to preview file: {file_path}")
+                self.root.after(0, lambda: messagebox.showerror("Error", f"Failed to read file: {str(e)}"))
+        threading.Thread(target=worker, daemon=True).start()
 
     def show_dataframe_popup(self, df):
         popup = tk.Toplevel(self.root)
@@ -836,7 +841,7 @@ class StockAnalyzerGUI:
         import os
         removed = 0
         failed = 0
-        for idx in selection:
+        for idx in reversed(selection):
             file_entry = self.file_listbox.get(idx)
             file_path = file_entry.split(' [')[0]
             try:
