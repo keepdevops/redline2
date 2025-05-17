@@ -886,8 +886,7 @@ def run(task: str = 'gui'):
     elif task in ['load', 'convert', 'preprocess']:
         # Example for load task
         if task == 'load':
-            data = loader.load_data([f"{loader.csv_dir}/sample.csv"], 'csv')
-            loader.save_to_shared('tickers_data', data[0], 'pandas')
+            pass  # Removed loading of sample.csv
         logging.info(f"Completed task: {task}")
 
 if __name__ == "__main__":
