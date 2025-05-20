@@ -22,6 +22,7 @@ import tkinter.font as tkFont
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 import numpy as np
 import threading
+from data_user_manual import show_user_manual_popup
 
 # Configure logging
 logging.basicConfig(filename='redline.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -295,6 +296,7 @@ class DataLoader:
         import duckdb
         import numpy as np
         import tensorflow as tf
+        import polars as pl
         if filetype == 'csv':
             df.to_csv(file_path, index=False)
         elif filetype == 'txt':
@@ -322,6 +324,14 @@ class DataLoader:
             conn.close()
         elif filetype == 'tensorflow':
             np.savez(file_path, data=df.to_numpy())
+        elif filetype == 'polars':
+            # Save as .parquet using polars
+            if not isinstance(df, pl.DataFrame):
+                try:
+                    df = pl.from_pandas(df)
+                except Exception:
+                    raise ValueError("Data must be convertible to polars DataFrame for 'polars' save type.")
+            df.write_parquet(file_path)
         else:
             raise ValueError(f"Unsupported save file type: {filetype}")
 
@@ -425,7 +435,7 @@ class DataAdapter:
 class StockAnalyzerGUI:
     def __init__(self, root: tk.Tk, loader: DataLoader, connector: DatabaseConnector):
         self.root = root
-        self.root.title("REDLINE Stock Analyzer")
+        self.root.title("REDLINE Data Conversion Utility")
         self.loader = loader
         self.connector = connector
         self.adapter = DataAdapter()
@@ -437,44 +447,95 @@ class StockAnalyzerGUI:
         # Data Loader Tab
         loader_frame = ttk.Frame(self.notebook)
         self.notebook.add(loader_frame, text='Data Loader')
-        ttk.Label(loader_frame, text="Select Input Files:").pack()
-        self.input_listbox = tk.Listbox(loader_frame, selectmode='multiple', width=50)
-        self.input_listbox.pack()
-        ttk.Button(loader_frame, text="Preview File", command=self.preview_selected_loader_file).pack()
-        ttk.Button(loader_frame, text="Preprocess File", command=self.preprocess_selected_loader_file).pack()
-        ttk.Label(loader_frame, text="Input Format").pack()
-        self.input_format = ttk.Combobox(loader_frame, values=['csv', 'txt', 'json', 'duckdb', 'pyarrow', 'polars', 'keras', 'feather'])
-        self.input_format.pack()
-        ttk.Label(loader_frame, text="Output Format").pack()
-        self.output_format = ttk.Combobox(loader_frame, values=['csv', 'txt', 'json', 'duckdb', 'pyarrow', 'polars', 'keras', 'feather'])
-        self.output_format.pack()
-        ttk.Button(loader_frame, text="Browse Files", command=self.browse_files).pack()
-        ttk.Button(loader_frame, text="Merge/Consolidate Files", command=self.load_and_convert).pack()
-        # Progress bar for batch conversion
+
+        # File selection group
+        file_group = ttk.LabelFrame(loader_frame, text="Select Input Files")
+        file_group.grid(row=0, column=0, padx=10, pady=10, sticky='nsew')
+        self.input_listbox = tk.Listbox(file_group, selectmode='multiple', width=40, height=8)
+        self.input_listbox.grid(row=0, column=0, padx=5, pady=5, sticky='nsew')
+        ttk.Button(file_group, text="Browse Files", command=self.browse_files).grid(row=1, column=0, padx=5, pady=5, sticky='ew')
+
+        # Format selection group
+        format_group = ttk.LabelFrame(loader_frame, text="Format Selection")
+        format_group.grid(row=0, column=1, padx=10, pady=10, sticky='nsew')
+        ttk.Label(format_group, text="Input Format:").grid(row=0, column=0, sticky='w')
+        self.input_format = ttk.Combobox(format_group, values=['csv', 'txt', 'json', 'duckdb', 'pyarrow', 'polars', 'keras', 'feather'])
+        self.input_format.grid(row=1, column=0, sticky='ew', padx=5, pady=2)
+        ttk.Label(format_group, text="Output Format:").grid(row=2, column=0, sticky='w')
+        self.output_format = ttk.Combobox(format_group, values=['csv', 'txt', 'json', 'duckdb', 'pyarrow', 'polars', 'keras', 'feather'])
+        self.output_format.grid(row=3, column=0, sticky='ew', padx=5, pady=2)
+
+        # Action buttons
+        action_frame = ttk.Frame(loader_frame)
+        action_frame.grid(row=1, column=0, columnspan=2, pady=10, sticky='ew')
+        ttk.Button(action_frame, text="Preview File", command=self.preview_selected_loader_file).grid(row=0, column=0, padx=5)
+        ttk.Button(action_frame, text="Preprocess File", command=self.preprocess_selected_loader_file).grid(row=0, column=1, padx=5)
+        ttk.Button(action_frame, text="Merge/Consolidate Files", command=self.load_and_convert).grid(row=0, column=2, padx=5)
+        loader_help_btn = ttk.Button(action_frame, text='?', width=2, command=self.show_loader_manual)
+        loader_help_btn.grid(row=0, column=3, padx=5)
+        # User Manual button now grouped with other buttons
+        loader_manual_btn = ttk.Button(action_frame, text='User Manual', command=lambda: show_user_manual_popup(self.root))
+        loader_manual_btn.grid(row=0, column=4, padx=5)
+
+        # Progress bar
         self.progress_var = tk.DoubleVar()
         self.progress_bar = ttk.Progressbar(loader_frame, variable=self.progress_var, maximum=100)
-        self.progress_bar.pack(fill='x', padx=10, pady=5)
-        self.progress_bar.pack_forget()  # Hide initially
+        self.progress_bar.grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky='ew')
+        self.progress_bar.grid_remove()  # Hide initially
+
+        # Configure grid weights for responsiveness
+        loader_frame.grid_columnconfigure(0, weight=1)
+        loader_frame.grid_columnconfigure(1, weight=1)
+        loader_frame.grid_rowconfigure(0, weight=1)
+        file_group.grid_rowconfigure(0, weight=1)
+        file_group.grid_columnconfigure(0, weight=1)
+        format_group.grid_columnconfigure(0, weight=1)
 
         # Data View Tab
         view_frame = ttk.Frame(self.notebook)
         self.notebook.add(view_frame, text='Data View')
-        # Add file listbox and view button
-        ttk.Label(view_frame, text="Available Data Files:").pack()
-        self.file_listbox = tk.Listbox(view_frame, width=60, selectmode='extended')
-        self.file_listbox.pack()
-        ttk.Button(view_frame, text="View File", command=self.view_selected_file).pack()
-        ttk.Button(view_frame, text="Remove File", command=self.remove_selected_file).pack()
-        self.refresh_file_list()
-        # Add a horizontal scrollbar for the data_tree
-        tree_frame = ttk.Frame(view_frame)
-        tree_frame.pack(fill='both', expand=True)
+
+        # Left: File list and action buttons
+        left_frame = ttk.Frame(view_frame)
+        left_frame.grid(row=0, column=0, padx=10, pady=10, sticky='ns')
+        ttk.Label(left_frame, text="Available Data Files:").grid(row=0, column=0, sticky='w')
+        self.file_listbox = tk.Listbox(left_frame, width=40, selectmode='extended', height=12)
+        self.file_listbox.grid(row=1, column=0, sticky='nsew', pady=5)
+        btn_frame = ttk.Frame(left_frame)
+        btn_frame.grid(row=2, column=0, pady=5, sticky='ew')
+        ttk.Button(btn_frame, text="View File", command=self.view_selected_file).grid(row=0, column=0, padx=2)
+        ttk.Button(btn_frame, text="Remove File", command=self.remove_selected_file).grid(row=0, column=1, padx=2)
+        ttk.Button(btn_frame, text="Refresh Data", command=self.refresh_data).grid(row=0, column=2, padx=2)
+        view_help_btn = ttk.Button(btn_frame, text='?', width=2, command=self.show_view_manual)
+        view_help_btn.grid(row=0, column=3, padx=2)
+        # User Manual button now grouped with other buttons
+        view_manual_btn = ttk.Button(btn_frame, text='User Manual', command=lambda: show_user_manual_popup(self.root))
+        view_manual_btn.grid(row=0, column=4, padx=2)
+
+        # Right: Data table with scrollbars
+        right_frame = ttk.Frame(view_frame)
+        right_frame.grid(row=0, column=1, padx=10, pady=10, sticky='nsew')
+        tree_frame = ttk.Frame(right_frame)
+        tree_frame.grid(row=0, column=0, sticky='nsew')
         xscroll = ttk.Scrollbar(tree_frame, orient='horizontal')
-        self.data_tree = ttk.Treeview(tree_frame, columns=['Ticker', 'Date', 'Close', 'Format'], show='headings', xscrollcommand=xscroll.set)
+        yscroll = ttk.Scrollbar(tree_frame, orient='vertical')
+        self.data_tree = ttk.Treeview(tree_frame, columns=['Ticker', 'Date', 'Close', 'Format'], show='headings', xscrollcommand=xscroll.set, yscrollcommand=yscroll.set)
         xscroll.config(command=self.data_tree.xview)
-        xscroll.pack(side='bottom', fill='x')
-        self.data_tree.pack(fill='both', expand=True)
-        ttk.Button(view_frame, text="Refresh Data", command=self.refresh_data).pack()
+        yscroll.config(command=self.data_tree.yview)
+        self.data_tree.grid(row=0, column=0, sticky='nsew')
+        xscroll.grid(row=1, column=0, sticky='ew')
+        yscroll.grid(row=0, column=1, sticky='ns')
+        tree_frame.grid_rowconfigure(0, weight=1)
+        tree_frame.grid_columnconfigure(0, weight=1)
+        right_frame.grid_rowconfigure(0, weight=1)
+        right_frame.grid_columnconfigure(0, weight=1)
+
+        # Configure main view_frame grid
+        view_frame.grid_rowconfigure(0, weight=1)
+        view_frame.grid_columnconfigure(0, weight=0)
+        view_frame.grid_columnconfigure(1, weight=1)
+
+        self.refresh_file_list()
 
     def browse_files(self):
         # Use centralized mapping for filetypes
@@ -669,7 +730,13 @@ class StockAnalyzerGUI:
             tree.column(col, width=100)
         for _, row in df.iterrows():
             tree.insert('', 'end', values=list(row))
-        tree.pack(fill='both', expand=True)
+        tree.grid(row=0, column=0, sticky='nsew')
+        # Add vertical scrollbar
+        yscroll = ttk.Scrollbar(popup, orient='vertical', command=tree.yview)
+        tree.configure(yscrollcommand=yscroll.set)
+        yscroll.grid(row=0, column=1, sticky='ns')
+        popup.grid_rowconfigure(0, weight=1)
+        popup.grid_columnconfigure(0, weight=1)
 
     def refresh_data(self):
         try:
@@ -875,6 +942,57 @@ class StockAnalyzerGUI:
 
     def run_in_main_thread(self, func, *args, **kwargs):
         self.root.after(0, lambda: func(*args, **kwargs))
+
+    def show_loader_manual(self):
+        guide = (
+            """
+DATA LOADER TAB - USER MANUAL\n\n"
+            "1. Browse Files: Click to select one or more data files (CSV, TXT, JSON, DuckDB, etc.). Selected files appear in the list.\n\n"
+            "2. Preview File: Select a file from the list and click to view its contents before processing.\n\n"
+            "3. Preprocess File: Select a file and click to apply normalization and save in a new format (JSON, Keras, TensorFlow, etc.).\n\n"
+            "4. Input/Output Format: Choose the input format (matches your files) and desired output format for conversion.\n\n"
+            "5. Merge/Consolidate Files: Click to merge all selected files into one, clean duplicates/missing values, and save as a single file in your chosen format.\n\n"
+            "6. Progress Bar: Shows progress during batch operations.\n\n"
+            "Tip: Use Preview to check file structure before processing.\n"
+            """
+        )
+        popup = tk.Toplevel(self.root)
+        popup.title("Data Loader Manual")
+        popup.geometry("500x400")
+        text = tk.Text(popup, wrap='word')
+        text.insert('1.0', guide)
+        text.config(state='disabled')
+        text.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
+        scrollbar = ttk.Scrollbar(popup, command=text.yview)
+        text['yscrollcommand'] = scrollbar.set
+        scrollbar.grid(row=0, column=1, sticky='ns')
+        popup.grid_rowconfigure(0, weight=1)
+        popup.grid_columnconfigure(0, weight=1)
+
+    def show_view_manual(self):
+        guide = (
+            """
+DATA VIEW TAB - USER MANUAL\n\n"
+            "1. Available Data Files: Lists all supported data files in the data directory.\n\n"
+            "2. View File: Select a file and click to display its data in the table.\n\n"
+            "3. Remove File: Select one or more files and click to delete them from disk.\n\n"
+            "4. Refresh Data: Click to update the file list and data table.\n\n"
+            "5. Data Table: Shows the contents of the selected file (up to 1000 rows). Use scrollbars to navigate.\n\n"
+            "Tip: Use Refresh after adding or removing files to update the view.\n"
+            """
+        )
+        popup = tk.Toplevel(self.root)
+        popup.title("Data View Manual")
+        popup.geometry("500x400")
+        text = tk.Text(popup, wrap='word')
+        text.insert('1.0', guide)
+        text.config(state='disabled')
+        text.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
+        scrollbar = ttk.Scrollbar(popup, command=text.yview)
+        text['yscrollcommand'] = scrollbar.set
+        scrollbar.grid(row=0, column=1, sticky='ns')
+        popup.grid_rowconfigure(0, weight=1)
+        popup.grid_columnconfigure(0, weight=1)
 
 def run(task: str = 'gui'):
     loader = DataLoader()

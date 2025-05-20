@@ -1,5 +1,5 @@
 Software Design Document: REDLINE
-Project: REDLINEVersion: 10.3Date: May 14, 2025Author: Bret KuhneUpdated by: Grok (xAI)
+Project: REDLINEVersion: 10.3Date: May 14, 2025Author: Bret KuhneUpdated by: Bret Kuhne
 1. Introduction
 1.1 Purpose
 This SDD defines the architecture and implementation of the REDLINE module, a standalone application for loading, storing, preprocessing, and converting stock market data with a Tkinter GUI. It is designed to run in a Docker or Podman container based on Ubuntu 24.04 LTS, ensuring cross-platform compatibility without requiring external environments like Conda.
@@ -98,7 +98,7 @@ Displays GUI errors via tkinter.messagebox.
 
 2.3 GUI Design
 
-Name: StockAnalyzerGUI
+Name: Redline Conversion Utility
 Framework: Tkinter (via python3-tk in container)
 Components:
 Notebook (ttk.Notebook):

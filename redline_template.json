@@ -4,7 +4,7 @@
     "version": "10.3",
     "date": "2025-05-14",
     "author": "Bret Kuhne",
-    "updated_by": "Grok (xAI)"
+    "updated_by": "(Bret Kuhne)"
   },
   "introduction": {
     "purpose": "Defines the architecture and implementation of the REDLINE module, a standalone application for loading, storing, preprocessing, and converting stock market data with a Tkinter GUI. It runs in a Docker or Podman container based on Ubuntu 24.04 LTS, ensuring cross-platform compatibility without external environments like Conda.",
@@ -85,7 +85,7 @@
       }
     },
     "gui_design": {
-      "name": "StockAnalyzerGUI",
+      "name": "Redline Conversion Utility",
       "framework": "Tkinter (via python3-tk in container)",
       "components": {
         "notebook": {
@@ -397,6 +397,155 @@
     "podman": {
       "build": "podman build -t redline .",
       "run": "podman run --rm -v $(pwd)/data:/app/data:Z -v $(pwd)/redline_data.duckdb:/app/redline_data.duckdb:Z redline"
+    }
+  },
+  "version": "2.0",
+  "description": "Redline Conversion Utility - Modular Workflow Template",
+  "workflow": {
+    "input_files": [
+      {
+        "path": "data/input1.csv",
+        "format": "csv"
+      },
+      {
+        "path": "data/input2.json",
+        "format": "json"
+      }
+    ],
+    "output": {
+      "path": "data/output/merged.parquet",
+      "format": "parquet"
+    },
+    "file_format_module": {
+      "supported_formats": ["csv", "txt", "json", "duckdb", "parquet", "feather", "tfrecord", "hdf5", "npy", "pickle", "arrow", "libsvm", "coco", "yolo"]
+    },
+    "schema_module": {
+      "infer_schema": true,
+      "validate_schema": true,
+      "custom_schema": {
+        "columns": [
+          {"name": "ticker", "type": "string"},
+          {"name": "timestamp", "type": "string"},
+          {"name": "open", "type": "float"},
+          {"name": "high", "type": "float"},
+          {"name": "low", "type": "float"},
+          {"name": "close", "type": "float"},
+          {"name": "vol", "type": "float"},
+          {"name": "openint", "type": "float"},
+          {"name": "format", "type": "string"}
+        ]
+      }
+    },
+    "preprocessing_pipeline": [
+      {"step": "impute_missing", "strategy": "mean"},
+      {"step": "scale", "method": "minmax", "columns": ["open", "high", "low", "close", "vol", "openint"]},
+      {"step": "encode_categorical", "columns": ["ticker"]},
+      {"step": "feature_engineering", "operations": ["moving_average", "volatility"]}
+    ],
+    "ml_ai_integration": {
+      "export_format": "tfrecord",
+      "framework": "tensorflow",
+      "validate_model_io": true,
+      "model_path": "models/my_model.h5"
+    },
+    "batch_automation": {
+      "enabled": true,
+      "watch_folder": "data/incoming/",
+      "schedule": "0 2 * * *",  // daily at 2am
+      "on_new_file": "run_workflow"
+    },
+    "visualization": {
+      "show_stats": true,
+      "visualize_sample": ["histogram", "missing_heatmap"],
+      "detect_drift": {
+        "enabled": true,
+        "reference_file": "data/reference.parquet"
+      }
+    },
+    "performance": {
+      "parallel": true,
+      "backend": "dask",
+      "chunk_size": 100000
+    },
+    "documentation": {
+      "show_help": true,
+      "run_tutorial": "basic_conversion"
+    },
+    "logging": {
+      "level": "info",
+      "log_file": "redline.log"
+    }
+  },
+  "plugins": [
+    "custom_format_plugin.py",
+    "advanced_visualization_plugin.py"
+  ],
+  "flexibility_features": {
+    "plugin_system": {
+      "enabled": true,
+      "plugin_directory": "app/plugins/",
+      "plugin_api_doc": "See docs/plugins.md for how to write and register plugins."
+    },
+    "workflow_engine": {
+      "config_format": "yaml|json",
+      "conditional_logic": true,
+      "example": {
+        "if": "missing_values > 10%",
+        "then": "impute_missing",
+        "else": "drop_rows"
+      }
+    },
+    "cli_api_jupyter": {
+      "cli_enabled": true,
+      "api_enabled": true,
+      "jupyter_integration": true,
+      "api_type": "REST (FastAPI)",
+      "jupyter_widgets": true
+    },
+    "advanced_data_sources": {
+      "databases": ["postgres", "mysql", "sqlite"],
+      "cloud_storage": ["s3", "gcs", "azure_blob"],
+      "api_ingestion": ["yahoo_finance", "alpaca", "stooq"]
+    },
+    "user_profiles_presets": {
+      "profiles_enabled": true,
+      "presets": ["tensorflow_image_pipeline", "tabular_ml_clean"]
+    },
+    "validation_reporting": {
+      "schema_evolution": true,
+      "data_quality_checks": ["missing", "outliers", "duplicates", "type_mismatch"],
+      "reporting": ["html", "pdf"]
+    },
+    "interactive_dashboards": {
+      "enabled": true,
+      "frameworks": ["plotly_dash", "streamlit", "jupyter_widgets"]
+    },
+    "distributed_streaming": {
+      "distributed_backends": ["dask", "ray", "spark"],
+      "streaming_enabled": true
+    },
+    "resource_monitoring": {
+      "enabled": true,
+      "metrics": ["cpu", "memory", "progress"]
+    },
+    "centralized_error_handling": {
+      "enabled": true,
+      "retry_resume": true,
+      "error_log_file": "redline_errors.log"
+    },
+    "in_app_docs_tutorials": {
+      "contextual_help": true,
+      "tutorials": ["basic_conversion", "ml_pipeline", "custom_plugin"]
+    },
+    "security_compliance": {
+      "sandbox_plugins": true,
+      "audit_trail": true,
+      "credential_management": "secure_store"
+    },
+    "testing_ci": {
+      "test_harness": true,
+      "ci_enabled": true,
+      "ci_platform": "github_actions"
     }
   }
 }
