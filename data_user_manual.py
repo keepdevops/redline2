@@ -7,214 +7,264 @@ def show_user_manual_popup(parent):
 REDLINE DATA CONVERSION UTILITY - USER MANUAL
 
 ============================
-GENERAL OVERVIEW
+TABLE OF CONTENTS
 ============================
-REDLINE is a tool for converting, cleaning, and managing stock market and financial data. It works through a simple graphical interface, letting you load, preview, process, and save data in many formats.
+1. Introduction
+2. Getting Started
+3. Data Loader Tab
+4. Data View Tab
+5. Data Processing Features
+6. File Formats & Standards
+7. Advanced Features
+8. Troubleshooting
+9. Best Practices
 
 ============================
-KEY TERMS & DEFINITIONS
+1. INTRODUCTION
 ============================
-- **File Format:** The type of file you are working with (e.g., CSV, JSON, DuckDB, Parquet, Keras).
-- **Data Loader Tab:** Where you import, preview, preprocess, and merge your data files.
-- **Data View Tab:** Where you browse, view, and manage your data files.
-- **Preprocess:** Clean and normalize your data (e.g., scale numbers to a standard range).
-- **Merge/Consolidate:** Combine multiple files into one, removing duplicates and cleaning missing values.
-- **DuckDB:** A database format for storing large datasets efficiently.
-- **Keras/TensorFlow:** Formats for saving machine learning models.
-- **Multiple File Merge/Consolidation:** The ability to select multiple files to go through the merge and consolidation process by clicking 'Merge/Consolidate Files'. This allows you to process several files together, combining them into a single dataset and cleaning them in one step.
+REDLINE is a powerful tool for converting, cleaning, and managing financial market data. It provides a user-friendly graphical interface for:
+• Loading and viewing market data files
+• Converting between different file formats
+• Preprocessing and cleaning data
+• Analyzing data quality and statistics
+• Managing large datasets efficiently
 
 ============================
-BASIC WORKFLOW
+2. GETTING STARTED
 ============================
-1. **Go to the Data Loader Tab.**
-2. **Browse Files:** Click 'Browse Files' and select one or more data files.
-3. **Preview File:** Select a file and click 'Preview File' to check its contents.
-4. **Choose Formats:** Use the dropdowns to set the input and output formats.
-5. **Preprocess or Merge:**
-   - To clean a single file, select it and click 'Preprocess File'.
-   - To combine files, select multiple and click 'Merge/Consolidate Files'. You have the ability to select multiple files to go through the merge and consolidation process.
-6. **Save:** Choose where and how to save your processed data.
-7. **Go to the Data View Tab** to see, remove, or refresh your files.
+Key Concepts:
+• Workspace: The main window with Data Loader and Data View tabs
+• File Formats: Supported types (CSV, JSON, DuckDB, etc.)
+• Data Processing: Converting, cleaning, and analyzing data
+• Data View: Browsing and managing your data files
 
-**Tip:** Use the '?' and 'User Manual' buttons at any time for help.
-
-============================
-DATA LOADER TAB
-============================
-This tab is for importing, previewing, preprocessing, and merging data files.
-
-**Step-by-step usage:**
-1. **Browse Files:**
-   - Click 'Browse Files' to select one or more data files from your system.
-   - Supported formats: .csv, .txt, .json, .duckdb, .parquet, .feather, .h5 (Keras), .npz (TensorFlow).
-   - Selected files will appear in the list. You can select multiple files for batch operations.
-2. **Preview File:**
-   - Select a file from the list and click 'Preview File' to view its contents in a popup table.
-   - Use this to verify headers, data types, and sample values before processing.
-3. **Preprocess File:**
-   - Select a file and click 'Preprocess File' to apply normalization (MinMax scaling) to numeric columns.
-   - You will be prompted to choose a save format (e.g., json, keras, tensorflow) and a filename.
-   - The preprocessed file will be saved in the chosen format and directory.
-4. **Input/Output Format:**
-   - Use the dropdowns to specify the input format (should match your files) and the desired output format for conversion.
-   - If unsure, preview the file to check its structure.
-5. **Merge/Consolidate Files:**
-   - Select multiple files and click 'Merge/Consolidate Files' to combine them into one dataset. You have the ability to select multiple files to go through the merge and consolidation process.
-   - The tool will remove duplicate rows and prompt you to drop rows with missing values.
-   - You will be prompted to choose a save location and format for the merged file.
-6. **Progress Bar:**
-   - Shows progress during batch operations. If an error occurs, check the log or error message.
-7. **Help (?):**
-   - Click the '?' button for a quick summary of the Data Loader tab's features.
-8. **User Manual:**
-   - Click 'User Manual' for this comprehensive guide.
-
-**TIPS:**
-- Always preview files before processing to avoid format or header issues.
-- Use the correct input format to prevent loading errors.
-- After merging, the new file will be auto-selected in Data View for inspection.
-- For large files, use Parquet or Feather for better performance.
+Basic Workflow:
+1. Load data files using the Data Loader tab
+2. Preview and verify data content
+3. Process or convert data as needed
+4. View and analyze results in Data View tab
 
 ============================
-DATA VIEW TAB
+3. DATA LOADER TAB
 ============================
-This tab is for browsing, viewing, and managing your data files.
+File Selection:
+• Click 'Browse Files' to select input files
+• Use Ctrl/Cmd+Click for multiple selections
+• 'Select All' and 'Deselect All' for batch operations
+• Selected files appear in the list with their format
 
-**Step-by-step usage:**
-1. **Available Data Files:**
-   - The left panel lists all supported data files in the 'data' directory and its subdirectories.
-   - Supported extensions: .csv, .txt, .json, .duckdb, .parquet, .feather, .h5, .npz
-2. **View File:**
-   - Select a file and click 'View File' to display its contents in a scrollable table (up to 1000 rows).
-   - For Keras model files (.h5), a summary of the model architecture will be shown.
-3. **Remove File:**
-   - Select one or more files and click 'Remove File' to delete them from disk. You will be prompted for confirmation.
-   - Deleted files cannot be recovered. Use with caution.
-4. **Refresh Data:**
-   - Click 'Refresh Data' to update the file list and data table after adding or removing files.
-5. **Help (?):**
-   - Click the '?' button for a quick summary of the Data View tab's features.
-6. **User Manual:**
-   - Click 'User Manual' (top right) for this comprehensive guide.
+Format Selection:
+• Input Format: Choose format matching your files
+• Output Format: Select desired conversion format
+• Supported formats: CSV, TXT, JSON, DuckDB, Parquet, Feather, Keras, TensorFlow
 
-**TIPS:**
-- Use Refresh after adding or removing files to update the view.
-- You can view Keras model summaries directly in the GUI.
-- For large files, only the first 1000 rows are shown for performance.
+Date Range Filtering:
+• Optional: Filter data by date range
+• Format: YYYY-MM-DD
+• Leave blank to include all dates
 
-============================
-SUPPORTED FILE FORMATS
-============================
-- **CSV:** Standard comma-separated values. Must have headers. Example: ticker,timestamp,open,high,low,close,vol,openint
-- **TXT:** Tab- or comma-delimited. Must have headers: <TICKER>,<PER>,<DATE>,<TIME>,<OPEN>,<HIGH>,<LOW>,<CLOSE>,<VOL>,<OPENINT> (case-insensitive, angle brackets optional). The loader will map and standardize columns automatically.
-- **JSON:** Records/lines format preferred. Each line is a JSON object.
-- **DuckDB:** Reads from the 'tickers_data' table by default. If the file is empty or missing the table, an error will be shown.
-- **Parquet/Feather:** Efficient columnar formats for large datasets.
-- **Keras (.h5):** Model files can be loaded and summarized.
-- **TensorFlow (.npz):** Saved NumPy arrays.
-- **Polars:** Parquet format preferred for compatibility.
+Data Balancing:
+• Target Records: Set desired records per ticker
+• Minimum Records: Specify minimum required
+• Auto-values: Leave blank for automatic calculation
+  - Target = Median of available records
+  - Minimum = Half of target
 
-**File Naming and Structure:**
-- Use descriptive filenames for easy identification.
-- Ensure all required columns are present: ticker, timestamp, open, high, low, close, vol, openint.
-- The loader will attempt to fill missing columns with None, but missing critical columns may cause errors.
+Actions:
+• Preview File: View contents before processing
+• Preprocess File: Clean and normalize data
+• Merge/Consolidate: Combine multiple files
+• Progress Bar: Shows operation status
 
 ============================
-PREPROCESSING & MERGING
+4. DATA VIEW TAB
 ============================
-- **Preprocessing:**
-   - Applies MinMax normalization to all numeric columns (open, high, low, close, vol, openint).
-   - Prompts for output format and filename.
-   - Saves the preprocessed file in the selected format.
-- **Merging:**
-   - Combines multiple files into one DataFrame.
-   - Removes duplicate rows automatically.
-   - Prompts to drop rows with missing values (recommended for clean datasets).
-   - Output can be saved in any supported format.
+File Browser:
+• Lists all supported files in data directory
+• Shows file format for each entry
+• Multiple selection for batch operations
+• Hierarchical directory view
 
-**Advanced:**
-- You can merge files of different formats as long as the columns match.
-- The merged file will be auto-selected in Data View for review.
+Data Display:
+• View file contents in table format
+• Sort columns by clicking headers
+• Pagination controls for large datasets
+• Customizable rows per page
 
-============================
-DATABASE (DUCKDB)
-============================
-- **Purpose:**
-   - Store and manage large datasets efficiently.
-   - All data is saved to the 'tickers_data' table by default.
-- **Schema:**
-   - ticker (str), timestamp (str), open (float), high (float), low (float), close (float), vol (float), openint (float), format (str)
-- **Usage:**
-   - When saving to DuckDB, the table is dropped and recreated to avoid schema mismatches.
-   - If you encounter schema errors, delete the DuckDB file and re-run the operation.
-- **Tips:**
-   - Use DuckDB for large or consolidated datasets.
-   - You can open DuckDB files with external tools for advanced analysis.
+Navigation:
+• Ticker selection dropdown
+• Previous/Next ticker buttons
+• Page navigation controls
+• Jump to specific page
 
-============================
-ERROR HANDLING & TROUBLESHOOTING
-============================
-- **Common Errors:**
-   - "No data loaded from file(s)": Check file format, headers, and input format selection. Preview the file to diagnose.
-   - "Is a directory" or "No such file or directory": Ensure the DuckDB path is a file, not a directory. Check your config.
-   - "Binder Error: ... has N columns but M values were supplied": Schema mismatch; try deleting/recreating the DuckDB file.
-   - "Conversion Error: Unimplemented type for cast (DOUBLE -> VARCHAR[])": Old DuckDB schema; delete the file and retry.
-   - "Failed to load Keras model": The file may be corrupted or not a valid Keras model.
-   - For other errors, check the redline.log file for details.
-- **Diagnostics:**
-   - The application prints column dtypes and sample values before saving to DuckDB. Use these diagnostics to spot issues.
-   - All errors are logged to redline.log for further analysis.
-- **General Tips:**
-   - Always check the log file if you encounter unexpected behavior.
-   - If a file fails to load, try opening it in a text editor to check for formatting issues.
+Data Management:
+• View: Display selected file contents
+• Remove: Delete files from disk
+• Refresh: Update file list and view
+• Export: Save data in various formats
+
+Analysis Features:
+• Statistics display
+• Data quality indicators
+• Time series analysis
+• Distribution reports
 
 ============================
-ADVANCED USAGE
+5. DATA PROCESSING FEATURES
 ============================
-- **Multiple File Merge/Consolidation:** You have the ability to select multiple files to go through the merge and consolidation process by clicking 'Merge/Consolidate Files'. This allows you to process several files together, combining them into a single dataset and cleaning them in one step.
-- **DataFrame Conversion:**
-   - Convert between pandas, polars, and pyarrow DataFrames as needed.
-- **Model Files:**
-   - Keras (.h5) and TensorFlow (.npz) model files can be loaded and summarized in the GUI.
-- **Command-Line Interface:**
-   - You can run Redline from the command line with the following tasks:
-     - `gui` — Launches the graphical user interface (default)
-     - `load` — Loads data files into the DuckDB database
-     - `convert` — Converts data files between supported formats
-     - `preprocess` — Preprocesses data for machine learning or reinforcement learning
-   - **Usage Example:**
-     ```
-     python3 -m data_module --task=gui
-     python3 -m data_module --task=load
-     python3 -m data_module --task=convert
-     python3 -m data_module --task=preprocess
-     ```
-   - The `--task` argument is optional; if omitted, the GUI will launch by default.
-- **Custom Data Directories:**
-   - You can configure data directories in data_config.ini for advanced workflows.
+Preprocessing:
+• Normalization of numeric columns
+• Missing value handling
+• Date/time standardization
+• Data type conversion
+
+Merging/Consolidation:
+• Combine multiple files
+• Remove duplicates
+• Handle missing values
+• Standardize formats
+
+Data Quality Checks:
+• Timestamp continuity
+• Price anomalies
+• Volume consistency
+• Ticker validation
+
+Statistics Generation:
+• Record counts
+• Date range coverage
+• Value distributions
+• Ticker statistics
 
 ============================
-TIPS & BEST PRACTICES
+6. FILE FORMATS & STANDARDS
 ============================
-- Always back up your data before batch operations or deletions.
-- Use Preview and Data View to verify data integrity after each operation.
-- For large files, prefer Parquet or Feather formats for performance and efficiency.
-- Use the User Manual and Help buttons for guidance at any time.
-- Keep your DuckDB file in a safe location and back it up regularly.
-- If you encounter persistent issues, try resetting the application or consulting the README.
+CSV Files:
+• Headers required
+• Standard columns: ticker, timestamp, open, high, low, close, vol, openint
+• Comma-separated values
 
-For more help, see the README or contact support.
+TXT Files (Stooq Format):
+• Headers: <TICKER>,<DATE>,<TIME>,<OPEN>,<HIGH>,<LOW>,<CLOSE>,<VOL>
+• Tab or comma-delimited
+• Automatic column mapping
+
+DuckDB Files:
+• Efficient database storage
+• 'tickers_data' table structure
+• Schema: ticker, timestamp, open, high, low, close, vol, openint, format
+
+Other Formats:
+• JSON: Records/lines format
+• Parquet/Feather: Columnar storage
+• Keras (.h5): Model files
+• TensorFlow (.npz): NumPy arrays
+
+============================
+7. ADVANCED FEATURES
+============================
+Multiple File Processing:
+• Batch file selection
+• Parallel processing
+• Progress tracking
+• Error handling
+
+Data Analysis:
+• Statistical summaries
+• Time series analysis
+• Distribution reports
+• Quality metrics
+
+Custom Processing:
+• Format conversion
+• Data normalization
+• Column mapping
+• Filter application
+
+Performance Features:
+• Efficient data loading
+• Memory optimization
+• Pagination support
+• Background processing
+
+============================
+8. TROUBLESHOOTING
+============================
+Common Issues:
+• "No data loaded": Check file format and headers
+• "Directory error": Verify file paths
+• "Schema mismatch": Check column names/types
+• "Conversion error": Verify data compatibility
+
+Error Messages:
+• Check redline.log for detailed errors
+• Review console output
+• Verify file permissions
+• Validate data formats
+
+Recovery Steps:
+• Refresh file list
+• Restart application
+• Check log files
+• Verify file integrity
+
+Performance Issues:
+• Reduce page size
+• Use efficient formats
+• Close unused files
+• Clear temporary data
+
+============================
+9. BEST PRACTICES
+============================
+Data Management:
+• Regular backups
+• Consistent naming
+• Organized directory structure
+• Version control
+
+File Operations:
+• Preview before processing
+• Verify after conversion
+• Regular cleanup
+• Systematic organization
+
+Performance:
+• Use appropriate formats
+• Optimize page sizes
+• Regular maintenance
+• Monitor resource usage
+
+Security:
+• Secure file storage
+• Regular backups
+• Access control
+• Data validation
+
+For additional support or questions, please refer to the README or contact technical support.
 """
     )
     popup = tk.Toplevel(parent)
     popup.title("User Manual")
     popup.geometry("800x700")
-    text = tk.Text(popup, wrap='word')
+    
+    # Create main frame
+    main_frame = ttk.Frame(popup)
+    main_frame.pack(fill='both', expand=True, padx=10, pady=10)
+    
+    # Add text widget with scrollbar
+    text = tk.Text(main_frame, wrap='word', padx=10, pady=10)
+    scrollbar = ttk.Scrollbar(main_frame, orient='vertical', command=text.yview)
+    text.configure(yscrollcommand=scrollbar.set)
+    
+    # Pack the text and scrollbar
+    text.pack(side='left', fill='both', expand=True)
+    scrollbar.pack(side='right', fill='y')
+    
+    # Insert the guide text
     text.insert('1.0', guide)
     text.config(state='disabled')
-    text.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
-    scrollbar = ttk.Scrollbar(popup, command=text.yview)
-    text['yscrollcommand'] = scrollbar.set
-    scrollbar.grid(row=0, column=1, sticky='ns')
+    
+    # Configure grid weights
     popup.grid_rowconfigure(0, weight=1)
     popup.grid_columnconfigure(0, weight=1) 
