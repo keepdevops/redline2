@@ -335,6 +335,89 @@ class DataLoader:
         else:
             raise ValueError(f"Unsupported save file type: {filetype}")
 
+    def analyze_ticker_distribution(self, data: pd.DataFrame) -> dict:
+        """
+        Analyze the distribution of records across tickers.
+        """
+        stats = {
+            'total_records': len(data),
+            'total_tickers': data['ticker'].nunique(),
+            'records_per_ticker': data.groupby('ticker').size().to_dict(),
+            'date_ranges': data.groupby('ticker').agg({
+                'timestamp': ['min', 'max']
+            }).to_dict()
+        }
+        stats['avg_records_per_ticker'] = stats['total_records'] // stats['total_tickers']
+        return stats
+
+    def filter_data_by_date_range(self, data: pd.DataFrame, start_date: str, end_date: str) -> pd.DataFrame:
+        """
+        Filter the dataframe by date range for all tickers.
+        """
+        try:
+            data['timestamp'] = pd.to_datetime(data['timestamp'])
+            mask = (data['timestamp'] >= start_date) & (data['timestamp'] <= end_date)
+            filtered_data = data.loc[mask]
+            
+            if filtered_data.empty:
+                logging.warning(f"No data found between {start_date} and {end_date}")
+            else:
+                logging.info(f"Filtered data from {start_date} to {end_date}. Tickers: {filtered_data['ticker'].unique()}")
+                
+            return filtered_data
+        except Exception as e:
+            logging.error(f"Error filtering data by date range: {str(e)}")
+            raise
+
+    def balance_ticker_data(self, data: pd.DataFrame, target_records_per_ticker: int = None, 
+                           min_records_per_ticker: int = None) -> pd.DataFrame:
+        """
+        Balance data across tickers by sampling or limiting records.
+        """
+        try:
+            data['timestamp'] = pd.to_datetime(data['timestamp'])
+            ticker_counts = data.groupby('ticker').size()
+            
+            if target_records_per_ticker is None:
+                target_records_per_ticker = int(ticker_counts.median())
+            
+            if min_records_per_ticker is None:
+                min_records_per_ticker = target_records_per_ticker // 2
+                
+            balanced_dfs = []
+            
+            for ticker in ticker_counts.index:
+                ticker_data = data[data['ticker'] == ticker]
+                
+                if len(ticker_data) < min_records_per_ticker:
+                    logging.warning(f"Skipping ticker {ticker}: insufficient records ({len(ticker_data)} < {min_records_per_ticker})")
+                    continue
+                    
+                if len(ticker_data) > target_records_per_ticker:
+                    ticker_data = ticker_data.sort_values('timestamp')
+                    step = len(ticker_data) // target_records_per_ticker
+                    balanced_dfs.append(ticker_data.iloc[::step].head(target_records_per_ticker))
+                else:
+                    balanced_dfs.append(ticker_data)
+            
+            if not balanced_dfs:
+                raise ValueError("No tickers met the minimum record requirement")
+                
+            balanced_data = pd.concat(balanced_dfs, ignore_index=True)
+            
+            # Log statistics
+            original_stats = self.analyze_ticker_distribution(data)
+            balanced_stats = self.analyze_ticker_distribution(balanced_data)
+            
+            logging.info(f"Original data: {original_stats['total_records']} records across {original_stats['total_tickers']} tickers")
+            logging.info(f"Balanced data: {balanced_stats['total_records']} records across {balanced_stats['total_tickers']} tickers")
+            
+            return balanced_data
+            
+        except Exception as e:
+            logging.error(f"Error balancing ticker data: {str(e)}")
+            raise
+
 class DatabaseConnector:
     def __init__(self, db_path: str = '/app/redline_data.duckdb'):
         self.db_path = db_path
@@ -436,60 +519,170 @@ class StockAnalyzerGUI:
     def __init__(self, root: tk.Tk, loader: DataLoader, connector: DatabaseConnector):
         self.root = root
         self.root.title("REDLINE Data Conversion Utility")
+        
+        # Set minimum window size
+        self.root.minsize(1200, 800)  # Increased from default size
+        
+        # Configure root grid
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+        
         self.loader = loader
         self.connector = connector
         self.adapter = DataAdapter()
+        
+        # Setup notebook with grid
         self.notebook = ttk.Notebook(self.root)
-        self.notebook.pack(fill='both', expand=True)
+        self.notebook.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
+        
         self.setup_tabs()
+        self.setup_bindings()
 
     def setup_tabs(self):
         # Data Loader Tab
         loader_frame = ttk.Frame(self.notebook)
         self.notebook.add(loader_frame, text='Data Loader')
 
-        # File selection group
-        file_group = ttk.LabelFrame(loader_frame, text="Select Input Files")
-        file_group.grid(row=0, column=0, padx=10, pady=10, sticky='nsew')
-        self.input_listbox = tk.Listbox(file_group, selectmode='multiple', width=40, height=8)
-        self.input_listbox.grid(row=0, column=0, padx=5, pady=5, sticky='nsew')
-        ttk.Button(file_group, text="Browse Files", command=self.browse_files).grid(row=1, column=0, padx=5, pady=5, sticky='ew')
+        # File group section
+        file_group = ttk.LabelFrame(loader_frame, text="File Selection")
+        file_group.grid(row=0, column=0, sticky='nsew', padx=5, pady=5)
+        file_group.grid_columnconfigure(0, weight=1)
+        file_group.grid_rowconfigure(1, weight=1)  # For listbox
 
-        # Format selection group
-        format_group = ttk.LabelFrame(loader_frame, text="Format Selection")
-        format_group.grid(row=0, column=1, padx=10, pady=10, sticky='nsew')
-        ttk.Label(format_group, text="Input Format:").grid(row=0, column=0, sticky='w')
-        self.input_format = ttk.Combobox(format_group, values=['csv', 'txt', 'json', 'duckdb', 'pyarrow', 'polars', 'keras', 'feather'])
-        self.input_format.grid(row=1, column=0, sticky='ew', padx=5, pady=2)
-        ttk.Label(format_group, text="Output Format:").grid(row=2, column=0, sticky='w')
-        self.output_format = ttk.Combobox(format_group, values=['csv', 'txt', 'json', 'duckdb', 'pyarrow', 'polars', 'keras', 'feather'])
-        self.output_format.grid(row=3, column=0, sticky='ew', padx=5, pady=2)
+        # Button frame
+        button_frame = ttk.Frame(file_group)
+        button_frame.grid(row=0, column=0, sticky='ew', padx=5, pady=5)
+
+        # Buttons in button frame
+        ttk.Button(button_frame, text="Browse Files", command=self.browse_files).grid(row=0, column=0, padx=5)
+        ttk.Button(button_frame, text="Select All", command=self.select_all_files).grid(row=0, column=1, padx=5)
+        ttk.Button(button_frame, text="Deselect All", command=self.deselect_all_files).grid(row=0, column=2, padx=5)
+        ttk.Button(button_frame, text="Analyze Selected", command=self.analyze_selected_files).grid(row=0, column=3, padx=5)
+
+        # Listbox with scrollbars
+        listbox_frame = ttk.Frame(file_group)
+        listbox_frame.grid(row=1, column=0, sticky='nsew', padx=5, pady=5)
+        listbox_frame.grid_rowconfigure(0, weight=1)
+        listbox_frame.grid_columnconfigure(0, weight=1)
+
+        self.input_listbox = tk.Listbox(listbox_frame, selectmode='multiple')
+        listbox_scroll_y = ttk.Scrollbar(listbox_frame, orient='vertical', command=self.input_listbox.yview)
+        listbox_scroll_x = ttk.Scrollbar(listbox_frame, orient='horizontal', command=self.input_listbox.xview)
+
+        self.input_listbox.grid(row=0, column=0, sticky='nsew')
+        listbox_scroll_y.grid(row=0, column=1, sticky='ns')
+        listbox_scroll_x.grid(row=1, column=0, sticky='ew')
+
+        self.input_listbox.configure(yscrollcommand=listbox_scroll_y.set, xscrollcommand=listbox_scroll_x.set)
+
+        # Selection info
+        self.selection_info = ttk.Label(file_group, text="")
+        self.selection_info.grid(row=2, column=0, sticky='ew', padx=5, pady=5)
+
+        # Right side: Controls frame
+        right_side_frame = ttk.Frame(loader_frame)
+        right_side_frame.grid(row=0, column=1, rowspan=3, padx=10, pady=10, sticky='nsew')
+
+        # Format controls group
+        format_group = ttk.LabelFrame(right_side_frame, text="Format Settings")
+        format_group.grid(row=1, column=0, sticky='ew', padx=5, pady=5)
+        format_group.grid_columnconfigure(0, weight=1)
+
+        # Input format frame
+        input_format_frame = ttk.Frame(format_group)
+        input_format_frame.grid(row=0, column=0, sticky='ew', padx=5, pady=5)
+        input_format_frame.grid_columnconfigure(1, weight=1)
+
+        ttk.Label(input_format_frame, text="Input Format:").grid(row=0, column=0, sticky='w')
+        self.input_format = ttk.Combobox(input_format_frame, values=['csv', 'json', 'duckdb', 'parquet', 'feather', 'keras'])
+        self.input_format.grid(row=0, column=1, sticky='ew', padx=5)
+
+        # Output format frame
+        output_format_frame = ttk.Frame(format_group)
+        output_format_frame.grid(row=1, column=0, sticky='ew', padx=5, pady=5)
+        output_format_frame.grid_columnconfigure(1, weight=1)
+
+        ttk.Label(output_format_frame, text="Output Format:").grid(row=0, column=0, sticky='w')
+        self.output_format = ttk.Combobox(output_format_frame, values=['csv', 'json', 'duckdb', 'parquet', 'feather', 'keras'])
+        self.output_format.grid(row=0, column=1, sticky='ew', padx=5)
+
+        # Date range frame
+        date_frame = ttk.LabelFrame(format_group, text="Date Range")
+        date_frame.grid(row=2, column=0, sticky='ew', padx=5, pady=5)
+        date_frame.grid_columnconfigure(1, weight=1)
+
+        # Start date
+        start_date_frame = ttk.Frame(date_frame)
+        start_date_frame.grid(row=0, column=0, sticky='ew', padx=5, pady=5)
+        start_date_frame.grid_columnconfigure(1, weight=1)
+
+        ttk.Label(start_date_frame, text="Start Date (YYYY-MM-DD):").grid(row=0, column=0, sticky='w')
+        self.start_date_entry = ttk.Entry(start_date_frame)
+        self.start_date_entry.grid(row=0, column=1, sticky='ew', padx=5)
+
+        # End date
+        end_date_frame = ttk.Frame(date_frame)
+        end_date_frame.grid(row=1, column=0, sticky='ew', padx=5, pady=5)
+        end_date_frame.grid_columnconfigure(1, weight=1)
+
+        ttk.Label(end_date_frame, text="End Date (YYYY-MM-DD):").grid(row=0, column=0, sticky='w')
+        self.end_date_entry = ttk.Entry(end_date_frame)
+        self.end_date_entry.grid(row=0, column=1, sticky='ew', padx=5)
+
+        # Balance frame
+        balance_frame = ttk.LabelFrame(format_group, text="Data Balance")
+        balance_frame.grid(row=3, column=0, sticky='ew', padx=5, pady=5)
+        balance_frame.grid_columnconfigure(1, weight=1)
+
+        # Target records
+        target_frame = ttk.Frame(balance_frame)
+        target_frame.grid(row=0, column=0, sticky='ew', padx=5, pady=5)
+        target_frame.grid_columnconfigure(1, weight=1)
+
+        ttk.Label(target_frame, text="Target Records per Ticker:").grid(row=0, column=0, sticky='w')
+        self.target_records_entry = ttk.Entry(target_frame)
+        self.target_records_entry.grid(row=0, column=1, sticky='ew', padx=5)
+
+        # Minimum records
+        min_frame = ttk.Frame(balance_frame)
+        min_frame.grid(row=1, column=0, sticky='ew', padx=5, pady=5)
+        min_frame.grid_columnconfigure(1, weight=1)
+
+        ttk.Label(min_frame, text="Minimum Records Required:").grid(row=0, column=0, sticky='w')
+        self.min_records_entry = ttk.Entry(min_frame)
+        self.min_records_entry.grid(row=0, column=1, sticky='ew', padx=5)
+
+        # Help text
+        help_text = "Leave blank to use automatic values:\n" \
+                    "- Target: Median of available records\n" \
+                    "- Minimum: Half of target"
+        help_label = ttk.Label(balance_frame, text=help_text, wraplength=400)
+        help_label.grid(row=2, column=0, columnspan=2, sticky='ew', padx=5, pady=5)
+
+        # Action buttons frame
+        action_frame = ttk.Frame(loader_frame)
+        action_frame.grid(row=2, column=0, sticky='ew', padx=5, pady=10)
+        action_frame.grid_columnconfigure(0, weight=1)
 
         # Action buttons
-        action_frame = ttk.Frame(loader_frame)
-        action_frame.grid(row=1, column=0, columnspan=2, pady=10, sticky='ew')
-        ttk.Button(action_frame, text="Preview File", command=self.preview_selected_loader_file).grid(row=0, column=0, padx=5)
-        ttk.Button(action_frame, text="Preprocess File", command=self.preprocess_selected_loader_file).grid(row=0, column=1, padx=5)
-        ttk.Button(action_frame, text="Merge/Consolidate Files", command=self.load_and_convert).grid(row=0, column=2, padx=5)
-        loader_help_btn = ttk.Button(action_frame, text='?', width=2, command=self.show_loader_manual)
-        loader_help_btn.grid(row=0, column=3, padx=5)
-        # User Manual button now grouped with other buttons
-        loader_manual_btn = ttk.Button(action_frame, text='User Manual', command=lambda: show_user_manual_popup(self.root))
-        loader_manual_btn.grid(row=0, column=4, padx=5)
+        ttk.Button(action_frame, text="Preview Selected", 
+                   command=self.preview_selected_loader_file).grid(row=0, column=0, padx=5)
+        ttk.Button(action_frame, text="Preprocess Selected", 
+                   command=self.preprocess_selected_loader_file).grid(row=0, column=1, padx=5)
+        ttk.Button(action_frame, text="Load and Convert", 
+                   command=self.load_and_convert).grid(row=0, column=2, padx=5)
+        ttk.Button(action_frame, text="Show Manual", 
+                   command=self.show_loader_manual).grid(row=0, column=3, padx=5)
+        ttk.Button(action_frame, text="User Manual", 
+                   command=lambda: show_user_manual_popup(self.root)).grid(row=0, column=4, padx=5)
 
         # Progress bar
-        self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(loader_frame, variable=self.progress_var, maximum=100)
-        self.progress_bar.grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky='ew')
-        self.progress_bar.grid_remove()  # Hide initially
+        self.progress_bar = ttk.Progressbar(loader_frame, mode='indeterminate')
+        self.progress_bar.grid(row=3, column=0, sticky='ew', padx=5, pady=10)
 
-        # Configure grid weights for responsiveness
+        # Configure loader frame grid weights
+        loader_frame.grid_rowconfigure(1, weight=1)  # Format group gets extra space
         loader_frame.grid_columnconfigure(0, weight=1)
-        loader_frame.grid_columnconfigure(1, weight=1)
-        loader_frame.grid_rowconfigure(0, weight=1)
-        file_group.grid_rowconfigure(0, weight=1)
-        file_group.grid_columnconfigure(0, weight=1)
-        format_group.grid_columnconfigure(0, weight=1)
 
         # Data View Tab
         view_frame = ttk.Frame(self.notebook)
@@ -538,7 +731,6 @@ class StockAnalyzerGUI:
         self.refresh_file_list()
 
     def browse_files(self):
-        # Use centralized mapping for filetypes
         filetypes = [(desc, pattern) for (_, desc, pattern) in DataLoader.FORMAT_DIALOG_INFO.values()]
         files = filedialog.askopenfilenames(filetypes=filetypes)
         self.input_listbox.delete(0, tk.END)
@@ -549,66 +741,163 @@ class StockAnalyzerGUI:
             detected_types.append(fmt)
             display_name = f"{file} [{fmt}]"
             self.input_listbox.insert(tk.END, display_name)
+        
         # Set input format to the most common detected type
         if detected_types:
             from collections import Counter
             most_common = Counter(detected_types).most_common(1)[0][0]
             if most_common != 'unknown':
                 self.input_format.set(most_common)
+        
+        # Update selection info
+        self.update_selection_info()
+
+    def select_all_files(self):
+        """Select all files in the listbox"""
+        self.input_listbox.select_set(0, tk.END)
+        self.update_selection_info()
+
+    def deselect_all_files(self):
+        """Deselect all files in the listbox"""
+        self.input_listbox.selection_clear(0, tk.END)
+        self.update_selection_info()
+
+    def update_selection_info(self):
+        """Update the selection info label"""
+        selected_count = len(self.input_listbox.curselection())
+        self.selection_info.config(text=f"Selected: {selected_count} files")
+
+    def analyze_selected_files(self):
+        """Analyze currently selected files"""
+        selections = self.input_listbox.curselection()
+        if not selections:
+            messagebox.showerror("Error", "No files selected")
+            return
+        
+        # Get selected file paths
+        file_paths = [self.input_listbox.get(idx).split(' [')[0] for idx in selections]
+        
+        def worker():
+            try:
+                self.run_in_main_thread(lambda: self.progress_bar.grid(row=3, column=0, sticky='ew', padx=5, pady=10))
+                self.run_in_main_thread(lambda: self.progress_var.set(10))
+                
+                # Analyze files
+                analysis = self.analyze_stooq_files(file_paths)
+                
+                # Update GUI with analysis
+                self.run_in_main_thread(lambda: self.show_stooq_analysis_popup(analysis))
+                
+                # Auto-fill date range if found
+                if analysis['summary']['earliest_date'] and analysis['summary']['latest_date']:
+                    self.run_in_main_thread(lambda: self.start_date_entry.delete(0, tk.END))
+                    self.run_in_main_thread(lambda: self.start_date_entry.insert(0, 
+                        analysis['summary']['earliest_date'].strftime('%Y-%m-%d')))
+                    self.run_in_main_thread(lambda: self.end_date_entry.delete(0, tk.END))
+                    self.run_in_main_thread(lambda: self.end_date_entry.insert(0, 
+                        analysis['summary']['latest_date'].strftime('%Y-%m-%d')))
+                
+                # Calculate and set suggested record counts
+                if analysis['summary']['total_records'] and analysis['summary']['total_tickers']:
+                    avg_records = analysis['summary']['total_records'] // analysis['summary']['total_tickers']
+                    self.run_in_main_thread(lambda: self.target_records_entry.delete(0, tk.END))
+                    self.run_in_main_thread(lambda: self.target_records_entry.insert(0, str(avg_records)))
+                    self.run_in_main_thread(lambda: self.min_records_entry.delete(0, tk.END))
+                    self.run_in_main_thread(lambda: self.min_records_entry.insert(0, str(avg_records // 2)))
+                
+            except Exception as e:
+                logging.error(f"Analysis failed: {str(e)}")
+                self.run_in_main_thread(lambda: messagebox.showerror("Error", f"Analysis failed: {str(e)}"))
+            finally:
+                self.run_in_main_thread(lambda: self.progress_bar.pack_forget())
+        
+        threading.Thread(target=worker, daemon=True).start()
 
     def load_and_convert(self):
         def worker():
             try:
-                entries = self.input_listbox.get(0, tk.END)
                 input_format = self.input_format.get()
                 output_format = self.output_format.get()
-                if not entries or not input_format or not output_format:
-                    print("Error: Select files and formats")
-                    self.run_in_main_thread(messagebox.showerror, "Error", "Select files and formats")
+                
+                # Get selected files
+                selections = self.input_listbox.curselection()
+                if not selections:
+                    self.run_in_main_thread(messagebox.showerror, "Error", "No files selected")
                     return
-                # Load all selected files and concatenate them
+                
+                # Get file paths
+                file_paths = [self.input_listbox.get(idx).split(' [')[0] for idx in selections]
+                
+                # Analyze timestamps before loading
+                self.run_in_main_thread(lambda: self.progress_bar.grid(row=3, column=0, sticky='ew', padx=5, pady=10))
+                self.run_in_main_thread(lambda: self.progress_var.set(10))
+                
+                # Analyze timestamps
+                summary = self.analyze_selected_files_timestamps(file_paths, input_format)
+                
+                # Show timestamp analysis popup
+                self.run_in_main_thread(lambda: self.show_timestamp_analysis_popup(summary))
+                
+                self.run_in_main_thread(lambda: self.progress_var.set(30))
+                
+                # Continue with existing loading process
                 dfs = []
-                total = len(entries)
-                self.run_in_main_thread(self.progress_var.set, 0)
-                self.run_in_main_thread(self.progress_bar.pack, {'fill':'x', 'padx':10, 'pady':5})
-                self.run_in_main_thread(self.progress_bar.update)
-                for idx, entry in enumerate(entries):
-                    path = entry.split(' [')[0]
-                    try:
-                        df = DataLoader.load_file_by_type(path, input_format)
-                        if df is not None and hasattr(df, 'columns') and len(df.columns) > 0:
-                            dfs.append(df)
-                        else:
-                            print(f"Skipped file (empty or no columns): {path}")
-                    except Exception as e:
-                        print(f"Skipped file (load error): {path} ({e})")
-                    # Update progress
-                    progress = ((idx + 1) / total) * 100
-                    self.run_in_main_thread(self.progress_var.set, progress)
-                    self.run_in_main_thread(self.progress_bar.update)
+                for idx, file_path in enumerate(file_paths):
+                    df = self.loader.load_data([file_path], input_format)[0]
+                    if df is not None:
+                        dfs.append(df)
+                    progress = 30 + (40 * (idx + 1) / len(file_paths))
+                    self.run_in_main_thread(lambda p=progress: self.progress_var.set(p))
+                
                 if not dfs:
-                    print("Error: No valid data loaded from file(s). Check file format and contents.")
-                    self.run_in_main_thread(messagebox.showerror, "Error", "No valid data loaded from file(s). Check file format and contents.")
-                    self.run_in_main_thread(self.progress_bar.pack_forget)
+                    print("Error: No valid data loaded from file(s)")
+                    self.run_in_main_thread(messagebox.showerror, "Error", "No valid data loaded")
+                    self.run_in_main_thread(lambda: self.progress_bar.pack_forget())
                     return
-                import pandas as pd
-                if len(dfs) > 1:
-                    data = pd.concat(dfs, ignore_index=True)
-                else:
-                    data = dfs[0]
-
-                # Data cleaning: deduplicate
-                before_dedup = len(data)
-                data = data.drop_duplicates()
-                after_dedup = len(data)
-                dropped_dupes = before_dedup - after_dedup
-
-                # Now schedule the rest (dialogs and saving) in the main thread
-                self.run_in_main_thread(self.data_cleaning_and_save, data, input_format, output_format, dropped_dupes)
+                
+                # Combine all dataframes
+                data = pd.concat(dfs, ignore_index=True)
+                
+                # Get date range from user
+                start_date = self.start_date_entry.get()
+                end_date = self.end_date_entry.get()
+                
+                if start_date and end_date:
+                    try:
+                        data = self.loader.filter_data_by_date_range(data, start_date, end_date)
+                    except Exception as e:
+                        self.run_in_main_thread(messagebox.showerror, "Error", f"Date filtering failed: {str(e)}")
+                        self.run_in_main_thread(lambda: self.progress_bar.pack_forget())
+                        return
+                
+                self.run_in_main_thread(lambda: self.progress_var.set(80))
+                
+                # Get balancing parameters and continue with existing process
+                try:
+                    target_records = int(self.target_records_entry.get()) if self.target_records_entry.get() else None
+                    min_records = int(self.min_records_entry.get()) if self.min_records_entry.get() else None
+                except ValueError:
+                    target_records = None
+                    min_records = None
+                
+                # Balance the data
+                try:
+                    data = self.loader.balance_ticker_data(data, target_records, min_records)
+                except Exception as e:
+                    self.run_in_main_thread(messagebox.showerror, "Error", f"Data balancing failed: {str(e)}")
+                    self.run_in_main_thread(lambda: self.progress_bar.pack_forget())
+                    return
+                
+                self.run_in_main_thread(lambda: self.progress_var.set(90))
+                
+                # Continue with existing save process...
+                
             except Exception as e:
-                logging.error(f"Merge/Consolidate failed: {str(e)}")
-                print(f"Merge/Consolidate failed: {str(e)}")
-                self.run_in_main_thread(messagebox.showerror, "Error", f"Merge/Consolidate failed: {str(e)}")
+                logging.error(f"Data processing failed: {str(e)}")
+                self.run_in_main_thread(messagebox.showerror, "Error", f"Processing failed: {str(e)}")
+            finally:
+                self.run_in_main_thread(lambda: self.progress_bar.pack_forget())
+        
         threading.Thread(target=worker, daemon=True).start()
 
     def data_cleaning_and_save(self, data, input_format, output_format, dropped_dupes):
@@ -690,9 +979,16 @@ class StockAnalyzerGUI:
                         def show_keras():
                             popup = tk.Toplevel(self.root)
                             popup.title("Keras Model Summary")
+                            
+                            # Configure popup grid
+                            popup.grid_rowconfigure(0, weight=1)
+                            popup.grid_columnconfigure(0, weight=1)
+                            
+                            # Text widget
                             text = tk.Text(popup, wrap='word')
+                            text.grid(row=0, column=0, sticky='nsew')
                             text.insert('1.0', summary_str)
-                            text.pack(fill='both', expand=True)
+                            text.configure(state='disabled')
                         self.run_in_main_thread(show_keras)
                         return
                     except Exception as e:
@@ -723,276 +1019,184 @@ class StockAnalyzerGUI:
 
     def show_dataframe_popup(self, df):
         popup = tk.Toplevel(self.root)
-        popup.title("File Contents")
-        tree = ttk.Treeview(popup, columns=list(df.columns), show='headings')
-        for col in df.columns:
-            tree.heading(col, text=col)
-            tree.column(col, width=100)
-        for _, row in df.iterrows():
-            tree.insert('', 'end', values=list(row))
-        tree.grid(row=0, column=0, sticky='nsew')
-        # Add vertical scrollbar
-        yscroll = ttk.Scrollbar(popup, orient='vertical', command=tree.yview)
-        tree.configure(yscrollcommand=yscroll.set)
-        yscroll.grid(row=0, column=1, sticky='ns')
+        popup.title("Data Preview")
+        
+        # Configure popup grid
         popup.grid_rowconfigure(0, weight=1)
         popup.grid_columnconfigure(0, weight=1)
-
-    def refresh_data(self):
-        try:
-            # If a file is selected in the file_listbox, show its data
-            selection = self.file_listbox.curselection()
-            if selection:
-                file_path = self.file_listbox.get(selection[0])
-                file_path = file_path.split(' [')[0]
-                ext = os.path.splitext(file_path)[1].lower()
-                fmt = DataLoader.EXT_TO_FORMAT.get(ext, None)
-                try:
-                    if fmt == 'keras':
-                        # Show model summary in popup, skip table
-                        model = DataLoader.load_file_by_type(file_path, fmt)
-                        import io
-                        stream = io.StringIO()
-                        model.summary(print_fn=lambda x: stream.write(x + '\n'))
-                        summary_str = stream.getvalue()
-                        popup = tk.Toplevel(self.root)
-                        popup.title("Keras Model Summary")
-                        text = tk.Text(popup, wrap='word')
-                        text.insert('1.0', summary_str)
-                        text.pack(fill='both', expand=True)
-                        return
-                    df = DataLoader.load_file_by_type(file_path, fmt)
-                    self.data_tree.delete(*self.data_tree.get_children())
-                    cols = list(df.columns)
-                    self.data_tree['columns'] = cols
-                    self.data_tree['show'] = 'headings'
-                    for col in cols:
-                        self.data_tree.heading(col, text=col)
-                        self.data_tree.column(col, width=100, stretch=True, anchor='center')
-                    for _, row in df.iterrows():
-                        self.data_tree.insert('', 'end', values=tuple(row))
-                    for col in cols:
-                        self.data_tree.column(col, width=tkFont.Font().measure(col) + 20)
-                    if not hasattr(self, 'yscroll'):
-                        self.yscroll = ttk.Scrollbar(self.data_tree.master, orient='vertical', command=self.data_tree.yview)
-                        self.data_tree.configure(yscrollcommand=self.yscroll.set)
-                        self.yscroll.pack(side='right', fill='y')
-                    print("\n=== Data Table Screenshot ===")
-                    print(df.head(10).to_string(index=False))
-                    print("============================\n")
-                    return
-                except Exception as e:
-                    logging.exception(f"Refresh data failed for selected file: {str(e)}")
-                    print(f"Refresh data failed for selected file: {str(e)}")
-                    messagebox.showerror("Error", f"Refresh data failed for selected file: {str(e)}")
-                    return
-            # Otherwise, fall back to showing tickers_data from DuckDB
-            for item in self.data_tree.get_children():
-                self.data_tree.delete(item)
-            data = self.connector.read_shared_data('tickers_data', 'pandas')
-            screenshot_cols = ['ticker', 'timestamp', 'open', 'high', 'low', 'close', 'vol', 'openint', 'format']
-            screenshot_cols = [col for col in screenshot_cols if col in data.columns]
-            self.data_tree['columns'] = screenshot_cols
-            self.data_tree['show'] = 'headings'
-            for col in screenshot_cols:
-                self.data_tree.heading(col, text=col)
-                self.data_tree.column(col, width=100, stretch=True, anchor='center')
-            for _, row in data.iterrows():
-                self.data_tree.insert('', 'end', values=tuple(row[col] for col in screenshot_cols))
-            for col in screenshot_cols:
-                self.data_tree.column(col, width=tkFont.Font().measure(col) + 20)
-            if not hasattr(self, 'yscroll'):
-                self.yscroll = ttk.Scrollbar(self.data_tree.master, orient='vertical', command=self.data_tree.yview)
-                self.data_tree.configure(yscrollcommand=self.yscroll.set)
-                self.yscroll.pack(side='right', fill='y')
-            print("\n=== Data Table Screenshot ===")
-            print(data[screenshot_cols].head(10).to_string(index=False))
-            print("============================\n")
-        except Exception as e:
-            logging.exception(f"Refresh data failed: {str(e)}")
-            print(f"Refresh data failed: {str(e)}")
-            messagebox.showerror("Error", f"Refresh data failed: {str(e)}")
-
-    def preview_selected_loader_file(self):
-        selection = self.input_listbox.curselection()
-        if not selection:
-            messagebox.showerror("Error", "No file selected")
-            return
-        file_path = self.input_listbox.get(selection[0])
-        print("Previewing file:", file_path)
-        # Remove [type] if present
-        file_path = file_path.split(' [')[0]
-        ext = os.path.splitext(file_path)[1].lower()
-        fmt = DataLoader.EXT_TO_FORMAT.get(ext, None)
-        try:
-            if fmt == 'keras':
-                # For Keras, show model summary as text
-                try:
-                    model = DataLoader.load_file_by_type(file_path, fmt)
-                    import io
-                    stream = io.StringIO()
-                    model.summary(print_fn=lambda x: stream.write(x + '\n'))
-                    summary_str = stream.getvalue()
-                    popup = tk.Toplevel(self.root)
-                    popup.title("Keras Model Summary")
-                    text = tk.Text(popup, wrap='word')
-                    text.insert('1.0', summary_str)
-                    text.pack(fill='both', expand=True)
-                    return
-                except Exception as e:
-                    messagebox.showerror("Error", f"Failed to load Keras model: {str(e)}")
-                    return
-            df = DataLoader.load_file_by_type(file_path, fmt)
-            print("DF columns:", df.columns)
-            print(df.head())
-            self.show_dataframe_popup(df)
-        except Exception as e:
-            print("Failed to read file:", file_path)
-            logging.exception(f"Failed to preview file: {file_path}")
-            messagebox.showerror("Error", f"Failed to read file: {str(e)}")
-
-    def preprocess_selected_loader_file(self):
-        selection = self.input_listbox.curselection()
-        if not selection:
-            messagebox.showerror("Error", "No file selected")
-            return
-        file_path = self.input_listbox.get(selection[0])
-        file_path = file_path.split(' [')[0]
-        ext = os.path.splitext(file_path)[1].lower()
-        input_format = self.input_format.get()
-        fmt = DataLoader.EXT_TO_FORMAT.get(ext, input_format)
-        print(f"Preprocessing file: {file_path} as format: {fmt}")
-        try:
-            if fmt == 'keras':
-                try:
-                    model = DataLoader.load_file_by_type(file_path, fmt)
-                    summary = f"Model inputs: {model.inputs}\nModel outputs: {model.outputs}"
-                    messagebox.showinfo("Preprocess Result", summary)
-                    return
-                except Exception as e:
-                    messagebox.showerror("Error", f"Failed to load Keras model: {str(e)}")
-                    return
-            df = DataLoader.load_file_by_type(file_path, fmt)
-
-            # ML Preprocessing: Normalize numeric columns
-            numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-            if numeric_cols:
-                scaler = MinMaxScaler()
-                df[numeric_cols] = scaler.fit_transform(df[numeric_cols])
-
-            # Prompt user for save format
-            save_format = askstring("Save Format", "Enter save format (json, keras, tensorflow):", initialvalue="json")
-            if not save_format:
-                messagebox.showinfo("Cancelled", "Save cancelled.")
-                return
-            save_format = save_format.lower().strip()
-            # Prompt for filename
-            base_name = os.path.splitext(os.path.basename(file_path))[0]
-            save_path = None
-            # Use centralized mapping for extension and filetype
-            dialog_info = DataLoader.FORMAT_DIALOG_INFO.get(save_format, ('.dat', 'All Files', '*.*'))
-            out_ext, desc, pattern = dialog_info
-            save_path = filedialog.asksaveasfilename(
-                defaultextension=out_ext,
-                initialfile=base_name+'_preprocessed'+out_ext,
-                filetypes=[(desc, pattern)],
-                initialdir='data'
-            )
-            if not save_path:
-                return
-            DataLoader.save_file_by_type(df, save_path, save_format)
-
-            # Refresh file list
-            self.refresh_file_list()
-            messagebox.showinfo("Preprocess & Save", f"Preprocessed data saved as {save_path}")
-        except Exception as e:
-            logging.exception(f"Failed to preprocess file: {file_path}")
-            messagebox.showerror("Error", f"Failed to preprocess file: {str(e)}")
-
-    def remove_selected_file(self):
-        def worker():
-            selection = self.file_listbox.curselection()
-            if not selection:
-                self.run_in_main_thread(messagebox.showerror, "Error", "No file(s) selected to remove")
-                return
-            import os
-            removed = 0
-            failed = 0
-            for idx in reversed(selection):
-                file_entry = self.file_listbox.get(idx)
-                file_path = file_entry.split(' [')[0]
-                try:
-                    if os.path.exists(file_path):
-                        os.remove(file_path)
-                        removed += 1
-                    else:
-                        failed += 1
-                except Exception as e:
-                    logging.exception(f"Failed to remove file: {file_path}")
-                    failed += 1
-            def update_gui():
-                self.refresh_file_list()
-                self.data_tree.delete(*self.data_tree.get_children())
-                message = f"Removed {removed} file(s)."
-                if failed:
-                    message += f" Failed to remove {failed} file(s)."
-                messagebox.showinfo("File Removal", message)
-            self.run_in_main_thread(update_gui)
-        threading.Thread(target=worker, daemon=True).start()
-
-    def run_in_main_thread(self, func, *args, **kwargs):
-        self.root.after(0, lambda: func(*args, **kwargs))
+        
+        # Create frame for text and scrollbar
+        frame = ttk.Frame(popup)
+        frame.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
+        frame.grid_rowconfigure(0, weight=1)
+        frame.grid_columnconfigure(0, weight=1)
+        
+        # Text widget with scrollbars
+        text = tk.Text(frame, wrap=tk.NONE)
+        scrollbar_y = ttk.Scrollbar(frame, orient='vertical', command=text.yview)
+        scrollbar_x = ttk.Scrollbar(frame, orient='horizontal', command=text.xview)
+        
+        text.grid(row=0, column=0, sticky='nsew')
+        scrollbar_y.grid(row=0, column=1, sticky='ns')
+        scrollbar_x.grid(row=1, column=0, sticky='ew')
+        
+        text.configure(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
+        
+        # Insert DataFrame content
+        text.insert('1.0', df.to_string())
+        text.configure(state='disabled')
 
     def show_loader_manual(self):
-        guide = (
-            """
-DATA LOADER TAB - USER MANUAL\n\n"
-            "1. Browse Files: Click to select one or more data files (CSV, TXT, JSON, DuckDB, etc.). Selected files appear in the list.\n\n"
-            "2. Preview File: Select a file from the list and click to view its contents before processing.\n\n"
-            "3. Preprocess File: Select a file and click to apply normalization and save in a new format (JSON, Keras, TensorFlow, etc.).\n\n"
-            "4. Input/Output Format: Choose the input format (matches your files) and desired output format for conversion.\n\n"
-            "5. Merge/Consolidate Files: Click to merge all selected files into one, clean duplicates/missing values, and save as a single file in your chosen format.\n\n"
-            "6. Progress Bar: Shows progress during batch operations.\n\n"
-            "Tip: Use Preview to check file structure before processing.\n"
-            """
-        )
         popup = tk.Toplevel(self.root)
-        popup.title("Data Loader Manual")
-        popup.geometry("500x400")
-        text = tk.Text(popup, wrap='word')
-        text.insert('1.0', guide)
-        text.config(state='disabled')
-        text.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
-        scrollbar = ttk.Scrollbar(popup, command=text.yview)
-        text['yscrollcommand'] = scrollbar.set
-        scrollbar.grid(row=0, column=1, sticky='ns')
+        popup.title("Data Loader Help")
+        
+        # Configure popup grid
         popup.grid_rowconfigure(0, weight=1)
         popup.grid_columnconfigure(0, weight=1)
+        
+        # Create frame
+        frame = ttk.Frame(popup)
+        frame.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
+        frame.grid_rowconfigure(0, weight=1)
+        frame.grid_columnconfigure(0, weight=1)
+        
+        # Text widget with scrollbar
+        text = tk.Text(frame, wrap=tk.WORD)
+        scrollbar = ttk.Scrollbar(frame, orient='vertical', command=text.yview)
+        
+        text.grid(row=0, column=0, sticky='nsew')
+        scrollbar.grid(row=0, column=1, sticky='ns')
+        
+        text.configure(yscrollcommand=scrollbar.set)
+        
+        # Insert help content
+        help_text = """
+        Data Loader Tab Help
+        
+        1. File Selection:
+           - Use 'Browse Files' to select input files
+           - Select multiple files with Ctrl/Cmd+Click
+           - Use 'Select All' or 'Deselect All' for batch selection
+        
+        2. Format Selection:
+           - Choose input format matching your files
+           - Select desired output format
+           - Available formats: CSV, JSON, DuckDB, Parquet, etc.
+        
+        3. Date Range:
+           - Optional: Filter data by date range
+           - Format: YYYY-MM-DD
+           - Leave blank to include all dates
+        
+        4. Data Balancing:
+           - Set target number of records per ticker
+           - Specify minimum required records
+           - Leave blank for automatic values
+        
+        5. Actions:
+           - Preview: View file contents
+           - Preprocess: Clean and normalize data
+           - Load/Convert: Process and save files
+           - ?: Show this help
+           - User Manual: Detailed documentation
+        """
+        text.insert('1.0', help_text)
+        text.configure(state='disabled')
 
     def show_view_manual(self):
-        guide = (
-            """
-DATA VIEW TAB - USER MANUAL\n\n"
-            "1. Available Data Files: Lists all supported data files in the data directory.\n\n"
-            "2. View File: Select a file and click to display its data in the table.\n\n"
-            "3. Remove File: Select one or more files and click to delete them from disk.\n\n"
-            "4. Refresh Data: Click to update the file list and data table.\n\n"
-            "5. Data Table: Shows the contents of the selected file (up to 1000 rows). Use scrollbars to navigate.\n\n"
-            "Tip: Use Refresh after adding or removing files to update the view.\n"
-            """
-        )
         popup = tk.Toplevel(self.root)
-        popup.title("Data View Manual")
-        popup.geometry("500x400")
-        text = tk.Text(popup, wrap='word')
-        text.insert('1.0', guide)
-        text.config(state='disabled')
-        text.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
-        scrollbar = ttk.Scrollbar(popup, command=text.yview)
-        text['yscrollcommand'] = scrollbar.set
-        scrollbar.grid(row=0, column=1, sticky='ns')
+        popup.title("Data View Help")
+        
+        # Configure popup grid
         popup.grid_rowconfigure(0, weight=1)
         popup.grid_columnconfigure(0, weight=1)
+        
+        # Create frame
+        frame = ttk.Frame(popup)
+        frame.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
+        frame.grid_rowconfigure(0, weight=1)
+        frame.grid_columnconfigure(0, weight=1)
+        
+        # Text widget with scrollbar
+        text = tk.Text(frame, wrap=tk.WORD)
+        scrollbar = ttk.Scrollbar(frame, orient='vertical', command=text.yview)
+        
+        text.grid(row=0, column=0, sticky='nsew')
+        scrollbar.grid(row=0, column=1, sticky='ns')
+        
+        text.configure(yscrollcommand=scrollbar.set)
+        
+        # Insert help content
+        help_text = """
+        Data View Tab Help
+        
+        1. File Browser:
+           - Lists all supported files in data directory
+           - Click to select a file
+           - Use Refresh to update the list
+        
+        2. Data Display:
+           - View file contents in table format
+           - Sort columns by clicking headers
+           - Navigate pages with controls below
+        
+        3. Controls:
+           - View: Display selected file
+           - Refresh: Update file list
+           - Remove: Delete selected file
+        
+        4. Navigation:
+           - Use << < > >> to move between pages
+           - Enter page number to jump directly
+           - Adjust rows per page as needed
+        """
+        text.insert('1.0', help_text)
+        text.configure(state='disabled')
+
+    def show_data_statistics(self, data: pd.DataFrame):
+        popup = tk.Toplevel(self.root)
+        popup.title("Data Statistics")
+        
+        # Configure popup grid
+        popup.grid_rowconfigure(0, weight=1)
+        popup.grid_columnconfigure(0, weight=1)
+        
+        # Create frame
+        frame = ttk.Frame(popup)
+        frame.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
+        frame.grid_rowconfigure(0, weight=1)
+        frame.grid_columnconfigure(0, weight=1)
+        
+        # Text widget with scrollbar
+        text = tk.Text(frame, wrap=tk.WORD)
+        scrollbar = ttk.Scrollbar(frame, orient='vertical', command=text.yview)
+        
+        text.grid(row=0, column=0, sticky='nsew')
+        scrollbar.grid(row=0, column=1, sticky='ns')
+        
+        text.configure(yscrollcommand=scrollbar.set)
+        
+        # Calculate and display statistics
+        stats = []
+        stats.append(f"Total Records: {len(data)}")
+        stats.append(f"\nColumns: {', '.join(data.columns)}")
+        stats.append("\nData Types:")
+        for col, dtype in data.dtypes.items():
+            stats.append(f"  {col}: {dtype}")
+        stats.append("\nMissing Values:")
+        for col in data.columns:
+            missing = data[col].isna().sum()
+            if missing > 0:
+                stats.append(f"  {col}: {missing} ({missing/len(data)*100:.2f}%)")
+        stats.append("\nSummary Statistics:")
+        stats.append(data.describe().to_string())
+        
+        text.insert('1.0', '\n'.join(stats))
+        text.configure(state='disabled')
+
+    def setup_bindings(self):
+        """Set up event bindings"""
+        self.input_listbox.bind('<<ListboxSelect>>', lambda e: self.update_selection_info())
 
 def run(task: str = 'gui'):
     loader = DataLoader()
