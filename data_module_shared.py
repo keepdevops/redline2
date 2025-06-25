@@ -1298,7 +1298,7 @@ class StockAnalyzerGUI:
                         # Set initial ticker if not already set
                         if not self.ticker_var.get() and ticker_list:
                             self.ticker_var.set(ticker_list[0])
-                            self.load_ticker_data(ticker_list[0])
+                            self.on_ticker_selected()
                 except Exception as e:
                     if conn:
                         conn.close()
@@ -1338,20 +1338,22 @@ class StockAnalyzerGUI:
                     # Clean up existing scrollbars before updating tree
                     self.cleanup_scrollbars('data_view')
                     
-                    # Update tree view
-                    self.data_tree.delete(*self.data_tree.get_children())
+                    # Only set up columns if changed
                     cols = list(df.columns)
-                    self.data_tree['columns'] = cols
-                    self.data_tree['show'] = 'headings'
+                    if list(self.data_tree['columns']) != cols:
+                        self.data_tree['columns'] = cols
+                        self.data_tree['show'] = 'headings'
+                        for col in cols:
+                            self.data_tree.heading(col, text=col)
+                            self.data_tree.column(col, width=100)
                     
-                    # Setup column headings
-                    for col in cols:
-                        self.data_tree.heading(col, text=col)
-                        self.data_tree.column(col, width=100)
-                    
-                    # Add data
-                    for _, row in df.iterrows():
-                        self.data_tree.insert('', 'end', values=tuple(row))
+                    # Hide Treeview during insert
+                    self.data_tree.grid_remove()
+                    self.data_tree.delete(*self.data_tree.get_children())
+                    rows = [tuple(row) for _, row in df.iterrows()]
+                    for row in rows:
+                        self.data_tree.insert('', 'end', values=row)
+                    self.data_tree.grid()
                     
                     # Create new scrollbars
                     tree_frame = self.data_tree.master
@@ -1452,37 +1454,64 @@ class StockAnalyzerGUI:
                         
                         def update_view():
                             self.refresh_data()  # This will handle scrollbar setup
-                            
-                            # Update data
-                            self.data_tree.delete(*self.data_tree.get_children())
+                            # Only set up columns if changed
                             cols = list(df.columns)
-                            self.data_tree['columns'] = cols
-                            self.data_tree['show'] = 'headings'
-                            
-                            for col in cols:
-                                self.data_tree.heading(col, text=col)
-                                self.data_tree.column(col, width=100)
-                            
-                            for _, row in df.iterrows():
-                                self.data_tree.insert('', 'end', values=tuple(row))
-                            
+                            if list(self.data_tree['columns']) != cols:
+                                self.data_tree['columns'] = cols
+                                self.data_tree['show'] = 'headings'
+                                for col in cols:
+                                    self.data_tree.heading(col, text=col)
+                                    self.data_tree.column(col, width=100)
+                            # Hide Treeview during insert
+                            self.data_tree.grid_remove()
+                            self.data_tree.delete(*self.data_tree.get_children())
+                            rows = [tuple(row) for _, row in df.iterrows()]
+                            for row in rows:
+                                self.data_tree.insert('', 'end', values=row)
+                            self.data_tree.grid()
                             # Update page info
                             if hasattr(self, 'page_label'):
                                 self.page_label.config(text=f"Page {self.current_page} of {self.total_pages}")
-                            
                         self.run_in_main_thread(update_view)
-                        
                     else:
                         # Handle other file types
                         df = DataLoader.load_file_by_type(self.current_file_path, fmt)
+                        # Convert Polars or PyArrow to pandas DataFrame if needed
+                        import polars as pl
+                        import pyarrow as pa
+                        if isinstance(df, pl.DataFrame):
+                            df = df.to_pandas()
+                        elif isinstance(df, pa.Table):
+                            df = df.to_pandas()
                         if isinstance(df, pd.DataFrame):
+                            # In-memory pagination for file-based data
+                            total_count = len(df)
+                            self.total_pages = (total_count + self.rows_per_page - 1) // self.rows_per_page
+                            self.current_page = min(self.current_page, self.total_pages) if self.total_pages > 0 else 1
+                            start = (self.current_page - 1) * self.rows_per_page
+                            end = start + self.rows_per_page
+                            page_df = df.iloc[start:end]
                             def update_view():
                                 self.refresh_data()
+                                cols = list(page_df.columns)
+                                if list(self.data_tree['columns']) != cols:
+                                    self.data_tree['columns'] = cols
+                                    self.data_tree['show'] = 'headings'
+                                    for col in cols:
+                                        self.data_tree.heading(col, text=col)
+                                        self.data_tree.column(col, width=100)
+                                self.data_tree.grid_remove()
+                                self.data_tree.delete(*self.data_tree.get_children())
+                                rows = [tuple(row) for _, row in page_df.iterrows()]
+                                for row in rows:
+                                    self.data_tree.insert('', 'end', values=row)
+                                self.data_tree.grid()
+                                if hasattr(self, 'page_label'):
+                                    self.page_label.config(text=f"Page {self.current_page} of {self.total_pages}")
                             self.run_in_main_thread(update_view)
-                    
                 except Exception as e:
                     logging.error(f"Failed to view file: {str(e)}")
-                    self.run_in_main_thread(lambda *a, **k: messagebox.showerror("Error", f"Failed to view file: {str(e)}"))
+                    self.run_in_main_thread(lambda e=e, *a, **k: messagebox.showerror("Error", f"Failed to view file: {str(e)}"))
             
             threading.Thread(target=worker, daemon=True).start()
             
