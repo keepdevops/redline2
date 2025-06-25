@@ -840,25 +840,33 @@ class StockAnalyzerGUI:
         self.file_listbox = tk.Listbox(list_frame, selectmode='extended')
         file_xscroll = ttk.Scrollbar(list_frame, orient='horizontal', command=self.file_listbox.xview)
         file_yscroll = ttk.Scrollbar(list_frame, orient='vertical', command=self.file_listbox.yview)
-        
-        # Configure listbox scrolling
         self.file_listbox.configure(xscrollcommand=file_xscroll.set, yscrollcommand=file_yscroll.set)
-
-        # Grid layout for listbox and scrollbars
         self.file_listbox.grid(row=0, column=0, sticky='nsew')
         file_xscroll.grid(row=1, column=0, sticky='ew')
         file_yscroll.grid(row=0, column=1, sticky='ns')
-
-        # Store scrollbars for cleanup
         self.scrollbars['file_listbox'] = [file_xscroll, file_yscroll]
 
         # Button frame
         btn_frame = ttk.Frame(browser_frame)
         btn_frame.pack(fill='x', padx=5, pady=5)
-
         ttk.Button(btn_frame, text="View Selected", command=self.view_selected_file).pack(side='left', padx=2)
         ttk.Button(btn_frame, text="Refresh", command=self.refresh_file_list).pack(side='left', padx=2)
         ttk.Button(btn_frame, text="Remove", command=self.remove_selected_file).pack(side='left', padx=2)
+
+        # Status indicator label below file_listbox
+        self.file_status_label = ttk.Label(browser_frame, text="No file selected", foreground="gray")
+        self.file_status_label.pack(fill='x', padx=5, pady=(0, 5))
+
+        # Quick actions frame below status label
+        quick_actions_frame = ttk.Frame(browser_frame)
+        quick_actions_frame.pack(fill='x', padx=5, pady=(0, 5))
+        ttk.Button(quick_actions_frame, text="View", command=self.view_selected_file).pack(side='left', padx=2)
+        ttk.Button(quick_actions_frame, text="Export", command=lambda: self.export_data(current_page_only=True)).pack(side='left', padx=2)
+        ttk.Button(quick_actions_frame, text="Delete", command=self.remove_selected_file).pack(side='left', padx=2)
+        ttk.Button(quick_actions_frame, text="Show Stats", command=self.show_view_statistics).pack(side='left', padx=2)
+
+        # Bind selection event to update status label
+        self.file_listbox.bind('<<ListboxSelect>>', self.update_file_status_label)
 
         # Right side: Data viewer
         right_frame = ttk.Frame(paned)
@@ -884,6 +892,30 @@ class StockAnalyzerGUI:
                   command=self.previous_ticker).pack(side='left', padx=5)
         ttk.Button(ticker_nav_frame, text="Next Ticker", 
                   command=self.next_ticker).pack(side='left', padx=5)
+
+        # Search frame
+        search_frame = ttk.Frame(viewer_frame)
+        search_frame.pack(fill='x', padx=5, pady=5)
+        
+        # Global search
+        ttk.Label(search_frame, text="🔍 Search:").pack(side='left', padx=5)
+        self.search_var = tk.StringVar()
+        self.search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=30)
+        self.search_entry.pack(side='left', padx=5)
+        self.search_entry.bind('<KeyRelease>', self.on_search_change)
+        
+        # Search options
+        self.search_case_sensitive = tk.BooleanVar()
+        ttk.Checkbutton(search_frame, text="Case Sensitive", 
+                       variable=self.search_case_sensitive).pack(side='left', padx=5)
+        
+        # Clear search button
+        ttk.Button(search_frame, text="Clear", 
+                  command=self.clear_search).pack(side='left', padx=5)
+        
+        # Search results label
+        self.search_results_label = ttk.Label(search_frame, text="")
+        self.search_results_label.pack(side='right', padx=5)
 
         # Tree view frame with proper grid configuration
         tree_frame = ttk.Frame(viewer_frame)
@@ -1212,6 +1244,11 @@ class StockAnalyzerGUI:
                 break
 
     def refresh_file_list(self):
+        # Store current selections before clearing
+        current_selections = []
+        for idx in self.file_listbox.curselection():
+            current_selections.append(self.file_listbox.get(idx))
+        
         # Recursively list all supported files in the data directory and subdirectories
         self.file_listbox.delete(0, tk.END)
         data_dir = 'data'  # preferred data directory
@@ -1224,6 +1261,13 @@ class StockAnalyzerGUI:
                     fmt = DataLoader.EXT_TO_FORMAT.get(ext, 'unknown')
                     display_name = f"{fpath} [{fmt}]"
                     self.file_listbox.insert(tk.END, display_name)
+        
+        # Restore selections if files still exist
+        for selection in current_selections:
+            for idx in range(self.file_listbox.size()):
+                if self.file_listbox.get(idx) == selection:
+                    self.file_listbox.selection_set(idx)
+                    break
 
     def setup_data_view_controls(self, parent_frame):
         """Setup the control panel for data view features"""
@@ -1451,6 +1495,46 @@ class StockAnalyzerGUI:
                 self.ticker_var.set(values[-1])
                 self.load_ticker_data(values[-1])
 
+    def setup_smart_columns(self, df):
+        """Automatically configure columns for better display based on data types"""
+        cols = list(df.columns)
+        
+        # Set up columns with smart configuration
+        self.data_tree['columns'] = cols
+        self.data_tree['show'] = 'headings'
+        
+        for col in cols:
+            # Default settings
+            col_width = 100
+            anchor = 'center'
+            
+            # Detect column type and set appropriate configuration
+            if df[col].dtype in ['int64', 'float64']:
+                # Numeric columns - right align, smaller width
+                col_width = 80
+                anchor = 'e'
+            elif 'date' in col.lower() or 'time' in col.lower():
+                # Date/time columns - center align, wider width
+                col_width = 120
+                anchor = 'center'
+            elif df[col].dtype == 'object':
+                # Text columns - left align, dynamic width
+                try:
+                    # Calculate width based on content length
+                    max_len = df[col].astype(str).str.len().max()
+                    col_width = min(max_len * 8, 200)  # Cap at 200px
+                except:
+                    col_width = 120
+                anchor = 'w'
+            else:
+                # Default for other types
+                col_width = 100
+                anchor = 'center'
+            
+            # Set column configuration
+            self.data_tree.heading(col, text=col)
+            self.data_tree.column(col, width=col_width, anchor=anchor, stretch=True)
+
     def view_selected_file(self):
         """View the selected file in the data viewer"""
         try:
@@ -1487,15 +1571,12 @@ class StockAnalyzerGUI:
                         conn.close()
                         
                         def update_view():
-                            # Don't call refresh_data() from background thread - use safe updates instead
-                            # Only set up columns if changed
-                            cols = list(df.columns)
-                            if list(self.data_tree['columns']) != cols:
-                                self.data_tree['columns'] = cols
-                                self.data_tree['show'] = 'headings'
-                                for col in cols:
-                                    self.data_tree.heading(col, text=col)
-                                    self.data_tree.column(col, width=100)
+                            # Use smart column setup
+                            self.setup_smart_columns(df)
+                            
+                            # Store original data for searching
+                            self.store_original_data(df)
+                            
                             # Hide Treeview during insert
                             self.data_tree.grid_remove()
                             self.data_tree.delete(*self.data_tree.get_children())
@@ -1526,15 +1607,12 @@ class StockAnalyzerGUI:
                             end = start + self.rows_per_page
                             page_df = df.iloc[start:end]
                             def update_view():
-                                # Don't call refresh_data() from background thread - use safe updates instead
-                                # Only set up columns if changed
-                                cols = list(page_df.columns)
-                                if list(self.data_tree['columns']) != cols:
-                                    self.data_tree['columns'] = cols
-                                    self.data_tree['show'] = 'headings'
-                                    for col in cols:
-                                        self.data_tree.heading(col, text=col)
-                                        self.data_tree.column(col, width=100)
+                                # Use smart column setup
+                                self.setup_smart_columns(page_df)
+                                
+                                # Store original data for searching
+                                self.store_original_data(page_df)
+                                
                                 self.data_tree.grid_remove()
                                 self.data_tree.delete(*self.data_tree.get_children())
                                 rows = [tuple(row) for _, row in page_df.iterrows()]
@@ -2874,6 +2952,90 @@ Bottom 5 Tickers by Record Count:
                     else:
                         logging.warning(f"Widget {widget_name} not found")
         self.run_in_main_thread(safe_batch)
+
+    def update_file_status_label(self, event=None):
+        selection = self.file_listbox.curselection()
+        if selection:
+            file_path = self.file_listbox.get(selection[0])
+            file_name = os.path.basename(file_path.split(' [')[0])
+            file_format = file_path.split(' [')[1].rstrip(']') if ' [' in file_path else ''
+            try:
+                file_size = os.path.getsize(file_path.split(' [')[0])
+                size_str = f"{file_size/1024:.1f} KB" if file_size < 1024*1024 else f"{file_size/1024/1024:.2f} MB"
+            except Exception:
+                size_str = "-"
+            status_text = f"Selected: {file_name} | Format: {file_format} | Size: {size_str}"
+            self.file_status_label.config(text=status_text, foreground="green")
+        else:
+            self.file_status_label.config(text="No file selected", foreground="gray")
+
+    def on_search_change(self, event=None):
+        """Handle search text changes"""
+        search_text = self.search_var.get()
+        if not search_text:
+            # Show all items if search is empty
+            self.show_all_items()
+            self.search_results_label.config(text="")
+            return
+        
+        # Get all items from the tree
+        all_items = self.data_tree.get_children()
+        if not all_items:
+            return
+        
+        # Hide all items first
+        self.data_tree.detach(*all_items)
+        
+        # Search through items
+        matched_items = []
+        case_sensitive = self.search_case_sensitive.get()
+        
+        for item in all_items:
+            values = self.data_tree.item(item)['values']
+            item_text = ' '.join(str(v) for v in values)
+            
+            if case_sensitive:
+                if search_text in item_text:
+                    matched_items.append(item)
+            else:
+                if search_text.lower() in item_text.lower():
+                    matched_items.append(item)
+        
+        # Show matched items
+        for item in matched_items:
+            self.data_tree.reattach(item, '', 'end')
+        
+        # Update search results label
+        total_items = len(all_items)
+        matched_count = len(matched_items)
+        self.search_results_label.config(text=f"Found {matched_count} of {total_items} items")
+
+    def clear_search(self):
+        """Clear search and show all items"""
+        self.search_var.set("")
+        
+        # Repopulate treeview with original data
+        if hasattr(self, 'original_data') and self.original_data is not None:
+            self.data_tree.delete(*self.data_tree.get_children())
+            for _, row in self.original_data.iterrows():
+                self.data_tree.insert('', 'end', values=tuple(row))
+        
+        self.search_results_label.config(text="")
+
+    def show_all_items(self):
+        """Show all items in the treeview"""
+        all_items = self.data_tree.get_children()
+        if not all_items:
+            return
+        
+        # Reattach all items
+        for item in all_items:
+            self.data_tree.reattach(item, '', 'end')
+
+    def store_original_data(self, df):
+        """Store original data for searching and filtering"""
+        self.original_data = df.copy()
+        self.current_data = df.copy()
 
 def run(task: str = 'gui'):
     loader = DataLoader()
