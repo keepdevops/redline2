@@ -23,6 +23,11 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 import numpy as np
 import threading
 from data_user_manual import show_user_manual_popup
+import sqlite3
+from datetime import datetime, timedelta
+import re
+from typing import Optional, Dict, List, Tuple, Any, Union
+import weakref
 
 # Configure logging
 logging.basicConfig(filename='redline.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -564,6 +569,208 @@ class DataAdapter:
             logging.error(f"Failed to summarize preprocessed data: {str(e)}")
             raise
 
+class VirtualScrollingTreeview:
+    """A virtual scrolling TreeView that only loads visible items into memory"""
+    
+    def __init__(self, parent, columns, **kwargs):
+        self.parent = parent
+        self.columns = columns
+        self.tree = ttk.Treeview(parent, columns=columns, **kwargs)
+        
+        # Virtual scrolling state
+        self.total_rows = 0
+        self.visible_start = 0
+        self.visible_end = 0
+        self.row_height = 20  # Approximate row height
+        self.visible_count = 0
+        self.data_source = None
+        self.cached_data = {}
+        self.cache_size = 1000  # Number of rows to cache
+        
+        # Bind scroll events
+        self.tree.bind('<Configure>', self._on_configure)
+        self.tree.bind('<MouseWheel>', self._on_scroll)
+        
+    def _on_configure(self, event):
+        """Handle window resize to recalculate visible items"""
+        self._update_visible_range()
+        
+    def _on_scroll(self, event):
+        """Handle scroll events to update visible items"""
+        self._update_visible_range()
+        
+    def _update_visible_range(self):
+        """Calculate which rows should be visible"""
+        if not self.data_source:
+            return
+            
+        # Calculate visible range based on scroll position
+        scroll_pos = self.tree.yview()
+        visible_start = int(scroll_pos[0] * self.total_rows)
+        visible_end = int(scroll_pos[1] * self.total_rows)
+        
+        if visible_start != self.visible_start or visible_end != self.visible_end:
+            self.visible_start = visible_start
+            self.visible_end = visible_end
+            self._load_visible_items()
+    
+    def _load_visible_items(self):
+        """Load only the visible items into the tree"""
+        if not self.data_source:
+            return
+            
+        # Clear current items
+        self.tree.delete(*self.tree.get_children())
+        
+        # Load visible items
+        for i in range(self.visible_start, min(self.visible_end + 1, self.total_rows)):
+            if i in self.cached_data:
+                row_data = self.cached_data[i]
+            else:
+                row_data = self.data_source.get_row(i)
+                if len(self.cached_data) < self.cache_size:
+                    self.cached_data[i] = row_data
+                    
+            self.tree.insert('', 'end', values=row_data)
+    
+    def set_data_source(self, data_source):
+        """Set the data source for virtual scrolling"""
+        self.data_source = data_source
+        self.total_rows = data_source.get_total_rows()
+        self._update_visible_range()
+        
+    def refresh(self):
+        """Refresh the display"""
+        self._update_visible_range()
+
+
+class AdvancedQueryBuilder:
+    """Advanced query builder for complex data filtering"""
+    
+    def __init__(self):
+        self.operators = {
+            'equals': '=',
+            'not_equals': '!=',
+            'contains': 'LIKE',
+            'not_contains': 'NOT LIKE',
+            'greater_than': '>',
+            'less_than': '<',
+            'greater_equal': '>=',
+            'less_equal': '<=',
+            'between': 'BETWEEN',
+            'in': 'IN',
+            'not_in': 'NOT IN',
+            'is_null': 'IS NULL',
+            'is_not_null': 'IS NOT NULL'
+        }
+        
+        self.date_operators = {
+            'equals': '=',
+            'not_equals': '!=',
+            'greater_than': '>',
+            'less_than': '<',
+            'greater_equal': '>=',
+            'less_equal': '<=',
+            'between': 'BETWEEN',
+            'in_range': 'BETWEEN'
+        }
+        
+    def build_query(self, conditions, table_name='tickers_data'):
+        """Build SQL query from conditions"""
+        if not conditions:
+            return f"SELECT * FROM {table_name}", []
+            
+        where_clauses = []
+        params = []
+        
+        for condition in conditions:
+            column = condition['column']
+            operator = condition['operator']
+            value = condition['value']
+            
+            if operator in ['is_null', 'is_not_null']:
+                where_clauses.append(f"{column} {self.operators[operator]}")
+            elif operator == 'between':
+                where_clauses.append(f"{column} BETWEEN ? AND ?")
+                params.extend([value[0], value[1]])
+            elif operator == 'in':
+                placeholders = ','.join(['?' for _ in value])
+                where_clauses.append(f"{column} IN ({placeholders})")
+                params.extend(value)
+            elif operator in ['contains', 'not_contains']:
+                where_clauses.append(f"{column} {self.operators[operator]} ?")
+                params.append(f"%{value}%")
+            else:
+                where_clauses.append(f"{column} {self.operators[operator]} ?")
+                params.append(value)
+                
+        query = f"SELECT * FROM {table_name} WHERE {' AND '.join(where_clauses)}"
+        return query, params
+
+
+class DataSource:
+    """Abstract data source for virtual scrolling"""
+    
+    def __init__(self, file_path, format_type):
+        self.file_path = file_path
+        self.format_type = format_type
+        self.connection = None
+        self.total_rows = 0
+        self._initialize()
+        
+    def _initialize(self):
+        """Initialize the data source"""
+        if self.format_type == 'duckdb':
+            self.connection = duckdb.connect(self.file_path)
+            self.total_rows = self.connection.execute("SELECT COUNT(*) FROM tickers_data").fetchone()[0]
+        else:
+            # For other formats, load into memory (not ideal for large files)
+            df = DataLoader.load_file_by_type(self.file_path, self.format_type)
+            if isinstance(df, pd.DataFrame):
+                self.data = df
+                self.total_rows = len(df)
+            else:
+                # Convert other formats to pandas
+                import polars as pl
+                import pyarrow as pa
+                if isinstance(df, pl.DataFrame):
+                    self.data = df.to_pandas()
+                elif isinstance(df, pa.Table):
+                    self.data = df.to_pandas()
+                else:
+                    self.data = pd.DataFrame()
+                self.total_rows = len(self.data)
+                
+    def get_total_rows(self):
+        """Get total number of rows"""
+        return self.total_rows
+        
+    def get_row(self, index):
+        """Get a specific row by index"""
+        if self.format_type == 'duckdb':
+            query = f"SELECT * FROM tickers_data LIMIT 1 OFFSET {index}"
+            result = self.connection.execute(query).fetchone()
+            return list(result) if result else []
+        else:
+            if index < len(self.data):
+                return list(self.data.iloc[index])
+            return []
+            
+    def get_rows(self, start, end):
+        """Get a range of rows"""
+        if self.format_type == 'duckdb':
+            query = f"SELECT * FROM tickers_data LIMIT {end - start} OFFSET {start}"
+            result = self.connection.execute(query).fetchdf()
+            return [list(row) for _, row in result.iterrows()]
+        else:
+            return [list(row) for _, row in self.data.iloc[start:end].iterrows()]
+            
+    def close(self):
+        """Close the data source"""
+        if self.connection:
+            self.connection.close()
+
+
 class StockAnalyzerGUI:
     def __init__(self, root: tk.Tk, loader: DataLoader, connector: DatabaseConnector):
         self.root = root
@@ -601,6 +808,12 @@ class StockAnalyzerGUI:
         
         # Setup event bindings
         self.setup_bindings()
+        
+        # Setup keyboard shortcuts
+        self.setup_keyboard_shortcuts()
+        
+        # Setup performance monitoring
+        self.setup_performance_monitoring()
 
     def cleanup_scrollbars(self, frame_name):
         """Clean up scrollbars for a given frame"""
@@ -864,6 +1077,14 @@ class StockAnalyzerGUI:
         ttk.Button(quick_actions_frame, text="Export", command=lambda: self.export_data(current_page_only=True)).pack(side='left', padx=2)
         ttk.Button(quick_actions_frame, text="Delete", command=self.remove_selected_file).pack(side='left', padx=2)
         ttk.Button(quick_actions_frame, text="Show Stats", command=self.show_view_statistics).pack(side='left', padx=2)
+        
+        # Add performance and advanced filtering buttons
+        ttk.Button(quick_actions_frame, text="Advanced Filters", 
+                  command=self.setup_advanced_filters).pack(side='left', padx=2)
+        ttk.Button(quick_actions_frame, text="Virtual Scroll", 
+                  command=self.enable_virtual_scrolling).pack(side='left', padx=2)
+        ttk.Button(quick_actions_frame, text="Optimize Memory", 
+                  command=self.optimize_memory_usage).pack(side='left', padx=2)
 
         # Bind selection event to update status label
         self.file_listbox.bind('<<ListboxSelect>>', self.update_file_status_label)
@@ -1548,6 +1769,10 @@ class StockAnalyzerGUI:
             ext = os.path.splitext(self.current_file_path)[1].lower()
             fmt = DataLoader.EXT_TO_FORMAT.get(ext, None)
             
+            # Validate the file before loading
+            if not self.validate_data_file(self.current_file_path, fmt):
+                return
+            
             def worker():
                 try:
                     if fmt == 'duckdb':
@@ -1624,13 +1849,13 @@ class StockAnalyzerGUI:
                             self.run_in_main_thread(update_view)
                 except Exception as e:
                     logging.error(f"Failed to view file: {str(e)}")
-                    self.run_in_main_thread(lambda e=e, *a, **k: messagebox.showerror("Error", f"Failed to view file: {str(e)}"))
+                    self.run_in_main_thread(lambda e=e, *a, **k: self.show_enhanced_error("File Loading Error", f"Failed to view file: {str(e)}", self.current_file_path))
             
             threading.Thread(target=worker, daemon=True).start()
             
         except Exception as e:
             logging.error(f"Error in view_selected_file: {str(e)}")
-            messagebox.showerror("Error", f"Error viewing file: {str(e)}")
+            self.show_enhanced_error("Error", f"Error viewing file: {str(e)}", self.current_file_path if hasattr(self, 'current_file_path') else None)
 
     def apply_custom_page_size(self):
         """Apply custom page size from entry"""
@@ -1723,6 +1948,351 @@ class StockAnalyzerGUI:
 
         # Configure grid weights
         self.filter_frame.grid_columnconfigure(tuple(range(len(self.data_tree['columns']))), weight=1)
+
+    def setup_advanced_filters(self):
+        """Setup advanced filtering with query builder"""
+        # Create advanced filter window
+        self.advanced_filter_window = tk.Toplevel(self.root)
+        self.advanced_filter_window.title("Advanced Query Builder")
+        self.advanced_filter_window.geometry("800x600")
+        
+        # Main frame
+        main_frame = ttk.Frame(self.advanced_filter_window)
+        main_frame.pack(fill='both', expand=True, padx=10, pady=10)
+        
+        # Query conditions frame
+        conditions_frame = ttk.LabelFrame(main_frame, text="Query Conditions")
+        conditions_frame.pack(fill='both', expand=True, pady=(0, 10))
+        
+        # Conditions list
+        self.conditions_list = tk.Listbox(conditions_frame, height=10)
+        self.conditions_list.pack(side='left', fill='both', expand=True, padx=5, pady=5)
+        
+        # Scrollbar for conditions
+        conditions_scroll = ttk.Scrollbar(conditions_frame, orient='vertical', command=self.conditions_list.yview)
+        conditions_scroll.pack(side='right', fill='y')
+        self.conditions_list.configure(yscrollcommand=conditions_scroll.set)
+        
+        # Condition builder frame
+        builder_frame = ttk.LabelFrame(main_frame, text="Add Condition")
+        builder_frame.pack(fill='x', pady=(0, 10))
+        
+        # Column selection
+        col_frame = ttk.Frame(builder_frame)
+        col_frame.pack(fill='x', padx=5, pady=5)
+        ttk.Label(col_frame, text="Column:").pack(side='left')
+        self.filter_column_var = tk.StringVar()
+        self.filter_column_combo = ttk.Combobox(col_frame, textvariable=self.filter_column_var, width=15)
+        self.filter_column_combo.pack(side='left', padx=5)
+        
+        # Operator selection
+        op_frame = ttk.Frame(builder_frame)
+        op_frame.pack(fill='x', padx=5, pady=5)
+        ttk.Label(op_frame, text="Operator:").pack(side='left')
+        self.filter_operator_var = tk.StringVar()
+        self.filter_operator_combo = ttk.Combobox(op_frame, textvariable=self.filter_operator_var, width=15)
+        self.filter_operator_combo.pack(side='left', padx=5)
+        
+        # Value entry
+        val_frame = ttk.Frame(builder_frame)
+        val_frame.pack(fill='x', padx=5, pady=5)
+        ttk.Label(val_frame, text="Value:").pack(side='left')
+        self.filter_value_entry = ttk.Entry(val_frame, width=20)
+        self.filter_value_entry.pack(side='left', padx=5)
+        
+        # Add condition button
+        ttk.Button(builder_frame, text="Add Condition", 
+                  command=self.add_filter_condition).pack(pady=5)
+        
+        # Buttons frame
+        buttons_frame = ttk.Frame(main_frame)
+        buttons_frame.pack(fill='x', pady=(0, 10))
+        
+        ttk.Button(buttons_frame, text="Apply Query", 
+                  command=self.apply_advanced_filters).pack(side='left', padx=5)
+        ttk.Button(buttons_frame, text="Clear All", 
+                  command=self.clear_advanced_filters).pack(side='left', padx=5)
+        ttk.Button(buttons_frame, text="Save Query", 
+                  command=self.save_query).pack(side='left', padx=5)
+        ttk.Button(buttons_frame, text="Load Query", 
+                  command=self.load_query).pack(side='left', padx=5)
+        ttk.Button(buttons_frame, text="Close", 
+                  command=self.advanced_filter_window.destroy).pack(side='right', padx=5)
+        
+        # Initialize query builder
+        self.query_builder = AdvancedQueryBuilder()
+        self.filter_conditions = []
+        
+        # Populate column and operator lists
+        if hasattr(self, 'data_tree') and self.data_tree['columns']:
+            self.filter_column_combo['values'] = list(self.data_tree['columns'])
+            if self.data_tree['columns']:
+                self.filter_column_combo.set(self.data_tree['columns'][0])
+        
+        self.filter_operator_combo['values'] = list(self.query_builder.operators.keys())
+        if self.query_builder.operators:
+            self.filter_operator_combo.set(list(self.query_builder.operators.keys())[0])
+
+    def add_filter_condition(self):
+        """Add a new filter condition"""
+        column = self.filter_column_var.get()
+        operator = self.filter_operator_var.get()
+        value = self.filter_value_entry.get()
+        
+        if not column or not operator:
+            messagebox.showerror("Error", "Please select column and operator")
+            return
+            
+        # Handle different value types
+        if operator in ['between']:
+            # For between operator, expect two values separated by comma
+            values = value.split(',')
+            if len(values) != 2:
+                messagebox.showerror("Error", "Between operator requires two values separated by comma")
+                return
+            value = [v.strip() for v in values]
+        elif operator in ['in']:
+            # For in operator, expect comma-separated values
+            value = [v.strip() for v in value.split(',')]
+        elif operator in ['is_null', 'is_not_null']:
+            value = None
+        else:
+            # Try to convert to appropriate type
+            try:
+                if 'date' in column.lower() or 'time' in column.lower():
+                    # Keep as string for dates
+                    pass
+                else:
+                    # Try numeric conversion
+                    value = float(value)
+            except ValueError:
+                # Keep as string if conversion fails
+                pass
+        
+        condition = {
+            'column': column,
+            'operator': operator,
+            'value': value
+        }
+        
+        self.filter_conditions.append(condition)
+        self.update_conditions_display()
+        
+        # Clear value entry
+        self.filter_value_entry.delete(0, tk.END)
+
+    def update_conditions_display(self):
+        """Update the conditions list display"""
+        self.conditions_list.delete(0, tk.END)
+        for i, condition in enumerate(self.filter_conditions):
+            display_text = f"{condition['column']} {condition['operator']} {condition['value']}"
+            self.conditions_list.insert(tk.END, display_text)
+
+    def apply_advanced_filters(self):
+        """Apply advanced filters using query builder"""
+        if not self.filter_conditions:
+            messagebox.showinfo("Info", "No conditions to apply")
+            return
+            
+        try:
+            # Build query
+            query, params = self.query_builder.build_query(self.filter_conditions)
+            
+            # Execute query
+            if hasattr(self, 'current_file_path') and self.current_file_path.endswith('.duckdb'):
+                conn = duckdb.connect(self.current_file_path)
+                try:
+                    df = conn.execute(query, params).fetchdf()
+                    conn.close()
+                    
+                    # Update display
+                    self.setup_smart_columns(df)
+                    self.store_original_data(df)
+                    
+                    # Update treeview
+                    self.data_tree.grid_remove()
+                    self.data_tree.delete(*self.data_tree.get_children())
+                    rows = [tuple(row) for _, row in df.iterrows()]
+                    for row in rows:
+                        self.data_tree.insert('', 'end', values=row)
+                    self.data_tree.grid()
+                    
+                    messagebox.showinfo("Success", f"Query returned {len(df)} rows")
+                    
+                except Exception as e:
+                    if conn:
+                        conn.close()
+                    messagebox.showerror("Error", f"Query failed: {str(e)}")
+            else:
+                messagebox.showerror("Error", "Advanced filtering only available for DuckDB files")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to apply filters: {str(e)}")
+
+    def clear_advanced_filters(self):
+        """Clear all advanced filter conditions"""
+        self.filter_conditions = []
+        self.update_conditions_display()
+
+    def save_query(self):
+        """Save current query to file"""
+        if not self.filter_conditions:
+            messagebox.showinfo("Info", "No query to save")
+            return
+            
+        file_path = filedialog.asksaveasfilename(
+            defaultextension='.json',
+            filetypes=[('JSON files', '*.json')],
+            title="Save Query"
+        )
+        
+        if file_path:
+            try:
+                import json
+                with open(file_path, 'w') as f:
+                    json.dump(self.filter_conditions, f, indent=2)
+                messagebox.showinfo("Success", f"Query saved to {file_path}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save query: {str(e)}")
+
+    def load_query(self):
+        """Load query from file"""
+        file_path = filedialog.askopenfilename(
+            filetypes=[('JSON files', '*.json')],
+            title="Load Query"
+        )
+        
+        if file_path:
+            try:
+                import json
+                with open(file_path, 'r') as f:
+                    self.filter_conditions = json.load(f)
+                self.update_conditions_display()
+                messagebox.showinfo("Success", f"Query loaded from {file_path}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to load query: {str(e)}")
+
+    def enable_virtual_scrolling(self):
+        """Enable virtual scrolling for better performance with large datasets"""
+        if not hasattr(self, 'virtual_tree'):
+            # Create virtual scrolling treeview
+            tree_frame = self.data_tree.master
+            columns = self.data_tree['columns'] if self.data_tree['columns'] else ['col1']
+            
+            # Store reference to original tree
+            self.original_tree = self.data_tree
+            
+            # Create virtual scrolling treeview
+            self.virtual_tree = VirtualScrollingTreeview(tree_frame, columns)
+            
+            # Replace original tree with virtual tree
+            self.data_tree = self.virtual_tree.tree
+            
+            # Update scrollbars
+            if hasattr(self, 'data_view_xscroll'):
+                self.data_view_xscroll.config(command=self.data_tree.xview)
+                self.data_tree.configure(xscrollcommand=self.data_view_xscroll.set)
+            
+            if hasattr(self, 'data_view_yscroll'):
+                self.data_view_yscroll.config(command=self.data_tree.yview)
+                self.data_tree.configure(yscrollcommand=self.data_view_yscroll.set)
+            
+            # Grid the new tree
+            self.data_tree.grid(row=0, column=0, sticky='nsew')
+            
+            logging.info("Virtual scrolling enabled")
+
+    def load_data_with_virtual_scrolling(self, file_path, format_type):
+        """Load data using virtual scrolling for better performance"""
+        try:
+            # Create data source
+            data_source = DataSource(file_path, format_type)
+            
+            # Enable virtual scrolling if not already enabled
+            if not hasattr(self, 'virtual_tree'):
+                self.enable_virtual_scrolling()
+            
+            # Set data source for virtual scrolling
+            self.virtual_tree.set_data_source(data_source)
+            
+            # Setup columns
+            if data_source.total_rows > 0:
+                sample_row = data_source.get_row(0)
+                if sample_row:
+                    columns = [f'col{i}' for i in range(len(sample_row))]
+                    self.data_tree['columns'] = columns
+                    self.data_tree['show'] = 'headings'
+                    
+                    for i, col in enumerate(columns):
+                        self.data_tree.heading(col, text=col)
+                        self.data_tree.column(col, width=100)
+            
+            logging.info(f"Loaded {data_source.total_rows} rows with virtual scrolling")
+            
+        except Exception as e:
+            logging.error(f"Failed to load data with virtual scrolling: {str(e)}")
+            messagebox.showerror("Error", f"Failed to load data: {str(e)}")
+
+    def optimize_memory_usage(self):
+        """Optimize memory usage for large datasets"""
+        try:
+            # Clear unnecessary caches
+            if hasattr(self, 'cached_data'):
+                self.cached_data.clear()
+            
+            # Force garbage collection
+            import gc
+            gc.collect()
+            
+            # Update memory usage display
+            import psutil
+            process = psutil.Process()
+            memory_mb = process.memory_info().rss / 1024 / 1024
+            
+            if hasattr(self, 'memory_label'):
+                self.memory_label.config(text=f"Memory: {memory_mb:.1f} MB")
+            
+            logging.info(f"Memory optimized. Current usage: {memory_mb:.1f} MB")
+            
+        except Exception as e:
+            logging.error(f"Failed to optimize memory: {str(e)}")
+
+    def setup_performance_monitoring(self):
+        """Setup performance monitoring for the data viewer"""
+        # Create performance monitoring frame
+        perf_frame = ttk.LabelFrame(self.root, text="Performance Monitor")
+        perf_frame.grid(row=1, column=0, sticky='ew', padx=5, pady=5)  # Use grid instead of pack
+        
+        # Memory usage label
+        self.memory_label = ttk.Label(perf_frame, text="Memory: 0 MB")
+        self.memory_label.pack(side='left', padx=5)
+        
+        # Performance buttons
+        ttk.Button(perf_frame, text="Optimize Memory", 
+                  command=self.optimize_memory_usage).pack(side='left', padx=5)
+        ttk.Button(perf_frame, text="Enable Virtual Scrolling", 
+                  command=self.enable_virtual_scrolling).pack(side='left', padx=5)
+        ttk.Button(perf_frame, text="Advanced Filters", 
+                  command=self.setup_advanced_filters).pack(side='left', padx=5)
+        
+        # Start periodic memory monitoring
+        self.update_performance_monitor()
+
+    def update_performance_monitor(self):
+        """Update performance monitoring display"""
+        try:
+            import psutil
+            process = psutil.Process()
+            memory_mb = process.memory_info().rss / 1024 / 1024
+            
+            if hasattr(self, 'memory_label'):
+                self.memory_label.config(text=f"Memory: {memory_mb:.1f} MB")
+            
+            # Schedule next update
+            self.root.after(5000, self.update_performance_monitor)  # Update every 5 seconds
+            
+        except Exception as e:
+            logging.error(f"Failed to update performance monitor: {str(e)}")
 
     def apply_filters(self):
         """Apply column filters to the data"""
@@ -2965,6 +3535,208 @@ Bottom 5 Tickers by Record Count:
         """Store original data for searching and filtering"""
         self.original_data = df.copy()
         self.current_data = df.copy()
+
+    def setup_keyboard_shortcuts(self):
+        """Setup keyboard shortcuts for common actions"""
+        # Bind keyboard shortcuts to the root window
+        self.root.bind('<Control-f>', lambda e: self.focus_search())
+        self.root.bind('<Control-e>', lambda e: self.export_data())
+        self.root.bind('<Control-r>', lambda e: self.refresh_file_list())
+        self.root.bind('<Control-s>', lambda e: self.show_view_statistics())
+        self.root.bind('<Control-v>', lambda e: self.view_selected_file())
+        self.root.bind('<Control-d>', lambda e: self.remove_selected_file())
+        self.root.bind('<Escape>', lambda e: self.clear_search())
+        self.root.bind('<F5>', lambda e: self.refresh_file_list())
+        
+        # Add tooltips with shortcut hints
+        self.add_shortcut_tooltips()
+
+    def add_shortcut_tooltips(self):
+        """Add tooltips with shortcut hints to buttons"""
+        # Create tooltip function
+        def create_tooltip(widget, text):
+            def show_tooltip(event):
+                tooltip = tk.Toplevel()
+                tooltip.wm_overrideredirect(True)
+                tooltip.wm_geometry(f"+{event.x_root+10}+{event.y_root+10}")
+                
+                label = tk.Label(tooltip, text=text, justify='left',
+                               background="#ffffe0", relief='solid', borderwidth=1)
+                label.pack()
+                
+                def hide_tooltip(event):
+                    tooltip.destroy()
+                
+                widget.bind('<Leave>', hide_tooltip)
+                tooltip.bind('<Leave>', hide_tooltip)
+                tooltip.bind('<Button-1>', hide_tooltip)
+            
+            widget.bind('<Enter>', show_tooltip)
+        
+        # Add tooltips to buttons (we'll need to find them by traversing the widget tree)
+        self.add_tooltips_to_buttons()
+
+    def add_tooltips_to_buttons(self):
+        """Add tooltips to buttons throughout the interface"""
+        # This is a simplified version - in a full implementation, you'd traverse the widget tree
+        # and add tooltips to specific buttons
+        pass
+
+    def focus_search(self):
+        """Focus the search entry"""
+        if hasattr(self, 'search_entry'):
+            self.search_entry.focus_set()
+            self.search_entry.select_range(0, tk.END)
+
+    def validate_data_file(self, file_path, format_type):
+        """Validate data file before loading"""
+        try:
+            if not os.path.exists(file_path):
+                raise ValueError(f"File not found: {file_path}")
+            
+            if os.path.getsize(file_path) == 0:
+                raise ValueError(f"File is empty: {file_path}")
+            
+            # Check file extension matches format
+            ext = os.path.splitext(file_path)[1].lower()
+            expected_ext = DataLoader.EXT_TO_FORMAT.get(ext, None)
+            if expected_ext and expected_ext != format_type:
+                raise ValueError(f"File extension '{ext}' doesn't match format '{format_type}'")
+            
+            return True
+            
+        except Exception as e:
+            self.show_enhanced_error("Data Validation Error", str(e), file_path)
+            return False
+
+    def show_enhanced_error(self, title, message, file_path=None):
+        """Show enhanced error message with suggestions"""
+        error_window = tk.Toplevel(self.root)
+        error_window.title(title)
+        error_window.geometry("500x300")
+        error_window.resizable(True, True)
+        
+        # Main error message
+        error_frame = ttk.Frame(error_window)
+        error_frame.pack(fill='both', expand=True, padx=10, pady=10)
+        
+        ttk.Label(error_frame, text="Error Details:", font=('Arial', 12, 'bold')).pack(anchor='w')
+        
+        # Error message text
+        error_text = tk.Text(error_frame, height=8, wrap='word')
+        error_text.pack(fill='both', expand=True, pady=(5, 10))
+        error_text.insert('1.0', message)
+        error_text.config(state='disabled')
+        
+        # File path if provided
+        if file_path:
+            ttk.Label(error_frame, text=f"File: {file_path}", foreground='gray').pack(anchor='w')
+        
+        # Suggestions frame
+        suggestions_frame = ttk.LabelFrame(error_frame, text="Suggestions")
+        suggestions_frame.pack(fill='x', pady=(10, 0))
+        
+        suggestions = self.get_error_suggestions(message, file_path)
+        for suggestion in suggestions:
+            ttk.Label(suggestions_frame, text=f"• {suggestion}", wraplength=450).pack(anchor='w', padx=5, pady=2)
+        
+        # Buttons
+        button_frame = ttk.Frame(error_frame)
+        button_frame.pack(fill='x', pady=(10, 0))
+        
+        ttk.Button(button_frame, text="Copy Error", 
+                  command=lambda: self.copy_to_clipboard(message)).pack(side='left', padx=5)
+        ttk.Button(button_frame, text="Close", 
+                  command=error_window.destroy).pack(side='right', padx=5)
+
+    def get_error_suggestions(self, error_message, file_path=None):
+        """Get suggestions based on error message"""
+        suggestions = []
+        
+        if "File not found" in error_message:
+            suggestions.extend([
+                "Check if the file path is correct",
+                "Verify the file exists in the specified location",
+                "Try using the file browser to select the file"
+            ])
+        elif "File is empty" in error_message:
+            suggestions.extend([
+                "Check if the file contains data",
+                "Verify the file wasn't corrupted during transfer",
+                "Try opening the file in a text editor to verify content"
+            ])
+        elif "format" in error_message.lower():
+            suggestions.extend([
+                "Check if the file format is supported",
+                "Verify the file extension matches the content",
+                "Try converting the file to a supported format"
+            ])
+        elif "permission" in error_message.lower():
+            suggestions.extend([
+                "Check file permissions",
+                "Try running the application with elevated privileges",
+                "Verify you have read access to the file"
+            ])
+        else:
+            suggestions.extend([
+                "Check the file format and content",
+                "Verify all required dependencies are installed",
+                "Try refreshing the file list"
+            ])
+        
+        return suggestions
+
+    def copy_to_clipboard(self, text):
+        """Copy text to clipboard"""
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+        messagebox.showinfo("Copied", "Error message copied to clipboard")
+
+    def setup_bindings(self):
+        """Setup additional bindings for better user experience"""
+        # File listbox bindings
+        self.file_listbox.bind('<Double-Button-1>', lambda e: self.view_selected_file())
+        self.file_listbox.bind('<Return>', lambda e: self.view_selected_file())
+        self.file_listbox.bind('<Delete>', lambda e: self.remove_selected_file())
+        
+        # Search entry bindings
+        if hasattr(self, 'search_entry'):
+            self.search_entry.bind('<Return>', lambda e: self.on_search_change())
+            self.search_entry.bind('<Control-a>', lambda e: self.select_all_search())
+        
+        # Data tree bindings
+        self.data_tree.bind('<Control-a>', lambda e: self.select_all_tree())
+        self.data_tree.bind('<Control-c>', lambda e: self.copy_selected_tree_items())
+
+    def select_all_search(self):
+        """Select all text in search entry"""
+        self.search_entry.select_range(0, tk.END)
+        return 'break'
+
+    def select_all_tree(self):
+        """Select all items in tree"""
+        for item in self.data_tree.get_children():
+            self.data_tree.selection_add(item)
+        return 'break'
+
+    def copy_selected_tree_items(self):
+        """Copy selected tree items to clipboard"""
+        selected_items = self.data_tree.selection()
+        if not selected_items:
+            return 'break'
+        
+        # Get column headers
+        columns = self.data_tree['columns']
+        
+        # Build CSV-like string
+        csv_data = '\t'.join(columns) + '\n'
+        for item in selected_items:
+            values = [self.data_tree.set(item, col) for col in columns]
+            csv_data += '\t'.join(str(v) for v in values) + '\n'
+        
+        self.root.clipboard_clear()
+        self.root.clipboard_append(csv_data)
+        return 'break'
 
 def run(task: str = 'gui'):
     loader = DataLoader()
