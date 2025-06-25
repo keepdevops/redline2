@@ -847,7 +847,7 @@ class StockAnalyzerGUI:
                     if df is not None:
                         dfs.append(df)
                     progress = 30 + (40 * (idx + 1) / len(file_paths))
-                    self.run_in_main_thread(lambda p=progress: self.progress_var.set(p))
+                    self.run_in_main_thread(lambda *a, **k: self.progress_var.set(progress))
                 
                 if not dfs:
                     print("Error: No valid data loaded from file(s)")

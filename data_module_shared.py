@@ -376,6 +376,11 @@ class DataLoader:
                 except Exception:
                     raise ValueError("Data must be convertible to polars DataFrame for 'polars' save type.")
             df.write_parquet(file_path)
+        elif filetype == 'pyarrow':
+            import pyarrow as pa
+            import pyarrow.parquet as pq
+            table = pa.Table.from_pandas(df)
+            pq.write_table(table, file_path)
         else:
             raise ValueError(f"Unsupported save file type: {filetype}")
 
@@ -977,8 +982,8 @@ class StockAnalyzerGUI:
         
         def worker():
             try:
-                self.run_in_main_thread(lambda: self.progress_bar.pack())
-                self.run_in_main_thread(lambda: self.progress_var.set(10))
+                self.run_in_main_thread(lambda *a, **k: self.progress_bar.pack())
+                self.run_in_main_thread(lambda *a, **k: self.progress_var.set(10))
                 
                 # Analyze files
                 analysis = self.analyze_stooq_files(file_paths)
@@ -1004,18 +1009,18 @@ class StockAnalyzerGUI:
                         self.min_records_entry.delete(0, tk.END)
                         self.min_records_entry.insert(0, str(avg_records // 2))
                 
-                self.run_in_main_thread(update_gui)
+                self.run_in_main_thread(lambda *a, **k: update_gui())
                 
             except Exception as e:
                 error_msg = str(e)
                 logging.error(f"Analysis failed: {error_msg}")
                 def show_error():
                     messagebox.showerror("Error", f"Analysis failed: {error_msg}")
-                self.run_in_main_thread(show_error)
+                self.run_in_main_thread(lambda *a, **k: show_error())
             finally:
                 def hide_progress():
                     self.progress_bar.pack_forget()
-                self.run_in_main_thread(hide_progress)
+                self.run_in_main_thread(lambda *a, **k: hide_progress())
         
         threading.Thread(target=worker, daemon=True).start()
 
@@ -1028,14 +1033,14 @@ class StockAnalyzerGUI:
                 # Get selected files
                 selections = self.input_listbox.curselection()
                 if not selections:
-                    self.run_in_main_thread(messagebox.showerror, "Error", "No files selected")
+                    self.run_in_main_thread(lambda *a, **k: messagebox.showerror("Error", "No files selected"), *selections)
                     return
                 
                 # Get file paths
                 file_paths = [self.input_listbox.get(idx).split(' [')[0] for idx in selections]
                 
-                self.run_in_main_thread(lambda: self.progress_bar.pack())
-                self.run_in_main_thread(lambda: self.progress_var.set(10))
+                self.run_in_main_thread(lambda *a, **k: self.progress_bar.pack(), *selections)
+                self.run_in_main_thread(lambda *a, **k: self.progress_var.set(10), *selections)
                 
                 # Load and standardize data
                 dfs = []
@@ -1052,18 +1057,27 @@ class StockAnalyzerGUI:
                             dfs.append(df)
                         
                         progress = 30 + (40 * (idx + 1) / len(file_paths))
-                        self.run_in_main_thread(lambda p=progress: self.progress_var.set(p))
+                        self.run_in_main_thread(lambda *a, **k: self.progress_var.set(progress), *selections)
                         
                     except Exception as error:
                         logging.error(f"Error processing file {file_path}: {str(error)}")
-                        # Fix: Capture error and file_path in the lambda directly
-                        self.run_in_main_thread(lambda err=error, fp=file_path: messagebox.showerror(
-                            "Error", f"Failed to process {os.path.basename(fp)}: {str(err)}"))
+                        print(f"DEBUG: file_path={file_path} (type={type(file_path)})")
+                        if not isinstance(file_path, str):
+                            file_path_str = str(file_path)
+                        else:
+                            file_path_str = file_path
+                        self.run_in_main_thread(
+                            lambda error=error, file_path_str=file_path_str, *a, **k: (
+                                messagebox.showerror(
+                                    "Error",
+                                    f"Failed to process {os.path.basename(str(file_path_str)) if isinstance(file_path_str, (str, bytes, os.PathLike)) else file_path_str}: {str(error)}"
+                                )
+                            ), *selections)
                         continue
                 
                 if not dfs:
-                    self.run_in_main_thread(lambda: messagebox.showerror("Error", "No valid data loaded"))
-                    self.run_in_main_thread(lambda: self.progress_bar.pack_forget())
+                    self.run_in_main_thread(lambda *a, **k: messagebox.showerror("Error", "No valid data loaded"), *selections)
+                    self.run_in_main_thread(lambda *a, **k: self.progress_bar.pack_forget(), *selections)
                     return
                 
                 # Combine all dataframes
@@ -1077,11 +1091,11 @@ class StockAnalyzerGUI:
                     try:
                         data = self.loader.filter_data_by_date_range(data, start_date, end_date)
                     except Exception as error:
-                        self.run_in_main_thread(lambda: messagebox.showerror("Error", f"Date filtering failed: {str(error)}"))
-                        self.run_in_main_thread(lambda: self.progress_bar.pack_forget())
+                        self.run_in_main_thread(lambda *a, **k: messagebox.showerror("Error", f"Date filtering failed: {str(error)}"), *selections)
+                        self.run_in_main_thread(lambda *a, **k: self.progress_bar.pack_forget(), *selections)
                         return
                 
-                self.run_in_main_thread(lambda: self.progress_var.set(80))
+                self.run_in_main_thread(lambda *a, **k: self.progress_var.set(80), *selections)
                 
                 # Balance the data if parameters are provided
                 try:
@@ -1091,24 +1105,24 @@ class StockAnalyzerGUI:
                     if target_records or min_records:
                         data = self.loader.balance_ticker_data(data, target_records, min_records)
                 except Exception as error:
-                    self.run_in_main_thread(lambda: messagebox.showerror("Error", f"Data balancing failed: {str(error)}"))
-                    self.run_in_main_thread(lambda: self.progress_bar.pack_forget())
+                    self.run_in_main_thread(lambda *a, **k: messagebox.showerror("Error", f"Data balancing failed: {str(error)}"), *selections)
+                    self.run_in_main_thread(lambda *a, **k: self.progress_bar.pack_forget(), *selections)
                     return
                 
-                self.run_in_main_thread(lambda: self.progress_var.set(90))
+                self.run_in_main_thread(lambda *a, **k: self.progress_var.set(90), *selections)
                 
                 # Handle duplicates and save
                 dropped_dupes = len(data) - len(data.drop_duplicates())
                 data = data.drop_duplicates()
                 
                 # Call data cleaning and save in main thread
-                self.run_in_main_thread(lambda: self.data_cleaning_and_save(data, input_format, output_format, dropped_dupes))
+                self.run_in_main_thread(lambda *a, **k: self.data_cleaning_and_save(data, input_format, output_format, dropped_dupes), *selections)
                 
             except Exception as error:
                 logging.error(f"Data processing failed: {str(error)}")
-                self.run_in_main_thread(lambda: messagebox.showerror("Error", f"Processing failed: {str(error)}"))
+                self.run_in_main_thread(lambda *a, **k: messagebox.showerror("Error", f"Processing failed: {str(error)}"), *selections)
             finally:
-                self.run_in_main_thread(lambda: self.progress_bar.pack_forget())
+                self.run_in_main_thread(lambda *a, **k: self.progress_bar.pack_forget(), *selections)
         
         threading.Thread(target=worker, daemon=True).start()
 
@@ -1468,7 +1482,7 @@ class StockAnalyzerGUI:
                     
                 except Exception as e:
                     logging.error(f"Failed to view file: {str(e)}")
-                    self.run_in_main_thread(lambda: messagebox.showerror("Error", f"Failed to view file: {str(e)}"))
+                    self.run_in_main_thread(lambda *a, **k: messagebox.showerror("Error", f"Failed to view file: {str(e)}"))
             
             threading.Thread(target=worker, daemon=True).start()
             
@@ -1838,7 +1852,7 @@ class StockAnalyzerGUI:
         def worker():
             selection = self.file_listbox.curselection()
             if not selection:
-                self.run_in_main_thread(messagebox.showerror, "Error", "No file(s) selected to remove")
+                self.run_in_main_thread(lambda *a, **k: messagebox.showerror("Error", "No file(s) selected to remove"), *selections)
                 return
             import os
             removed = 0
@@ -1862,7 +1876,7 @@ class StockAnalyzerGUI:
                 if failed:
                     message += f" Failed to remove {failed} file(s)."
                 messagebox.showinfo("File Removal", message)
-            self.run_in_main_thread(update_gui)
+            self.run_in_main_thread(lambda *a, **k: update_gui(), *selections)
         threading.Thread(target=worker, daemon=True).start()
 
     def run_in_main_thread(self, func, *args, **kwargs):
@@ -1872,26 +1886,49 @@ class StockAnalyzerGUI:
     def show_loader_manual(self):
         guide = (
             """
-DATA LOADER TAB - USER MANUAL\n\n
-1. Browse Files: Click to select one or more data files (CSV, TXT, JSON, DuckDB, etc.). Selected files appear in the list.\n\n
-2. Preview File: Select a file from the list and click to view its contents before processing.\n\n
-3. Date Range Selection: Enter start and end dates (YYYY-MM-DD) to filter data by time period.\n\n
-4. Data Balancing Options:
-   - Target Records: Desired number of records per ticker
-   - Minimum Records: Minimum required records for a ticker to be included
-   - Leave blank for automatic values based on data distribution\n\n
-5. Input/Output Format: Choose the input format (matches your files) and desired output format for conversion.\n\n
-6. Merge/Consolidate Files: Click to merge selected files, apply date filtering and balancing, and save as a single file.\n\n
-7. Progress Bar: Shows progress during batch operations.\n\n
-Tip: Use Preview to check file structure before processing.\n
+REDLINE DATA LOADER - QUICK HELP
+
+BASIC OPERATIONS
+---------------
+1. File Selection
+   • Click 'Browse Files' to select data files
+   • Use Ctrl/Cmd+Click for multiple files
+   • Selected files appear in the list
+   • Supported formats: CSV, TXT, JSON, DuckDB, etc.
+
+2. Format Selection
+   • Choose Input Format matching your files
+   • Select Output Format for conversion
+   • Preview files to verify format
+
+3. Data Range & Balancing
+   • Set date range (YYYY-MM-DD) to filter data
+   • Target Records: Desired records per ticker
+   • Minimum Records: Required records threshold
+   • Leave blank for automatic values
+
+4. Actions
+   • Preview: View file contents
+   • Preprocess: Clean and normalize data
+   • Merge/Consolidate: Combine multiple files
+   • Progress bar shows operation status
+
+TIPS
+----
+• Always preview files before processing
+• Use correct input format to avoid errors
+• Check log file for detailed error messages
+• Use Parquet/Feather for large datasets
+
+For detailed information, click 'User Manual'
 """
         )
 
         popup = tk.Toplevel(self.root)
-        popup.title("Data Loader Manual")
-        popup.geometry("600x800")
+        popup.title("Data Loader Help")
+        popup.geometry("600x600")
         
-        # Create a frame with scrollbar
+        # Create frame with scrollbar
         frame = ttk.Frame(popup)
         frame.pack(fill='both', expand=True, padx=10, pady=10)
         
@@ -1910,87 +1947,57 @@ Tip: Use Preview to check file structure before processing.\n
 
     def show_view_manual(self):
         guide = """
-DATA VIEW TAB - USER MANUAL
+REDLINE DATA VIEW - QUICK HELP
 
-1. Data Navigation
------------------
-• Available Data Files: Lists all supported files in data directory
-• Multiple selection enabled for batch operations
-• File list shows format for each file
-• Hierarchical view of data directory structure
+BASIC OPERATIONS
+---------------
+1. File Navigation
+   • Browse files in left panel
+   • Select files to view/manage
+   • Use Refresh to update list
+   • Multiple selection enabled
 
-2. Viewing Options
------------------
-• View File: Display selected file's contents in data table
-• Data table shows:
-  - Ticker symbols
-  - Timestamps
-  - OHLCV data (Open, High, Low, Close, Volume)
-  - Additional fields if present
-• Sortable columns for easy analysis
-• Horizontal and vertical scrolling for large datasets
+2. Data Display
+   • View file contents in table
+   • Sort by clicking column headers
+   • Navigate with page controls
+   • Customize rows per page
 
-3. Data Analysis Features
-------------------------
-• Statistics Display:
-  - Records per ticker
-  - Date range coverage
-  - Data distribution
-  - Missing value counts
-• Data Quality Indicators:
-  - Highlights gaps in time series
-  - Shows data completeness
-  - Identifies potential anomalies
+3. Ticker Navigation
+   • Select tickers from dropdown
+   • Use Previous/Next buttons
+   • View ticker-specific data
+   • Track data coverage
 
 4. Data Management
------------------
-• Remove File: Delete selected files from disk
-• Refresh Data: Update file list and table view
-• Export Options: Save viewed data in various formats
-• Batch Operations: Process multiple files together
+   • View: Display file contents
+   • Remove: Delete selected files
+   • Refresh: Update display
+   • Export: Save data
 
-5. Display Settings
-------------------
-• Adjustable column widths
-• Sortable by any column
-• Customizable date/time formats
-• Numeric precision control
+FEATURES
+--------
+• Interactive data table
+• Sortable columns
+• Pagination controls
+• Data statistics
+• Export options
 
-6. Performance Features
-----------------------
-• Efficient loading of large datasets
-• Pagination for better performance
-• Memory-optimized data handling
-• Quick search and filter capabilities
+TIPS
+----
+• Use filters to focus on specific data
+• Regular refresh keeps view current
+• Check data quality indicators
+• Monitor file sizes and formats
 
-Tips for Effective Use:
-----------------------
-1. Regular refresh keeps view current
-2. Sort by date to check continuity
-3. Use filters to focus on specific data
-4. Check statistics for data quality
-5. Export filtered views as needed
-
-Troubleshooting:
----------------
-• Slow loading: Try reducing view range
-• Missing data: Check file permissions
-• Format issues: Verify file type
-• Display problems: Refresh view
-
-Data Quality Checks:
-------------------
-• Verify timestamp continuity
-• Check for price anomalies
-• Monitor volume consistency
-• Validate ticker symbols
+For detailed information, click 'User Manual'
 """
 
         popup = tk.Toplevel(self.root)
-        popup.title("Data View Manual")
-        popup.geometry("600x800")
+        popup.title("Data View Help")
+        popup.geometry("600x600")
         
-        # Create a frame with scrollbar
+        # Create frame with scrollbar
         frame = ttk.Frame(popup)
         frame.pack(fill='both', expand=True, padx=10, pady=10)
         
