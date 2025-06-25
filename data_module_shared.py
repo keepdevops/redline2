@@ -1753,8 +1753,17 @@ class StockAnalyzerGUI:
             entry.delete(0, tk.END)
         self.apply_filters()
 
+    def get_visible_data(self):
+        """Return a DataFrame of the currently visible (filtered/searched) data in the Treeview."""
+        columns = self.data_tree['columns']
+        data = []
+        for item in self.data_tree.get_children():
+            values = [self.data_tree.set(item, col) for col in columns]
+            data.append(values)
+        return pd.DataFrame(data, columns=columns)
+
     def export_data(self, current_page_only=True):
-        """Export data to file"""
+        """Export visible (filtered/searched) data to file in chosen format."""
         file_types = [
             ('CSV files', '*.csv'),
             ('Excel files', '*.xlsx'),
@@ -1763,40 +1772,14 @@ class StockAnalyzerGUI:
         ]
         file_path = filedialog.asksaveasfilename(
             defaultextension='.csv',
-            filetypes=file_types
+            filetypes=file_types,
+            title="Export Visible Data"
         )
         if not file_path:
             return
-        
         try:
-            # Get data from tree
-            data = []
-            items = self.data_tree.get_children()
-            columns = self.data_tree['columns']
-            
-            if current_page_only:
-                # Export only visible items
-                for item in items:
-                    values = [self.data_tree.set(item, col) for col in columns]
-                    data.append(values)
-            else:
-                # Export all data from database
-                file_path = self.current_file_path  # Assuming this is set when viewing a file
-                if file_path.endswith('.duckdb'):
-                    conn = duckdb.connect(file_path)
-                    data = conn.execute("SELECT * FROM tickers_data").fetchdf()
-                    conn.close()
-                else:
-                    messagebox.showerror("Error", "Full export only supported for database files")
-                    return
-            
-            # Convert to DataFrame
-            if isinstance(data, list):
-                df = pd.DataFrame(data, columns=columns)
-            else:
-                df = data
-            
-            # Save based on file extension
+            # Export only visible data
+            df = self.get_visible_data()
             ext = os.path.splitext(file_path)[1].lower()
             if ext == '.csv':
                 df.to_csv(file_path, index=False)
@@ -1806,11 +1789,33 @@ class StockAnalyzerGUI:
                 df.to_json(file_path, orient='records')
             elif ext == '.parquet':
                 df.to_parquet(file_path, index=False)
-            
-            messagebox.showinfo("Success", "Data exported successfully")
-            
+            else:
+                messagebox.showerror("Error", f"Unsupported export format: {ext}")
+                return
+            messagebox.showinfo("Success", f"Exported {len(df)} rows to {file_path}")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to export data: {str(e)}")
+
+    def show_view_statistics(self):
+        """Show summary statistics for the currently visible (filtered/searched) data."""
+        try:
+            df = self.get_visible_data()
+            if df.empty:
+                messagebox.showinfo("Statistics", "No data to show statistics for.")
+                return
+            stats = df.describe(include='all').T
+            stats_str = stats.to_string()
+            popup = tk.Toplevel(self.root)
+            popup.title("Data Statistics (Visible Data)")
+            text = tk.Text(popup, wrap='none', width=120, height=30)
+            text.insert('1.0', stats_str)
+            text.config(state='disabled')
+            text.pack(fill='both', expand=True)
+            yscroll = ttk.Scrollbar(popup, orient='vertical', command=text.yview)
+            text.configure(yscrollcommand=yscroll.set)
+            yscroll.pack(side='right', fill='y')
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to show statistics: {str(e)}")
 
     def show_dataframe_popup(self, df):
         popup = tk.Toplevel(self.root)
@@ -2712,82 +2717,6 @@ Bottom 5 Tickers by Record Count:
         
         text.insert('1.0', result)
         text.config(state='disabled')
-
-    def show_view_statistics(self):
-        """Show statistics for the currently viewed data"""
-        try:
-            # Get currently selected file
-            selection = self.file_listbox.curselection()
-            if not selection:
-                messagebox.showerror("Error", "No file selected")
-                return
-                
-            file_path = self.file_listbox.get(selection[0]).split(' [')[0]
-            ext = os.path.splitext(file_path)[1].lower()
-            fmt = DataLoader.EXT_TO_FORMAT.get(ext, None)
-            
-            if fmt == 'keras':
-                # Special handling for Keras models
-                model = DataLoader.load_file_by_type(file_path, fmt)
-                self.show_keras_model_statistics(model)
-                return
-                
-            # Load the data
-            df = DataLoader.load_file_by_type(file_path, fmt)
-            
-            if not isinstance(df, pd.DataFrame):
-                messagebox.showerror("Error", "File format not supported for statistics view")
-                return
-                
-            # Create statistics report
-            stats = {
-                'basic': {
-                    'Total Records': len(df),
-                    'Total Columns': len(df.columns),
-                    'Memory Usage': f"{df.memory_usage(deep=True).sum() / 1024 / 1024:.2f} MB"
-                },
-                'columns': {},
-                'date_range': None
-            }
-            
-            # Column-specific statistics
-            for col in df.columns:
-                col_stats = {
-                    'dtype': str(df[col].dtype),
-                    'unique_values': df[col].nunique(),
-                    'missing_values': df[col].isna().sum()
-                }
-                
-                if df[col].dtype in ['int64', 'float64']:
-                    col_stats.update({
-                        'min': df[col].min(),
-                        'max': df[col].max(),
-                        'mean': df[col].mean(),
-                        'std': df[col].std()
-                    })
-                
-                stats['columns'][col] = col_stats
-            
-            # Try to find date range if timestamp column exists
-            date_cols = [col for col in df.columns if 'date' in col.lower() or 'time' in col.lower()]
-            if date_cols:
-                try:
-                    date_col = date_cols[0]
-                    df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
-                    if not df[date_col].isna().all():
-                        stats['date_range'] = {
-                            'start': df[date_col].min(),
-                            'end': df[date_col].max(),
-                            'periods': df[date_col].nunique()
-                        }
-                except Exception as e:
-                    logging.warning(f"Could not process date column {date_col}: {str(e)}")
-            
-            self.show_statistics_popup(stats)
-            
-        except Exception as e:
-            logging.error(f"Failed to show statistics: {str(e)}")
-            messagebox.showerror("Error", f"Failed to show statistics: {str(e)}")
 
     def show_keras_model_statistics(self, model):
         """Show statistics for a Keras model"""
