@@ -567,25 +567,30 @@ class DataAdapter:
 class StockAnalyzerGUI:
     def __init__(self, root: tk.Tk, loader: DataLoader, connector: DatabaseConnector):
         self.root = root
-        self.root.title("REDLINE Data Conversion Utility")
+        self.loader = loader
+        self.connector = connector
         
-        # Set minimum window size
-        self.root.minsize(1200, 800)  # Increased from default size
+        # Configure root window
+        self.root.title("REDLINE Data Analyzer")
+        self.root.geometry("1200x800")
         
-        # Configure main window grid weights
+        # Configure grid weights
         self.root.grid_rowconfigure(0, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
         
-        self.loader = loader
-        self.connector = connector
-        self.adapter = DataAdapter()
-        
-        # Initialize instance variables
+        # Initialize variables
         self.current_page = 1
         self.rows_per_page = 100
         self.total_pages = 1
         self.scrollbars = {}  # Dictionary to keep track of scrollbars
         self.current_file_path = None
+        
+        # Store references to data view scrollbars for reuse
+        self.data_view_xscroll = None
+        self.data_view_yscroll = None
+        
+        # Thread safety
+        self.ui_lock = threading.Lock()
         
         # Create main notebook
         self.notebook = ttk.Notebook(self.root)
@@ -607,6 +612,44 @@ class StockAnalyzerGUI:
                 except:
                     pass  # Ignore errors if widget is already destroyed
             del self.scrollbars[frame_name]
+
+    def safe_update_widget(self, widget_name, update_func):
+        """Safely update a widget from background thread"""
+        if hasattr(self, widget_name):
+            widget = getattr(self, widget_name)
+            if widget and widget.winfo_exists():
+                def safe_update():
+                    with self.ui_lock:
+                        update_func()
+                self.run_in_main_thread(safe_update)
+            else:
+                logging.warning(f"Widget {widget_name} does not exist or has been destroyed")
+        else:
+            logging.warning(f"Widget {widget_name} not found")
+
+    def safe_update_treeview(self, update_func):
+        """Safely update the data treeview from background thread"""
+        if hasattr(self, 'data_tree') and self.data_tree.winfo_exists():
+            def safe_update():
+                with self.ui_lock:
+                    update_func()
+            self.run_in_main_thread(safe_update)
+        else:
+            logging.warning("Data treeview does not exist or has been destroyed")
+
+    def safe_update_listbox(self, listbox_name, update_func):
+        """Safely update a listbox from background thread"""
+        if hasattr(self, listbox_name):
+            listbox = getattr(self, listbox_name)
+            if listbox and listbox.winfo_exists():
+                def safe_update():
+                    with self.ui_lock:
+                        update_func()
+                self.run_in_main_thread(safe_update)
+            else:
+                logging.warning(f"Listbox {listbox_name} does not exist or has been destroyed")
+        else:
+            logging.warning(f"Listbox {listbox_name} not found")
 
     def create_scrolled_frame(self, parent, frame_name):
         """Create a frame with scrollbars"""
@@ -853,18 +896,18 @@ class StockAnalyzerGUI:
         # Create Treeview
         self.data_tree = ttk.Treeview(tree_frame)
         
-        # Create and configure scrollbars
-        tree_xscroll = ttk.Scrollbar(tree_frame, orient='horizontal', command=self.data_tree.xview)
-        tree_yscroll = ttk.Scrollbar(tree_frame, orient='vertical', command=self.data_tree.yview)
-        self.data_tree.configure(xscrollcommand=tree_xscroll.set, yscrollcommand=tree_yscroll.set)
+        # Create and configure scrollbars once - store as instance variables for reuse
+        self.data_view_xscroll = ttk.Scrollbar(tree_frame, orient='horizontal', command=self.data_tree.xview)
+        self.data_view_yscroll = ttk.Scrollbar(tree_frame, orient='vertical', command=self.data_tree.yview)
+        self.data_tree.configure(xscrollcommand=self.data_view_xscroll.set, yscrollcommand=self.data_view_yscroll.set)
 
         # Grid layout for treeview and scrollbars
         self.data_tree.grid(row=0, column=0, sticky='nsew')
-        tree_xscroll.grid(row=1, column=0, sticky='ew')
-        tree_yscroll.grid(row=0, column=1, sticky='ns')
+        self.data_view_xscroll.grid(row=1, column=0, sticky='ew')
+        self.data_view_yscroll.grid(row=0, column=1, sticky='ns')
 
-        # Store scrollbars for cleanup
-        self.scrollbars['data_view'] = [tree_xscroll, tree_yscroll]
+        # Store scrollbars for cleanup (but don't recreate them)
+        self.scrollbars['data_view'] = [self.data_view_xscroll, self.data_view_yscroll]
 
         # Control panel frame
         control_frame = ttk.Frame(viewer_frame)
@@ -1033,14 +1076,14 @@ class StockAnalyzerGUI:
                 # Get selected files
                 selections = self.input_listbox.curselection()
                 if not selections:
-                    self.run_in_main_thread(lambda *a, **k: messagebox.showerror("Error", "No files selected"), *selections)
+                    self.run_in_main_thread(lambda *a, **k: messagebox.showerror("Error", "No files selected"))
                     return
                 
                 # Get file paths
                 file_paths = [self.input_listbox.get(idx).split(' [')[0] for idx in selections]
                 
-                self.run_in_main_thread(lambda *a, **k: self.progress_bar.pack(), *selections)
-                self.run_in_main_thread(lambda *a, **k: self.progress_var.set(10), *selections)
+                self.run_in_main_thread(lambda *a, **k: self.progress_bar.pack())
+                self.run_in_main_thread(lambda *a, **k: self.progress_var.set(10))
                 
                 # Load and standardize data
                 dfs = []
@@ -1057,7 +1100,7 @@ class StockAnalyzerGUI:
                             dfs.append(df)
                         
                         progress = 30 + (40 * (idx + 1) / len(file_paths))
-                        self.run_in_main_thread(lambda *a, **k: self.progress_var.set(progress), *selections)
+                        self.run_in_main_thread(lambda *a, **k: self.progress_var.set(progress))
                         
                     except Exception as error:
                         logging.error(f"Error processing file {file_path}: {str(error)}")
@@ -1072,12 +1115,12 @@ class StockAnalyzerGUI:
                                     "Error",
                                     f"Failed to process {os.path.basename(str(file_path_str)) if isinstance(file_path_str, (str, bytes, os.PathLike)) else file_path_str}: {str(error)}"
                                 )
-                            ), *selections)
+                            ))
                         continue
                 
                 if not dfs:
-                    self.run_in_main_thread(lambda *a, **k: messagebox.showerror("Error", "No valid data loaded"), *selections)
-                    self.run_in_main_thread(lambda *a, **k: self.progress_bar.pack_forget(), *selections)
+                    self.run_in_main_thread(lambda *a, **k: messagebox.showerror("Error", "No valid data loaded"))
+                    self.run_in_main_thread(lambda *a, **k: self.progress_bar.pack_forget())
                     return
                 
                 # Combine all dataframes
@@ -1091,11 +1134,11 @@ class StockAnalyzerGUI:
                     try:
                         data = self.loader.filter_data_by_date_range(data, start_date, end_date)
                     except Exception as error:
-                        self.run_in_main_thread(lambda *a, **k: messagebox.showerror("Error", f"Date filtering failed: {str(error)}"), *selections)
-                        self.run_in_main_thread(lambda *a, **k: self.progress_bar.pack_forget(), *selections)
+                        self.run_in_main_thread(lambda *a, **k: messagebox.showerror("Error", f"Date filtering failed: {str(error)}"))
+                        self.run_in_main_thread(lambda *a, **k: self.progress_bar.pack_forget())
                         return
                 
-                self.run_in_main_thread(lambda *a, **k: self.progress_var.set(80), *selections)
+                self.run_in_main_thread(lambda *a, **k: self.progress_var.set(80))
                 
                 # Balance the data if parameters are provided
                 try:
@@ -1105,24 +1148,24 @@ class StockAnalyzerGUI:
                     if target_records or min_records:
                         data = self.loader.balance_ticker_data(data, target_records, min_records)
                 except Exception as error:
-                    self.run_in_main_thread(lambda *a, **k: messagebox.showerror("Error", f"Data balancing failed: {str(error)}"), *selections)
-                    self.run_in_main_thread(lambda *a, **k: self.progress_bar.pack_forget(), *selections)
+                    self.run_in_main_thread(lambda *a, **k: messagebox.showerror("Error", f"Data balancing failed: {str(error)}"))
+                    self.run_in_main_thread(lambda *a, **k: self.progress_bar.pack_forget())
                     return
                 
-                self.run_in_main_thread(lambda *a, **k: self.progress_var.set(90), *selections)
+                self.run_in_main_thread(lambda *a, **k: self.progress_var.set(90))
                 
                 # Handle duplicates and save
                 dropped_dupes = len(data) - len(data.drop_duplicates())
                 data = data.drop_duplicates()
                 
                 # Call data cleaning and save in main thread
-                self.run_in_main_thread(lambda *a, **k: self.data_cleaning_and_save(data, input_format, output_format, dropped_dupes), *selections)
+                self.run_in_main_thread(lambda *a, **k: self.data_cleaning_and_save(data, input_format, output_format, dropped_dupes))
                 
             except Exception as error:
                 logging.error(f"Data processing failed: {str(error)}")
-                self.run_in_main_thread(lambda *a, **k: messagebox.showerror("Error", f"Processing failed: {str(error)}"), *selections)
+                self.run_in_main_thread(lambda *a, **k: messagebox.showerror("Error", f"Processing failed: {str(error)}"))
             finally:
-                self.run_in_main_thread(lambda *a, **k: self.progress_bar.pack_forget(), *selections)
+                self.run_in_main_thread(lambda *a, **k: self.progress_bar.pack_forget())
         
         threading.Thread(target=worker, daemon=True).start()
 
@@ -1165,7 +1208,7 @@ class StockAnalyzerGUI:
                 self.file_listbox.selection_set(idx)
                 self.file_listbox.see(idx)
                 self.view_selected_file()
-                self.refresh_data()
+                # self.refresh_data()  # REMOVED - could cause race conditions
                 break
 
     def refresh_file_list(self):
@@ -1335,8 +1378,8 @@ class StockAnalyzerGUI:
                     df = conn.execute(query, [ticker]).fetchdf()
                     conn.close()
                     
-                    # Clean up existing scrollbars before updating tree
-                    self.cleanup_scrollbars('data_view')
+                    # Don't clean up scrollbars - reuse existing ones
+                    # self.cleanup_scrollbars('data_view')  # REMOVED
                     
                     # Only set up columns if changed
                     cols = list(df.columns)
@@ -1355,17 +1398,8 @@ class StockAnalyzerGUI:
                         self.data_tree.insert('', 'end', values=row)
                     self.data_tree.grid()
                     
-                    # Create new scrollbars
-                    tree_frame = self.data_tree.master
-                    tree_xscroll = ttk.Scrollbar(tree_frame, orient='horizontal', command=self.data_tree.xview)
-                    tree_yscroll = ttk.Scrollbar(tree_frame, orient='vertical', command=self.data_tree.yview)
-                    self.data_tree.configure(xscrollcommand=tree_xscroll.set, yscrollcommand=tree_yscroll.set)
-                    
-                    tree_xscroll.grid(row=1, column=0, sticky='ew')
-                    tree_yscroll.grid(row=0, column=1, sticky='ns')
-                    
-                    # Store scrollbars for cleanup
-                    self.scrollbars['data_view'] = [tree_xscroll, tree_yscroll]
+                    # Scrollbars are already created and configured - no need to recreate them
+                    # The existing scrollbars will automatically work with the updated treeview
                     
                     # Update page info
                     if hasattr(self, 'page_label'):
@@ -1453,7 +1487,7 @@ class StockAnalyzerGUI:
                         conn.close()
                         
                         def update_view():
-                            self.refresh_data()  # This will handle scrollbar setup
+                            # Don't call refresh_data() from background thread - use safe updates instead
                             # Only set up columns if changed
                             cols = list(df.columns)
                             if list(self.data_tree['columns']) != cols:
@@ -1492,7 +1526,8 @@ class StockAnalyzerGUI:
                             end = start + self.rows_per_page
                             page_df = df.iloc[start:end]
                             def update_view():
-                                self.refresh_data()
+                                # Don't call refresh_data() from background thread - use safe updates instead
+                                # Only set up columns if changed
                                 cols = list(page_df.columns)
                                 if list(self.data_tree['columns']) != cols:
                                     self.data_tree['columns'] = cols
@@ -1719,8 +1754,8 @@ class StockAnalyzerGUI:
     def refresh_data(self):
         """Refresh the data display"""
         try:
-            # Clean up existing scrollbars
-            self.cleanup_scrollbars('data_view')
+            # Don't clean up scrollbars - reuse existing ones
+            # self.cleanup_scrollbars('data_view')  # REMOVED
             
             selection = self.file_listbox.curselection()
             if not selection:
@@ -1761,17 +1796,8 @@ class StockAnalyzerGUI:
                 for col in cols:
                     self.data_tree.column(col, width=tkFont.Font().measure(col) + 20)
                 
-                # Create new scrollbars
-                tree_frame = self.data_tree.master
-                tree_xscroll = ttk.Scrollbar(tree_frame, orient='horizontal', command=self.data_tree.xview)
-                tree_yscroll = ttk.Scrollbar(tree_frame, orient='vertical', command=self.data_tree.yview)
-                self.data_tree.configure(xscrollcommand=tree_xscroll.set, yscrollcommand=tree_yscroll.set)
-                
-                tree_xscroll.grid(row=1, column=0, sticky='ew')
-                tree_yscroll.grid(row=0, column=1, sticky='ns')
-                
-                # Store scrollbars for cleanup
-                self.scrollbars['data_view'] = [tree_xscroll, tree_yscroll]
+                # Scrollbars are already created and configured - no need to recreate them
+                # The existing scrollbars will automatically work with the updated treeview
                 
             except Exception as e:
                 logging.error(f"Failed to refresh data: {str(e)}")
@@ -1881,7 +1907,7 @@ class StockAnalyzerGUI:
         def worker():
             selection = self.file_listbox.curselection()
             if not selection:
-                self.run_in_main_thread(lambda *a, **k: messagebox.showerror("Error", "No file(s) selected to remove"), *selections)
+                self.run_in_main_thread(lambda *a, **k: messagebox.showerror("Error", "No file(s) selected to remove"))
                 return
             import os
             removed = 0
@@ -1905,7 +1931,7 @@ class StockAnalyzerGUI:
                 if failed:
                     message += f" Failed to remove {failed} file(s)."
                 messagebox.showinfo("File Removal", message)
-            self.run_in_main_thread(lambda *a, **k: update_gui(), *selections)
+            self.run_in_main_thread(lambda *a, **k: update_gui())
         threading.Thread(target=worker, daemon=True).start()
 
     def run_in_main_thread(self, func, *args, **kwargs):
@@ -2805,6 +2831,49 @@ Bottom 5 Tickers by Record Count:
         except Exception as e:
             logging.error(f"Failed to show statistics popup: {str(e)}")
             messagebox.showerror("Error", f"Failed to show statistics popup: {str(e)}")
+
+    def safe_update_widget(self, widget_name, update_func):
+        """Safely update a widget from background thread"""
+        if hasattr(self, widget_name):
+            widget = getattr(self, widget_name)
+            if widget and widget.winfo_exists():
+                def safe_update():
+                    with self.ui_lock:
+                        update_func()
+                self.run_in_main_thread(safe_update)
+            else:
+                logging.warning(f"Widget {widget_name} does not exist or has been destroyed")
+        else:
+            logging.warning(f"Widget {widget_name} not found")
+
+    def batch_ui_update(self, updates):
+        """Execute multiple UI updates in a single main thread call to reduce race conditions"""
+        def batch_update():
+            with self.ui_lock:
+                for update_func in updates:
+                    try:
+                        update_func()
+                    except Exception as e:
+                        logging.error(f"Error in batch UI update: {str(e)}")
+        self.run_in_main_thread(batch_update)
+
+    def safe_batch_update(self, updates):
+        """Safely execute multiple UI updates with widget existence checks"""
+        def safe_batch():
+            with self.ui_lock:
+                for widget_name, update_func in updates:
+                    if hasattr(self, widget_name):
+                        widget = getattr(self, widget_name)
+                        if widget and widget.winfo_exists():
+                            try:
+                                update_func()
+                            except Exception as e:
+                                logging.error(f"Error updating {widget_name}: {str(e)}")
+                        else:
+                            logging.warning(f"Widget {widget_name} does not exist or has been destroyed")
+                    else:
+                        logging.warning(f"Widget {widget_name} not found")
+        self.run_in_main_thread(safe_batch)
 
 def run(task: str = 'gui'):
     loader = DataLoader()
