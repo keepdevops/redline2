@@ -32,13 +32,30 @@ class DataValidator:
             if format == 'txt':
                 return self._validate_stooq_format(file_path)
             elif format in ['csv', 'json']:
-                return self._validate_standard_format(file_path, format)
+                # First try to detect if it's Stooq format
+                if self._is_stooq_format(file_path):
+                    return self._validate_stooq_format(file_path)
+                else:
+                    return self._validate_standard_format(file_path, format)
             else:
                 # For other formats like feather, assume valid
                 return True
                 
         except Exception as e:
             self.logger.error(f"Validation failed for {file_path}: {str(e)}")
+            return False
+    
+    def _is_stooq_format(self, file_path: str) -> bool:
+        """Detect if a file is in Stooq format by checking column names."""
+        try:
+            if file_path.endswith('.csv'):
+                df = pd.read_csv(file_path, nrows=1)  # Read only header
+                # Check if columns match Stooq format
+                stooq_cols = set(STOOQ_COLUMNS)
+                file_cols = set(df.columns)
+                return len(stooq_cols.intersection(file_cols)) >= 3  # At least 3 Stooq columns
+            return False
+        except:
             return False
     
     def _validate_stooq_format(self, file_path: str) -> bool:

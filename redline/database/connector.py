@@ -121,6 +121,30 @@ class DatabaseConnector:
             conn = self.create_connection()
             conn.execute(f"DROP TABLE IF EXISTS {table}")
             
+            # Convert Stooq format to standard format for database storage
+            db_data = data.copy()
+            
+            # Handle Stooq format columns
+            if '<TICKER>' in db_data.columns:
+                db_data['ticker'] = db_data['<TICKER>']
+            if '<DATE>' in db_data.columns:
+                # Convert YYYYMMDD to proper timestamp
+                db_data['timestamp'] = pd.to_datetime(db_data['<DATE>'], format='%Y%m%d')
+            if '<OPEN>' in db_data.columns:
+                db_data['open'] = db_data['<OPEN>']
+            if '<HIGH>' in db_data.columns:
+                db_data['high'] = db_data['<HIGH>']
+            if '<LOW>' in db_data.columns:
+                db_data['low'] = db_data['<LOW>']
+            if '<CLOSE>' in db_data.columns:
+                db_data['close'] = db_data['<CLOSE>']
+            if '<VOL>' in db_data.columns:
+                db_data['vol'] = db_data['<VOL>']
+            
+            # Select standard columns for database
+            standard_columns = ['ticker', 'timestamp', 'open', 'high', 'low', 'close', 'vol']
+            db_data = db_data[[col for col in standard_columns if col in db_data.columns]]
+            
             create_table_sql = f"""
             CREATE TABLE IF NOT EXISTS {table} (
                 ticker VARCHAR,
@@ -129,15 +153,13 @@ class DatabaseConnector:
                 high DOUBLE,
                 low DOUBLE,
                 close DOUBLE,
-                vol DOUBLE,
-                openint DOUBLE,
-                format VARCHAR
+                vol DOUBLE
             )
             """
             conn.execute(create_table_sql)
             
             # Insert data
-            conn.register('temp_df', data)
+            conn.register('temp_df', db_data)
             insert_sql = f"INSERT INTO {table} SELECT * FROM temp_df"
             conn.execute(insert_sql)
             conn.unregister('temp_df')
