@@ -14,6 +14,7 @@ from ..core.data_loader import DataLoader
 from ..database.connector import DatabaseConnector
 from .data_tab import DataTab
 from .analysis_tab import AnalysisTab
+from .download_tab import DownloadTab
 from .settings_tab import SettingsTab
 
 logger = logging.getLogger(__name__)
@@ -79,7 +80,11 @@ class StockAnalyzerGUI:
         # Analysis tab
         self.analysis_tab = AnalysisTab(self.notebook, self.loader, self.connector, self)
         self.notebook.add(self.analysis_tab.frame, text="Analysis")
-        
+
+        # Download tab
+        self.download_tab = DownloadTab(self.notebook, self.loader, self.connector, self)
+        self.notebook.add(self.download_tab.frame, text="Download")
+
         # Settings tab
         self.settings_tab = SettingsTab(self.notebook, self.loader, self.connector, self)
         self.notebook.add(self.settings_tab.frame, text="Settings")
@@ -135,6 +140,8 @@ class StockAnalyzerGUI:
                 self.data_tab.on_tab_activated()
             elif current_tab == "Analysis":
                 self.analysis_tab.on_tab_activated()
+            elif current_tab == "Download":
+                self.download_tab.on_tab_activated()
             elif current_tab == "Settings":
                 self.settings_tab.on_tab_activated()
                 
