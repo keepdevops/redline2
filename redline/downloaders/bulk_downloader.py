@@ -6,7 +6,7 @@ Downloads data for large numbers of tickers efficiently.
 
 import logging
 import pandas as pd
-from typing import List, Dict, Optional, Union
+from typing import List, Dict, Optional, Union, Any
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading

@@ -6,11 +6,31 @@ Handles conversion between different data formats and file I/O operations.
 
 import logging
 import pandas as pd
-import polars as pl
-import pyarrow as pa
 from typing import Union, List, Dict, Any
 import os
 import json
+
+# Optional dependencies
+try:
+    import polars as pl
+    POLARS_AVAILABLE = True
+except ImportError:
+    pl = None
+    POLARS_AVAILABLE = False
+
+try:
+    import pyarrow as pa
+    PYARROW_AVAILABLE = True
+except ImportError:
+    pa = None
+    PYARROW_AVAILABLE = False
+
+try:
+    import duckdb
+    DUCKDB_AVAILABLE = True
+except ImportError:
+    duckdb = None
+    DUCKDB_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +40,8 @@ class FormatConverter:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
     
-    def convert_format(self, data: Union[pd.DataFrame, pl.DataFrame, pa.Table], 
-                      from_format: str, to_format: str) -> Union[pd.DataFrame, pl.DataFrame, pa.Table, dict]:
+    def convert_format(self, data: Union[pd.DataFrame, 'pl.DataFrame', 'pa.Table'], 
+                      from_format: str, to_format: str) -> Union[pd.DataFrame, 'pl.DataFrame', 'pa.Table', dict]:
         """
         Convert data between different formats.
         
@@ -42,18 +62,30 @@ class FormatConverter:
         try:
             if from_format == 'pandas':
                 if to_format == 'polars':
+                    if not POLARS_AVAILABLE:
+                        raise ImportError("polars not available")
                     return pl.from_pandas(data)
                 elif to_format == 'pyarrow':
+                    if not PYARROW_AVAILABLE:
+                        raise ImportError("pyarrow not available")
                     return pa.Table.from_pandas(data)
             elif from_format == 'polars':
+                if not POLARS_AVAILABLE:
+                    raise ImportError("polars not available")
                 if to_format == 'pandas':
                     return data.to_pandas()
                 elif to_format == 'pyarrow':
+                    if not PYARROW_AVAILABLE:
+                        raise ImportError("pyarrow not available")
                     return data.to_arrow()
             elif from_format == 'pyarrow':
+                if not PYARROW_AVAILABLE:
+                    raise ImportError("pyarrow not available")
                 if to_format == 'pandas':
                     return data.to_pandas()
                 elif to_format == 'polars':
+                    if not POLARS_AVAILABLE:
+                        raise ImportError("polars not available")
                     return pl.from_arrow(data)
                     
             self.logger.info(f"Converted from {from_format} to {to_format}")
@@ -63,8 +95,8 @@ class FormatConverter:
             self.logger.error(f"Conversion failed from {from_format} to {to_format}: {str(e)}")
             raise
     
-    def save_file_by_type(self, data: Union[pd.DataFrame, pl.DataFrame, pa.Table, dict], 
-                         file_path: str, format: str) -> None:
+    def save_file_by_type(self, data: Union[pd.DataFrame, 'pl.DataFrame', 'pa.Table', dict], 
+                          file_path: str, format: str) -> None:
         """
         Save data to file based on format type.
         
@@ -80,7 +112,7 @@ class FormatConverter:
             if format == 'csv':
                 if isinstance(data, pd.DataFrame):
                     data.to_csv(file_path, index=False)
-                elif isinstance(data, pl.DataFrame):
+                elif POLARS_AVAILABLE and isinstance(data, pl.DataFrame):
                     data.write_csv(file_path)
                 else:
                     raise ValueError(f"Cannot save {type(data)} to CSV format")
@@ -88,9 +120,9 @@ class FormatConverter:
             elif format == 'parquet':
                 if isinstance(data, pd.DataFrame):
                     data.to_parquet(file_path, index=False)
-                elif isinstance(data, pl.DataFrame):
+                elif POLARS_AVAILABLE and isinstance(data, pl.DataFrame):
                     data.write_parquet(file_path)
-                elif isinstance(data, pa.Table):
+                elif PYARROW_AVAILABLE and isinstance(data, pa.Table):
                     pa.parquet.write_table(data, file_path)
                 else:
                     raise ValueError(f"Cannot save {type(data)} to Parquet format")
@@ -98,7 +130,7 @@ class FormatConverter:
             elif format == 'feather':
                 if isinstance(data, pd.DataFrame):
                     data.to_feather(file_path)
-                elif isinstance(data, pl.DataFrame):
+                elif POLARS_AVAILABLE and isinstance(data, pl.DataFrame):
                     data.write_ipc(file_path)
                 else:
                     raise ValueError(f"Cannot save {type(data)} to Feather format")
@@ -113,11 +145,12 @@ class FormatConverter:
                     raise ValueError(f"Cannot save {type(data)} to JSON format")
                     
             elif format == 'duckdb':
-                import duckdb
+                if not DUCKDB_AVAILABLE:
+                    raise ImportError("duckdb not available")
                 conn = duckdb.connect(file_path)
                 if isinstance(data, pd.DataFrame):
                     conn.execute("CREATE TABLE tickers_data AS SELECT * FROM data")
-                elif isinstance(data, pl.DataFrame):
+                elif POLARS_AVAILABLE and isinstance(data, pl.DataFrame):
                     conn.execute("CREATE TABLE tickers_data AS SELECT * FROM data")
                 conn.close()
                 
@@ -130,7 +163,7 @@ class FormatConverter:
             self.logger.error(f"Error saving file {file_path}: {str(e)}")
             raise
     
-    def load_file_by_type(self, file_path: str, format: str) -> Union[pd.DataFrame, pl.DataFrame, pa.Table]:
+    def load_file_by_type(self, file_path: str, format: str) -> Union[pd.DataFrame, 'pl.DataFrame', 'pa.Table']:
         """
         Load data from file based on format type.
         

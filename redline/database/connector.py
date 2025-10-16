@@ -5,11 +5,30 @@ Handles database connections and basic CRUD operations.
 """
 
 import logging
-import duckdb
 import pandas as pd
-import polars as pl
-import pyarrow as pa
 from typing import Union
+
+# Optional dependencies
+try:
+    import duckdb
+    DUCKDB_AVAILABLE = True
+except ImportError:
+    duckdb = None
+    DUCKDB_AVAILABLE = False
+
+try:
+    import polars as pl
+    POLARS_AVAILABLE = True
+except ImportError:
+    pl = None
+    POLARS_AVAILABLE = False
+
+try:
+    import pyarrow as pa
+    PYARROW_AVAILABLE = True
+except ImportError:
+    pa = None
+    PYARROW_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +40,7 @@ class DatabaseConnector:
         self.db_path = db_path
         self.logger = logging.getLogger(__name__)
     
-    def create_connection(self, db_path: str = None) -> duckdb.DuckDBPyConnection:
+    def create_connection(self, db_path: str = None):
         """
         Create a database connection.
         
@@ -29,8 +48,11 @@ class DatabaseConnector:
             db_path: Database path (optional, uses instance path if not provided)
             
         Returns:
-            DuckDB connection object
+            Database connection object
         """
+        if not DUCKDB_AVAILABLE:
+            raise ImportError("duckdb not available. Please install duckdb to use database features.")
+        
         try:
             path = db_path or self.db_path
             conn = duckdb.connect(path)
@@ -39,7 +61,7 @@ class DatabaseConnector:
             self.logger.error(f"Failed to create database connection: {str(e)}")
             raise
     
-    def read_shared_data(self, table: str, format: str = 'pandas') -> Union[pd.DataFrame, pl.DataFrame, pa.Table]:
+    def read_shared_data(self, table: str, format: str = 'pandas') -> Union[pd.DataFrame, 'pl.DataFrame', 'pa.Table']:
         """
         Read data from a shared table.
         
@@ -66,7 +88,7 @@ class DatabaseConnector:
             self.logger.error(f"Failed to read from {table}: {str(e)}")
             raise
     
-    def write_shared_data(self, table: str, data: Union[pd.DataFrame, pl.DataFrame, pa.Table], format: str) -> None:
+    def write_shared_data(self, table: str, data: Union[pd.DataFrame, 'pl.DataFrame', 'pa.Table'], format: str) -> None:
         """
         Write data to a shared table.
         
@@ -77,9 +99,9 @@ class DatabaseConnector:
         """
         try:
             # Convert to pandas if needed
-            if isinstance(data, pl.DataFrame):
+            if POLARS_AVAILABLE and isinstance(data, pl.DataFrame):
                 data = data.to_pandas()
-            elif isinstance(data, pa.Table):
+            elif PYARROW_AVAILABLE and isinstance(data, pa.Table):
                 data = data.to_pandas()
             
             # Add format column

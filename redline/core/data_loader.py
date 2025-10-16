@@ -7,11 +7,30 @@ Main data loading and processing functionality for financial data.
 import logging
 import configparser
 import pandas as pd
-import polars as pl
-import pyarrow as pa
 from typing import Union, List, Dict, Any
 import os
-import duckdb
+
+# Optional dependencies
+try:
+    import polars as pl
+    POLARS_AVAILABLE = True
+except ImportError:
+    pl = None
+    POLARS_AVAILABLE = False
+
+try:
+    import pyarrow as pa
+    PYARROW_AVAILABLE = True
+except ImportError:
+    pa = None
+    PYARROW_AVAILABLE = False
+
+try:
+    import duckdb
+    DUCKDB_AVAILABLE = True
+except ImportError:
+    duckdb = None
+    DUCKDB_AVAILABLE = False
 
 from .schema import SCHEMA, EXT_TO_FORMAT, FORMAT_DIALOG_INFO
 from .data_validator import DataValidator
@@ -41,7 +60,7 @@ class DataLoader:
         
         self.logger = logging.getLogger(__name__)
     
-    def load_data(self, file_paths: List[str], format: str, delete_empty: bool = False) -> List[Union[pd.DataFrame, pl.DataFrame, pa.Table]]:
+    def load_data(self, file_paths: List[str], format: str, delete_empty: bool = False) -> List[Union[pd.DataFrame, 'pl.DataFrame', 'pa.Table']]:
         """
         Load data from multiple files.
         
@@ -99,7 +118,7 @@ class DataLoader:
         
         return data
     
-    def save_to_shared(self, table: str, data: Union[pd.DataFrame, pl.DataFrame, pa.Table], format: str) -> None:
+    def save_to_shared(self, table: str, data: Union[pd.DataFrame, 'pl.DataFrame', 'pa.Table'], format: str) -> None:
         """
         Save data to shared database table.
         
@@ -110,9 +129,9 @@ class DataLoader:
         """
         try:
             # Convert to pandas DataFrame if needed
-            if isinstance(data, pl.DataFrame):
+            if POLARS_AVAILABLE and isinstance(data, pl.DataFrame):
                 data = data.to_pandas()
-            elif isinstance(data, pa.Table):
+            elif PYARROW_AVAILABLE and isinstance(data, pa.Table):
                 data = data.to_pandas()
             
             data['format'] = format
@@ -233,8 +252,8 @@ class DataLoader:
             self.logger.error(f"Error filtering data by date range: {str(e)}")
             raise
     
-    def convert_format(self, data: Union[pd.DataFrame, pl.DataFrame, pa.Table], 
-                      from_format: str, to_format: str) -> Union[pd.DataFrame, pl.DataFrame, pa.Table, dict]:
+    def convert_format(self, data: Union[pd.DataFrame, 'pl.DataFrame', 'pa.Table'], 
+                      from_format: str, to_format: str) -> Union[pd.DataFrame, 'pl.DataFrame', 'pa.Table', dict]:
         """Convert data between different formats."""
         return self.converter.convert_format(data, from_format, to_format)
     
@@ -247,7 +266,7 @@ class DataLoader:
         return self.cleaner.clean_and_select_columns(data)
     
     @staticmethod
-    def save_file_by_type(data: Union[pd.DataFrame, pl.DataFrame, pa.Table, dict], 
+    def save_file_by_type(data: Union[pd.DataFrame, 'pl.DataFrame', 'pa.Table', dict], 
                          file_path: str, format: str) -> None:
         """Static method to save data to file."""
         converter = FormatConverter()

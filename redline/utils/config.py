@@ -7,7 +7,7 @@ Handles configuration loading, validation, and management.
 import logging
 import configparser
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 logger = logging.getLogger(__name__)
 

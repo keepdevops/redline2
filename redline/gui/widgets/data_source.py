@@ -6,11 +6,30 @@ Abstract data source for virtual scrolling in GUI components.
 
 import logging
 import pandas as pd
-import polars as pl
-import pyarrow as pa
-import duckdb
 from typing import List, Union
 from ...core.data_loader import DataLoader
+
+# Optional dependencies
+try:
+    import polars as pl
+    POLARS_AVAILABLE = True
+except ImportError:
+    pl = None
+    POLARS_AVAILABLE = False
+
+try:
+    import pyarrow as pa
+    PYARROW_AVAILABLE = True
+except ImportError:
+    pa = None
+    PYARROW_AVAILABLE = False
+
+try:
+    import duckdb
+    DUCKDB_AVAILABLE = True
+except ImportError:
+    duckdb = None
+    DUCKDB_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +62,9 @@ class DataSource:
                     self.total_rows = len(df)
                 else:
                     # Convert other formats to pandas
-                    if isinstance(df, pl.DataFrame):
+                    if POLARS_AVAILABLE and isinstance(df, pl.DataFrame):
                         self.data = df.to_pandas()
-                    elif isinstance(df, pa.Table):
+                    elif PYARROW_AVAILABLE and isinstance(df, pa.Table):
                         self.data = df.to_pandas()
                     else:
                         self.data = pd.DataFrame()

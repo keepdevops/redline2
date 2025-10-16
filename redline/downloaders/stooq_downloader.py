@@ -9,7 +9,7 @@ import pandas as pd
 import requests
 import webbrowser
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from .base_downloader import BaseDownloader
 
 logger = logging.getLogger(__name__)
