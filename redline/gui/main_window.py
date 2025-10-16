@@ -15,6 +15,7 @@ from ..database.connector import DatabaseConnector
 from .data_tab import DataTab
 from .analysis_tab import AnalysisTab
 from .download_tab import DownloadTab
+from .converter_tab import ConverterTab
 from .settings_tab import SettingsTab
 
 logger = logging.getLogger(__name__)
@@ -84,6 +85,10 @@ class StockAnalyzerGUI:
         # Download tab
         self.download_tab = DownloadTab(self.notebook, self.loader, self.connector, self)
         self.notebook.add(self.download_tab.frame, text="Download")
+        
+        # Converter tab
+        self.converter_tab = ConverterTab(self.notebook, self.loader, self.connector, self)
+        self.notebook.add(self.converter_tab.frame, text="Converter")
 
         # Settings tab
         self.settings_tab = SettingsTab(self.notebook, self.loader, self.connector, self)
@@ -140,10 +145,12 @@ class StockAnalyzerGUI:
                 self.data_tab.on_tab_activated()
             elif current_tab == "Analysis":
                 self.analysis_tab.on_tab_activated()
-            elif current_tab == "Download":
-                self.download_tab.on_tab_activated()
-            elif current_tab == "Settings":
-                self.settings_tab.on_tab_activated()
+        elif current_tab == "Download":
+            self.download_tab.on_tab_activated()
+        elif current_tab == "Converter":
+            self.converter_tab.on_tab_activated()
+        elif current_tab == "Settings":
+            self.settings_tab.on_tab_activated()
                 
         except Exception as e:
             self.logger.error(f"Error handling tab change: {str(e)}")
@@ -191,6 +198,13 @@ Navigation:
 Data Operations:
   Ctrl+R  - Refresh data
   Ctrl+F  - Search data
+
+Available Tabs:
+  Data          - Load, view, and filter financial data
+  Analysis      - Statistical and trend analysis tools
+  Download      - Download data from various sources
+  Converter     - Convert between different data formats
+  Settings      - Application configuration
 
 Help:
   F1      - Show this help

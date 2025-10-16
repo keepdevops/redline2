@@ -301,14 +301,19 @@ class DownloadTab:
                     source_name = ""
                     
                     if source == "yahoo":
-                        df = self.yahoo_downloader.download_data(ticker, start_date, end_date)
+                        df = self.yahoo_downloader.download_single_ticker(ticker, start_date, end_date)
                         source_name = "Yahoo Finance"
                     elif source == "stooq":
-                        df = self.stooq_downloader.download_data(ticker, start_date, end_date)
+                        df = self.stooq_downloader.download_single_ticker(ticker, start_date, end_date)
                         source_name = "Stooq"
                     elif source == "multi":
                         df = self.multi_downloader.download_from_source("yahoo", ticker, start_date, end_date)
                         source_name = "Multi-Source"
+                    
+                    # Add delay to avoid rate limiting
+                    if i < total_tickers - 1:  # Don't delay after last ticker
+                        import time
+                        time.sleep(1)  # 1 second delay between requests
                     
                     # Process results
                     if df is not None and not df.empty:
@@ -318,16 +323,27 @@ class DownloadTab:
                         df.to_csv(filepath, index=False)
                         
                         # Add to results
-                        date_range = f"{df.index.min().date()} to {df.index.max().date()}"
+                        if hasattr(df, 'index') and len(df.index) > 0:
+                            try:
+                                date_range = f"{df.index.min().date()} to {df.index.max().date()}"
+                            except:
+                                date_range = "N/A"
+                        else:
+                            date_range = "N/A"
+                            
                         self.main_window.run_in_main_thread(
                             lambda t=ticker, r=len(df), d=date_range, s=source_name, f=filepath:
                             self.results_tree.insert('', 'end', values=(t, r, d, s, "Success", f))
                         )
+                        
+                        self.logger.info(f"Successfully downloaded {ticker}: {len(df)} rows")
                     else:
+                        error_msg = "No data returned"
                         self.main_window.run_in_main_thread(
-                            lambda t=ticker, s=source_name:
-                            self.results_tree.insert('', 'end', values=(t, 0, "N/A", s, "Failed", ""))
+                            lambda t=ticker, s=source_name, e=error_msg:
+                            self.results_tree.insert('', 'end', values=(t, 0, "N/A", s, f"Failed: {e}", ""))
                         )
+                        self.logger.warning(f"Failed to download {ticker}: {error_msg}")
                     
                     # Update progress
                     progress = ((i + 1) / total_tickers) * 100

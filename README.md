@@ -1,9 +1,17 @@
-# REDLINE - Financial Data Conversion & Management Tool
+# REDLINE - Financial Data Analyzer & Management Tool
 
-REDLINE is a powerful **data conversion tool** that transforms financial market data files (especially Stooq format) into machine learning-ready formats with a user-friendly GUI interface.
+REDLINE is a comprehensive **financial data analysis application** that provides data downloading, viewing, filtering, and analysis capabilities with a modern GUI interface. It supports multiple data sources and formats for professional financial data analysis.
 
 ## 🎯 **Core Purpose**
-REDLINE specializes in converting, cleaning, and managing financial market data for machine learning and data analysis workflows. It provides both GUI and command-line interfaces for processing large datasets efficiently.
+REDLINE is a complete financial data analysis platform that enables users to:
+- **Download** financial data from multiple sources (Yahoo Finance, Stooq, etc.)
+- **View** and explore large datasets with virtual scrolling
+- **Filter** data using advanced filtering capabilities
+- **Analyze** data with statistical and trend analysis tools
+- **Convert** between different data formats
+- **Manage** financial data workflows efficiently
+
+The application provides both GUI and command-line interfaces for processing large datasets efficiently.
 
 ## 📁 **Supported File Formats**
 
@@ -34,29 +42,54 @@ REDLINE specializes in converting, cleaning, and managing financial market data 
 - **Tabbed interface** for organized workflow
 - **Performance monitoring** with real-time memory usage
 
-### **Data Loader Tab**
-- **File Selection**
-  - Browse and select multiple files
-  - Select All/Deselect All functionality
-  - File format auto-detection
-  - Selection counter display
+### **Data Tab**
+- **File Loading**
+  - Browse and select files (CSV, Parquet, JSON, Feather)
+  - Automatic format detection
+  - Virtual scrolling for large datasets
+  - Real-time data preview
 
-- **Format Configuration**
-  - Input format selection (CSV, TXT, JSON, DuckDB, etc.)
-  - Output format selection
-  - Date range filtering (start/end dates)
-  - Data balancing options (target/minimum records per ticker)
+- **Data Operations**
+  - **Save Data** - Export current data to file
+  - **Filter Data** - Advanced filtering with multiple criteria
+  - **Refresh Data** - Reload data from source file
+  - **Clear Data** - Remove current data from display
 
-- **Data Processing Actions**
-  - **Preview File** - View file contents before processing
-  - **Preprocess File** - Clean and normalize data
-  - **Merge/Consolidate Files** - Combine multiple files
-  - **Analyze Selected** - Analyze file structure and content
+- **Advanced Filtering**
+  - **Date Range Filtering** - Filter by date ranges with presets
+  - **Numeric Filtering** - Min/max ranges for numeric columns
+  - **Text Filtering** - Contains/exact match for text columns
+  - **Custom Expressions** - SQL-like query expressions
+  - **Real-time Preview** - See filter results before applying
 
-- **Progress Tracking**
-  - Progress bar for batch operations
-  - Background processing with threading
-  - Real-time status updates
+### **Download Tab**
+- **Data Sources**
+  - **Yahoo Finance** - Free, reliable financial data (recommended)
+  - **Stooq.com** - High-quality data with manual authentication
+  - **Multi-Source** - Fallback system with multiple providers
+
+- **Download Features**
+  - **Ticker Input** - Manual entry or quick-select buttons
+  - **Date Range Selection** - Custom dates or presets (1Y, 2Y, 5Y, Max)
+  - **Output Format** - Stooq format for REDLINE compatibility
+  - **Progress Tracking** - Real-time download progress
+  - **Results Management** - View, load, and manage downloaded files
+
+### **Analysis Tab**
+- **Statistical Analysis**
+  - Basic statistics (mean, median, std dev, min/max)
+  - Data quality metrics
+  - Missing value analysis
+
+- **Trend Analysis**
+  - Price trend analysis with date range support
+  - Volume analysis and statistics
+  - Correlation analysis between assets
+
+- **Market Analysis**
+  - High volume day detection
+  - Volatility metrics
+  - Performance indicators
 
 ### **Data View Tab**
 - **File Browser**
