@@ -145,12 +145,12 @@ class StockAnalyzerGUI:
                 self.data_tab.on_tab_activated()
             elif current_tab == "Analysis":
                 self.analysis_tab.on_tab_activated()
-        elif current_tab == "Download/API":
-            self.download_tab.on_tab_activated()
-        elif current_tab == "Converter":
-            self.converter_tab.on_tab_activated()
-        elif current_tab == "Settings":
-            self.settings_tab.on_tab_activated()
+            elif current_tab == "Download/API":
+                self.download_tab.on_tab_activated()
+            elif current_tab == "Converter":
+                self.converter_tab.on_tab_activated()
+            elif current_tab == "Settings":
+                self.settings_tab.on_tab_activated()
                 
         except Exception as e:
             self.logger.error(f"Error handling tab change: {str(e)}")
