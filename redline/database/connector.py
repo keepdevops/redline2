@@ -35,8 +35,12 @@ logger = logging.getLogger(__name__)
 class DatabaseConnector:
     """Handles database connections and basic operations."""
     
-    def __init__(self, db_path: str = '/app/redline_data.duckdb'):
+    def __init__(self, db_path: str = None):
         """Initialize database connector."""
+        if db_path is None:
+            # Use local path instead of Docker path
+            import os
+            db_path = os.path.join(os.getcwd(), 'redline_data.duckdb')
         self.db_path = db_path
         self.logger = logging.getLogger(__name__)
     
@@ -55,6 +59,12 @@ class DatabaseConnector:
         
         try:
             path = db_path or self.db_path
+            
+            # Create directory if it doesn't exist
+            import os
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            
+            # Connect to database (will create file if it doesn't exist)
             conn = duckdb.connect(path)
             return conn
         except Exception as e:
