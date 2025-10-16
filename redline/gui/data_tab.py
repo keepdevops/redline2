@@ -267,9 +267,10 @@ class DataTab:
             # Try to use database if available, otherwise use direct pandas display
             try:
                 # Try database approach first
-                temp_path = "temp_data.duckdb"
+                # Use the same database file as the connector
+                db_path = self.connector.db_path
                 self.connector.write_shared_data("temp_display_data", data, "display")
-                self.current_data_source = DataSource(temp_path, "duckdb", "temp_display_data")
+                self.current_data_source = DataSource(db_path, "duckdb", "temp_display_data")
                 self.treeview.set_data_source(self.current_data_source)
             except ImportError as db_error:
                 # Fallback to direct pandas display if database not available
