@@ -472,6 +472,25 @@ class DataLoader:
             logging.error(f"Error balancing ticker data: {str(e)}")
             raise
 
+    def filter_data_by_date_range(self, data: pd.DataFrame, start_date: str, end_date: str) -> pd.DataFrame:
+        """
+        Filter the dataframe by date range for all tickers.
+        """
+        try:
+            data['timestamp'] = pd.to_datetime(data['timestamp'])
+            mask = (data['timestamp'] >= start_date) & (data['timestamp'] <= end_date)
+            filtered_data = data.loc[mask]
+            
+            if filtered_data.empty:
+                logging.warning(f"No data found between {start_date} and {end_date}")
+            else:
+                logging.info(f"Filtered data from {start_date} to {end_date}. Tickers: {filtered_data['ticker'].unique()}")
+                
+            return filtered_data
+        except Exception as e:
+            logging.error(f"Error filtering data by date range: {str(e)}")
+            raise
+
 class DatabaseConnector:
     def __init__(self, db_path: str = '/app/redline_data.duckdb'):
         self.db_path = db_path
