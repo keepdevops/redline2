@@ -84,14 +84,20 @@ class AnalysisTab:
             self.results_text.insert(tk.END, "Statistical Summary:\n")
             self.results_text.insert(tk.END, str(stats) + "\n\n")
             
-            # Additional analysis
+            # Additional analysis - check for close price column
+            close_col = None
             if 'close' in current_data.columns:
+                close_col = 'close'
+            elif '<CLOSE>' in current_data.columns:
+                close_col = '<CLOSE>'
+            
+            if close_col:
                 close_stats = {
-                    'Mean': current_data['close'].mean(),
-                    'Median': current_data['close'].median(),
-                    'Std Dev': current_data['close'].std(),
-                    'Min': current_data['close'].min(),
-                    'Max': current_data['close'].max()
+                    'Mean': current_data[close_col].mean(),
+                    'Median': current_data[close_col].median(),
+                    'Std Dev': current_data[close_col].std(),
+                    'Min': current_data[close_col].min(),
+                    'Max': current_data[close_col].max()
                 }
                 
                 self.results_text.insert(tk.END, "Close Price Statistics:\n")
@@ -147,15 +153,29 @@ class AnalysisTab:
                 self.results_text.insert(tk.END, "No data available for analysis.\n")
                 return
             
-            if 'close' not in current_data.columns or 'timestamp' not in current_data.columns:
-                self.results_text.insert(tk.END, "Required columns (close, timestamp) not found.\n")
+            # Check for required columns (handle both standard and Stooq format)
+            close_col = None
+            timestamp_col = None
+            
+            # Try standard column names first
+            if 'close' in current_data.columns and 'timestamp' in current_data.columns:
+                close_col = 'close'
+                timestamp_col = 'timestamp'
+            # Try Stooq format column names
+            elif '<CLOSE>' in current_data.columns and '<DATE>' in current_data.columns:
+                close_col = '<CLOSE>'
+                timestamp_col = '<DATE>'
+            else:
+                available_cols = list(current_data.columns)
+                self.results_text.insert(tk.END, f"Required columns (close/<CLOSE>, timestamp/<DATE>) not found.\n")
+                self.results_text.insert(tk.END, f"Available columns: {available_cols}\n")
                 return
             
             # Sort by timestamp
-            sorted_data = current_data.sort_values('timestamp')
+            sorted_data = current_data.sort_values(timestamp_col)
             
             # Calculate price changes
-            price_changes = sorted_data['close'].pct_change().dropna()
+            price_changes = sorted_data[close_col].pct_change().dropna()
             
             self.results_text.insert(tk.END, "Price Trend Analysis:\n")
             self.results_text.insert(tk.END, f"Average daily change: {price_changes.mean():.4f}\n")
@@ -188,17 +208,24 @@ class AnalysisTab:
                 self.results_text.insert(tk.END, "No data available for analysis.\n")
                 return
             
-            if 'vol' not in current_data.columns:
-                self.results_text.insert(tk.END, "Volume column not found.\n")
+            # Check for volume column (handle both standard and Stooq format)
+            vol_col = None
+            if 'vol' in current_data.columns:
+                vol_col = 'vol'
+            elif '<VOL>' in current_data.columns:
+                vol_col = '<VOL>'
+            
+            if vol_col is None:
+                self.results_text.insert(tk.END, "Volume column (vol/<VOL>) not found.\n")
                 return
             
             # Volume statistics
             volume_stats = {
-                'Average Volume': current_data['vol'].mean(),
-                'Median Volume': current_data['vol'].median(),
-                'Max Volume': current_data['vol'].max(),
-                'Min Volume': current_data['vol'].min(),
-                'Volume Std Dev': current_data['vol'].std()
+                'Average Volume': current_data[vol_col].mean(),
+                'Median Volume': current_data[vol_col].median(),
+                'Max Volume': current_data[vol_col].max(),
+                'Min Volume': current_data[vol_col].min(),
+                'Volume Std Dev': current_data[vol_col].std()
             }
             
             self.results_text.insert(tk.END, "Volume Analysis:\n")
@@ -206,8 +233,8 @@ class AnalysisTab:
                 self.results_text.insert(tk.END, f"{key}: {value:,.0f}\n")
             
             # High volume days
-            avg_volume = current_data['vol'].mean()
-            high_volume_days = (current_data['vol'] > avg_volume * 2).sum()
+            avg_volume = current_data[vol_col].mean()
+            high_volume_days = (current_data[vol_col] > avg_volume * 2).sum()
             
             self.results_text.insert(tk.END, f"\nHigh volume days (>2x average): {high_volume_days}\n")
             

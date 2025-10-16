@@ -89,10 +89,7 @@ class VirtualScrollingTreeview:
                     self.cached_data[i] = row_data
             
             # Insert item with row index as identifier
-            item_id = self.tree.insert('', 'end', values=row_data)
-            
-            # Store mapping between item_id and row index
-            self.tree.set(item_id, '#0', str(i))
+            item_id = self.tree.insert('', 'end', text=str(i), values=row_data)
     
     def set_data_source(self, data_source: DataSource):
         """Set the data source for virtual scrolling."""

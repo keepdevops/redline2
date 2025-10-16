@@ -265,6 +265,10 @@ class DataLoader:
         """Clean and standardize DataFrame columns."""
         return self.cleaner.clean_and_select_columns(data)
     
+    def load_file_by_type(self, file_path: str, format: str) -> Union[pd.DataFrame, 'pl.DataFrame', 'pa.Table']:
+        """Load data from file based on format type."""
+        return self.converter.load_file_by_type(file_path, format)
+    
     @staticmethod
     def save_file_by_type(data: Union[pd.DataFrame, 'pl.DataFrame', 'pa.Table', dict], 
                          file_path: str, format: str) -> None:

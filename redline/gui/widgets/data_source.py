@@ -50,10 +50,17 @@ class DataSource:
     def _initialize(self):
         """Initialize the data source based on format type."""
         try:
-            if self.format_type == 'duckdb':
-                self.connection = duckdb.connect(self.file_path)
-                self.total_rows = self.connection.execute("SELECT COUNT(*) FROM tickers_data").fetchone()[0]
-            else:
+            if self.format_type == 'duckdb' and self.file_path:
+                if DUCKDB_AVAILABLE:
+                    self.connection = duckdb.connect(self.file_path)
+                    self.total_rows = self.connection.execute("SELECT COUNT(*) FROM tickers_data").fetchone()[0]
+                else:
+                    raise ImportError("DuckDB not available")
+            elif self.format_type == 'pandas' and self.data is not None:
+                # Direct pandas data provided
+                self.total_rows = len(self.data)
+                self.logger.info(f"Using direct pandas data: {self.total_rows} rows")
+            elif self.file_path:
                 # For other formats, load into memory (not ideal for large files)
                 df = DataLoader.load_file_by_type(self.file_path, self.format_type)
                 
@@ -70,6 +77,10 @@ class DataSource:
                         self.data = pd.DataFrame()
                     
                     self.total_rows = len(self.data)
+            else:
+                # No file path and no data provided
+                self.data = pd.DataFrame()
+                self.total_rows = 0
                     
         except Exception as e:
             self.logger.error(f"Error initializing data source: {str(e)}")

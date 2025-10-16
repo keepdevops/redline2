@@ -102,9 +102,9 @@ class StockAnalyzerGUI:
         self.root.bind("<Control-o>", lambda e: self.data_tab.open_file_dialog())
         self.root.bind("<Control-s>", lambda e: self.data_tab.save_current_data())
         
-        # Navigation
-        self.root.bind("<Control-tab>", lambda e: self.next_tab())
-        self.root.bind("<Control-Shift-Tab>", lambda e: self.previous_tab())
+        # Navigation (use F2/F3 instead of tab to avoid system conflicts)
+        self.root.bind("<F2>", lambda e: self.next_tab())
+        self.root.bind("<F3>", lambda e: self.previous_tab())
         
         # Data operations
         self.root.bind("<Control-r>", lambda e: self.data_tab.refresh_data())
@@ -178,8 +178,8 @@ File Operations:
   Ctrl+S  - Save current data
 
 Navigation:
-  Ctrl+Tab      - Next tab
-  Ctrl+Shift+Tab - Previous tab
+  F2            - Next tab
+  F3            - Previous tab
 
 Data Operations:
   Ctrl+R  - Refresh data

@@ -9,6 +9,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import threading
 import os
+import pandas as pd
 from typing import Optional, List, Dict, Any
 
 from ..core.data_loader import DataLoader
@@ -109,33 +110,34 @@ class DataTab:
         self.treeview.grid(row=0, column=0, sticky='nsew')
         
         # Configure treeview columns
-        self.treeview.configure_heading('#0', text='Row')
-        self.treeview.configure_heading('ticker', text='Ticker')
-        self.treeview.configure_heading('timestamp', text='Timestamp')
-        self.treeview.configure_heading('open', text='Open')
-        self.treeview.configure_heading('high', text='High')
-        self.treeview.configure_heading('low', text='Low')
-        self.treeview.configure_heading('close', text='Close')
-        self.treeview.configure_heading('vol', text='Volume')
+        self.treeview.tree.configure(columns=['ticker', 'timestamp', 'open', 'high', 'low', 'close', 'vol'])
+        self.treeview.tree.heading('#0', text='Row')
+        self.treeview.tree.heading('ticker', text='Ticker')
+        self.treeview.tree.heading('timestamp', text='Timestamp')
+        self.treeview.tree.heading('open', text='Open')
+        self.treeview.tree.heading('high', text='High')
+        self.treeview.tree.heading('low', text='Low')
+        self.treeview.tree.heading('close', text='Close')
+        self.treeview.tree.heading('vol', text='Volume')
         
         # Configure column widths
-        self.treeview.configure_column('#0', width=50)
-        self.treeview.configure_column('ticker', width=80)
-        self.treeview.configure_column('timestamp', width=120)
-        self.treeview.configure_column('open', width=80)
-        self.treeview.configure_column('high', width=80)
-        self.treeview.configure_column('low', width=80)
-        self.treeview.configure_column('close', width=80)
-        self.treeview.configure_column('vol', width=100)
+        self.treeview.tree.column('#0', width=50)
+        self.treeview.tree.column('ticker', width=80)
+        self.treeview.tree.column('timestamp', width=120)
+        self.treeview.tree.column('open', width=80)
+        self.treeview.tree.column('high', width=80)
+        self.treeview.tree.column('low', width=80)
+        self.treeview.tree.column('close', width=80)
+        self.treeview.tree.column('vol', width=100)
         
         # Add scrollbars
-        self.v_scrollbar = ttk.Scrollbar(self.data_frame, orient=tk.VERTICAL, command=self.treeview.yview)
+        self.v_scrollbar = ttk.Scrollbar(self.data_frame, orient=tk.VERTICAL, command=self.treeview.tree.yview)
         self.v_scrollbar.grid(row=0, column=1, sticky='ns')
-        self.treeview.configure(yscrollcommand=self.v_scrollbar.set)
+        self.treeview.tree.configure(yscrollcommand=self.v_scrollbar.set)
         
-        self.h_scrollbar = ttk.Scrollbar(self.data_frame, orient=tk.HORIZONTAL, command=self.treeview.xview)
+        self.h_scrollbar = ttk.Scrollbar(self.data_frame, orient=tk.HORIZONTAL, command=self.treeview.tree.xview)
         self.h_scrollbar.grid(row=1, column=0, sticky='ew')
-        self.treeview.configure(xscrollcommand=self.h_scrollbar.set)
+        self.treeview.tree.configure(xscrollcommand=self.h_scrollbar.set)
     
     def setup_event_handlers(self):
         """Setup event handlers."""
@@ -244,9 +246,10 @@ class DataTab:
                 )
                 
         except Exception as e:
-            self.logger.error(f"Error in load files thread: {str(e)}")
+            error_msg = str(e)
+            self.logger.error(f"Error in load files thread: {error_msg}")
             self.main_window.run_in_main_thread(
-                lambda: self.main_window.show_error_message("Error", f"Failed to load files: {str(e)}")
+                lambda: self.main_window.show_error_message("Error", f"Failed to load files: {error_msg}")
             )
     
     def _detect_format_from_path(self, file_path: str) -> str:
@@ -261,12 +264,20 @@ class DataTab:
             if self.current_data_source:
                 self.current_data_source.close()
             
-            # For now, save data to temporary file and create data source
-            temp_path = "temp_data.duckdb"
-            self.connector.write_shared_data("temp_display_data", data, "display")
-            
-            self.current_data_source = DataSource(temp_path, "duckdb")
-            self.treeview.set_data_source(self.current_data_source)
+            # Try to use database if available, otherwise use direct pandas display
+            try:
+                # Try database approach first
+                temp_path = "temp_data.duckdb"
+                self.connector.write_shared_data("temp_display_data", data, "display")
+                self.current_data_source = DataSource(temp_path, "duckdb")
+                self.treeview.set_data_source(self.current_data_source)
+            except ImportError as db_error:
+                # Fallback to direct pandas display if database not available
+                self.logger.warning(f"Database not available, using direct display: {db_error}")
+                self.current_data_source = DataSource(None, "pandas")
+                self.current_data_source.data = data
+                self.current_data_source.total_rows = len(data)
+                self.treeview.set_data_source(self.current_data_source)
             
             # Store current data
             self.current_data = data
@@ -282,7 +293,7 @@ class DataTab:
     
     def save_current_data(self):
         """Save current data to file."""
-        if not self.current_data:
+        if self.current_data is None or self.current_data.empty:
             self.main_window.show_warning_message("Warning", "No data to save")
             return
         
@@ -393,7 +404,7 @@ class DataTab:
     
     def open_filter_dialog(self):
         """Open filter dialog."""
-        if not self.current_data:
+        if self.current_data is None or self.current_data.empty:
             self.main_window.show_warning_message("Warning", "No data to filter")
             return
         
