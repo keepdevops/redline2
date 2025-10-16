@@ -36,10 +36,11 @@ logger = logging.getLogger(__name__)
 class DataSource:
     """Abstract data source for virtual scrolling."""
     
-    def __init__(self, file_path: str, format_type: str):
+    def __init__(self, file_path: str, format_type: str, table_name: str = "tickers_data"):
         """Initialize data source."""
         self.file_path = file_path
         self.format_type = format_type
+        self.table_name = table_name
         self.connection = None
         self.total_rows = 0
         self.data = None
@@ -53,7 +54,7 @@ class DataSource:
             if self.format_type == 'duckdb' and self.file_path:
                 if DUCKDB_AVAILABLE:
                     self.connection = duckdb.connect(self.file_path)
-                    self.total_rows = self.connection.execute("SELECT COUNT(*) FROM tickers_data").fetchone()[0]
+                    self.total_rows = self.connection.execute(f"SELECT COUNT(*) FROM {self.table_name}").fetchone()[0]
                 else:
                     raise ImportError("DuckDB not available")
             elif self.format_type == 'pandas' and self.data is not None:
@@ -95,7 +96,7 @@ class DataSource:
         """Get a specific row by index."""
         try:
             if self.format_type == 'duckdb' and self.connection:
-                query = f"SELECT * FROM tickers_data LIMIT 1 OFFSET {index}"
+                query = f"SELECT * FROM {self.table_name} LIMIT 1 OFFSET {index}"
                 result = self.connection.execute(query).fetchone()
                 return list(result) if result else []
             else:
