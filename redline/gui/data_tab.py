@@ -408,8 +408,26 @@ class DataTab:
             self.main_window.show_warning_message("Warning", "No data to filter")
             return
         
-        # Create filter dialog (simplified version)
-        self.main_window.show_info_message("Info", "Filter dialog not yet implemented")
+        try:
+            from .widgets.filter_dialog import FilterDialog
+            
+            def apply_filter(filtered_data):
+                """Apply filtered data to display."""
+                try:
+                    self.current_data = filtered_data
+                    self._display_data(filtered_data)
+                    self.unsaved_changes = True
+                    self.main_window.show_info_message("Success", f"Filter applied: {len(filtered_data)} rows remaining")
+                except Exception as e:
+                    self.logger.error(f"Error applying filter: {str(e)}")
+                    self.main_window.show_error_message("Error", f"Failed to apply filter: {str(e)}")
+            
+            # Create and show filter dialog
+            filter_dialog = FilterDialog(self.frame, self.current_data, apply_filter)
+            
+        except Exception as e:
+            self.logger.error(f"Error opening filter dialog: {str(e)}")
+            self.main_window.show_error_message("Error", f"Failed to open filter dialog: {str(e)}")
     
     def on_data_selection(self, event):
         """Handle data selection events."""
