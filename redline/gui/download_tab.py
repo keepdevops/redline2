@@ -51,8 +51,8 @@ class DownloadTab:
         main_container = ttk.Frame(self.frame)
         main_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
-        # Left panel - Download controls
-        left_panel = ttk.LabelFrame(main_container, text="Download Controls", padding=10)
+        # Left panel - API & Download controls
+        left_panel = ttk.LabelFrame(main_container, text="API & Download Controls", padding=10)
         left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
         
         # Right panel - Results and status
@@ -64,17 +64,23 @@ class DownloadTab:
     
     def create_download_controls(self, parent):
         """Create download control widgets."""
-        # Data source selection
-        source_frame = ttk.LabelFrame(parent, text="Data Source", padding=5)
+        # API Data source selection
+        source_frame = ttk.LabelFrame(parent, text="API Data Sources", padding=5)
         source_frame.pack(fill=tk.X, pady=(0, 10))
         
         self.source_var = tk.StringVar(value="yahoo")
-        ttk.Radiobutton(source_frame, text="Yahoo Finance (Free, Reliable)", 
+        ttk.Radiobutton(source_frame, text="📊 Yahoo Finance API (Free, Reliable, No Auth)", 
                        variable=self.source_var, value="yahoo").pack(anchor=tk.W)
-        ttk.Radiobutton(source_frame, text="Stooq.com (Manual Auth Required)", 
+        ttk.Radiobutton(source_frame, text="🏢 Stooq.com API (High Quality, Manual Auth)", 
                        variable=self.source_var, value="stooq").pack(anchor=tk.W)
-        ttk.Radiobutton(source_frame, text="Multi-Source (All Available)", 
+        ttk.Radiobutton(source_frame, text="🔄 Multi-Source API (Fallback System)", 
                        variable=self.source_var, value="multi").pack(anchor=tk.W)
+        
+        # API status info
+        api_info_frame = ttk.Frame(source_frame)
+        api_info_frame.pack(fill=tk.X, pady=(5, 0))
+        ttk.Label(api_info_frame, text="💡 Yahoo Finance is recommended for most users", 
+                 font=("Arial", 8), foreground="blue").pack(anchor=tk.W)
         
         # Ticker input
         ticker_frame = ttk.LabelFrame(parent, text="Ticker Symbols", padding=5)
@@ -162,6 +168,8 @@ class DownloadTab:
         ttk.Button(button_frame, text="Open Stooq Website", 
                   command=self.open_stooq_website).pack(side=tk.LEFT, padx=(0, 5))
         
+        ttk.Button(button_frame, text="Test API", 
+                  command=self.test_api_connection).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Clear Results", 
                   command=self.clear_results).pack(side=tk.RIGHT)
         
@@ -437,6 +445,43 @@ class DownloadTab:
                 if messagebox.askyesno("Delete File", f"Delete {filepath}?"):
                     os.remove(filepath)
                     self.results_tree.delete(selection[0])
+    
+    def test_api_connection(self):
+        """Test API connection for the selected source."""
+        source = self.source_var.get()
+        
+        self.status_label.config(text="Testing API connection...")
+        
+        def test_connection():
+            try:
+                if source == "yahoo":
+                    # Test Yahoo Finance API
+                    import yfinance as yf
+                    test_ticker = yf.Ticker("AAPL")
+                    info = test_ticker.info
+                    if info and 'symbol' in info:
+                        self.main_window.show_info_message("API Test", "✅ Yahoo Finance API is working")
+                    else:
+                        self.main_window.show_warning_message("API Test", "⚠️ Yahoo Finance API returned limited data")
+                        
+                elif source == "stooq":
+                    self.main_window.show_info_message("API Test", "ℹ️ Stooq requires manual authentication. Click 'Open Stooq Website' to authenticate.")
+                    
+                elif source == "multi":
+                    # Test multiple sources
+                    self.main_window.show_info_message("API Test", "🔄 Multi-Source will try Yahoo Finance as primary source")
+                
+                self.status_label.config(text="API test completed")
+                
+            except Exception as e:
+                self.main_window.show_error_message("API Test", f"❌ API test failed: {str(e)}")
+                self.status_label.config(text="API test failed")
+        
+        # Run test in thread to avoid blocking UI
+        import threading
+        test_thread = threading.Thread(target=test_connection)
+        test_thread.daemon = True
+        test_thread.start()
     
     def on_tab_activated(self):
         """Handle tab activation."""

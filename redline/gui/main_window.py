@@ -82,9 +82,9 @@ class StockAnalyzerGUI:
         self.analysis_tab = AnalysisTab(self.notebook, self.loader, self.connector, self)
         self.notebook.add(self.analysis_tab.frame, text="Analysis")
 
-        # Download tab
+        # Download/API tab
         self.download_tab = DownloadTab(self.notebook, self.loader, self.connector, self)
-        self.notebook.add(self.download_tab.frame, text="Download")
+        self.notebook.add(self.download_tab.frame, text="Download/API")
         
         # Converter tab
         self.converter_tab = ConverterTab(self.notebook, self.loader, self.connector, self)
@@ -145,7 +145,7 @@ class StockAnalyzerGUI:
                 self.data_tab.on_tab_activated()
             elif current_tab == "Analysis":
                 self.analysis_tab.on_tab_activated()
-        elif current_tab == "Download":
+        elif current_tab == "Download/API":
             self.download_tab.on_tab_activated()
         elif current_tab == "Converter":
             self.converter_tab.on_tab_activated()
@@ -202,7 +202,7 @@ Data Operations:
 Available Tabs:
   Data          - Load, view, and filter financial data
   Analysis      - Statistical and trend analysis tools
-  Download      - Download data from various sources
+  Download/API  - Download data from various APIs (Yahoo, Stooq, etc.)
   Converter     - Convert between different data formats
   Settings      - Application configuration
 
