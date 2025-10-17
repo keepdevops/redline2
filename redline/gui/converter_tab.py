@@ -292,6 +292,11 @@ class ConverterTab:
                                    command=self.clear_results)
         self.clear_btn.pack(side=tk.RIGHT)
         
+        # Add tooltips to buttons
+        self.add_tooltip(self.convert_btn, "Start converting selected files to the chosen format")
+        self.add_tooltip(self.stop_btn, "Stop the current conversion process")
+        self.add_tooltip(self.clear_btn, "Clear all conversion results from the display")
+        
     def create_results_section(self, parent):
         """Create results display section."""
         results_frame = ttk.LabelFrame(parent, text="Conversion Results", padding=10)
@@ -324,12 +329,22 @@ class ConverterTab:
         actions_frame = ttk.Frame(results_frame)
         actions_frame.pack(fill=tk.X, pady=(10, 0))
         
-        ttk.Button(actions_frame, text="Open Output File", 
-                  command=self.open_output_file).pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Button(actions_frame, text="Open Output Directory", 
-                  command=self.open_output_directory).pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Button(actions_frame, text="Load to Data Tab", 
-                  command=self.load_to_data_tab).pack(side=tk.RIGHT)
+        open_file_btn = ttk.Button(actions_frame, text="Open Output File", 
+                                  command=self.open_output_file)
+        open_file_btn.pack(side=tk.LEFT, padx=(0, 10))
+        
+        open_dir_btn = ttk.Button(actions_frame, text="Open Output Directory", 
+                                 command=self.open_output_directory)
+        open_dir_btn.pack(side=tk.LEFT, padx=(0, 10))
+        
+        load_data_btn = ttk.Button(actions_frame, text="Load to Data Tab", 
+                                  command=self.load_to_data_tab)
+        load_data_btn.pack(side=tk.RIGHT)
+        
+        # Add tooltips to action buttons
+        self.add_tooltip(open_file_btn, "Open the selected converted file in default application")
+        self.add_tooltip(open_dir_btn, "Open the output directory in file explorer")
+        self.add_tooltip(load_data_btn, "Load the selected converted file into the Data tab")
         
     def setup_event_handlers(self):
         """Setup event handlers."""
@@ -822,6 +837,27 @@ class ConverterTab:
                 messagebox.showwarning("Warning", "Output file not found")
         else:
             messagebox.showwarning("Warning", "No successful conversion available")
+    
+    def add_tooltip(self, widget, text):
+        """Create a tooltip for a widget."""
+        def show_tooltip(event):
+            tooltip = tk.Toplevel()
+            tooltip.wm_overrideredirect(True)
+            tooltip.wm_geometry(f"+{event.x_root+10}+{event.y_root+10}")
+            
+            label = tk.Label(tooltip, text=text, background="#ffffe0",
+                           relief="solid", borderwidth=1, font=("Arial", 9))
+            label.pack()
+            
+            widget.tooltip = tooltip
+        
+        def hide_tooltip(event):
+            if hasattr(widget, 'tooltip'):
+                widget.tooltip.destroy()
+                del widget.tooltip
+        
+        widget.bind("<Enter>", show_tooltip)
+        widget.bind("<Leave>", hide_tooltip)
             
     def on_tab_activated(self):
         """Handle tab activation."""
