@@ -149,6 +149,43 @@ class MultiSourceDownloader(BaseDownloader):
         
         return sources
     
+    def download_from_source(self, source: str, ticker: str, start_date: str = None, 
+                           end_date: str = None) -> pd.DataFrame:
+        """
+        Download data from a specific source.
+        
+        Args:
+            source: Source name ('yahoo', 'stooq')
+            ticker: Stock ticker symbol
+            start_date: Start date (YYYY-MM-DD)
+            end_date: End date (YYYY-MM-DD)
+            
+        Returns:
+            DataFrame with stock data
+        """
+        if source not in self.downloaders:
+            self.logger.error(f"Unknown source: {source}")
+            return pd.DataFrame()
+        
+        try:
+            self.source_stats[source]['attempts'] += 1
+            downloader = self.downloaders[source]
+            data = downloader.download_single_ticker(ticker, start_date, end_date)
+            
+            if data is not None and not data.empty:
+                self.source_stats[source]['successes'] += 1
+                self.logger.info(f"Successfully downloaded {ticker} from {source}")
+                return data
+            else:
+                self.source_stats[source]['failures'] += 1
+                self.logger.warning(f"No data returned for {ticker} from {source}")
+                return pd.DataFrame()
+                
+        except Exception as e:
+            self.source_stats[source]['failures'] += 1
+            self.logger.error(f"Error downloading {ticker} from {source}: {str(e)}")
+            return pd.DataFrame()
+    
     def get_source_statistics(self) -> Dict[str, Dict[str, int]]:
         """Get statistics for each source."""
         return self.source_stats.copy()

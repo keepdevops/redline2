@@ -7,6 +7,8 @@ Downloads historical data from Yahoo Finance using yfinance library.
 import logging
 import pandas as pd
 import yfinance as yf
+import time
+import threading
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any
 from .base_downloader import BaseDownloader
@@ -21,6 +23,24 @@ class YahooDownloader(BaseDownloader):
         super().__init__("Yahoo Finance", "https://finance.yahoo.com")
         self.output_dir = output_dir
         self.logger = logging.getLogger(__name__)
+        
+        # Rate limiting
+        self.last_request_time = 0
+        self.min_request_interval = 2.0  # 2 seconds between requests
+        self.rate_limit_lock = threading.Lock()
+    
+    def _rate_limit(self):
+        """Enforce rate limiting between requests."""
+        with self.rate_limit_lock:
+            current_time = time.time()
+            time_since_last_request = current_time - self.last_request_time
+            
+            if time_since_last_request < self.min_request_interval:
+                sleep_time = self.min_request_interval - time_since_last_request
+                self.logger.info(f"Rate limiting: sleeping for {sleep_time:.2f} seconds")
+                time.sleep(sleep_time)
+            
+            self.last_request_time = time.time()
     
     def download_single_ticker(self, ticker: str, start_date: str = None, end_date: str = None) -> pd.DataFrame:
         """
@@ -35,6 +55,9 @@ class YahooDownloader(BaseDownloader):
             DataFrame with historical data
         """
         try:
+            # Apply rate limiting
+            self._rate_limit()
+            
             # Parse dates
             start_dt = datetime.strptime(start_date, '%Y-%m-%d') if start_date else None
             end_dt = datetime.strptime(end_date, '%Y-%m-%d') if end_date else None

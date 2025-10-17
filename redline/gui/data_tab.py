@@ -62,6 +62,9 @@ class DataTab:
         self.open_button = ttk.Button(self.file_frame, text="Open File", command=self.open_file_dialog)
         self.open_button.pack(side=tk.LEFT, padx=5, pady=5)
         
+        self.load_converted_button = ttk.Button(self.file_frame, text="Load Converted Files", command=self.load_converted_files)
+        self.load_converted_button.pack(side=tk.LEFT, padx=5, pady=5)
+        
         self.save_button = ttk.Button(self.file_frame, text="Save", command=self.save_current_data)
         self.save_button.pack(side=tk.LEFT, padx=5, pady=5)
         
@@ -173,6 +176,109 @@ class DataTab:
             self.logger.error(f"Error opening file dialog: {str(e)}")
             self.main_window.show_error_message("Error", f"Failed to open file dialog: {str(e)}")
     
+    def load_converted_files(self):
+        """Load converted files from the converter output directory."""
+        try:
+            import glob
+            
+            # Get the converter output directory
+            converted_dir = "data/converted"
+            
+            if not os.path.exists(converted_dir):
+                self.main_window.show_warning_message("No Converted Files", 
+                    "No converted files directory found. Please run conversions first.")
+                return
+            
+            # Find all converted files in subdirectories
+            converted_files = []
+            for root, dirs, files in os.walk(converted_dir):
+                for file in files:
+                    if file.endswith(('.csv', '.feather', '.parquet', '.json')):
+                        converted_files.append(os.path.join(root, file))
+            
+            if not converted_files:
+                self.main_window.show_warning_message("No Converted Files", 
+                    "No converted files found in the converted directory.")
+                return
+            
+            # Ask user which files to load
+            if len(converted_files) == 1:
+                # Only one file, load it directly
+                self.load_files([converted_files[0]])
+            else:
+                # Multiple files, show selection dialog
+                self.show_converted_files_dialog(converted_files)
+                
+        except Exception as e:
+            self.logger.error(f"Error loading converted files: {str(e)}")
+            self.main_window.show_error_message("Error", f"Failed to load converted files: {str(e)}")
+    
+    def show_converted_files_dialog(self, files: List[str]):
+        """Show dialog to select which converted files to load."""
+        try:
+            # Create a simple selection dialog
+            dialog = tk.Toplevel(self.frame)
+            dialog.title("Select Converted Files to Load")
+            dialog.geometry("600x400")
+            dialog.transient(self.frame)
+            dialog.grab_set()
+            
+            # Create frame for listbox and scrollbar
+            list_frame = ttk.Frame(dialog)
+            list_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+            
+            # Label
+            ttk.Label(list_frame, text="Select files to load:", font=("Arial", 12, "bold")).pack(pady=(0, 10))
+            
+            # Listbox with scrollbar
+            scrollbar = ttk.Scrollbar(list_frame)
+            scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            
+            listbox = tk.Listbox(list_frame, selectmode=tk.MULTIPLE, yscrollcommand=scrollbar.set)
+            listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            scrollbar.config(command=listbox.yview)
+            
+            # Add files to listbox
+            for file_path in files:
+                # Show relative path for better readability
+                rel_path = os.path.relpath(file_path, "data/converted")
+                listbox.insert(tk.END, rel_path)
+            
+            # Buttons frame
+            button_frame = ttk.Frame(dialog)
+            button_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
+            
+            # Load selected button
+            def load_selected():
+                selected_indices = listbox.curselection()
+                if selected_indices:
+                    selected_files = [files[i] for i in selected_indices]
+                    dialog.destroy()
+                    self.load_files(selected_files)
+                else:
+                    messagebox.showwarning("No Selection", "Please select at least one file to load.")
+            
+            # Load all button
+            def load_all():
+                dialog.destroy()
+                self.load_files(files)
+            
+            # Cancel button
+            def cancel():
+                dialog.destroy()
+            
+            ttk.Button(button_frame, text="Load Selected", command=load_selected).pack(side=tk.LEFT, padx=(0, 5))
+            ttk.Button(button_frame, text="Load All", command=load_all).pack(side=tk.LEFT, padx=(0, 5))
+            ttk.Button(button_frame, text="Cancel", command=cancel).pack(side=tk.RIGHT)
+            
+            # Instructions
+            ttk.Label(button_frame, text="Hold Ctrl/Cmd to select multiple files", 
+                     font=("Arial", 9), foreground="gray").pack(side=tk.RIGHT, padx=(0, 10))
+            
+        except Exception as e:
+            self.logger.error(f"Error showing converted files dialog: {str(e)}")
+            self.main_window.show_error_message("Error", f"Failed to show file selection dialog: {str(e)}")
+    
     def load_files(self, file_paths: List[str]):
         """Load multiple files."""
         try:
@@ -180,9 +286,22 @@ class DataTab:
             self.progress_tracker.start_operation(len(file_paths), "Loading files...")
             
             # Load files in background thread
-            thread = threading.Thread(target=self._load_files_thread, args=(file_paths,))
-            thread.daemon = True
-            thread.start()
+            self.loading_thread = threading.Thread(target=self._load_files_thread, args=(file_paths,))
+            self.loading_thread.daemon = True
+            self.loading_thread.start()
+            
+            # Set up timeout to prevent infinite loading
+            def check_timeout():
+                if hasattr(self, 'loading_thread') and self.loading_thread.is_alive():
+                    self.main_window.show_warning_message(
+                        "Loading Timeout", 
+                        "File loading is taking longer than expected. This may indicate a problem with the file format or size."
+                    )
+                    # Stop the progress tracker
+                    self.progress_tracker.cancel_operation()
+            
+            # Set timeout after 30 seconds
+            self.frame.after(30000, check_timeout)
             
         except Exception as e:
             self.logger.error(f"Error starting file loading: {str(e)}")
@@ -193,24 +312,58 @@ class DataTab:
         try:
             loaded_data = []
             skipped_files = []
+            large_files = []
+            
+            # Check file sizes first
+            for file_path in file_paths:
+                try:
+                    file_size = os.path.getsize(file_path)
+                    if file_size > 100 * 1024 * 1024:  # 100MB
+                        large_files.append((file_path, file_size))
+                except:
+                    pass
+            
+            # Warn about large files
+            if large_files:
+                large_file_names = [os.path.basename(f[0]) for f in large_files]
+                large_files_text = "\n".join(large_file_names)
+                self.main_window.run_in_main_thread(
+                    lambda: self.main_window.show_warning_message(
+                        "Large Files Detected",
+                        f"Large files detected: {large_files_text}\n\n"
+                        "Loading may be slow. Consider using chunked loading for better performance."
+                    )
+                )
             
             for i, file_path in enumerate(file_paths):
                 if not self.progress_tracker.is_operation_running():
                     break
                 
                 try:
+                    # Check if this is a large file
+                    file_size = os.path.getsize(file_path)
+                    is_large_file = file_size > 50 * 1024 * 1024  # 50MB
+                    
                     # Detect format from extension
                     format_type = self._detect_format_from_path(file_path)
                     
                     # Update progress
                     self.progress_tracker.update_progress(
-                        operation=f"Loading {os.path.basename(file_path)}..."
+                        operation=f"Loading {os.path.basename(file_path)}..." + (
+                            " (Large file - this may take a while)" if is_large_file else ""
+                        )
                     )
                     
-                    # Load data
-                    data = self.loader.load_file_by_type(file_path, format_type)
+                    # Load data with chunked approach for large files
+                    if is_large_file and format_type in ['csv', 'txt']:
+                        data = self._load_large_file_chunked(file_path, format_type)
+                    else:
+                        data = self.loader.load_file_by_type(file_path, format_type)
+                    
                     if data is not None and not data.empty:
                         loaded_data.append(data)
+                        # Clear memory immediately after appending
+                        del data
                     else:
                         skipped_files.append(file_path)
                     
@@ -222,10 +375,35 @@ class DataTab:
                     skipped_files.append(file_path)
                     self.progress_tracker.update_progress(increment=True)
             
-            # Combine loaded data
+            # Combine loaded data with memory optimization
             if loaded_data:
-                combined_data = pd.concat(loaded_data, ignore_index=True)
-                self._display_data(combined_data)
+                try:
+                    # Combine data with memory management
+                    if len(loaded_data) == 1:
+                        combined_data = loaded_data[0]
+                    else:
+                        combined_data = pd.concat(loaded_data, ignore_index=True)
+                    
+                    # Clear the list to free memory
+                    loaded_data.clear()
+                    
+                    # Display the combined data
+                    self._display_data(combined_data)
+                    
+                    # Clear the combined data after display setup
+                    del combined_data
+                    
+                except MemoryError as mem_error:
+                    self.logger.error(f"Memory error combining data: {str(mem_error)}")
+                    self.main_window.run_in_main_thread(
+                        lambda: self.main_window.show_error_message(
+                            "Memory Error", 
+                            "File too large to load. Try loading smaller files or use chunked processing."
+                        )
+                    )
+                except Exception as e:
+                    self.logger.error(f"Error combining data: {str(e)}")
+                    raise
                 
                 # Update status
                 self.main_window.run_in_main_thread(
@@ -257,12 +435,70 @@ class DataTab:
         ext = os.path.splitext(file_path)[1].lower()
         return EXT_TO_FORMAT.get(ext, 'csv')
     
+    def _load_large_file_chunked(self, file_path: str, format_type: str, chunk_size: int = 10000) -> pd.DataFrame:
+        """Load large files in chunks to prevent memory issues."""
+        try:
+            self.logger.info(f"Loading large file {file_path} in chunks of {chunk_size} rows")
+            
+            if format_type == 'csv':
+                # Load CSV in chunks
+                chunks = []
+                for chunk in pd.read_csv(file_path, chunksize=chunk_size):
+                    chunks.append(chunk)
+                    if len(chunks) >= 10:  # Limit memory usage
+                        combined = pd.concat(chunks, ignore_index=True)
+                        chunks = [combined]
+                
+                if chunks:
+                    return pd.concat(chunks, ignore_index=True)
+                else:
+                    return pd.DataFrame()
+            
+            elif format_type == 'txt':
+                # For text files, try to detect if it's Stooq format
+                try:
+                    # Read first few lines to detect format
+                    with open(file_path, 'r') as f:
+                        first_line = f.readline().strip()
+                        
+                    if '<TICKER>' in first_line:
+                        # Stooq format - load in chunks
+                        chunks = []
+                        for chunk in pd.read_csv(file_path, chunksize=chunk_size, sep=','):
+                            chunks.append(chunk)
+                            if len(chunks) >= 10:
+                                combined = pd.concat(chunks, ignore_index=True)
+                                chunks = [combined]
+                        
+                        if chunks:
+                            return pd.concat(chunks, ignore_index=True)
+                    
+                except Exception as e:
+                    self.logger.warning(f"Error in chunked text loading: {str(e)}")
+                
+                # Fallback to regular loading
+                return self.loader.load_file_by_type(file_path, format_type)
+            
+            else:
+                # For other formats, use regular loading
+                return self.loader.load_file_by_type(file_path, format_type)
+                
+        except Exception as e:
+            self.logger.error(f"Error in chunked loading: {str(e)}")
+            return pd.DataFrame()
+    
     def _display_data(self, data):
         """Display data in the treeview."""
         try:
             # Create data source
             if self.current_data_source:
                 self.current_data_source.close()
+            
+            # Check if data is empty
+            if data is None or data.empty:
+                self.logger.warning("No data to display - empty DataFrame")
+                self.main_window.show_warning_message("No Data", "The loaded file contains no data.")
+                return
             
             # Try to use database if available, otherwise use direct pandas display
             try:
@@ -272,9 +508,9 @@ class DataTab:
                 self.connector.write_shared_data("temp_display_data", data, "display")
                 self.current_data_source = DataSource(db_path, "duckdb", "temp_display_data")
                 self.treeview.set_data_source(self.current_data_source)
-            except ImportError as db_error:
-                # Fallback to direct pandas display if database not available
-                self.logger.warning(f"Database not available, using direct display: {db_error}")
+            except (ImportError, ValueError) as db_error:
+                # Fallback to direct pandas display if database not available or data invalid
+                self.logger.warning(f"Database not available or data invalid, using direct display: {db_error}")
                 self.current_data_source = DataSource(None, "pandas")
                 self.current_data_source.data = data
                 self.current_data_source.total_rows = len(data)
@@ -415,16 +651,23 @@ class DataTab:
             def apply_filter(filtered_data):
                 """Apply filtered data to display."""
                 try:
+                    self.logger.info(f"Applying filter: received {len(filtered_data)} rows")
+                    self.logger.info(f"Filtered data columns: {list(filtered_data.columns)}")
+                    self.logger.info(f"Filtered data shape: {filtered_data.shape}")
+                    
                     self.current_data = filtered_data
                     self._display_data(filtered_data)
                     self.unsaved_changes = True
                     self.main_window.show_info_message("Success", f"Filter applied: {len(filtered_data)} rows remaining")
+                    self.logger.info(f"Filter applied successfully: {len(filtered_data)} rows displayed")
                 except Exception as e:
                     self.logger.error(f"Error applying filter: {str(e)}")
                     self.main_window.show_error_message("Error", f"Failed to apply filter: {str(e)}")
             
             # Create and show filter dialog
             filter_dialog = FilterDialog(self.frame, self.current_data, apply_filter)
+            # Pass main window reference for thread-safe updates
+            filter_dialog.main_window = self.main_window
             
         except Exception as e:
             self.logger.error(f"Error opening filter dialog: {str(e)}")

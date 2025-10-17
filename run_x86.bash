@@ -18,7 +18,7 @@ docker run --rm \
   -e DISPLAY=host.docker.internal:0 \
   -v "$(pwd):/app" \
   -v $(pwd)/data:/app/data \
-  redline_x86 python3 /app/data_module.py
+  redline_x86 python3 /app/main.py
 
 xhost -
 

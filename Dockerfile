@@ -11,6 +11,7 @@ RUN apt-get update && \
     python3-tk \
     build-essential \
     curl \
+    git \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -24,14 +25,24 @@ RUN python3 -m pip install \
     polars \
     tensorflow \
     scikit-learn \
+    yfinance \
+    requests \
+    psutil \
     --break-system-packages
 
 # Set working directory
 WORKDIR /app
 
-# Copy application files into the container
-COPY data_module.py data_config.ini ./
+# Copy the new modular application structure
+COPY main.py data_config.ini ./
+COPY redline/ ./redline/
 
-# Default command to run the module
-CMD ["python3", "-m", "data_module", "--task=load"]
+# Create data directories
+RUN mkdir -p data data/converted data/downloaded
+
+# Expose port for web GUI (if needed)
+EXPOSE 8080
+
+# Default command to run the new main application
+CMD ["python3", "main.py"]
 

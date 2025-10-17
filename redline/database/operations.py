@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class DatabaseOperations:
     """Common database operations and utilities."""
     
-    def __init__(self, db_path: str = '/app/redline_data.duckdb'):
+    def __init__(self, db_path: str = 'redline_data.duckdb'):
         """Initialize database operations."""
         self.connector = DatabaseConnector(db_path)
         self.query_builder = AdvancedQueryBuilder()

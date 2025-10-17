@@ -35,12 +35,12 @@ echo "Starting REDLINE container with GUI support..."
 
 # Run Docker container with X11 forwarding
 docker run -it --rm \
-    -e DISPLAY=$LOCAL_IP:0 \
-    -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
+    -e DISPLAY=host.docker.internal:0 \
+    -v /tmp/.X11-unix:/tmp/.X11-unix \
     -v $(pwd)/data:/app/data \
     -v $(pwd):/app/host \
     --name redline_gui \
     $DOCKER_IMAGE \
-    python3 /app/host/data_module_shared.py --task gui
+    python3 /app/host/main.py
 
 echo "REDLINE GUI session ended." 

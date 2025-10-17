@@ -112,10 +112,17 @@ class ProgressTracker:
             elif step is not None:
                 self.current_step = step
             
-            # Update GUI safely
-            self.parent.after(0, self._update_gui, operation)
+            # Store operation for GUI update
+            self.current_operation = operation or self.current_operation
+            
+            # Update GUI safely with error handling
+            try:
+                # Use after(0) instead of after_idle to avoid GIL issues
+                self.parent.after(0, self._update_gui)
+            except Exception as e:
+                self.logger.error(f"Error scheduling GUI update: {str(e)}")
     
-    def _update_gui(self, operation: str = None):
+    def _update_gui(self):
         """Update GUI components (called from main thread)."""
         try:
             # Update progress bar
@@ -123,8 +130,8 @@ class ProgressTracker:
             self.progress_bar['value'] = progress_value
             
             # Update status
-            if operation:
-                self.status_label.config(text=operation)
+            if self.current_operation:
+                self.status_label.config(text=self.current_operation)
             
             # Update step counter
             self.step_label.config(text=f"{self.current_step} / {self.total_steps}")
@@ -140,15 +147,32 @@ class ProgressTracker:
         """Mark operation as complete."""
         with self.lock:
             self.is_running = False
-            self.status_label.config(text="Complete")
-            self.cancel_button.config(state='disabled')
             
-            # Call completion callback
+            # Update GUI safely
+            try:
+                self.status_label.config(text="Complete")
+                self.cancel_button.config(state='disabled')
+            except Exception as e:
+                self.logger.error(f"Error updating completion GUI: {str(e)}")
+            
+            # Call completion callback safely
             if self.on_complete:
                 try:
-                    self.on_complete()
+                    # Use after_idle to ensure we're in main thread
+                    if hasattr(self.parent, 'after_idle'):
+                        self.parent.after_idle(self._safe_completion_callback)
+                    else:
+                        self.parent.after(0, self._safe_completion_callback)
                 except Exception as e:
-                    self.logger.error(f"Error in completion callback: {str(e)}")
+                    self.logger.error(f"Error scheduling completion callback: {str(e)}")
+    
+    def _safe_completion_callback(self):
+        """Safely call completion callback from main thread."""
+        try:
+            if self.on_complete:
+                self.on_complete()
+        except Exception as e:
+            self.logger.error(f"Error in completion callback: {str(e)}")
     
     def cancel_operation(self):
         """Cancel the current operation."""

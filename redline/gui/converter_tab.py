@@ -324,7 +324,6 @@ class ConverterTab:
     def browse_input_files(self):
         """Browse for input files."""
         filetypes = [
-            ("All supported", "*.csv;*.json;*.parquet;*.feather;*.duckdb"),
             ("CSV files", "*.csv"),
             ("JSON files", "*.json"),
             ("Parquet files", "*.parquet"),
@@ -333,10 +332,15 @@ class ConverterTab:
             ("All files", "*.*")
         ]
         
-        files = filedialog.askopenfilenames(
-            title="Select Input Files",
-            filetypes=filetypes
-        )
+        try:
+            files = filedialog.askopenfilenames(
+                title="Select Input Files",
+                filetypes=filetypes
+            )
+        except Exception as e:
+            self.logger.error(f"Error opening file dialog: {str(e)}")
+            self.main_window.show_error_message("Error", f"Failed to open file dialog: {str(e)}")
+            return
         
         if files:
             self.input_files_var.set(f"{len(files)} file(s) selected")
@@ -474,9 +478,10 @@ class ConverterTab:
                 self._single_conversion_worker()
                 
         except Exception as e:
-            self.logger.error(f"Conversion error: {str(e)}")
+            error_msg = str(e)
+            self.logger.error(f"Conversion error: {error_msg}")
             self.main_window.run_in_main_thread(
-                lambda: self.main_window.show_error_message("Error", f"Conversion failed: {str(e)}")
+                lambda: self.main_window.show_error_message("Error", f"Conversion failed: {error_msg}")
             )
         finally:
             self.main_window.run_in_main_thread(self._conversion_complete)
@@ -515,11 +520,12 @@ class ConverterTab:
                     )
                     
             except Exception as e:
-                self.logger.error(f"Error converting {input_file}: {str(e)}")
+                error_msg = str(e)
+                self.logger.error(f"Error converting {input_file}: {error_msg}")
                 self.main_window.run_in_main_thread(
                     lambda: self._add_conversion_result(
                         input_file, self.input_format_var.get(),
-                        self.output_format_var.get(), f"Error: {str(e)}", ""
+                        self.output_format_var.get(), f"Error: {error_msg}", ""
                     )
                 )
                 
@@ -573,11 +579,12 @@ class ConverterTab:
                     )
                     
             except Exception as e:
-                self.logger.error(f"Error converting {input_file}: {str(e)}")
+                error_msg = str(e)  # Capture exception message
+                self.logger.error(f"Error converting {input_file}: {error_msg}")
                 self.main_window.run_in_main_thread(
                     lambda: self._add_conversion_result(
                         input_file, input_format,
-                        self.output_format_var.get(), f"Error: {str(e)}", ""
+                        self.output_format_var.get(), f"Error: {error_msg}", ""
                     )
                 )
                 
@@ -590,7 +597,7 @@ class ConverterTab:
         
         # Generate output filename
         base_name = os.path.splitext(os.path.basename(input_file))[0]
-        output_ext = FORMAT_DIALOG_INFO[output_format]['extension']
+        output_ext = FORMAT_DIALOG_INFO[output_format][0]  # First element is extension
         output_filename = f"{base_name}_converted{output_ext}"
         
         # Create output directory
@@ -621,7 +628,7 @@ class ConverterTab:
             for col in date_cols:
                 if col in data.columns:
                     try:
-                        data[col] = pd.to_datetime(data[col])
+                        data[col] = pd.to_datetime(data[col], utc=True)
                     except:
                         pass
                         

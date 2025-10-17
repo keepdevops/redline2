@@ -181,7 +181,19 @@ class FormatConverter:
             if format == 'csv':
                 return pd.read_csv(file_path)
             elif format == 'parquet':
-                return pd.read_parquet(file_path)
+                try:
+                    data = pd.read_parquet(file_path)
+                    if data.empty:
+                        self.logger.warning(f"Parquet file {file_path} is empty")
+                    return data
+                except Exception as parquet_error:
+                    self.logger.error(f"Error reading parquet file {file_path}: {str(parquet_error)}")
+                    # Try to read as CSV if parquet fails
+                    try:
+                        self.logger.info(f"Attempting to read {file_path} as CSV fallback")
+                        return pd.read_csv(file_path)
+                    except:
+                        raise parquet_error
             elif format == 'feather':
                 return pd.read_feather(file_path)
             elif format == 'json':

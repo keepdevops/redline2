@@ -54,7 +54,14 @@ class DataSource:
             if self.format_type == 'duckdb' and self.file_path:
                 if DUCKDB_AVAILABLE:
                     self.connection = duckdb.connect(self.file_path)
-                    self.total_rows = self.connection.execute(f"SELECT COUNT(*) FROM {self.table_name}").fetchone()[0]
+                    try:
+                        self.total_rows = self.connection.execute(f"SELECT COUNT(*) FROM {self.table_name}").fetchone()[0]
+                    except Exception as table_error:
+                        self.logger.warning(f"Table {self.table_name} not found, using fallback: {str(table_error)}")
+                        # Fallback to pandas mode
+                        self.format_type = 'pandas'
+                        self.data = pd.DataFrame()
+                        self.total_rows = 0
                 else:
                     raise ImportError("DuckDB not available")
             elif self.format_type == 'pandas' and self.data is not None:
@@ -96,9 +103,17 @@ class DataSource:
         """Get a specific row by index."""
         try:
             if self.format_type == 'duckdb' and self.connection:
-                query = f"SELECT * FROM {self.table_name} LIMIT 1 OFFSET {index}"
-                result = self.connection.execute(query).fetchone()
-                return list(result) if result else []
+                # Use try-except to handle connection issues gracefully
+                try:
+                    query = f"SELECT * FROM {self.table_name} LIMIT 1 OFFSET {index}"
+                    result = self.connection.execute(query).fetchone()
+                    return list(result) if result else []
+                except Exception as db_error:
+                    # If database connection fails, fall back to pandas
+                    self.logger.warning(f"Database query failed, falling back to pandas: {str(db_error)}")
+                    if self.data is not None and index < len(self.data):
+                        return list(self.data.iloc[index])
+                    return []
             else:
                 if self.data is not None and index < len(self.data):
                     return list(self.data.iloc[index])

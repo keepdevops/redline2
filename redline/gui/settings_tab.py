@@ -164,10 +164,10 @@ class SettingsTab:
             
             # Set default values
             defaults = {
-                'db_path': '/app/redline_data.duckdb',
-                'csv_dir': '/app/data',
-                'json_dir': '/app/data/json',
-                'parquet_dir': '/app/data/parquet',
+                'db_path': 'redline_data.duckdb',
+                'csv_dir': 'data',
+                'json_dir': 'data/json',
+                'parquet_dir': 'data/parquet',
                 'rows_per_page': 100,
                 'auto_refresh': 0,
                 'theme': 'default',
@@ -199,7 +199,7 @@ class SettingsTab:
                 elif key in ['rows_per_page', 'auto_refresh', 'font_size', 'cache_size', 'thread_count']:
                     var.set(100 if key == 'rows_per_page' else 0 if key == 'auto_refresh' else 10 if key == 'font_size' else 1000 if key == 'cache_size' else 4)
                 else:
-                    var.set('/app/redline_data.duckdb' if key == 'db_path' else '/app/data')
+                    var.set('redline_data.duckdb' if key == 'db_path' else 'data')
     
     def save_settings(self):
         """Save settings to config file."""

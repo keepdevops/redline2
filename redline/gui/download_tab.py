@@ -17,6 +17,7 @@ from ..database.connector import DatabaseConnector
 from ..downloaders.yahoo_downloader import YahooDownloader
 from ..downloaders.stooq_downloader import StooqDownloader
 from ..downloaders.multi_source import MultiSourceDownloader
+from ..downloaders.bulk_downloader import BulkDownloader
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,15 @@ class DownloadTab:
         self.yahoo_downloader = YahooDownloader()
         self.stooq_downloader = StooqDownloader()
         self.multi_downloader = MultiSourceDownloader()
+        self.bulk_downloader = BulkDownloader(max_workers=1)  # Use only 1 worker to avoid rate limiting
+        
+        # Variables
+        self.ticker_input = tk.StringVar()
+        self.start_date_var = tk.StringVar()
+        self.end_date_var = tk.StringVar()
+        self.output_dir_var = tk.StringVar(value='data/downloads')
+        self.api_key_var = tk.StringVar()
+        self.bulk_mode_var = tk.BooleanVar()
         
         # Create main frame
         self.frame = ttk.Frame(parent)
@@ -44,6 +54,9 @@ class DownloadTab:
         
         # Setup event handlers
         self.setup_event_handlers()
+        
+        # Set default date range
+        self.set_date_range(365)  # Default to 1 year
     
     def create_widgets(self):
         """Create the download tab widgets."""
@@ -81,6 +94,10 @@ class DownloadTab:
         api_info_frame.pack(fill=tk.X, pady=(5, 0))
         ttk.Label(api_info_frame, text="💡 Yahoo Finance is recommended for most users", 
                  font=("Arial", 8), foreground="blue").pack(anchor=tk.W)
+        ttk.Label(api_info_frame, text="⚠️ Yahoo Finance: 2 second delay between requests (rate limited)", 
+                 font=("Arial", 8), foreground="orange").pack(anchor=tk.W)
+        ttk.Label(api_info_frame, text="📊 Bulk downloads use sequential processing to avoid rate limits", 
+                 font=("Arial", 8), foreground="green").pack(anchor=tk.W)
         
         # Ticker input
         ticker_frame = ttk.LabelFrame(parent, text="Ticker Symbols", padding=5)
@@ -153,6 +170,46 @@ class DownloadTab:
         ttk.Radiobutton(format_frame, text="Standard", 
                        variable=self.format_var, value="standard").pack(side=tk.LEFT, padx=(10, 0))
         
+        # Output options
+        output_frame = ttk.LabelFrame(parent, text="Output Options", padding=5)
+        output_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        # Output format
+        format_frame = ttk.Frame(output_frame)
+        format_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        ttk.Label(format_frame, text="Output Format:").pack(side=tk.LEFT, padx=(0, 5))
+        self.output_format_var = tk.StringVar(value='csv')
+        format_combo = ttk.Combobox(format_frame, textvariable=self.output_format_var, 
+                                   values=['csv', 'json', 'parquet', 'duckdb'], 
+                                   state='readonly', width=10)
+        format_combo.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Output directory
+        ttk.Label(format_frame, text="Output Directory:").pack(side=tk.LEFT, padx=(0, 5))
+        output_dir_entry = ttk.Entry(format_frame, textvariable=self.output_dir_var, width=20)
+        output_dir_entry.pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(format_frame, text="Browse", 
+                  command=self.browse_output_dir).pack(side=tk.LEFT)
+        
+        # API Key input (for services that need it)
+        api_key_frame = ttk.Frame(output_frame)
+        api_key_frame.pack(fill=tk.X, pady=(5, 0))
+        
+        ttk.Label(api_key_frame, text="API Key (if required):").pack(side=tk.LEFT, padx=(0, 5))
+        api_key_entry = ttk.Entry(api_key_frame, textvariable=self.api_key_var, 
+                                 show="*", width=30)
+        api_key_entry.pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(api_key_frame, text="Clear", 
+                  command=lambda: self.api_key_var.set("")).pack(side=tk.LEFT)
+        
+        # Download mode options
+        mode_frame = ttk.LabelFrame(parent, text="Download Mode", padding=5)
+        mode_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Checkbutton(mode_frame, text="Bulk Download Mode (Parallel Processing)", 
+                       variable=self.bulk_mode_var).pack(anchor=tk.W)
+        
         # Download buttons
         button_frame = ttk.Frame(parent)
         button_frame.pack(fill=tk.X, pady=(10, 0))
@@ -167,6 +224,8 @@ class DownloadTab:
         
         ttk.Button(button_frame, text="Open Stooq Website", 
                   command=self.open_stooq_website).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Open Browser", 
+                  command=self.open_browser_menu).pack(side=tk.LEFT, padx=(0, 5))
         
         ttk.Button(button_frame, text="Test API", 
                   command=self.test_api_connection).pack(side=tk.LEFT, padx=(0, 5))
@@ -229,23 +288,6 @@ class DownloadTab:
         self.ticker_entry.delete(1.0, tk.END)
         self.ticker_entry.insert(1.0, new_text)
     
-    def set_date_range(self, period: str):
-        """Set date range based on period."""
-        from datetime import datetime, timedelta
-        
-        end_date = datetime.now()
-        
-        if period == "1y":
-            start_date = end_date - timedelta(days=365)
-        elif period == "2y":
-            start_date = end_date - timedelta(days=730)
-        elif period == "5y":
-            start_date = end_date - timedelta(days=1825)
-        else:  # max
-            start_date = datetime(2000, 1, 1)
-        
-        self.start_date_var.set(start_date.strftime("%Y-%m-%d"))
-        self.end_date_var.set(end_date.strftime("%Y-%m-%d"))
     
     def browse_output_dir(self):
         """Browse for output directory."""
@@ -321,7 +363,7 @@ class DownloadTab:
                     # Add delay to avoid rate limiting
                     if i < total_tickers - 1:  # Don't delay after last ticker
                         import time
-                        time.sleep(1)  # 1 second delay between requests
+                        time.sleep(3)  # 3 second delay between requests to avoid rate limiting
                     
                     # Process results
                     if df is not None and not df.empty:
@@ -395,13 +437,106 @@ class DownloadTab:
     
     def open_stooq_website(self):
         """Open Stooq website for manual download."""
-        webbrowser.open("https://stooq.com/q/d/?s=AAPL&i=d")
-        messagebox.showinfo("Manual Download", 
-                           "Stooq website opened. Please:\n"
-                           "1. Log in and complete 2FA\n"
-                           "2. Navigate to historical data\n"
-                           "3. Download CSV files manually\n"
-                           "4. Use 'Open File' in REDLINE to load them")
+        try:
+            # Open Stooq.com with a sample ticker
+            stooq_url = "https://stooq.com/q/d/?s=AAPL&i=d"
+            webbrowser.open(stooq_url)
+            
+            # Show helpful instructions
+            messagebox.showinfo("Stooq Manual Download", 
+                               "🌐 Stooq.com opened in your default browser!\n\n"
+                               "📋 Instructions:\n"
+                               "1. 🔐 Log in to your Stooq account\n"
+                               "2. 🔒 Complete 2FA authentication if required\n"
+                               "3. 📊 Navigate to historical data section\n"
+                               "4. 📈 Search for your desired ticker symbols\n"
+                               "5. 💾 Download CSV files manually\n"
+                               "6. 📁 Use 'Browse Files' in REDLINE Data tab to load them\n\n"
+                               "💡 Tip: Stooq provides high-quality financial data\n"
+                               "with detailed historical information.")
+                               
+            self.logger.info(f"Opened Stooq website: {stooq_url}")
+            
+        except Exception as e:
+            error_msg = f"Failed to open browser: {str(e)}"
+            self.logger.error(error_msg)
+            messagebox.showerror("Browser Error", error_msg)
+    
+    def open_browser_menu(self):
+        """Open a menu with browser options."""
+        try:
+            from tkinter import simpledialog
+            
+            # Get ticker symbol from user
+            ticker = simpledialog.askstring("Custom Ticker", 
+                                          "Enter ticker symbol for Stooq (e.g., AAPL, MSFT):",
+                                          initialvalue="AAPL")
+            
+            if ticker:
+                ticker = ticker.upper().strip()
+                stooq_url = f"https://stooq.com/q/d/?s={ticker}&i=d"
+                
+                # Ask which browser to use
+                browser_choice = messagebox.askyesnocancel("Browser Choice", 
+                                                         f"Open Stooq for {ticker} in:\n\n"
+                                                         "YES = Default Browser\n"
+                                                         "NO = Try to specify browser\n"
+                                                         "CANCEL = Cancel")
+                
+                if browser_choice is True:
+                    # Use default browser
+                    webbrowser.open(stooq_url)
+                    messagebox.showinfo("Success", f"Opened Stooq for {ticker} in default browser!")
+                    
+                elif browser_choice is False:
+                    # Try to specify browser
+                    self._open_with_specific_browser(stooq_url, ticker)
+                    
+                self.logger.info(f"Opened Stooq for {ticker}: {stooq_url}")
+                
+        except Exception as e:
+            error_msg = f"Failed to open browser menu: {str(e)}"
+            self.logger.error(error_msg)
+            messagebox.showerror("Browser Menu Error", error_msg)
+    
+    def _open_with_specific_browser(self, url, ticker):
+        """Try to open URL with a specific browser."""
+        try:
+            import subprocess
+            import platform
+            
+            system = platform.system()
+            
+            if system == "Darwin":  # macOS
+                # Try Safari first, then Chrome, then Firefox
+                browsers = ["safari", "google chrome", "firefox"]
+                for browser in browsers:
+                    try:
+                        subprocess.run(["open", "-a", browser, url], check=True)
+                        messagebox.showinfo("Success", f"Opened Stooq for {ticker} in {browser.title()}!")
+                        return
+                    except subprocess.CalledProcessError:
+                        continue
+                        
+            elif system == "Windows":
+                # Try Chrome, Edge, Firefox
+                browsers = ["chrome", "msedge", "firefox"]
+                for browser in browsers:
+                    try:
+                        subprocess.run([browser, url], check=True)
+                        messagebox.showinfo("Success", f"Opened Stooq for {ticker} in {browser.title()}!")
+                        return
+                    except subprocess.CalledProcessError:
+                        continue
+                        
+            # Fallback to default browser
+            webbrowser.open(url)
+            messagebox.showinfo("Success", f"Opened Stooq for {ticker} in default browser!")
+            
+        except Exception as e:
+            # Ultimate fallback
+            webbrowser.open(url)
+            messagebox.showinfo("Success", f"Opened Stooq for {ticker} in default browser!")
     
     def clear_results(self):
         """Clear the results tree."""
@@ -482,6 +617,42 @@ class DownloadTab:
         test_thread = threading.Thread(target=test_connection)
         test_thread.daemon = True
         test_thread.start()
+    
+    def set_date_range(self, days):
+        """Set date range to last N days or specific period."""
+        from datetime import datetime, timedelta
+        
+        end_date = datetime.now()
+        
+        # Handle both string periods and integer days
+        if isinstance(days, str):
+            if days == "1y":
+                start_date = end_date - timedelta(days=365)
+            elif days == "2y":
+                start_date = end_date - timedelta(days=730)
+            elif days == "5y":
+                start_date = end_date - timedelta(days=1825)
+            elif days == "max":
+                start_date = datetime(2000, 1, 1)
+            else:
+                # Try to convert to int
+                try:
+                    days_int = int(days)
+                    start_date = end_date - timedelta(days=days_int)
+                except ValueError:
+                    start_date = end_date - timedelta(days=365)  # Default to 1 year
+        else:
+            # Handle integer days
+            start_date = end_date - timedelta(days=int(days))
+        
+        self.start_date_var.set(start_date.strftime('%Y-%m-%d'))
+        self.end_date_var.set(end_date.strftime('%Y-%m-%d'))
+    
+    def browse_output_dir(self):
+        """Browse for output directory."""
+        directory = filedialog.askdirectory(title="Select Output Directory")
+        if directory:
+            self.output_dir_var.set(directory)
     
     def on_tab_activated(self):
         """Handle tab activation."""

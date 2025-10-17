@@ -48,10 +48,10 @@ class DataLoader:
         self.config.read(config_path)
         
         # Initialize paths from config
-        self.db_path = self.config['Data'].get('db_path', '/app/redline_data.duckdb')
-        self.csv_dir = self.config['Data'].get('csv_dir', '/app/data')
-        self.json_dir = self.config['Data'].get('json_dir', '/app/data/json')
-        self.parquet_dir = self.config['Data'].get('parquet_dir', '/app/data/parquet')
+        self.db_path = self.config['Data'].get('db_path', 'redline_data.duckdb')
+        self.csv_dir = self.config['Data'].get('csv_dir', 'data')
+        self.json_dir = self.config['Data'].get('json_dir', 'data/json')
+        self.parquet_dir = self.config['Data'].get('parquet_dir', 'data/parquet')
         
         # Initialize helper classes
         self.validator = DataValidator()

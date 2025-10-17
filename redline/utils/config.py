@@ -23,10 +23,10 @@ class ConfigManager:
         # Default configuration
         self.defaults = {
             'Data': {
-                'db_path': '/app/redline_data.duckdb',
-                'csv_dir': '/app/data',
-                'json_dir': '/app/data/json',
-                'parquet_dir': '/app/data/parquet',
+                'db_path': 'redline_data.duckdb',
+                'csv_dir': 'data',
+                'json_dir': 'data/json',
+                'parquet_dir': 'data/parquet',
                 'cache_size': '1000',
                 'thread_count': '4'
             },

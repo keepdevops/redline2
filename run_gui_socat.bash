@@ -60,6 +60,6 @@ docker run -it --rm \
     -v $(pwd):/app/host \
     --name redline_gui \
     $DOCKER_IMAGE \
-    python3 /app/host/data_module_shared.py --task gui
+    python3 /app/host/main.py
 
 echo "REDLINE GUI session ended." 

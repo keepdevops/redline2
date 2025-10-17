@@ -143,7 +143,14 @@ class DatabaseConnector:
             
             # Select standard columns for database
             standard_columns = ['ticker', 'timestamp', 'open', 'high', 'low', 'close', 'vol']
-            db_data = db_data[[col for col in standard_columns if col in db_data.columns]]
+            available_columns = [col for col in standard_columns if col in db_data.columns]
+            
+            # Check if we have any valid columns and data
+            if not available_columns or len(db_data) == 0:
+                conn.close()
+                raise ValueError(f"Cannot write empty data or data with no valid columns to {table}")
+            
+            db_data = db_data[available_columns]
             
             create_table_sql = f"""
             CREATE TABLE IF NOT EXISTS {table} (
@@ -158,11 +165,15 @@ class DatabaseConnector:
             """
             conn.execute(create_table_sql)
             
-            # Insert data
-            conn.register('temp_df', db_data)
-            insert_sql = f"INSERT INTO {table} SELECT * FROM temp_df"
-            conn.execute(insert_sql)
-            conn.unregister('temp_df')
+            # Insert data only if we have valid data
+            if len(db_data) > 0 and len(db_data.columns) > 0:
+                conn.register('temp_df', db_data)
+                insert_sql = f"INSERT INTO {table} SELECT * FROM temp_df"
+                conn.execute(insert_sql)
+                conn.unregister('temp_df')
+            else:
+                self.logger.warning(f"No data to insert into {table}")
+            
             conn.close()
             
             self.logger.info(f"Wrote data to {table} in format {format}")
