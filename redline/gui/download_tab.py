@@ -21,6 +21,210 @@ from ..downloaders.bulk_downloader import BulkDownloader
 
 logger = logging.getLogger(__name__)
 
+class DownloadResultsPopup:
+    """Popup window for displaying download results."""
+    
+    def __init__(self, parent, download_tab):
+        """Initialize the results popup."""
+        self.parent = parent
+        self.download_tab = download_tab
+        self.logger = logging.getLogger(__name__)
+        
+        # Create popup window
+        self.window = tk.Toplevel(parent)
+        self.window.title("Download Results")
+        self.window.geometry("1000x600")
+        self.window.resizable(True, True)
+        
+        # Make it modal
+        self.window.transient(parent)
+        self.window.grab_set()
+        
+        # Center the window
+        self.center_window()
+        
+        # Create widgets
+        self.create_widgets()
+        
+        # Setup event handlers
+        self.setup_event_handlers()
+    
+    def center_window(self):
+        """Center the popup window on the parent."""
+        self.window.update_idletasks()
+        width = self.window.winfo_width()
+        height = self.window.winfo_height()
+        x = (self.window.winfo_screenwidth() // 2) - (width // 2)
+        y = (self.window.winfo_screenheight() // 2) - (height // 2)
+        self.window.geometry(f"{width}x{height}+{x}+{y}")
+    
+    def create_widgets(self):
+        """Create the popup widgets."""
+        # Main frame
+        main_frame = ttk.Frame(self.window)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Title
+        title_label = ttk.Label(main_frame, text="Download Results", 
+                               font=("Arial", 16, "bold"))
+        title_label.pack(pady=(0, 10))
+        
+        # Results treeview
+        columns = ("Ticker", "Rows", "Date Range", "Source", "Status", "File")
+        self.results_tree = ttk.Treeview(main_frame, columns=columns, show='headings', height=20)
+        
+        # Configure columns
+        for col in columns:
+            self.results_tree.heading(col, text=col)
+            self.results_tree.column(col, width=120)
+        
+        # Scrollbars
+        v_scrollbar = ttk.Scrollbar(main_frame, orient=tk.VERTICAL, command=self.results_tree.yview)
+        h_scrollbar = ttk.Scrollbar(main_frame, orient=tk.HORIZONTAL, command=self.results_tree.xview)
+        self.results_tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
+        
+        # Pack treeview and scrollbars
+        self.results_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        h_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        # Button frame
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        # Buttons
+        ttk.Button(button_frame, text="Open File", 
+                  command=self.open_selected_file).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Load in REDLINE", 
+                  command=self.load_selected_data).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Delete File", 
+                  command=self.delete_selected_file).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Clear All", 
+                  command=self.clear_results).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Export Results", 
+                  command=self.export_results).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Close", 
+                  command=self.window.destroy).pack(side=tk.RIGHT)
+        
+        # Context menu
+        self.create_context_menu()
+    
+    def create_context_menu(self):
+        """Create context menu for results tree."""
+        self.context_menu = tk.Menu(self.window, tearoff=0)
+        self.context_menu.add_command(label="Open File", command=self.open_selected_file)
+        self.context_menu.add_command(label="Load in REDLINE", command=self.load_selected_data)
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label="Delete File", command=self.delete_selected_file)
+        self.context_menu.add_command(label="Clear All", command=self.clear_results)
+        
+        self.results_tree.bind("<Button-3>", self.show_context_menu)
+    
+    def setup_event_handlers(self):
+        """Setup event handlers."""
+        # Bind double-click to open file
+        self.results_tree.bind("<Double-1>", lambda e: self.open_selected_file())
+    
+    def show_context_menu(self, event):
+        """Show context menu for results tree."""
+        try:
+            self.context_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.context_menu.grab_release()
+    
+    def add_result(self, ticker, rows, date_range, source, status, file_path):
+        """Add a result to the tree."""
+        self.results_tree.insert('', 'end', values=(ticker, rows, date_range, source, status, file_path))
+    
+    def clear_results(self):
+        """Clear the results tree."""
+        for item in self.results_tree.get_children():
+            self.results_tree.delete(item)
+    
+    def open_selected_file(self):
+        """Open the selected file."""
+        selection = self.results_tree.selection()
+        if selection:
+            item = self.results_tree.item(selection[0])
+            filepath = item['values'][5]  # File column
+            if filepath and os.path.exists(filepath):
+                try:
+                    if os.name == 'nt':  # Windows
+                        os.startfile(filepath)
+                    elif os.name == 'posix':  # macOS and Linux
+                        os.system(f"open '{filepath}'")
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to open file: {str(e)}")
+            else:
+                messagebox.showwarning("Warning", "File not found or no file selected")
+    
+    def load_selected_data(self):
+        """Load the selected data into REDLINE."""
+        selection = self.results_tree.selection()
+        if selection:
+            item = self.results_tree.item(selection[0])
+            filepath = item['values'][5]  # File column
+            if filepath and os.path.exists(filepath):
+                try:
+                    # Load the data in the data tab
+                    self.download_tab.main_window.data_tab.load_file(filepath)
+                    messagebox.showinfo("Data Loaded", f"Data from {os.path.basename(filepath)} has been loaded into REDLINE")
+                    # Close the popup after successful load
+                    self.window.destroy()
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to load data: {str(e)}")
+            else:
+                messagebox.showwarning("Warning", "File not found or no file selected")
+        else:
+            messagebox.showwarning("Warning", "No file selected")
+    
+    def delete_selected_file(self):
+        """Delete the selected file."""
+        selection = self.results_tree.selection()
+        if selection:
+            item = self.results_tree.item(selection[0])
+            filepath = item['values'][5]  # File column
+            if filepath and os.path.exists(filepath):
+                if messagebox.askyesno("Delete File", f"Delete {os.path.basename(filepath)}?"):
+                    try:
+                        os.remove(filepath)
+                        self.results_tree.delete(selection[0])
+                        messagebox.showinfo("Success", "File deleted successfully")
+                    except Exception as e:
+                        messagebox.showerror("Error", f"Failed to delete file: {str(e)}")
+            else:
+                messagebox.showwarning("Warning", "File not found")
+        else:
+            messagebox.showwarning("Warning", "No file selected")
+    
+    def export_results(self):
+        """Export results to CSV file."""
+        if not self.results_tree.get_children():
+            messagebox.showwarning("Warning", "No results to export")
+            return
+        
+        file_path = filedialog.asksaveasfilename(
+            title="Export Results",
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+        )
+        
+        if file_path:
+            try:
+                import csv
+                with open(file_path, 'w', newline='', encoding='utf-8') as csvfile:
+                    writer = csv.writer(csvfile)
+                    # Write headers
+                    writer.writerow(["Ticker", "Rows", "Date Range", "Source", "Status", "File"])
+                    # Write data
+                    for item in self.results_tree.get_children():
+                        values = self.results_tree.item(item)['values']
+                        writer.writerow(values)
+                
+                messagebox.showinfo("Success", f"Results exported to {file_path}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to export results: {str(e)}")
+
 class DownloadTab:
     """Download tab for acquiring financial data from various sources."""
     
@@ -64,16 +268,38 @@ class DownloadTab:
         main_container = ttk.Frame(self.frame)
         main_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
-        # Left panel - API & Download controls
-        left_panel = ttk.LabelFrame(main_container, text="API & Download Controls", padding=10)
-        left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+        # Left panel - API & Download controls with scrollbar
+        left_panel_container = ttk.LabelFrame(main_container, text="API & Download Controls", padding=5)
+        left_panel_container.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
         
-        # Right panel - Results and status
-        right_panel = ttk.LabelFrame(main_container, text="Download Results", padding=10)
-        right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(5, 0))
+        # Create scrollable canvas for left panel
+        self.left_canvas = tk.Canvas(left_panel_container, highlightthickness=0)
+        self.left_scrollbar = ttk.Scrollbar(left_panel_container, orient="vertical", command=self.left_canvas.yview)
+        self.scrollable_left_frame = ttk.Frame(self.left_canvas)
         
-        self.create_download_controls(left_panel)
-        self.create_results_display(right_panel)
+        # Configure scrollable frame
+        self.scrollable_left_frame.bind(
+            "<Configure>",
+            self._on_left_frame_configure
+        )
+        
+        # Bind mouse wheel to canvas
+        self.left_canvas.bind("<MouseWheel>", self._on_mousewheel)
+        self.left_canvas.bind("<Button-4>", self._on_mousewheel)  # Linux scroll up
+        self.left_canvas.bind("<Button-5>", self._on_mousewheel)  # Linux scroll down
+        
+        self.left_canvas.create_window((0, 0), window=self.scrollable_left_frame, anchor="nw")
+        self.left_canvas.configure(yscrollcommand=self.left_scrollbar.set)
+        
+        # Pack canvas and scrollbar
+        self.left_canvas.pack(side="left", fill="both", expand=True)
+        self.left_scrollbar.pack(side="right", fill="y")
+        
+        # Create widgets in the scrollable frame
+        self.create_download_controls(self.scrollable_left_frame)
+        
+        # Initialize results popup reference
+        self.results_popup = None
     
     def create_download_controls(self, parent):
         """Create download control widgets."""
@@ -229,6 +455,8 @@ class DownloadTab:
         
         ttk.Button(button_frame, text="Test API", 
                   command=self.test_api_connection).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="View Results", 
+                  command=self.open_results_popup).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(button_frame, text="Clear Results", 
                   command=self.clear_results).pack(side=tk.RIGHT)
         
@@ -240,39 +468,27 @@ class DownloadTab:
         self.status_label = ttk.Label(parent, text="Ready to download")
         self.status_label.pack(anchor=tk.W, pady=(5, 0))
     
-    def create_results_display(self, parent):
-        """Create results display widgets."""
-        # Results treeview
-        columns = ("Ticker", "Rows", "Date Range", "Source", "Status", "File")
-        self.results_tree = ttk.Treeview(parent, columns=columns, show='headings', height=15)
-        
-        # Configure columns
-        for col in columns:
-            self.results_tree.heading(col, text=col)
-            self.results_tree.column(col, width=100)
-        
-        # Scrollbars
-        v_scrollbar = ttk.Scrollbar(parent, orient=tk.VERTICAL, command=self.results_tree.yview)
-        h_scrollbar = ttk.Scrollbar(parent, orient=tk.HORIZONTAL, command=self.results_tree.xview)
-        self.results_tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
-        
-        # Pack treeview and scrollbars
-        self.results_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        h_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
-        
-        # Context menu
-        self.create_context_menu()
-    
-    def create_context_menu(self):
-        """Create context menu for results tree."""
-        self.context_menu = tk.Menu(self.frame, tearoff=0)
-        self.context_menu.add_command(label="Open File", command=self.open_selected_file)
-        self.context_menu.add_command(label="Load in REDLINE", command=self.load_selected_data)
-        self.context_menu.add_separator()
-        self.context_menu.add_command(label="Delete File", command=self.delete_selected_file)
-        
-        self.results_tree.bind("<Button-3>", self.show_context_menu)
+    def open_results_popup(self):
+        """Open the results popup window."""
+        try:
+            # Close existing popup if open
+            if self.results_popup and self.results_popup.window.winfo_exists():
+                self.results_popup.window.destroy()
+            
+            # Create new popup
+            self.results_popup = DownloadResultsPopup(self.frame, self)
+            
+            # Copy existing results if any
+            if hasattr(self, 'results_tree') and self.results_tree:
+                for item in self.results_tree.get_children():
+                    values = self.results_tree.item(item)['values']
+                    self.results_popup.add_result(*values)
+            
+            self.logger.info("Opened download results popup")
+            
+        except Exception as e:
+            self.logger.error(f"Error opening results popup: {str(e)}")
+            messagebox.showerror("Error", f"Failed to open results window: {str(e)}")
     
     def setup_event_handlers(self):
         """Setup event handlers."""
@@ -383,7 +599,7 @@ class DownloadTab:
                             
                         self.main_window.run_in_main_thread(
                             lambda t=ticker, r=len(df), d=date_range, s=source_name, f=filepath:
-                            self.results_tree.insert('', 'end', values=(t, r, d, s, "Success", f))
+                            self.add_download_result(t, r, d, s, "Success", f)
                         )
                         
                         self.logger.info(f"Successfully downloaded {ticker}: {len(df)} rows")
@@ -391,7 +607,7 @@ class DownloadTab:
                         error_msg = "No data returned"
                         self.main_window.run_in_main_thread(
                             lambda t=ticker, s=source_name, e=error_msg:
-                            self.results_tree.insert('', 'end', values=(t, 0, "N/A", s, f"Failed: {e}", ""))
+                            self.add_download_result(t, 0, "N/A", s, f"Failed: {e}", "")
                         )
                         self.logger.warning(f"Failed to download {ticker}: {error_msg}")
                     
@@ -405,7 +621,7 @@ class DownloadTab:
                     self.logger.error(f"Error downloading {ticker}: {str(e)}")
                     self.main_window.run_in_main_thread(
                         lambda t=ticker, e=str(e):
-                        self.results_tree.insert('', 'end', values=(t, 0, "N/A", "Error", f"Error: {e}", ""))
+                        self.add_download_result(t, 0, "N/A", "Error", f"Error: {e}", "")
                     )
             
             # Complete
@@ -538,48 +754,17 @@ class DownloadTab:
             webbrowser.open(url)
             messagebox.showinfo("Success", f"Opened Stooq for {ticker} in default browser!")
     
+    def add_download_result(self, ticker, rows, date_range, source, status, file_path):
+        """Add a download result to the popup if it's open."""
+        if self.results_popup and self.results_popup.window.winfo_exists():
+            self.results_popup.add_result(ticker, rows, date_range, source, status, file_path)
+    
     def clear_results(self):
-        """Clear the results tree."""
-        for item in self.results_tree.get_children():
-            self.results_tree.delete(item)
+        """Clear all download results."""
+        if self.results_popup and self.results_popup.window.winfo_exists():
+            self.results_popup.clear_results()
+        messagebox.showinfo("Results Cleared", "All download results have been cleared")
     
-    def show_context_menu(self, event):
-        """Show context menu for results tree."""
-        try:
-            self.context_menu.tk_popup(event.x_root, event.y_root)
-        finally:
-            self.context_menu.grab_release()
-    
-    def open_selected_file(self):
-        """Open the selected file."""
-        selection = self.results_tree.selection()
-        if selection:
-            item = self.results_tree.item(selection[0])
-            filepath = item['values'][5]  # File column
-            if filepath and os.path.exists(filepath):
-                os.system(f"open '{filepath}'")
-    
-    def load_selected_data(self):
-        """Load the selected data into REDLINE."""
-        selection = self.results_tree.selection()
-        if selection:
-            item = self.results_tree.item(selection[0])
-            filepath = item['values'][5]  # File column
-            if filepath and os.path.exists(filepath):
-                # Load the data in the data tab
-                self.main_window.data_tab.load_files([filepath])
-                messagebox.showinfo("Data Loaded", f"Data from {filepath} has been loaded into REDLINE")
-    
-    def delete_selected_file(self):
-        """Delete the selected file."""
-        selection = self.results_tree.selection()
-        if selection:
-            item = self.results_tree.item(selection[0])
-            filepath = item['values'][5]  # File column
-            if filepath and os.path.exists(filepath):
-                if messagebox.askyesno("Delete File", f"Delete {filepath}?"):
-                    os.remove(filepath)
-                    self.results_tree.delete(selection[0])
     
     def test_api_connection(self):
         """Test API connection for the selected source."""
@@ -656,8 +841,8 @@ class DownloadTab:
     
     def on_tab_activated(self):
         """Handle tab activation."""
-        # Refresh any necessary data when tab becomes active
-        pass
+        # Scroll to top when tab becomes active
+        self.scroll_to_top()
     
     def on_window_resize(self):
         """Handle window resize events."""
@@ -669,3 +854,34 @@ class DownloadTab:
                 
         except Exception as e:
             self.logger.error(f"Error handling window resize in DownloadTab: {str(e)}")
+    
+    def _on_left_frame_configure(self, event):
+        """Handle scrollable frame configuration."""
+        # Update scroll region when frame size changes
+        self.left_canvas.configure(scrollregion=self.left_canvas.bbox("all"))
+        
+        # Ensure canvas width matches frame width
+        canvas_width = event.width
+        self.left_canvas.itemconfig(self.left_canvas.find_all()[0], width=canvas_width)
+    
+    def _on_mousewheel(self, event):
+        """Handle mouse wheel scrolling."""
+        # Scroll the canvas
+        if event.delta:
+            self.left_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        else:
+            # Linux
+            if event.num == 4:
+                self.left_canvas.yview_scroll(-1, "units")
+            elif event.num == 5:
+                self.left_canvas.yview_scroll(1, "units")
+    
+    def scroll_to_top(self):
+        """Scroll the left panel to the top."""
+        if hasattr(self, 'left_canvas'):
+            self.left_canvas.yview_moveto(0)
+    
+    def scroll_to_bottom(self):
+        """Scroll the left panel to the bottom."""
+        if hasattr(self, 'left_canvas'):
+            self.left_canvas.yview_moveto(1)
