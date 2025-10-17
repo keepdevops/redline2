@@ -1,8 +1,30 @@
 # REDLINE Financial Data Analyzer - User Guide
 
-## 🚀 **Overview**
+<div align="center">
+
+![REDLINE User Guide](https://img.shields.io/badge/REDLINE-User%20Guide-blue?style=for-the-badge&logo=book)
+
+**Complete guide to using REDLINE for financial data analysis**
+
+[![Version](https://img.shields.io/badge/Version-2.0-green)](README.md)
+[![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)](README.md)
+[![Support](https://img.shields.io/badge/Support-GitHub%20Issues-lightgrey)](https://github.com/your-repo/redline/issues)
+
+</div>
+
+---
+
+## 🌟 **Welcome to REDLINE**
 
 REDLINE is a comprehensive financial data analysis application that allows you to download, view, analyze, and manage financial market data from multiple sources. The application features a modern GUI with modular architecture for reliable performance.
+
+**What you'll learn in this guide:**
+- 🚀 How to get started quickly
+- 📊 How to load and analyze data
+- 📥 How to download financial data
+- 🔄 How to convert between formats
+- ⚙️ How to configure settings
+- 🔧 How to troubleshoot issues
 
 ## 📋 **Table of Contents**
 
@@ -19,24 +41,77 @@ REDLINE is a comprehensive financial data analysis application that allows you t
 
 ## 🎯 **Getting Started**
 
-### **Starting REDLINE**
+### **Quick Start (5 Minutes)**
+
+#### **Step 1: Choose Your Installation Method**
+| Method | Best For | Time Required |
+|--------|----------|---------------|
+| **Docker** | Beginners, consistent environment | 2 minutes |
+| **Local Python** | Developers, customization | 5 minutes |
+| **Test Installation** | Troubleshooting | 1 minute |
+
+#### **Step 2: Start REDLINE**
+
+**Option A: Docker (Recommended)**
 ```bash
-# Navigate to the REDLINE directory
-cd /path/to/redline
+# Clone and run
+git clone https://github.com/your-repo/redline.git
+cd redline
+./run_gui.bash
+```
+
+**Option B: Local Installation**
+```bash
+# Install dependencies
+pip install pandas yfinance duckdb pyarrow polars tkinter
 
 # Run the application
 python main.py
 ```
 
-### **System Requirements**
-- Python 3.11+ (recommended)
-- Required packages: pandas, tkinter, yfinance, duckdb (optional)
-- macOS, Windows, or Linux
+**Option C: Test First**
+```bash
+# Test if everything works
+./test_x11.bash
+```
 
-### **First Launch**
-1. REDLINE will start with the **Data** tab active
-2. The application uses fallback mechanisms for missing dependencies
-3. All core functionality works without external database requirements
+#### **Step 3: First Data Download**
+1. **Go to Download tab**
+2. **Enter a ticker**: Try `AAPL` (Apple)
+3. **Select date range**: Choose `2Y` (2 years)
+4. **Click Download**
+5. **Wait for completion**
+
+#### **Step 4: Load and View Data**
+1. **Go to Data tab**
+2. **Click "Load Data"**
+3. **Select your downloaded file**
+4. **Explore the data**
+
+### **System Requirements**
+
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| **Python** | 3.8+ | 3.11+ |
+| **RAM** | 4GB | 8GB+ |
+| **Storage** | 1GB | 5GB+ |
+| **OS** | Windows 10, macOS 10.14, Ubuntu 18.04 | Latest versions |
+
+### **Required Packages**
+```bash
+# Core packages (automatically installed with Docker)
+pandas yfinance duckdb pyarrow polars tkinter
+
+# Optional packages for enhanced features
+tensorflow scikit-learn matplotlib
+```
+
+### **First Launch Checklist**
+- [ ] **Application starts** without errors
+- [ ] **All tabs are visible** (Data, Download, Analysis, Settings)
+- [ ] **Status bar shows** "Ready" message
+- [ ] **Memory usage** is displayed in status bar
+- [ ] **No error messages** in the console
 
 ## 🖥️ **Main Interface**
 
@@ -61,10 +136,17 @@ python main.py
 4. Data will load automatically in the virtual scrolling table
 
 ### **Supported File Formats**
-- **CSV** - Comma-separated values
-- **Parquet** - Columnar storage format
+- **CSV** - Comma-separated values (recommended for compatibility)
+- **Parquet** - Columnar storage format (recommended for large datasets)
 - **JSON** - JavaScript Object Notation
 - **Feather** - Fast columnar format
+- **DuckDB** - Embedded analytical database (recommended for analysis)
+- **TXT** - Stooq format files (read-only)
+
+### **Format Limitations**
+- **TXT Format**: Read-only support for Stooq format files
+- **Keras/TensorFlow**: Not currently supported (will be added in future releases)
+- **Recommended**: Use CSV for compatibility, Parquet for large datasets, DuckDB for analysis
 
 ### **Data Display**
 - **Virtual Scrolling** - Efficiently handles large datasets

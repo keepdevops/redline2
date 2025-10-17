@@ -10,24 +10,24 @@ SCHEMA = ['ticker', 'timestamp', 'open', 'high', 'low', 'close', 'vol', 'openint
 # File extension to format mapping
 EXT_TO_FORMAT = {
     '.csv': 'csv',
-    '.txt': 'txt',
     '.json': 'json',
     '.duckdb': 'duckdb',
     '.parquet': 'parquet',
-    '.feather': 'feather',
-    '.h5': 'keras'
+    '.feather': 'feather'
+    # Removed: '.txt': 'txt' - read-only (Stooq format)
+    # Removed: '.h5': 'keras' - not implemented
 }
 
 # File dialog information mapping
 FORMAT_DIALOG_INFO = {
     'csv':     ('.csv',     'CSV Files', '*.csv'),
-    'txt':     ('.txt',     'TXT Files', '*.txt'),
     'json':    ('.json',    'JSON Files', '*.json'),
     'duckdb':  ('.duckdb',  'DuckDB Files', '*.duckdb'),
     'parquet': ('.parquet', 'Parquet Files', '*.parquet'),
-    'feather': ('.feather', 'Feather Files', '*.feather'),
-    'keras':   ('.h5',      'Keras Model', '*.h5'),
-    'tensorflow': ('.npz',  'NumPy Zip', '*.npz')
+    'feather': ('.feather', 'Feather Files', '*.feather')
+    # Removed: 'txt': ('.txt', 'TXT Files', '*.txt') - read-only (Stooq format)
+    # Removed: 'keras': ('.h5', 'Keras Model', '*.h5') - not implemented
+    # Removed: 'tensorflow': ('.npz', 'NumPy Zip', '*.npz') - not implemented
 }
 
 # Stooq format columns for validation

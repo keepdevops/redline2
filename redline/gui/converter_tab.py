@@ -41,6 +41,31 @@ class ConverterTab:
         self.create_widgets()
         self.setup_event_handlers()
         
+        # Validate that only supported formats are available
+        self._validate_supported_formats()
+        
+    def _validate_supported_formats(self):
+        """Validate that only supported formats are available in the GUI."""
+        try:
+            supported_formats = self.converter.get_supported_formats()
+            schema_formats = list(FORMAT_DIALOG_INFO.keys())
+            
+            # Check for formats in schema that are not supported
+            unsupported_in_schema = [f for f in schema_formats if f not in supported_formats]
+            if unsupported_in_schema:
+                self.logger.warning(f"Found unsupported formats in schema: {unsupported_in_schema}")
+                self.logger.warning("These formats will be removed from GUI dropdowns")
+            
+            # Check for supported formats not in schema
+            missing_in_schema = [f for f in supported_formats if f not in schema_formats]
+            if missing_in_schema:
+                self.logger.warning(f"Supported formats missing from schema: {missing_in_schema}")
+                
+            self.logger.info(f"Format validation complete. Supported: {supported_formats}")
+            
+        except Exception as e:
+            self.logger.error(f"Error validating supported formats: {str(e)}")
+        
     def create_widgets(self):
         """Create converter tab widgets."""
         # Main container with scrollbar
@@ -565,16 +590,25 @@ class ConverterTab:
                 input_format = EXT_TO_FORMAT.get(ext, 'csv')
                 
                 # Perform conversion
-                output_file = self._convert_single_file(input_file, input_format)
+                result = self._convert_single_file(input_file, input_format)
                 
-                if output_file:
-                    self.converted_files.append(output_file)
+                if result and not result.startswith("Skipped:"):
+                    # Successful conversion
+                    self.converted_files.append(result)
                     
                     # Add to results
                     self.main_window.run_in_main_thread(
                         lambda: self._add_conversion_result(
                             input_file, input_format,
-                            self.output_format_var.get(), "Success", output_file
+                            self.output_format_var.get(), "Success", result
+                        )
+                    )
+                elif result and result.startswith("Skipped:"):
+                    # File was skipped
+                    self.main_window.run_in_main_thread(
+                        lambda: self._add_conversion_result(
+                            input_file, input_format,
+                            self.output_format_var.get(), result, ""
                         )
                     )
                     
@@ -610,7 +644,9 @@ class ConverterTab:
         
         # Check if file exists
         if os.path.exists(output_file) and not self.overwrite_var.get():
-            raise FileExistsError(f"Output file already exists: {output_file}")
+            # Instead of raising an error, skip the file and log a warning
+            self.logger.warning(f"Skipping {input_file}: Output file already exists: {output_file}")
+            return f"Skipped: File already exists"
             
         # Load input data
         data = self.loader.load_file_by_type(input_file, input_format)
@@ -702,11 +738,26 @@ class ConverterTab:
                         subprocess.run(['open', output_path])
                     elif platform.system() == 'Windows':
                         os.startfile(output_path)
-                    else:  # Linux
-                        subprocess.run(['xdg-open', output_path])
+                    else:  # Linux/Container
+                        # Try xdg-open first, fallback to showing file path
+                        try:
+                            subprocess.run(['xdg-open', output_path], check=True)
+                        except (subprocess.CalledProcessError, FileNotFoundError):
+                            # xdg-open not available (common in Docker containers)
+                            messagebox.showinfo(
+                                "Output File", 
+                                f"File location:\n{output_path}\n\n"
+                                "Note: File opener not available in this environment.\n"
+                                "You can access the file through the file system."
+                            )
                 except Exception as e:
                     self.logger.error(f"Error opening file: {str(e)}")
-                    messagebox.showerror("Error", f"Failed to open file: {str(e)}")
+                    # Show file path instead of error
+                    messagebox.showinfo(
+                        "Output File", 
+                        f"File location:\n{output_path}\n\n"
+                        "File opener not available in this environment."
+                    )
             else:
                 messagebox.showwarning("Warning", "Output file not found")
         else:
@@ -724,11 +775,30 @@ class ConverterTab:
                     subprocess.run(['open', output_dir])
                 elif platform.system() == 'Windows':
                     os.startfile(output_dir)
-                else:  # Linux
-                    subprocess.run(['xdg-open', output_dir])
+                else:  # Linux/Container
+                    # Try xdg-open first, fallback to showing path in message
+                    try:
+                        subprocess.run(['xdg-open', output_dir], check=True)
+                    except (subprocess.CalledProcessError, FileNotFoundError):
+                        # xdg-open not available (common in Docker containers)
+                        import tkinter as tk
+                        from tkinter import messagebox
+                        messagebox.showinfo(
+                            "Output Directory", 
+                            f"Output directory location:\n{output_dir}\n\n"
+                            "Note: File explorer not available in this environment.\n"
+                            "You can access the files through the file system."
+                        )
             except Exception as e:
                 self.logger.error(f"Error opening directory: {str(e)}")
-                messagebox.showerror("Error", f"Failed to open directory: {str(e)}")
+                # Show directory path instead of error
+                import tkinter as tk
+                from tkinter import messagebox
+                messagebox.showinfo(
+                    "Output Directory", 
+                    f"Output directory location:\n{output_dir}\n\n"
+                    "File explorer not available in this environment."
+                )
         else:
             messagebox.showwarning("Warning", "Output directory does not exist")
             

@@ -107,7 +107,9 @@ class FormatConverter:
         """
         try:
             # Ensure directory exists
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            output_dir = os.path.dirname(file_path)
+            if output_dir:  # Only create directory if path has a directory component
+                os.makedirs(output_dir, exist_ok=True)
             
             if format == 'csv':
                 if isinstance(data, pd.DataFrame):
@@ -148,11 +150,25 @@ class FormatConverter:
                 if not DUCKDB_AVAILABLE:
                     raise ImportError("duckdb not available")
                 conn = duckdb.connect(file_path)
-                if isinstance(data, pd.DataFrame):
-                    conn.execute("CREATE TABLE tickers_data AS SELECT * FROM data")
-                elif POLARS_AVAILABLE and isinstance(data, pl.DataFrame):
-                    conn.execute("CREATE TABLE tickers_data AS SELECT * FROM data")
-                conn.close()
+                try:
+                    if isinstance(data, pd.DataFrame):
+                        # Register the DataFrame with DuckDB and create table
+                        conn.register('temp_data', data)
+                        conn.execute("CREATE TABLE tickers_data AS SELECT * FROM temp_data")
+                    elif POLARS_AVAILABLE and isinstance(data, pl.DataFrame):
+                        # Register the Polars DataFrame with DuckDB and create table
+                        conn.register('temp_data', data)
+                        conn.execute("CREATE TABLE tickers_data AS SELECT * FROM temp_data")
+                    else:
+                        # For other data types, convert to DataFrame first
+                        if hasattr(data, 'to_pandas'):
+                            df = data.to_pandas()
+                        else:
+                            df = pd.DataFrame(data)
+                        conn.register('temp_data', df)
+                        conn.execute("CREATE TABLE tickers_data AS SELECT * FROM temp_data")
+                finally:
+                    conn.close()
                 
             else:
                 raise ValueError(f"Unsupported format: {format}")
