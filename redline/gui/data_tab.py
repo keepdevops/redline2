@@ -698,6 +698,21 @@ class DataTab:
         if self.current_data is not None:
             self.refresh_data()
     
+    def on_window_resize(self):
+        """Handle window resize events."""
+        try:
+            # Update treeview layout if needed
+            if hasattr(self, 'treeview') and self.treeview:
+                self.treeview.refresh()
+            
+            # Update status if needed
+            if hasattr(self, 'status_label') and self.status_label:
+                # Could update status with window size info
+                pass
+                
+        except Exception as e:
+            self.logger.error(f"Error handling window resize in DataTab: {str(e)}")
+    
     def save_unsaved_changes(self):
         """Save any unsaved changes."""
         if self.unsaved_changes:

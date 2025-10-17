@@ -42,7 +42,11 @@ class StockAnalyzerGUI:
         
         # Create main notebook
         self.notebook = ttk.Notebook(self.root)
-        self.notebook.grid(row=1, column=0, sticky='nsew')
+        self.notebook.grid(row=1, column=0, sticky='nsew', padx=5, pady=(0, 5))
+        
+        # Configure notebook to expand with window
+        self.root.grid_rowconfigure(1, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
         
         # Create tabs
         self.create_tabs()
@@ -60,14 +64,21 @@ class StockAnalyzerGUI:
         """Configure the main window."""
         # Configure root window
         self.root.title("REDLINE Data Analyzer")
-        self.root.geometry("1200x800")
         
-        # Configure grid weights
-        self.root.grid_rowconfigure(1, weight=1)  # Main content area
-        self.root.grid_columnconfigure(0, weight=1)
+        # Try to restore previous window geometry
+        self.restore_window_geometry()
         
-        # Set minimum size
+        # Configure grid weights for proper resizing
+        self.root.grid_rowconfigure(0, weight=0)  # Toolbar (fixed height)
+        self.root.grid_rowconfigure(1, weight=1)  # Main content area (expandable)
+        self.root.grid_columnconfigure(0, weight=1)  # Full width
+        
+        # Set minimum and maximum sizes
         self.root.minsize(800, 600)
+        self.root.maxsize(2400, 1600)  # Prevent excessive window sizes
+        
+        # Enable resizing
+        self.root.resizable(True, True)
         
         # Create toolbar with help button
         self.create_toolbar()
@@ -240,8 +251,43 @@ class StockAnalyzerGUI:
     
     def on_window_configure(self, event):
         """Handle window configuration changes."""
-        # Update scrollbars and layouts as needed
-        pass
+        # Only handle main window resize events
+        if event.widget == self.root:
+            # Update window size information
+            width = self.root.winfo_width()
+            height = self.root.winfo_height()
+            
+            # Update memory label with window size info
+            try:
+                if hasattr(self, 'memory_label'):
+                    self.memory_label.config(text=f"Window: {width}x{height}")
+            except:
+                pass
+            
+            # Notify tabs of resize event
+            self.notify_tabs_of_resize()
+    
+    def notify_tabs_of_resize(self):
+        """Notify all tabs of window resize event."""
+        try:
+            # Get current tab
+            current_tab = self.notebook.select()
+            tab_text = self.notebook.tab(current_tab, "text")
+            
+            # Notify the active tab
+            if tab_text == "Data" and hasattr(self, 'data_tab'):
+                self.data_tab.on_window_resize()
+            elif tab_text == "Analysis" and hasattr(self, 'analysis_tab'):
+                self.analysis_tab.on_window_resize()
+            elif tab_text == "Download/API" and hasattr(self, 'download_tab'):
+                self.download_tab.on_window_resize()
+            elif tab_text == "Converter" and hasattr(self, 'converter_tab'):
+                self.converter_tab.on_window_resize()
+            elif tab_text == "Settings" and hasattr(self, 'settings_tab'):
+                self.settings_tab.on_window_resize()
+                
+        except Exception as e:
+            self.logger.error(f"Error notifying tabs of resize: {str(e)}")
     
     def on_focus_in(self, event):
         """Handle focus in events."""
@@ -463,10 +509,20 @@ Help:
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         
-        # Bind mousewheel to canvas
+        # Bind mousewheel to canvas with proper cleanup
         def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+            try:
+                if canvas.winfo_exists():
+                    canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            except tk.TclError:
+                pass  # Ignore errors if canvas is destroyed
+        
+        # Bind to the specific canvas, not all widgets
+        canvas.bind("<MouseWheel>", _on_mousewheel)
+        
+        # Also bind to the help window for better coverage
+        help_window = canvas.winfo_toplevel()
+        help_window.bind("<MouseWheel>", _on_mousewheel)
     
     def create_tooltip(self, widget, text):
         """Create a tooltip for a widget."""
@@ -563,9 +619,40 @@ Help:
             "Getting Help": "• Check logs for error messages\n• Use Docker environment as fallback\n• Report issues with detailed logs\n• Check documentation files"
         }
     
+    def restore_window_geometry(self):
+        """Restore window geometry from settings."""
+        try:
+            # Default geometry
+            default_geometry = "1200x800+100+100"
+            
+            # Try to load from a settings file (could be implemented later)
+            # For now, use default geometry
+            self.root.geometry(default_geometry)
+            
+        except Exception as e:
+            self.logger.error(f"Error restoring window geometry: {str(e)}")
+            # Fallback to default
+            self.root.geometry("1200x800+100+100")
+    
+    def save_window_geometry(self):
+        """Save current window geometry to settings."""
+        try:
+            # Get current geometry
+            geometry = self.root.geometry()
+            
+            # Could save to a settings file here
+            # For now, just log it
+            self.logger.info(f"Window geometry: {geometry}")
+            
+        except Exception as e:
+            self.logger.error(f"Error saving window geometry: {str(e)}")
+    
     def on_closing(self):
         """Handle window closing."""
         try:
+            # Save window geometry
+            self.save_window_geometry()
+            
             # Save any unsaved data
             if hasattr(self, 'data_tab'):
                 self.data_tab.save_unsaved_changes()

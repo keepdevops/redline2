@@ -251,3 +251,14 @@ class AnalysisTab:
     def refresh_data(self):
         """Refresh analysis data."""
         pass
+    
+    def on_window_resize(self):
+        """Handle window resize events."""
+        try:
+            # Update results text area layout if needed
+            if hasattr(self, 'results_text') and self.results_text:
+                # Could update text area layout or refresh display
+                pass
+                
+        except Exception as e:
+            self.logger.error(f"Error handling window resize in AnalysisTab: {str(e)}")

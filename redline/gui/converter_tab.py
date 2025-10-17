@@ -863,3 +863,14 @@ class ConverterTab:
         """Handle tab activation."""
         # Refresh any necessary data when tab becomes active
         pass
+    
+    def on_window_resize(self):
+        """Handle window resize events."""
+        try:
+            # Update results tree layout if needed
+            if hasattr(self, 'results_tree') and self.results_tree:
+                # Could update tree column widths or refresh display
+                pass
+                
+        except Exception as e:
+            self.logger.error(f"Error handling window resize in ConverterTab: {str(e)}")

@@ -261,3 +261,14 @@ class SettingsTab:
     def refresh_settings(self):
         """Refresh settings display."""
         self.load_current_settings()
+    
+    def on_window_resize(self):
+        """Handle window resize events."""
+        try:
+            # Update settings notebook layout if needed
+            if hasattr(self, 'settings_notebook') and self.settings_notebook:
+                # Could update notebook layout or refresh display
+                pass
+                
+        except Exception as e:
+            self.logger.error(f"Error handling window resize in SettingsTab: {str(e)}")
