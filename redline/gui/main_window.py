@@ -460,9 +460,21 @@ Help:
             troubleshooting_content = self.get_troubleshooting_help_content()
             self.create_help_content(troubleshooting_frame, troubleshooting_content)
             
-            # Close button
-            close_btn = ttk.Button(main_frame, text="Close", 
-                                  command=help_window.destroy)
+            # Close button with proper cleanup
+            def close_help():
+                try:
+                    # Clean up any mousewheel bindings
+                    for widget in help_window.winfo_children():
+                        if hasattr(widget, '_help_window'):
+                            try:
+                                widget.unbind("<MouseWheel>")
+                            except:
+                                pass
+                    help_window.destroy()
+                except:
+                    pass  # Ignore cleanup errors
+            
+            close_btn = ttk.Button(main_frame, text="Close", command=close_help)
             close_btn.pack(pady=(10, 0))
             
             # Center the window
@@ -509,20 +521,48 @@ Help:
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         
-        # Bind mousewheel to canvas with proper cleanup
+        # Store references for cleanup
+        help_window = canvas.winfo_toplevel()
+        canvas._help_window = help_window  # Store reference for cleanup
+        
+        # Improved mousewheel binding with better error handling
         def _on_mousewheel(event):
             try:
-                if canvas.winfo_exists():
-                    canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-            except tk.TclError:
-                pass  # Ignore errors if canvas is destroyed
+                # Check if canvas still exists and is valid
+                if not canvas.winfo_exists():
+                    return
+                
+                # Check if the canvas widget is still valid
+                canvas.update_idletasks()
+                
+                # Perform the scroll operation
+                delta = event.delta
+                if delta > 0:
+                    canvas.yview_scroll(-1, "units")
+                else:
+                    canvas.yview_scroll(1, "units")
+                    
+            except (tk.TclError, AttributeError, RuntimeError):
+                # Canvas was destroyed or is invalid - unbind to prevent further errors
+                try:
+                    canvas.unbind("<MouseWheel>")
+                    if hasattr(canvas, '_help_window'):
+                        canvas._help_window.unbind("<MouseWheel>")
+                except:
+                    pass  # Ignore cleanup errors
         
-        # Bind to the specific canvas, not all widgets
+        # Bind mousewheel only to the canvas (not the window)
         canvas.bind("<MouseWheel>", _on_mousewheel)
         
-        # Also bind to the help window for better coverage
-        help_window = canvas.winfo_toplevel()
-        help_window.bind("<MouseWheel>", _on_mousewheel)
+        # Bind window close event to cleanup
+        def _on_window_close():
+            try:
+                canvas.unbind("<MouseWheel>")
+                help_window.unbind("<MouseWheel>")
+            except:
+                pass
+        
+        help_window.protocol("WM_DELETE_WINDOW", _on_window_close)
     
     def create_tooltip(self, widget, text):
         """Create a tooltip for a widget."""
