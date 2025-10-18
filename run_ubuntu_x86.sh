@@ -165,7 +165,25 @@ setup_conda_environment() {
             lxml \
             openpyxl \
             xlrd \
-            tk
+            tk \
+            pip
+        
+        # Install additional packages via pip if conda fails
+        pip install \
+            pandas \
+            numpy \
+            matplotlib \
+            seaborn \
+            scipy \
+            scikit-learn \
+            pyarrow \
+            duckdb \
+            polars \
+            requests \
+            beautifulsoup4 \
+            lxml \
+            openpyxl \
+            xlrd
         
         print_success "Stock environment created and configured"
     fi
@@ -181,30 +199,45 @@ setup_conda_environment() {
 install_python_dependencies() {
     print_status "Installing Python dependencies..."
     
-    # Install from requirements.txt if it exists
-    if [ -f "$SCRIPT_DIR/requirements.txt" ]; then
+    # Install from requirements files if they exist
+    if [ -f "$SCRIPT_DIR/requirements_ubuntu.txt" ]; then
+        pip install -r "$SCRIPT_DIR/requirements_ubuntu.txt"
+    elif [ -f "$SCRIPT_DIR/requirements.txt" ]; then
         pip install -r "$SCRIPT_DIR/requirements.txt"
     else
-        # Install core dependencies manually
-        pip install \
-            pandas \
-            numpy \
-            matplotlib \
-            seaborn \
-            scipy \
-            scikit-learn \
-            pyarrow \
-            duckdb \
-            polars \
-            requests \
-            beautifulsoup4 \
-            lxml \
-            openpyxl \
-            xlrd \
-            tkinter
+        # Install core dependencies manually with error handling
+        pip install --upgrade pip
+        
+        # Install packages one by one to handle failures gracefully
+        packages=(
+            "pandas"
+            "numpy" 
+            "matplotlib"
+            "seaborn"
+            "scipy"
+            "scikit-learn"
+            "pyarrow"
+            "duckdb"
+            "polars"
+            "requests"
+            "beautifulsoup4"
+            "lxml"
+            "openpyxl"
+            "xlrd"
+        )
+        
+        for package in "${packages[@]}"; do
+            print_status "Installing $package..."
+            if pip install "$package"; then
+                print_success "$package installed"
+            else
+                print_warning "Failed to install $package, trying with --user flag..."
+                pip install --user "$package" || print_warning "Failed to install $package"
+            fi
+        done
     fi
     
-    print_success "Python dependencies installed"
+    print_success "Python dependencies installation completed"
 }
 
 # Function to check X11 display

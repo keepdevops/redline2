@@ -63,6 +63,25 @@ else
         beautifulsoup4 \
         lxml \
         openpyxl \
+        xlrd \
+        tk \
+        pip
+    
+    # Install additional packages via pip if conda fails
+    pip install \
+        pandas \
+        numpy \
+        matplotlib \
+        seaborn \
+        scipy \
+        scikit-learn \
+        pyarrow \
+        duckdb \
+        polars \
+        requests \
+        beautifulsoup4 \
+        lxml \
+        openpyxl \
         xlrd
 fi
 

@@ -1,0 +1,29 @@
+# REDLINE Ubuntu Requirements
+# Core data processing
+pandas>=1.5.0
+numpy>=1.21.0
+scipy>=1.9.0
+
+# Visualization
+matplotlib>=3.5.0
+seaborn>=0.11.0
+
+# Data formats
+pyarrow>=10.0.0
+duckdb>=0.8.0
+polars>=0.18.0
+
+# Web scraping and APIs
+requests>=2.28.0
+beautifulsoup4>=4.11.0
+lxml>=4.9.0
+
+# Excel support
+openpyxl>=3.0.0
+xlrd>=2.0.0
+
+# Machine learning (optional)
+scikit-learn>=1.1.0
+
+# GUI (system package)
+# tkinter is installed via system package python3-tk
