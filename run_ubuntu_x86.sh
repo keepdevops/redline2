@@ -89,7 +89,12 @@ install_system_dependencies() {
         libfreetype6-dev \
         libxft-dev \
         libxext-dev \
-        libxrender-dev
+        libxrender-dev \
+        tk-dev \
+        tcl-dev \
+        libx11-dev \
+        libxss1 \
+        libgconf-2-4
     
     print_success "System dependencies installed"
 }
@@ -159,7 +164,8 @@ setup_conda_environment() {
             beautifulsoup4 \
             lxml \
             openpyxl \
-            xlrd
+            xlrd \
+            tk
         
         print_success "Stock environment created and configured"
     fi
