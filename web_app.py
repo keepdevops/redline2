@@ -86,14 +86,18 @@ def main():
         
         # Get configuration from environment
         host = os.environ.get('HOST', '0.0.0.0')
-        port = int(os.environ.get('PORT', 8080))
+        port = int(os.environ.get('WEB_PORT', os.environ.get('PORT', 8080)))
         debug = os.environ.get('DEBUG', 'false').lower() == 'true'
         
         logger.info(f"Starting server on {host}:{port}")
         logger.info(f"Debug mode: {debug}")
         
         # Start the application
-        socketio.run(app, host=host, port=port, debug=debug)
+        if not debug:
+            # Allow Werkzeug to run in non-debug mode
+            socketio.run(app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=True)
+        else:
+            socketio.run(app, host=host, port=port, debug=debug)
         
     except Exception as e:
         logger.error(f"Failed to start REDLINE Web Application: {str(e)}")

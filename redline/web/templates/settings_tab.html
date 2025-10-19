@@ -1,0 +1,478 @@
+{% extends "base.html" %}
+
+{% block title %}Settings Tab - REDLINE{% endblock %}
+
+{% block page_title %}Settings & Configuration{% endblock %}
+{% block page_subtitle %}Configure application settings and system information{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <!-- Configuration Settings -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-cog me-2"></i>Application Configuration
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="configForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Data Sources</h6>
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="yahooEnabled" checked>
+                                    <label class="form-check-label" for="yahooEnabled">
+                                        Yahoo Finance
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="stooqEnabled" checked>
+                                    <label class="form-check-label" for="stooqEnabled">
+                                        Stooq
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="defaultSource" class="form-label">Default Source</label>
+                                <select class="form-select" id="defaultSource">
+                                    <option value="yahoo">Yahoo Finance</option>
+                                    <option value="stooq">Stooq</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6>Display Settings</h6>
+                            <div class="mb-3">
+                                <label for="maxRows" class="form-label">Max Rows to Display</label>
+                                <input type="number" class="form-control" id="maxRows" value="1000" min="100" max="10000">
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="autoRefresh">
+                                    <label class="form-check-label" for="autoRefresh">
+                                        Auto Refresh Data
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="theme" class="form-label">Theme</label>
+                                <select class="form-select" id="theme">
+                                    <option value="light">Light</option>
+                                    <option value="dark">Dark</option>
+                                    <option value="auto">Auto</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Performance Settings</h6>
+                            <div class="mb-3">
+                                <label for="chunkSize" class="form-label">Chunk Size</label>
+                                <input type="number" class="form-control" id="chunkSize" value="10000" min="1000" max="100000">
+                            </div>
+                            <div class="mb-3">
+                                <label for="maxMemory" class="form-label">Max Memory</label>
+                                <select class="form-select" id="maxMemory">
+                                    <option value="512MB">512 MB</option>
+                                    <option value="1GB" selected>1 GB</option>
+                                    <option value="2GB">2 GB</option>
+                                    <option value="4GB">4 GB</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="parallelProcessing" checked>
+                                    <label class="form-check-label" for="parallelProcessing">
+                                        Parallel Processing
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6>Export Settings</h6>
+                            <div class="mb-3">
+                                <label for="defaultFormat" class="form-label">Default Export Format</label>
+                                <select class="form-select" id="defaultFormat">
+                                    <option value="csv" selected>CSV</option>
+                                    <option value="json">JSON</option>
+                                    <option value="parquet">Parquet</option>
+                                    <option value="feather">Feather</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="includeMetadata" checked>
+                                    <label class="form-check-label" for="includeMetadata">
+                                        Include Metadata
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="compression" class="form-label">Compression</label>
+                                <select class="form-select" id="compression">
+                                    <option value="none" selected>None</option>
+                                    <option value="gzip">Gzip</option>
+                                    <option value="bzip2">Bzip2</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Save Configuration
+                            </button>
+                            <button type="button" id="resetConfigBtn" class="btn btn-outline-secondary">
+                                <i class="fas fa-undo me-2"></i>Reset to Defaults
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- System Information -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>System Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="systemInfo">
+                    <small class="text-muted">Loading system information...</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Database Status -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-database me-2"></i>Database Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="databaseStatus">
+                    <small class="text-muted">Loading database status...</small>
+                </div>
+                <button id="testDbBtn" class="btn btn-outline-primary btn-sm mt-3">
+                    <i class="fas fa-play me-2"></i>Test Connection
+                </button>
+            </div>
+        </div>
+        
+        <!-- Connection Tests -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-wifi me-2"></i>Connection Tests
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button id="testYahooBtn" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-play me-2"></i>Test Yahoo Finance
+                    </button>
+                    <button id="testStooqBtn" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-play me-2"></i>Test Stooq
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Logs -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-file-alt me-2"></i>Application Logs
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="logsContainer" style="max-height: 300px; overflow-y: auto;">
+                    <small class="text-muted">Loading logs...</small>
+                </div>
+                <button id="refreshLogsBtn" class="btn btn-outline-secondary btn-sm mt-3">
+                    <i class="fas fa-sync-alt me-2"></i>Refresh
+                </button>
+                <button id="clearLogsBtn" class="btn btn-outline-danger btn-sm mt-3">
+                    <i class="fas fa-trash me-2"></i>Clear Logs
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    loadConfiguration();
+    loadSystemInfo();
+    loadDatabaseStatus();
+    loadLogs();
+    
+    // Event handlers
+    $('#configForm').on('submit', function(e) {
+        e.preventDefault();
+        saveConfiguration();
+    });
+    
+    $('#resetConfigBtn').on('click', function() {
+        resetConfiguration();
+    });
+    
+    $('#testDbBtn').on('click', function() {
+        testConnection('database');
+    });
+    
+    $('#testYahooBtn').on('click', function() {
+        testConnection('yahoo');
+    });
+    
+    $('#testStooqBtn').on('click', function() {
+        testConnection('stooq');
+    });
+    
+    $('#refreshLogsBtn').on('click', function() {
+        loadLogs();
+    });
+    
+    $('#clearLogsBtn').on('click', function() {
+        clearLogs();
+    });
+});
+
+function loadConfiguration() {
+    REDLINE.api.get('/settings/config')
+        .then(response => {
+            const config = response.config;
+            
+            // Data sources
+            $('#yahooEnabled').prop('checked', config.data_sources?.yahoo_enabled === 'true');
+            $('#stooqEnabled').prop('checked', config.data_sources?.stooq_enabled === 'true');
+            $('#defaultSource').val(config.data_sources?.default_source || 'yahoo');
+            
+            // Display settings
+            $('#maxRows').val(config.display?.max_rows || '1000');
+            $('#autoRefresh').prop('checked', config.display?.auto_refresh === 'true');
+            $('#theme').val(config.display?.theme || 'light');
+            
+            // Performance settings
+            $('#chunkSize').val(config.performance?.chunk_size || '10000');
+            $('#maxMemory').val(config.performance?.max_memory || '1GB');
+            $('#parallelProcessing').prop('checked', config.performance?.parallel_processing === 'true');
+            
+            // Export settings
+            $('#defaultFormat').val(config.export?.default_format || 'csv');
+            $('#includeMetadata').prop('checked', config.export?.include_metadata === 'true');
+            $('#compression').val(config.export?.compression || 'none');
+        })
+        .catch(error => {
+            REDLINE.ui.showToast('Error loading configuration: ' + error.message, 'error');
+        });
+}
+
+function saveConfiguration() {
+    const config = {
+        data_sources: {
+            yahoo_enabled: $('#yahooEnabled').is(':checked').toString(),
+            stooq_enabled: $('#stooqEnabled').is(':checked').toString(),
+            default_source: $('#defaultSource').val()
+        },
+        display: {
+            max_rows: $('#maxRows').val(),
+            auto_refresh: $('#autoRefresh').is(':checked').toString(),
+            theme: $('#theme').val()
+        },
+        performance: {
+            chunk_size: $('#chunkSize').val(),
+            max_memory: $('#maxMemory').val(),
+            parallel_processing: $('#parallelProcessing').is(':checked').toString()
+        },
+        export: {
+            default_format: $('#defaultFormat').val(),
+            include_metadata: $('#includeMetadata').is(':checked').toString(),
+            compression: $('#compression').val()
+        }
+    };
+    
+    REDLINE.ui.showLoading('Saving configuration...');
+    
+    REDLINE.api.post('/settings/config', { config: config })
+        .then(response => {
+            REDLINE.ui.hideLoading();
+            REDLINE.ui.showToast('Configuration saved successfully', 'success');
+        })
+        .catch(error => {
+            REDLINE.ui.hideLoading();
+            REDLINE.ui.showToast('Error saving configuration: ' + error.message, 'error');
+        });
+}
+
+function resetConfiguration() {
+    REDLINE.ui.confirm('Are you sure you want to reset all settings to defaults?', function() {
+        REDLINE.ui.showLoading('Resetting configuration...');
+        
+        REDLINE.api.get('/settings/reset-config')
+            .then(response => {
+                REDLINE.ui.hideLoading();
+                loadConfiguration();
+                REDLINE.ui.showToast('Configuration reset to defaults', 'success');
+            })
+            .catch(error => {
+                REDLINE.ui.hideLoading();
+                REDLINE.ui.showToast('Error resetting configuration: ' + error.message, 'error');
+            });
+    });
+}
+
+function loadSystemInfo() {
+    REDLINE.api.get('/settings/system-info')
+        .then(response => {
+            const infoHtml = `
+                <div class="mb-3">
+                    <h6>Platform</h6>
+                    <p class="mb-1"><strong>System:</strong> ${response.platform?.system || 'N/A'}</p>
+                    <p class="mb-1"><strong>Release:</strong> ${response.platform?.release || 'N/A'}</p>
+                    <p class="mb-1"><strong>Machine:</strong> ${response.platform?.machine || 'N/A'}</p>
+                </div>
+                
+                <div class="mb-3">
+                    <h6>Python</h6>
+                    <p class="mb-1"><strong>Version:</strong> ${response.python?.version || 'N/A'}</p>
+                    <p class="mb-1"><strong>Implementation:</strong> ${response.python?.implementation || 'N/A'}</p>
+                </div>
+                
+                <div class="mb-3">
+                    <h6>Memory</h6>
+                    <p class="mb-1"><strong>Total:</strong> ${REDLINE.utils.formatFileSize(response.memory?.total || 0)}</p>
+                    <p class="mb-1"><strong>Available:</strong> ${REDLINE.utils.formatFileSize(response.memory?.available || 0)}</p>
+                    <p class="mb-1"><strong>Used:</strong> ${response.memory?.percent || 0}%</p>
+                </div>
+                
+                <div class="mb-3">
+                    <h6>Disk</h6>
+                    <p class="mb-1"><strong>Total:</strong> ${REDLINE.utils.formatFileSize(response.disk?.total || 0)}</p>
+                    <p class="mb-1"><strong>Used:</strong> ${REDLINE.utils.formatFileSize(response.disk?.used || 0)}</p>
+                    <p class="mb-1"><strong>Free:</strong> ${REDLINE.utils.formatFileSize(response.disk?.free || 0)}</p>
+                </div>
+                
+                <div class="mb-3">
+                    <h6>CPU</h6>
+                    <p class="mb-1"><strong>Cores:</strong> ${response.cpu?.count || 'N/A'}</p>
+                    <p class="mb-1"><strong>Usage:</strong> ${response.cpu?.percent || 0}%</p>
+                </div>
+            `;
+            
+            $('#systemInfo').html(infoHtml);
+        })
+        .catch(error => {
+            $('#systemInfo').html('<small class="text-danger">Error loading system info</small>');
+        });
+}
+
+function loadDatabaseStatus() {
+    REDLINE.api.get('/settings/database-status')
+        .then(response => {
+            const statusHtml = `
+                <div class="mb-2">
+                    <span class="badge ${response.available ? 'bg-success' : 'bg-danger'}">
+                        ${response.available ? 'Available' : 'Unavailable'}
+                    </span>
+                </div>
+                <div class="mb-2">
+                    <small><strong>Connection:</strong> ${response.connection_string || 'N/A'}</small>
+                </div>
+                <div class="mb-2">
+                    <small><strong>Database Path:</strong> ${response.database_path || 'N/A'}</small>
+                </div>
+                ${response.tables ? `
+                    <div class="mb-2">
+                        <small><strong>Tables:</strong> ${response.table_count || 0}</small>
+                    </div>
+                ` : ''}
+            `;
+            
+            $('#databaseStatus').html(statusHtml);
+        })
+        .catch(error => {
+            $('#databaseStatus').html('<small class="text-danger">Error loading database status</small>');
+        });
+}
+
+function testConnection(type) {
+    REDLINE.ui.showLoading(`Testing ${type} connection...`);
+    
+    REDLINE.api.post('/settings/test-connection', { type: type })
+        .then(response => {
+            REDLINE.ui.hideLoading();
+            if (response.success) {
+                REDLINE.ui.showToast(`${type} connection test successful`, 'success');
+            } else {
+                REDLINE.ui.showToast(`${type} connection test failed: ${response.message}`, 'error');
+            }
+        })
+        .catch(error => {
+            REDLINE.ui.hideLoading();
+            REDLINE.ui.showToast(`Error testing ${type} connection: ${error.message}`, 'error');
+        });
+}
+
+function loadLogs() {
+    REDLINE.api.get('/settings/logs')
+        .then(response => {
+            const container = $('#logsContainer');
+            container.empty();
+            
+            if (response.logs && response.logs.length > 0) {
+                response.logs.forEach(log => {
+                    const logClass = log.level === 'ERROR' ? 'text-danger' : 
+                                   log.level === 'WARNING' ? 'text-warning' : 
+                                   log.level === 'INFO' ? 'text-info' : 'text-muted';
+                    
+                    const item = $(`
+                        <div class="mb-1">
+                            <small class="${logClass}">[${log.timestamp}] ${log.level}: ${log.line}</small>
+                        </div>
+                    `);
+                    container.append(item);
+                });
+            } else {
+                container.html('<small class="text-muted">No logs available</small>');
+            }
+        })
+        .catch(error => {
+            $('#logsContainer').html('<small class="text-danger">Error loading logs</small>');
+        });
+}
+
+function clearLogs() {
+    REDLINE.ui.confirm('Are you sure you want to clear all application logs?', function() {
+        REDLINE.ui.showLoading('Clearing logs...');
+        
+        REDLINE.api.post('/settings/clear-logs')
+            .then(response => {
+                REDLINE.ui.hideLoading();
+                loadLogs();
+                REDLINE.ui.showToast('Logs cleared successfully', 'success');
+            })
+            .catch(error => {
+                REDLINE.ui.hideLoading();
+                REDLINE.ui.showToast('Error clearing logs: ' + error.message, 'error');
+            });
+    });
+}
+</script>
+{% endblock %}
