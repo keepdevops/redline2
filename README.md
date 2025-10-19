@@ -40,14 +40,44 @@ The application provides both GUI and command-line interfaces for processing lar
 ## 🚀 **Quick Start**
 
 ### **Option 1: Docker (Recommended)**
+
+#### Quick Start with Docker
 ```bash
 # Clone the repository
 git clone https://github.com/your-repo/redline.git
 cd redline
 
-# Run with Docker (includes all dependencies)
-./run_gui.bash
+# Test your Docker setup
+./test_docker_setup.sh
+
+# VNC Mode (Remote GUI access)
+./scripts/run_docker_vnc.sh
+
+# X11 Mode (Local GUI)
+./scripts/run_docker_x11.sh
+
+# Headless Mode (CLI only)
+./scripts/run_docker_headless.sh
 ```
+
+#### Docker Compose (Alternative)
+```bash
+# VNC Mode - Remote GUI access via VNC
+docker-compose --profile vnc up
+
+# X11 Mode - Local GUI with X11 forwarding  
+docker-compose --profile x11 up
+
+# Headless Mode - CLI operations
+docker-compose --profile headless up
+```
+
+**Docker Features:**
+- 🐳 **Multi-mode support**: X11, VNC, headless, and web modes
+- 🔒 **Secure deployment**: Non-root user, isolated containers
+- 🌐 **Remote access**: VNC server for remote GUI access
+- ⚡ **Optimized performance**: Multi-stage builds, resource limits
+- 📚 **Complete documentation**: [DOCKER_DEPLOYMENT_GUIDE.md](DOCKER_DEPLOYMENT_GUIDE.md)
 
 ### **Option 2: Local Installation (Recommended)**
 ```bash

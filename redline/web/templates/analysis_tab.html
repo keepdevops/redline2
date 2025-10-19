@@ -1,0 +1,464 @@
+{% extends "base.html" %}
+
+{% block title %}Analysis Tab - REDLINE{% endblock %}
+
+{% block page_title %}Data Analysis{% endblock %}
+{% block page_subtitle %}Perform statistical and financial analysis on your data{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <!-- Analysis Form -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>Select Data for Analysis
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="analysisForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="analysisFile" class="form-label">Data File</label>
+                                <select class="form-select" id="analysisFile" required>
+                                    <option value="">Select data file...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="analysisType" class="form-label">Analysis Type</label>
+                                <select class="form-select" id="analysisType" required>
+                                    <option value="">Select analysis type...</option>
+                                    <option value="basic">Basic Statistics</option>
+                                    <option value="financial">Financial Analysis</option>
+                                    <option value="statistical">Statistical Analysis</option>
+                                    <option value="correlation">Correlation Analysis</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-chart-bar me-2"></i>Run Analysis
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Analysis Results -->
+        <div id="analysisResults" class="card" style="display: none;">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-line me-2"></i>Analysis Results
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="resultsContent">
+                    <!-- Results will be displayed here -->
+                </div>
+                
+                <div class="mt-3">
+                    <button id="exportAnalysisBtn" class="btn btn-success">
+                        <i class="fas fa-download me-2"></i>Export Analysis
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Analysis Types -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Analysis Types
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6><i class="fas fa-chart-bar text-primary me-2"></i>Basic Statistics</h6>
+                    <small class="text-muted">Descriptive statistics, data types, null counts, and basic information about your dataset.</small>
+                </div>
+                
+                <div class="mb-3">
+                    <h6><i class="fas fa-chart-line text-success me-2"></i>Financial Analysis</h6>
+                    <small class="text-muted">Price analysis, volume analysis, returns calculation, volatility, and Sharpe ratio.</small>
+                </div>
+                
+                <div class="mb-3">
+                    <h6><i class="fas fa-chart-pie text-warning me-2"></i>Statistical Analysis</h6>
+                    <small class="text-muted">Distribution analysis, outlier detection, skewness, kurtosis, and normality tests.</small>
+                </div>
+                
+                <div class="mb-3">
+                    <h6><i class="fas fa-project-diagram text-info me-2"></i>Correlation Analysis</h6>
+                    <small class="text-muted">Correlation matrix, strong correlations identification, and relationship analysis.</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Stats -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-tachometer-alt me-2"></i>Quick Stats
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="quickStats">
+                    <small class="text-muted">Select a file to view quick statistics</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentAnalysisData = null;
+
+$(document).ready(function() {
+    loadAvailableFiles();
+    
+    // Event handlers
+    $('#analysisForm').on('submit', function(e) {
+        e.preventDefault();
+        runAnalysis();
+    });
+    
+    $('#analysisFile').on('change', function() {
+        const selectedFile = $(this).val();
+        if (selectedFile) {
+            loadQuickStats(selectedFile);
+        }
+    });
+    
+    $('#exportAnalysisBtn').on('click', function() {
+        exportAnalysis();
+    });
+});
+
+function loadAvailableFiles() {
+    REDLINE.ui.showLoading('Loading available files...');
+    
+    REDLINE.api.get('/api/files')
+        .then(response => {
+            const select = $('#analysisFile');
+            select.empty();
+            select.append('<option value="">Select data file...</option>');
+            
+            if (response.files && response.files.length > 0) {
+                response.files.forEach(file => {
+                    select.append(`<option value="${file.name}">${file.name} (${REDLINE.utils.formatFileSize(file.size)})</option>`);
+                });
+            }
+            
+            REDLINE.ui.hideLoading();
+        })
+        .catch(error => {
+            REDLINE.ui.hideLoading();
+            REDLINE.ui.showToast('Error loading files: ' + error.message, 'error');
+        });
+}
+
+function loadQuickStats(filename) {
+    REDLINE.api.get(`/api/data/${filename}`)
+        .then(response => {
+            const statsHtml = `
+                <div class="mb-2">
+                    <strong>Rows:</strong> ${REDLINE.utils.formatNumber(response.total_rows)}
+                </div>
+                <div class="mb-2">
+                    <strong>Columns:</strong> ${response.columns.length}
+                </div>
+                <div class="mb-2">
+                    <strong>File Size:</strong> ${REDLINE.utils.formatFileSize(response.file_size || 0)}
+                </div>
+                <div class="mb-2">
+                    <strong>Columns:</strong>
+                    <ul class="list-unstyled mt-1">
+                        ${response.columns.slice(0, 5).map(col => `<li><small>• ${col}</small></li>`).join('')}
+                        ${response.columns.length > 5 ? `<li><small>• ... and ${response.columns.length - 5} more</small></li>` : ''}
+                    </ul>
+                </div>
+            `;
+            $('#quickStats').html(statsHtml);
+        })
+        .catch(error => {
+            $('#quickStats').html('<small class="text-danger">Error loading stats</small>');
+        });
+}
+
+function runAnalysis() {
+    const filename = $('#analysisFile').val();
+    const analysisType = $('#analysisType').val();
+    
+    if (!filename || !analysisType) {
+        REDLINE.ui.showToast('Please select both file and analysis type', 'error');
+        return;
+    }
+    
+    REDLINE.ui.showLoading('Running analysis...');
+    
+    const analysisData = {
+        filename: filename,
+        analysis_type: analysisType
+    };
+    
+    REDLINE.api.post('/analysis/analyze', analysisData)
+        .then(response => {
+            currentAnalysisData = response;
+            displayAnalysisResults(response);
+            REDLINE.ui.hideLoading();
+            REDLINE.ui.showToast('Analysis completed successfully', 'success');
+        })
+        .catch(error => {
+            REDLINE.ui.hideLoading();
+            REDLINE.ui.showToast('Error running analysis: ' + error.message, 'error');
+        });
+}
+
+function displayAnalysisResults(response) {
+    const result = response.result;
+    let resultsHtml = '';
+    
+    if (response.analysis_type === 'basic') {
+        resultsHtml = displayBasicAnalysis(result);
+    } else if (response.analysis_type === 'financial') {
+        resultsHtml = displayFinancialAnalysis(result);
+    } else if (response.analysis_type === 'statistical') {
+        resultsHtml = displayStatisticalAnalysis(result);
+    } else if (response.analysis_type === 'correlation') {
+        resultsHtml = displayCorrelationAnalysis(result);
+    }
+    
+    $('#resultsContent').html(resultsHtml);
+    $('#analysisResults').show();
+}
+
+function displayBasicAnalysis(result) {
+    let html = '<h6>Basic Data Analysis</h6>';
+    
+    html += `
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h6>Dataset Shape</h6>
+                        <p><strong>Rows:</strong> ${result.shape.rows}</p>
+                        <p><strong>Columns:</strong> ${result.shape.columns}</p>
+                        <p><strong>Memory Usage:</strong> ${REDLINE.utils.formatFileSize(result.memory_usage)}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h6>Data Types</h6>
+                        ${Object.entries(result.data_types).map(([col, dtype]) => 
+                            `<p><strong>${col}:</strong> ${dtype}</p>`
+                        ).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    if (Object.keys(result.numeric_summary).length > 0) {
+        html += '<h6>Numeric Columns Summary</h6>';
+        html += '<div class="table-responsive"><table class="table table-sm">';
+        html += '<thead><tr><th>Column</th><th>Count</th><th>Mean</th><th>Std</th><th>Min</th><th>Max</th></tr></thead><tbody>';
+        
+        Object.entries(result.numeric_summary.count).forEach(([col, count]) => {
+            const summary = result.numeric_summary;
+            html += `
+                <tr>
+                    <td>${col}</td>
+                    <td>${count}</td>
+                    <td>${summary.mean[col] ? summary.mean[col].toFixed(2) : 'N/A'}</td>
+                    <td>${summary.std[col] ? summary.std[col].toFixed(2) : 'N/A'}</td>
+                    <td>${summary.min[col] ? summary.min[col].toFixed(2) : 'N/A'}</td>
+                    <td>${summary.max[col] ? summary.max[col].toFixed(2) : 'N/A'}</td>
+                </tr>
+            `;
+        });
+        html += '</tbody></table></div>';
+    }
+    
+    return html;
+}
+
+function displayFinancialAnalysis(result) {
+    let html = '<h6>Financial Analysis</h6>';
+    
+    if (result.price_analysis && Object.keys(result.price_analysis).length > 0) {
+        html += `
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h6>Price Analysis</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Current Price:</strong> ${result.price_analysis.current_price || 'N/A'}</p>
+                            <p><strong>Min Price:</strong> ${result.price_analysis.price_range?.min || 'N/A'}</p>
+                            <p><strong>Max Price:</strong> ${result.price_analysis.price_range?.max || 'N/A'}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Price Change:</strong> ${result.price_analysis.price_change?.absolute || 'N/A'}</p>
+                            <p><strong>Price Change %:</strong> ${result.price_analysis.price_change?.percentage?.toFixed(2) || 'N/A'}%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (result.returns_analysis && Object.keys(result.returns_analysis).length > 0) {
+        html += `
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h6>Returns Analysis</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Mean Return:</strong> ${(result.returns_analysis.mean_return * 100).toFixed(2)}%</p>
+                            <p><strong>Std Return:</strong> ${(result.returns_analysis.std_return * 100).toFixed(2)}%</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Total Return:</strong> ${result.returns_analysis.total_return?.toFixed(2) || 'N/A'}%</p>
+                            <p><strong>Sharpe Ratio:</strong> ${result.returns_analysis.sharpe_ratio?.toFixed(2) || 'N/A'}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (result.volatility_analysis && Object.keys(result.volatility_analysis).length > 0) {
+        html += `
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h6>Volatility Analysis</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Daily Volatility:</strong> ${(result.volatility_analysis.daily_volatility * 100).toFixed(2)}%</p>
+                            <p><strong>Annualized Volatility:</strong> ${(result.volatility_analysis.annualized_volatility * 100).toFixed(2)}%</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Max Drawdown:</strong> ${result.volatility_analysis.max_drawdown?.toFixed(2) || 'N/A'}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    return html;
+}
+
+function displayStatisticalAnalysis(result) {
+    let html = '<h6>Statistical Analysis</h6>';
+    
+    if (result.distribution_analysis && Object.keys(result.distribution_analysis).length > 0) {
+        html += '<h6>Distribution Analysis</h6>';
+        html += '<div class="table-responsive"><table class="table table-sm">';
+        html += '<thead><tr><th>Column</th><th>Skewness</th><th>Kurtosis</th><th>Normality</th></tr></thead><tbody>';
+        
+        Object.entries(result.distribution_analysis).forEach(([col, analysis]) => {
+            html += `
+                <tr>
+                    <td>${col}</td>
+                    <td>${analysis.skewness?.toFixed(2) || 'N/A'}</td>
+                    <td>${analysis.kurtosis?.toFixed(2) || 'N/A'}</td>
+                    <td><span class="badge ${analysis.normality === 'normal' ? 'bg-success' : 'bg-warning'}">${analysis.normality}</span></td>
+                </tr>
+            `;
+        });
+        html += '</tbody></table></div>';
+    }
+    
+    if (result.outlier_detection && Object.keys(result.outlier_detection).length > 0) {
+        html += '<h6>Outlier Detection</h6>';
+        html += '<div class="table-responsive"><table class="table table-sm">';
+        html += '<thead><tr><th>Column</th><th>Outliers</th><th>Percentage</th></tr></thead><tbody>';
+        
+        Object.entries(result.outlier_detection).forEach(([col, detection]) => {
+            html += `
+                <tr>
+                    <td>${col}</td>
+                    <td>${detection.outlier_count}</td>
+                    <td>${detection.outlier_percentage?.toFixed(2) || 'N/A'}%</td>
+                </tr>
+            `;
+        });
+        html += '</tbody></table></div>';
+    }
+    
+    return html;
+}
+
+function displayCorrelationAnalysis(result) {
+    let html = '<h6>Correlation Analysis</h6>';
+    
+    if (result.strong_correlations && result.strong_correlations.length > 0) {
+        html += '<h6>Strong Correlations</h6>';
+        html += '<div class="table-responsive"><table class="table table-sm">';
+        html += '<thead><tr><th>Column 1</th><th>Column 2</th><th>Correlation</th><th>Strength</th></tr></thead><tbody>';
+        
+        result.strong_correlations.forEach(corr => {
+            html += `
+                <tr>
+                    <td>${corr.column1}</td>
+                    <td>${corr.column2}</td>
+                    <td>${corr.correlation?.toFixed(3) || 'N/A'}</td>
+                    <td><span class="badge ${corr.strength.includes('positive') ? 'bg-success' : 'bg-danger'}">${corr.strength}</span></td>
+                </tr>
+            `;
+        });
+        html += '</tbody></table></div>';
+    }
+    
+    if (result.avg_correlation) {
+        html += `<p><strong>Average Correlation:</strong> ${result.avg_correlation.toFixed(3)}</p>`;
+    }
+    
+    return html;
+}
+
+function exportAnalysis() {
+    if (!currentAnalysisData) {
+        REDLINE.ui.showToast('No analysis data to export', 'error');
+        return;
+    }
+    
+    const format = prompt('Enter export format (json, csv):', 'json');
+    if (!format) return;
+    
+    const filename = prompt('Enter export filename:', `analysis_${currentAnalysisData.analysis_type}_${Date.now()}.${format}`);
+    if (!filename) return;
+    
+    REDLINE.ui.showLoading('Exporting analysis...');
+    
+    const exportData = {
+        analysis_result: currentAnalysisData.result,
+        filename: filename,
+        format: format
+    };
+    
+    REDLINE.api.post('/analysis/export-analysis', exportData)
+        .then(response => {
+            REDLINE.ui.hideLoading();
+            REDLINE.ui.showToast('Analysis exported successfully', 'success');
+        })
+        .catch(error => {
+            REDLINE.ui.hideLoading();
+            REDLINE.ui.showToast('Error exporting analysis: ' + error.message, 'error');
+        });
+}
+</script>
+{% endblock %}

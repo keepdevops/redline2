@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+
+{% block title %}Data Tab - REDLINE{% endblock %}
+
+{% block page_title %}Data Viewing & Filtering{% endblock %}
+{% block page_subtitle %}View, filter, and manage your financial data{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- File Selection -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-file-alt me-2"></i>Select Data File
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <select id="fileSelect" class="form-select">
+                            <option value="">Select a file to load...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <button id="loadFileBtn" class="btn btn-primary" disabled>
+                            <i class="fas fa-upload me-2"></i>Load File
+                        </button>
+                        <button id="refreshFilesBtn" class="btn btn-outline-secondary">
+                            <i class="fas fa-sync-alt me-2"></i>Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div id="filterSection" class="card mb-4" style="display: none;">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-filter me-2"></i>Data Filters
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="filterContainer">
+                    <!-- Filters will be dynamically added here -->
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <button id="addFilterBtn" class="btn btn-outline-primary">
+                            <i class="fas fa-plus me-2"></i>Add Filter
+                        </button>
+                        <button id="clearFiltersBtn" class="btn btn-outline-secondary">
+                            <i class="fas fa-trash me-2"></i>Clear All
+                        </button>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <button id="applyFiltersBtn" class="btn btn-success">
+                            <i class="fas fa-check me-2"></i>Apply Filters
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div id="dataTableSection" class="card" style="display: none;">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-table me-2"></i>Data Preview
+                    </h5>
+                    <div class="btn-group">
+                        <button id="exportBtn" class="btn btn-outline-primary">
+                            <i class="fas fa-download me-2"></i>Export
+                        </button>
+                        <button id="refreshDataBtn" class="btn btn-outline-secondary">
+                            <i class="fas fa-sync-alt me-2"></i>Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="dataInfo" class="mb-3">
+                    <!-- Data info will be displayed here -->
+                </div>
+                <div id="dataTableContainer">
+                    <!-- Data table will be displayed here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentFile = null;
+let currentData = null;
+let currentFilters = {};
+
+$(document).ready(function() {
+    loadFileList();
+    
+    // Event handlers
+    $('#fileSelect').on('change', function() {
+        const selectedFile = $(this).val();
+        $('#loadFileBtn').prop('disabled', !selectedFile);
+    });
+    
+    $('#loadFileBtn').on('click', function() {
+        const selectedFile = $('#fileSelect').val();
+        if (selectedFile) {
+            loadData(selectedFile);
+        }
+    });
+    
+    $('#refreshFilesBtn').on('click', function() {
+        loadFileList();
+    });
+    
+    $('#addFilterBtn').on('click', function() {
+        addFilter();
+    });
+    
+    $('#clearFiltersBtn').on('click', function() {
+        clearFilters();
+    });
+    
+    $('#applyFiltersBtn').on('click', function() {
+        applyFilters();
+    });
+    
+    $('#exportBtn').on('click', function() {
+        exportData();
+    });
+    
+    $('#refreshDataBtn').on('click', function() {
+        if (currentFile) {
+            loadData(currentFile);
+        }
+    });
+});
+
+function loadFileList() {
+    REDLINE.ui.showLoading('Loading file list...');
+    
+    REDLINE.api.get('/api/files')
+        .then(response => {
+            const select = $('#fileSelect');
+            select.empty();
+            select.append('<option value="">Select a file to load...</option>');
+            
+            if (response.files && response.files.length > 0) {
+                response.files.forEach(file => {
+                    select.append(`<option value="${file.name}">${file.name} (${REDLINE.utils.formatFileSize(file.size)})</option>`);
+                });
+            }
+            
+            REDLINE.ui.hideLoading();
+        })
+        .catch(error => {
+            REDLINE.ui.hideLoading();
+            REDLINE.ui.showToast('Error loading file list: ' + error.message, 'error');
+        });
+}
+
+function loadData(filename) {
+    REDLINE.ui.showLoading('Loading data...');
+    
+    REDLINE.dataManager.loadData(filename)
+        .then(response => {
+            currentFile = filename;
+            currentData = response;
+            
+            // Show filter section
+            $('#filterSection').show();
+            
+            // Show data table section
+            $('#dataTableSection').show();
+            
+            // Update data info
+            updateDataInfo(response);
+            
+            // Create data table
+            createDataTable(response);
+            
+            // Create filter options
+            createFilterOptions(response.columns);
+            
+            REDLINE.ui.hideLoading();
+        })
+        .catch(error => {
+            REDLINE.ui.hideLoading();
+            REDLINE.ui.showToast('Error loading data: ' + error.message, 'error');
+        });
+}
+
+function updateDataInfo(data) {
+    const infoHtml = `
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-number">${REDLINE.utils.formatNumber(data.total_rows)}</div>
+                    <div class="stats-label">Total Rows</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-number">${data.columns.length}</div>
+                    <div class="stats-label">Columns</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-number">${currentFilters ? Object.keys(currentFilters).length : 0}</div>
+                    <div class="stats-label">Active Filters</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-number">${REDLINE.utils.formatFileSize(data.file_size || 0)}</div>
+                    <div class="stats-label">File Size</div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    $('#dataInfo').html(infoHtml);
+}
+
+function createDataTable(data) {
+    const columns = data.columns.map(col => ({
+        title: col,
+        data: col
+    }));
+    
+    const tableId = REDLINE.ui.createDataTable(
+        '#dataTableContainer',
+        data.data,
+        columns,
+        {
+            pageLength: 25,
+            scrollX: true,
+            responsive: true
+        }
+    );
+}
+
+function createFilterOptions(columns) {
+    const container = $('#filterContainer');
+    container.empty();
+    
+    // Create filter options for each column
+    columns.forEach(column => {
+        const filterHtml = `
+            <div class="row mb-3 filter-row" data-column="${column}">
+                <div class="col-md-3">
+                    <label class="form-label">Column</label>
+                    <select class="form-select filter-column" disabled>
+                        <option value="${column}">${column}</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Filter Type</label>
+                    <select class="form-select filter-type">
+                        <option value="equals">Equals</option>
+                        <option value="contains">Contains</option>
+                        <option value="greater_than">Greater Than</option>
+                        <option value="less_than">Less Than</option>
+                        <option value="date_range">Date Range</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Value</label>
+                    <input type="text" class="form-control filter-value" placeholder="Enter filter value...">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <button class="btn btn-danger btn-sm remove-filter" style="display: block;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        container.append(filterHtml);
+    });
+    
+    // Add event handlers for filter controls
+    $('.remove-filter').on('click', function() {
+        $(this).closest('.filter-row').remove();
+    });
+}
+
+function addFilter() {
+    if (!currentData || !currentData.columns) return;
+    
+    const container = $('#filterContainer');
+    const newFilterHtml = `
+        <div class="row mb-3 filter-row">
+            <div class="col-md-3">
+                <label class="form-label">Column</label>
+                <select class="form-select filter-column">
+                    <option value="">Select column...</option>
+                    ${currentData.columns.map(col => `<option value="${col}">${col}</option>`).join('')}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Filter Type</label>
+                <select class="form-select filter-type">
+                    <option value="equals">Equals</option>
+                    <option value="contains">Contains</option>
+                    <option value="greater_than">Greater Than</option>
+                    <option value="less_than">Less Than</option>
+                    <option value="date_range">Date Range</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Value</label>
+                <input type="text" class="form-control filter-value" placeholder="Enter filter value...">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <button class="btn btn-danger btn-sm remove-filter" style="display: block;">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    container.append(newFilterHtml);
+    
+    // Add event handler for remove button
+    container.find('.remove-filter').last().on('click', function() {
+        $(this).closest('.filter-row').remove();
+    });
+}
+
+function clearFilters() {
+    $('#filterContainer').empty();
+    currentFilters = {};
+    if (currentData) {
+        createDataTable(currentData);
+        updateDataInfo(currentData);
+    }
+}
+
+function applyFilters() {
+    if (!currentFile) return;
+    
+    const filters = {};
+    $('.filter-row').each(function() {
+        const column = $(this).find('.filter-column').val();
+        const type = $(this).find('.filter-type').val();
+        const value = $(this).find('.filter-value').val();
+        
+        if (column && type && value) {
+            filters[column] = {
+                type: type,
+                value: value
+            };
+        }
+    });
+    
+    REDLINE.dataManager.applyFilters(currentFile, filters)
+        .then(response => {
+            currentData = response;
+            currentFilters = filters;
+            
+            updateDataInfo(response);
+            createDataTable(response);
+            
+            REDLINE.ui.showToast('Filters applied successfully', 'success');
+        })
+        .catch(error => {
+            REDLINE.ui.showToast('Error applying filters: ' + error.message, 'error');
+        });
+}
+
+function exportData() {
+    if (!currentFile) return;
+    
+    const format = prompt('Enter export format (csv, json, parquet, feather):', 'csv');
+    if (!format) return;
+    
+    const filename = prompt('Enter export filename:', `${currentFile.replace(/\.[^/.]+$/, '')}_export.${format}`);
+    if (!filename) return;
+    
+    REDLINE.dataManager.exportData(currentFile, format, filename, currentFilters)
+        .then(response => {
+            REDLINE.ui.showToast('Data exported successfully', 'success');
+        })
+        .catch(error => {
+            REDLINE.ui.showToast('Error exporting data: ' + error.message, 'error');
+        });
+}
+</script>
+{% endblock %}

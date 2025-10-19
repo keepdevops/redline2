@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+  # REDLINE X11 Mode - Traditional GUI with X11 forwarding
+  redline-x11:
+    build: .
+    container_name: redline-x11
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+      - MODE=x11
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ./data:/app/data
+      - ./logs:/app/logs
+    network_mode: host
+    stdin_open: true
+    tty: true
+    command: ["--task=gui"]
+    profiles:
+      - x11
+
+  # REDLINE VNC Mode - Remote GUI access via VNC
+  redline-vnc:
+    build: .
+    container_name: redline-vnc
+    environment:
+      - VNC_PORT=${VNC_PORT:-5900}
+      - VNC_PASSWORD=${VNC_PASSWORD:-redline123}
+      - MODE=vnc
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    ports:
+      - "${VNC_PORT:-5900}:${VNC_PORT:-5900}"
+    stdin_open: true
+    tty: true
+    command: ["--task=gui"]
+    profiles:
+      - vnc
+
+  # REDLINE Headless Mode - CLI operations
+  redline-headless:
+    build: .
+    container_name: redline-headless
+    environment:
+      - MODE=headless
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    stdin_open: true
+    tty: true
+    command: ["--task=cli"]
+    profiles:
+      - headless
+
+  # REDLINE GUI Headless - GUI with virtual display
+  redline-gui-headless:
+    build: .
+    container_name: redline-gui-headless
+    environment:
+      - MODE=headless
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    stdin_open: true
+    tty: true
+    command: ["--task=gui"]
+    profiles:
+      - gui-headless
+
+  # REDLINE Web Mode - Modern web interface
+  redline-web:
+    build: .
+    container_name: redline-web
+    environment:
+      - MODE=web
+      - WEB_PORT=${WEB_PORT:-8080}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    ports:
+      - "${WEB_PORT:-8080}:${WEB_PORT:-8080}"
+    command: ["--mode=web"]
+    profiles:
+      - web
+
+  # REDLINE Development Mode - For development and testing
+  redline-dev:
+    build: .
+    container_name: redline-dev
+    environment:
+      - MODE=auto
+      - PYTHONPATH=/app
+    volumes:
+      - .:/app
+      - ./data:/app/data
+      - ./logs:/app/logs
+    ports:
+      - "8080:8080"
+      - "5900:5900"
+    stdin_open: true
+    tty: true
+    command: ["--task=gui"]
+    profiles:
+      - dev
+
+# Networks
+networks:
+  redline-network:
+    driver: bridge
+
+# Volumes
+volumes:
+  redline-data:
+    driver: local
+  redline-logs:
+    driver: local

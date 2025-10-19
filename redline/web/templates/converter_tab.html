@@ -1,0 +1,421 @@
+{% extends "base.html" %}
+
+{% block title %}Converter Tab - REDLINE{% endblock %}
+
+{% block page_title %}Format Converter{% endblock %}
+{% block page_subtitle %}Convert between different data formats{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <!-- Conversion Form -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-exchange-alt me-2"></i>Convert File Format
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="conversionForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="inputFile" class="form-label">Input File</label>
+                                <select class="form-select" id="inputFile" required>
+                                    <option value="">Select input file...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="outputFormat" class="form-label">Output Format</label>
+                                <select class="form-select" id="outputFormat" required>
+                                    <option value="">Select output format...</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="outputFilename" class="form-label">Output Filename</label>
+                                <input type="text" class="form-control" id="outputFilename" placeholder="Enter output filename..." required>
+                                <div class="form-text">Enter filename without extension (will be added automatically)</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3 d-flex align-items-end">
+                                <div class="form-check me-3">
+                                    <input class="form-check-input" type="checkbox" id="overwrite">
+                                    <label class="form-check-label" for="overwrite">
+                                        Overwrite existing file
+                                    </label>
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-exchange-alt me-2"></i>Convert
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Batch Conversion -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list me-2"></i>Batch Conversion
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="batchFiles" class="form-label">Select Files for Batch Conversion</label>
+                    <div id="batchFilesList" class="border rounded p-3" style="min-height: 100px;">
+                        <small class="text-muted">Select files from the list above to add to batch conversion</small>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="batchOutputFormat" class="form-label">Output Format</label>
+                            <select class="form-select" id="batchOutputFormat">
+                                <option value="">Select output format...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3 d-flex align-items-end">
+                            <div class="form-check me-3">
+                                <input class="form-check-input" type="checkbox" id="batchOverwrite">
+                                <label class="form-check-label" for="batchOverwrite">
+                                    Overwrite existing files
+                                </label>
+                            </div>
+                            <button id="batchConvertBtn" class="btn btn-success" disabled>
+                                <i class="fas fa-exchange-alt me-2"></i>Convert All
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Supported Formats -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-file-alt me-2"></i>Supported Formats
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="supportedFormats">
+                    <small class="text-muted">Loading supported formats...</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Converted Files -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-history me-2"></i>Converted Files
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="convertedFiles">
+                    <small class="text-muted">Loading converted files...</small>
+                </div>
+                <button id="refreshConvertedBtn" class="btn btn-outline-secondary btn-sm mt-3">
+                    <i class="fas fa-sync-alt me-2"></i>Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Conversion Results -->
+<div id="conversionResults" class="row mt-4" style="display: none;">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-check-circle me-2"></i>Conversion Results
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="resultsContent">
+                    <!-- Results will be displayed here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let availableFiles = [];
+let batchFiles = [];
+
+$(document).ready(function() {
+    loadAvailableFiles();
+    loadSupportedFormats();
+    loadConvertedFiles();
+    
+    // Event handlers
+    $('#conversionForm').on('submit', function(e) {
+        e.preventDefault();
+        convertFile();
+    });
+    
+    $('#inputFile').on('change', function() {
+        updateOutputFilename();
+    });
+    
+    $('#outputFormat').on('change', function() {
+        updateOutputFilename();
+    });
+    
+    $('#batchConvertBtn').on('click', function() {
+        batchConvert();
+    });
+    
+    $('#refreshConvertedBtn').on('click', function() {
+        loadConvertedFiles();
+    });
+});
+
+function loadAvailableFiles() {
+    REDLINE.ui.showLoading('Loading available files...');
+    
+    REDLINE.api.get('/converter/files')
+        .then(response => {
+            availableFiles = response.files || [];
+            const select = $('#inputFile');
+            select.empty();
+            select.append('<option value="">Select input file...</option>');
+            
+            availableFiles.forEach(file => {
+                select.append(`<option value="${file.name}">${file.name} (${REDLINE.utils.formatFileSize(file.size)})</option>`);
+            });
+            
+            REDLINE.ui.hideLoading();
+        })
+        .catch(error => {
+            REDLINE.ui.hideLoading();
+            REDLINE.ui.showToast('Error loading files: ' + error.message, 'error');
+        });
+}
+
+function loadSupportedFormats() {
+    REDLINE.api.get('/converter/formats')
+        .then(response => {
+            const formats = response.formats || {};
+            const select = $('#outputFormat');
+            const batchSelect = $('#batchOutputFormat');
+            
+            select.empty();
+            batchSelect.empty();
+            select.append('<option value="">Select output format...</option>');
+            batchSelect.append('<option value="">Select output format...</option>');
+            
+            Object.entries(formats).forEach(([key, format]) => {
+                const option = `<option value="${key}">${format.name} (${format.extension})</option>`;
+                select.append(option);
+                batchSelect.append(option);
+            });
+            
+            // Update supported formats display
+            let formatsHtml = '';
+            Object.entries(formats).forEach(([key, format]) => {
+                formatsHtml += `
+                    <div class="mb-2">
+                        <strong>${format.name}</strong><br>
+                        <small class="text-muted">${format.extension} - ${format.description}</small>
+                    </div>
+                `;
+            });
+            $('#supportedFormats').html(formatsHtml);
+        })
+        .catch(error => {
+            REDLINE.ui.showToast('Error loading formats: ' + error.message, 'error');
+        });
+}
+
+function loadConvertedFiles() {
+    REDLINE.api.get('/converter/converted-files')
+        .then(response => {
+            const container = $('#convertedFiles');
+            container.empty();
+            
+            if (response.files && response.files.length > 0) {
+                response.files.forEach(file => {
+                    const item = $(`
+                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                            <div>
+                                <small class="text-primary">${file.name}</small><br>
+                                <small class="text-muted">${REDLINE.utils.formatFileSize(file.size)}</small>
+                            </div>
+                            <small class="text-muted">${REDLINE.utils.formatDate(file.modified)}</small>
+                        </div>
+                    `);
+                    container.append(item);
+                });
+            } else {
+                container.html('<small class="text-muted">No converted files</small>');
+            }
+        })
+        .catch(error => {
+            $('#convertedFiles').html('<small class="text-danger">Error loading converted files</small>');
+        });
+}
+
+function updateOutputFilename() {
+    const inputFile = $('#inputFile').val();
+    const outputFormat = $('#outputFormat').val();
+    
+    if (inputFile && outputFormat) {
+        const baseName = inputFile.replace(/\.[^/.]+$/, '');
+        const extension = getFormatExtension(outputFormat);
+        $('#outputFilename').val(`${baseName}_converted${extension}`);
+    }
+}
+
+function getFormatExtension(format) {
+    const extensions = {
+        'csv': '.csv',
+        'json': '.json',
+        'parquet': '.parquet',
+        'feather': '.feather',
+        'duckdb': '.duckdb'
+    };
+    return extensions[format] || '';
+}
+
+function convertFile() {
+    const inputFile = $('#inputFile').val();
+    const outputFormat = $('#outputFormat').val();
+    const outputFilename = $('#outputFilename').val();
+    const overwrite = $('#overwrite').is(':checked');
+    
+    if (!inputFile || !outputFormat || !outputFilename) {
+        REDLINE.ui.showToast('Please fill in all required fields', 'error');
+        return;
+    }
+    
+    REDLINE.ui.showLoading('Converting file...');
+    
+    const conversionData = {
+        input_file: inputFile,
+        output_format: outputFormat,
+        output_filename: outputFilename,
+        overwrite: overwrite
+    };
+    
+    REDLINE.api.post('/converter/convert', conversionData)
+        .then(response => {
+            REDLINE.ui.hideLoading();
+            showConversionResults([response]);
+            REDLINE.ui.showToast('File converted successfully', 'success');
+            loadConvertedFiles();
+        })
+        .catch(error => {
+            REDLINE.ui.hideLoading();
+            REDLINE.ui.showToast('Error converting file: ' + error.message, 'error');
+        });
+}
+
+function batchConvert() {
+    if (batchFiles.length === 0) {
+        REDLINE.ui.showToast('No files selected for batch conversion', 'error');
+        return;
+    }
+    
+    const outputFormat = $('#batchOutputFormat').val();
+    const overwrite = $('#batchOverwrite').is(':checked');
+    
+    if (!outputFormat) {
+        REDLINE.ui.showToast('Please select output format for batch conversion', 'error');
+        return;
+    }
+    
+    REDLINE.ui.showLoading('Converting files...');
+    
+    const files = batchFiles.map(file => ({
+        input_file: file.name,
+        output_format: outputFormat,
+        output_filename: `${file.name.replace(/\.[^/.]+$/, '')}_converted${getFormatExtension(outputFormat)}`,
+        overwrite: overwrite
+    }));
+    
+    REDLINE.api.post('/converter/batch-convert', {
+        files: files,
+        overwrite: overwrite
+    })
+        .then(response => {
+            REDLINE.ui.hideLoading();
+            showBatchResults(response);
+            REDLINE.ui.showToast(`Batch conversion completed: ${response.successful} successful, ${response.failed} failed`, 'success');
+            loadConvertedFiles();
+        })
+        .catch(error => {
+            REDLINE.ui.hideLoading();
+            REDLINE.ui.showToast('Error in batch conversion: ' + error.message, 'error');
+        });
+}
+
+function showConversionResults(results) {
+    const resultsHtml = results.map(result => `
+        <div class="alert alert-success">
+            <h6><i class="fas fa-check-circle me-2"></i>Conversion Successful</h6>
+            <p class="mb-1">Input: ${result.input_file}</p>
+            <p class="mb-1">Output: ${result.output_file}</p>
+            <p class="mb-1">Format: ${result.output_format}</p>
+            <p class="mb-0">Records: ${result.records}</p>
+        </div>
+    `).join('');
+    
+    $('#resultsContent').html(resultsHtml);
+    $('#conversionResults').show();
+}
+
+function showBatchResults(response) {
+    let resultsHtml = `
+        <div class="alert alert-info">
+            <h6><i class="fas fa-info-circle me-2"></i>Batch Conversion Summary</h6>
+            <p class="mb-0">Total: ${response.total_files} | Successful: ${response.successful} | Failed: ${response.failed}</p>
+        </div>
+    `;
+    
+    if (response.results && response.results.length > 0) {
+        resultsHtml += '<h6>Successful Conversions:</h6>';
+        response.results.forEach(result => {
+            resultsHtml += `
+                <div class="alert alert-success">
+                    <p class="mb-1"><strong>${result.input_file}</strong> → ${result.output_file}</p>
+                    <p class="mb-0">Records: ${result.records}</p>
+                </div>
+            `;
+        });
+    }
+    
+    if (response.errors && response.errors.length > 0) {
+        resultsHtml += '<h6>Failed Conversions:</h6>';
+        response.errors.forEach(error => {
+            resultsHtml += `
+                <div class="alert alert-danger">
+                    <p class="mb-0"><strong>${error.input_file}</strong>: ${error.error}</p>
+                </div>
+            `;
+        });
+    }
+    
+    $('#resultsContent').html(resultsHtml);
+    $('#conversionResults').show();
+}
+</script>
+{% endblock %}

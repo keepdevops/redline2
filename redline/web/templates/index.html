@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block title %}REDLINE - Financial Data Analyzer{% endblock %}
+
+{% block page_title %}Welcome to REDLINE{% endblock %}
+{% block page_subtitle %}Financial Data Analyzer & Management Tool{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="welcome-section">
+            <div class="welcome-header">
+                <h1 class="display-4 text-primary">
+                    <i class="fas fa-chart-line me-3"></i>REDLINE
+                </h1>
+                <p class="lead">Professional-grade financial data analysis with modern web interface</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card feature-card">
+            <div class="card-body text-center">
+                <i class="fas fa-download feature-icon text-primary"></i>
+                <h5 class="card-title">Download Data</h5>
+                <p class="card-text">Download financial data from multiple sources including Yahoo Finance and Stooq.</p>
+                <a href="{{ url_for('download.download_tab') }}" class="btn btn-primary">
+                    <i class="fas fa-download me-2"></i>Download Data
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card feature-card">
+            <div class="card-body text-center">
+                <i class="fas fa-eye feature-icon text-success"></i>
+                <h5 class="card-title">View & Filter</h5>
+                <p class="card-text">View and filter large datasets with advanced filtering capabilities and virtual scrolling.</p>
+                <a href="{{ url_for('data.data_tab') }}" class="btn btn-success">
+                    <i class="fas fa-eye me-2"></i>View Data
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card feature-card">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-bar feature-icon text-warning"></i>
+                <h5 class="card-title">Analyze Data</h5>
+                <p class="card-text">Perform statistical analysis, financial calculations, and generate insights.</p>
+                <a href="{{ url_for('analysis.analysis_tab') }}" class="btn btn-warning">
+                    <i class="fas fa-chart-bar me-2"></i>Analyze Data
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card feature-card">
+            <div class="card-body text-center">
+                <i class="fas fa-exchange-alt feature-icon text-info"></i>
+                <h5 class="card-title">Convert Formats</h5>
+                <p class="card-text">Convert between different data formats including CSV, JSON, Parquet, and more.</p>
+                <a href="{{ url_for('converter.converter_tab') }}" class="btn btn-info">
+                    <i class="fas fa-exchange-alt me-2"></i>Convert Data
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-line me-2"></i>Quick Start Guide
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>1. Download Data</h6>
+                        <p>Start by downloading financial data for your preferred ticker symbols using the Download tab.</p>
+                        
+                        <h6>2. View & Filter</h6>
+                        <p>Use the Data tab to view your downloaded data and apply filters to focus on specific time periods or values.</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>3. Analyze</h6>
+                        <p>Perform analysis on your data using statistical tools and financial calculations in the Analysis tab.</p>
+                        
+                        <h6>4. Export</h6>
+                        <p>Convert your data to different formats or export analysis results using the Converter tab.</p>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <a href="{{ url_for('download.download_tab') }}" class="btn btn-primary me-2">
+                        <i class="fas fa-play me-2"></i>Start with Download
+                    </a>
+                    <a href="{{ url_for('main.help_page') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-question-circle me-2"></i>View Help
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>System Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="system-status-detail">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-circle text-success me-2"></i>
+                        <span>Application: Running</span>
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-database me-2"></i>
+                        <span id="db-status">Database: Checking...</span>
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-file-alt me-2"></i>
+                        <span id="formats-count">Formats: Loading...</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-clock me-2"></i>
+                        <span id="uptime">Uptime: Active</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-history me-2"></i>Recent Activity
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="recent-activity">
+                    <small class="text-muted">Loading recent activity...</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-rocket me-2"></i>Features
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-check text-success me-2"></i>Data Sources</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-arrow-right text-muted me-2"></i>Yahoo Finance</li>
+                            <li><i class="fas fa-arrow-right text-muted me-2"></i>Stooq</li>
+                            <li><i class="fas fa-arrow-right text-muted me-2"></i>Custom APIs</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-check text-success me-2"></i>Supported Formats</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-arrow-right text-muted me-2"></i>CSV, JSON, Parquet</li>
+                            <li><i class="fas fa-arrow-right text-muted me-2"></i>Feather, DuckDB</li>
+                            <li><i class="fas fa-arrow-right text-muted me-2"></i>Excel (coming soon)</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-check text-success me-2"></i>Analysis Tools</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-arrow-right text-muted me-2"></i>Statistical Analysis</li>
+                            <li><i class="fas fa-arrow-right text-muted me-2"></i>Financial Calculations</li>
+                            <li><i class="fas fa-arrow-right text-muted me-2"></i>Correlation Analysis</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.welcome-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 3rem 2rem;
+    border-radius: 10px;
+    margin-bottom: 2rem;
+}
+
+.welcome-header h1 {
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.feature-card {
+    height: 100%;
+    transition: transform 0.3s ease;
+    border: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+}
+
+.feature-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Load detailed system status
+    loadDetailedStatus();
+    loadRecentActivity();
+    
+    // Auto-refresh every 30 seconds
+    setInterval(function() {
+        loadDetailedStatus();
+        loadRecentActivity();
+    }, 30000);
+});
+
+function loadDetailedStatus() {
+    $.get('/status')
+        .done(function(data) {
+            $('#db-status').text(`Database: ${data.database}`);
+            $('#formats-count').text(`Formats: ${data.supported_formats ? data.supported_formats.length : 0}`);
+        })
+        .fail(function() {
+            $('#db-status').text('Database: Error');
+            $('#formats-count').text('Formats: Error');
+        });
+}
+
+function loadRecentActivity() {
+    $.get('/api/files')
+        .done(function(data) {
+            const container = $('#recent-activity');
+            container.empty();
+            
+            if (data.files && data.files.length > 0) {
+                data.files.slice(0, 3).forEach(function(file) {
+                    const item = $(`
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <small class="text-primary">${file.name}</small><br>
+                                <small class="text-muted">${formatFileSize(file.size)}</small>
+                            </div>
+                            <small class="text-muted">${formatDate(file.modified)}</small>
+                        </div>
+                    `);
+                    container.append(item);
+                });
+            } else {
+                container.html('<small class="text-muted">No recent files</small>');
+            }
+        })
+        .fail(function() {
+            $('#recent-activity').html('<small class="text-danger">Error loading activity</small>');
+        });
+}
+</script>
+{% endblock %}

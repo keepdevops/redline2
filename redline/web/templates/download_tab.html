@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+
+{% block title %}Download Tab - REDLINE{% endblock %}
+
+{% block page_title %}Download Financial Data{% endblock %}
+{% block page_subtitle %}Download data from various financial sources{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <!-- Download Form -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-download me-2"></i>Download Data
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="downloadForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="ticker" class="form-label">Ticker Symbol</label>
+                                <input type="text" class="form-control" id="ticker" placeholder="e.g., AAPL, MSFT, GOOGL" required>
+                                <div class="form-text">Enter stock ticker symbol (e.g., AAPL for Apple)</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="source" class="form-label">Data Source</label>
+                                <select class="form-select" id="source" required>
+                                    <option value="yahoo">Yahoo Finance</option>
+                                    <option value="stooq">Stooq</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="startDate" class="form-label">Start Date</label>
+                                <input type="date" class="form-control" id="startDate">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="endDate" class="form-label">End Date</label>
+                                <input type="date" class="form-control" id="endDate">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="interval" class="form-label">Interval</label>
+                                <select class="form-select" id="interval">
+                                    <option value="1d">Daily</option>
+                                    <option value="1wk">Weekly</option>
+                                    <option value="1mo">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-download me-2"></i>Download Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Batch Download -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list me-2"></i>Batch Download
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="batchTickers" class="form-label">Ticker Symbols (one per line)</label>
+                    <textarea class="form-control" id="batchTickers" rows="5" placeholder="AAPL&#10;MSFT&#10;GOOGL&#10;TSLA"></textarea>
+                    <div class="form-text">Enter multiple ticker symbols, one per line</div>
+                </div>
+                <button id="batchDownloadBtn" class="btn btn-success">
+                    <i class="fas fa-download me-2"></i>Download All
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Download History -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-history me-2"></i>Download History
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="downloadHistory">
+                    <small class="text-muted">Loading download history...</small>
+                </div>
+                <button id="refreshHistoryBtn" class="btn btn-outline-secondary btn-sm mt-3">
+                    <i class="fas fa-sync-alt me-2"></i>Refresh
+                </button>
+            </div>
+        </div>
+        
+        <!-- Popular Tickers -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-star me-2"></i>Popular Tickers
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary btn-sm ticker-btn" data-ticker="AAPL">Apple (AAPL)</button>
+                    <button class="btn btn-outline-primary btn-sm ticker-btn" data-ticker="MSFT">Microsoft (MSFT)</button>
+                    <button class="btn btn-outline-primary btn-sm ticker-btn" data-ticker="GOOGL">Google (GOOGL)</button>
+                    <button class="btn btn-outline-primary btn-sm ticker-btn" data-ticker="TSLA">Tesla (TSLA)</button>
+                    <button class="btn btn-outline-primary btn-sm ticker-btn" data-ticker="AMZN">Amazon (AMZN)</button>
+                    <button class="btn btn-outline-primary btn-sm ticker-btn" data-ticker="META">Meta (META)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Download Results -->
+<div id="downloadResults" class="row mt-4" style="display: none;">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-check-circle me-2"></i>Download Results
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="resultsContent">
+                    <!-- Results will be displayed here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Set default dates
+    const today = new Date();
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(today.getFullYear() - 1);
+    
+    $('#endDate').val(today.toISOString().split('T')[0]);
+    $('#startDate').val(oneYearAgo.toISOString().split('T')[0]);
+    
+    // Load download history
+    loadDownloadHistory();
+    
+    // Event handlers
+    $('#downloadForm').on('submit', function(e) {
+        e.preventDefault();
+        downloadData();
+    });
+    
+    $('#batchDownloadBtn').on('click', function() {
+        batchDownload();
+    });
+    
+    $('#refreshHistoryBtn').on('click', function() {
+        loadDownloadHistory();
+    });
+    
+    $('.ticker-btn').on('click', function() {
+        const ticker = $(this).data('ticker');
+        $('#ticker').val(ticker);
+    });
+});
+
+function downloadData() {
+    const ticker = $('#ticker').val().trim().toUpperCase();
+    const source = $('#source').val();
+    const startDate = $('#startDate').val();
+    const endDate = $('#endDate').val();
+    const interval = $('#interval').val();
+    
+    if (!ticker) {
+        REDLINE.ui.showToast('Please enter a ticker symbol', 'error');
+        return;
+    }
+    
+    REDLINE.ui.showLoading('Downloading data...');
+    
+    const downloadData = {
+        ticker: ticker,
+        source: source,
+        start_date: startDate,
+        end_date: endDate,
+        interval: interval
+    };
+    
+    REDLINE.api.post('/download/download', downloadData)
+        .then(response => {
+            REDLINE.ui.hideLoading();
+            showDownloadResults([response]);
+            REDLINE.ui.showToast(`Successfully downloaded ${response.records} records for ${ticker}`, 'success');
+            loadDownloadHistory();
+        })
+        .catch(error => {
+            REDLINE.ui.hideLoading();
+            REDLINE.ui.showToast('Error downloading data: ' + error.message, 'error');
+        });
+}
+
+function batchDownload() {
+    const tickersText = $('#batchTickers').val().trim();
+    if (!tickersText) {
+        REDLINE.ui.showToast('Please enter ticker symbols', 'error');
+        return;
+    }
+    
+    const tickers = tickersText.split('\n').map(t => t.trim().toUpperCase()).filter(t => t);
+    if (tickers.length === 0) {
+        REDLINE.ui.showToast('No valid ticker symbols found', 'error');
+        return;
+    }
+    
+    const source = $('#source').val();
+    const startDate = $('#startDate').val();
+    const endDate = $('#endDate').val();
+    
+    REDLINE.ui.showLoading(`Downloading data for ${tickers.length} tickers...`);
+    
+    const batchData = {
+        tickers: tickers,
+        source: source,
+        start_date: startDate,
+        end_date: endDate
+    };
+    
+    REDLINE.api.post('/download/batch-download', batchData)
+        .then(response => {
+            REDLINE.ui.hideLoading();
+            showBatchResults(response);
+            REDLINE.ui.showToast(`Batch download completed: ${response.successful} successful, ${response.failed} failed`, 'success');
+            loadDownloadHistory();
+        })
+        .catch(error => {
+            REDLINE.ui.hideLoading();
+            REDLINE.ui.showToast('Error in batch download: ' + error.message, 'error');
+        });
+}
+
+function showDownloadResults(results) {
+    const resultsHtml = results.map(result => `
+        <div class="alert alert-success">
+            <h6><i class="fas fa-check-circle me-2"></i>${result.ticker} - ${result.source.toUpperCase()}</h6>
+            <p class="mb-1">Records: ${result.records}</p>
+            <p class="mb-1">Filename: ${result.filename}</p>
+            <p class="mb-0">Date Range: ${result.date_range.start} to ${result.date_range.end}</p>
+        </div>
+    `).join('');
+    
+    $('#resultsContent').html(resultsHtml);
+    $('#downloadResults').show();
+}
+
+function showBatchResults(response) {
+    let resultsHtml = `
+        <div class="alert alert-info">
+            <h6><i class="fas fa-info-circle me-2"></i>Batch Download Summary</h6>
+            <p class="mb-0">Total: ${response.total_requested} | Successful: ${response.successful} | Failed: ${response.failed}</p>
+        </div>
+    `;
+    
+    if (response.results && response.results.length > 0) {
+        resultsHtml += '<h6>Successful Downloads:</h6>';
+        response.results.forEach(result => {
+            resultsHtml += `
+                <div class="alert alert-success">
+                    <p class="mb-1"><strong>${result.ticker}</strong>: ${result.records} records</p>
+                    <p class="mb-0">Filename: ${result.filename}</p>
+                </div>
+            `;
+        });
+    }
+    
+    if (response.errors && response.errors.length > 0) {
+        resultsHtml += '<h6>Failed Downloads:</h6>';
+        response.errors.forEach(error => {
+            resultsHtml += `
+                <div class="alert alert-danger">
+                    <p class="mb-0"><strong>${error.ticker}</strong>: ${error.error}</p>
+                </div>
+            `;
+        });
+    }
+    
+    $('#resultsContent').html(resultsHtml);
+    $('#downloadResults').show();
+}
+
+function loadDownloadHistory() {
+    REDLINE.api.get('/download/history')
+        .then(response => {
+            const container = $('#downloadHistory');
+            container.empty();
+            
+            if (response.downloads && response.downloads.length > 0) {
+                response.downloads.forEach(download => {
+                    const item = $(`
+                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                            <div>
+                                <small class="text-primary">${download.filename}</small><br>
+                                <small class="text-muted">${REDLINE.utils.formatFileSize(download.size)}</small>
+                            </div>
+                            <small class="text-muted">${REDLINE.utils.formatDate(download.modified)}</small>
+                        </div>
+                    `);
+                    container.append(item);
+                });
+            } else {
+                container.html('<small class="text-muted">No download history</small>');
+            }
+        })
+        .catch(error => {
+            $('#downloadHistory').html('<small class="text-danger">Error loading history</small>');
+        });
+}
+</script>
+{% endblock %}
