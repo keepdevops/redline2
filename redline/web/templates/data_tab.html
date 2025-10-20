@@ -85,7 +85,7 @@
                     <!-- Data info will be displayed here -->
                 </div>
                 <div id="dataTableContainer">
-                    <!-- Data table will be displayed here -->
+                    <!-- Virtual scrolling data table will be displayed here -->
                 </div>
             </div>
         </div>
@@ -98,6 +98,7 @@
 let currentFile = null;
 let currentData = null;
 let currentFilters = {};
+let virtualTable = null;
 
 $(document).ready(function() {
     loadFileList();
@@ -168,10 +169,18 @@ function loadFileList() {
 function loadData(filename) {
     REDLINE.ui.showLoading('Loading data...');
     
-    REDLINE.dataManager.loadData(filename)
-        .then(response => {
+    // Initialize virtual table if not exists
+    if (!virtualTable) {
+        virtualTable = new VirtualScrollTable('#dataTableContainer', {
+            rowHeight: 35,
+            visibleRows: 20
+        });
+    }
+    
+    // Load data with virtual scrolling
+    virtualTable.loadDataFromAPI('/data/load', { filename: filename })
+        .then(() => {
             currentFile = filename;
-            currentData = response;
             
             // Show filter section
             $('#filterSection').show();
@@ -180,13 +189,14 @@ function loadData(filename) {
             $('#dataTableSection').show();
             
             // Update data info
-            updateDataInfo(response);
-            
-            // Create data table
-            createDataTable(response);
+            updateDataInfo({
+                total_rows: virtualTable.getTotalRows(),
+                columns: virtualTable.columns,
+                file_size: 0 // Will be updated from API response
+            });
             
             // Create filter options
-            createFilterOptions(response.columns);
+            createFilterOptions(virtualTable.columns);
             
             REDLINE.ui.hideLoading();
         })
@@ -229,23 +239,7 @@ function updateDataInfo(data) {
     $('#dataInfo').html(infoHtml);
 }
 
-function createDataTable(data) {
-    const columns = data.columns.map(col => ({
-        title: col,
-        data: col
-    }));
-    
-    const tableId = REDLINE.ui.createDataTable(
-        '#dataTableContainer',
-        data.data,
-        columns,
-        {
-            pageLength: 25,
-            scrollX: true,
-            responsive: true
-        }
-    );
-}
+// createDataTable function removed - now using VirtualScrollTable
 
 function createFilterOptions(columns) {
     const container = $('#filterContainer');
