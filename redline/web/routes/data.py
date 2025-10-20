@@ -7,6 +7,10 @@ from flask import Blueprint, render_template, request, jsonify
 import logging
 import os
 import pandas as pd
+from ..database.optimized_connector import OptimizedDatabaseConnector
+
+# Initialize optimized database connector
+optimized_db = OptimizedDatabaseConnector(max_connections=8, cache_size=64, cache_ttl=300)
 
 data_bp = Blueprint('data', __name__)
 logger = logging.getLogger(__name__)
@@ -339,4 +343,14 @@ def export_data():
         
     except Exception as e:
         logger.error(f"Error exporting data: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@data_bp.route('/db-stats')
+def get_database_stats():
+    """Get database performance statistics."""
+    try:
+        stats = optimized_db.get_performance_stats()
+        return jsonify(stats)
+    except Exception as e:
+        logger.error(f"Error getting database stats: {str(e)}")
         return jsonify({'error': str(e)}), 500

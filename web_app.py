@@ -9,6 +9,7 @@ import sys
 import logging
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO
+from flask_compress import Compress
 
 # Add the project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -41,6 +42,9 @@ def create_app():
     
     # Initialize SocketIO for real-time updates
     socketio = SocketIO(app, cors_allowed_origins="*")
+    
+    # Initialize compression
+    Compress(app)
     
     # Register blueprints
     from redline.web.routes.main import main_bp

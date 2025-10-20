@@ -9,6 +9,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import threading
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import pandas as pd
 from typing import Optional, List, Dict, Any
 
@@ -335,44 +336,41 @@ class DataTab:
                     )
                 )
             
-            for i, file_path in enumerate(file_paths):
-                if not self.progress_tracker.is_operation_running():
-                    break
+            # Use parallel processing for file loading
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                # Submit all file loading tasks
+                future_to_file = {
+                    executor.submit(self._load_single_file_parallel, file_path): file_path
+                    for file_path in file_paths
+                }
                 
-                try:
-                    # Check if this is a large file
-                    file_size = os.path.getsize(file_path)
-                    is_large_file = file_size > 50 * 1024 * 1024  # 50MB
-                    
-                    # Detect format from extension
-                    format_type = self._detect_format_from_path(file_path)
+                # Process completed loads
+                completed = 0
+                for future in as_completed(future_to_file):
+                    if not self.progress_tracker.is_operation_running():
+                        break
+                        
+                    file_path = future_to_file[future]
+                    completed += 1
                     
                     # Update progress
                     self.progress_tracker.update_progress(
-                        operation=f"Loading {os.path.basename(file_path)}..." + (
-                            " (Large file - this may take a while)" if is_large_file else ""
-                        )
+                        operation=f"Loading {os.path.basename(file_path)}... ({completed}/{len(file_paths)})"
                     )
                     
-                    # Load data with chunked approach for large files
-                    if is_large_file and format_type in ['csv', 'txt']:
-                        data = self._load_large_file_chunked(file_path, format_type)
-                    else:
-                        data = self.loader.load_file_by_type(file_path, format_type)
-                    
-                    if data is not None and not data.empty:
-                        loaded_data.append(data)
-                        # Clear memory immediately after appending
-                        del data
-                    else:
+                    try:
+                        data = future.result()
+                        if data is not None and not data.empty:
+                            loaded_data.append(data)
+                            self.logger.info(f"Successfully loaded {file_path}: {len(data)} rows")
+                        else:
+                            skipped_files.append(file_path)
+                            self.logger.warning(f"Skipped empty file: {file_path}")
+                    except Exception as e:
+                        self.logger.error(f"Error loading {file_path}: {str(e)}")
                         skipped_files.append(file_path)
                     
                     # Increment progress
-                    self.progress_tracker.update_progress(increment=True)
-                    
-                except Exception as e:
-                    self.logger.error(f"Error loading {file_path}: {str(e)}")
-                    skipped_files.append(file_path)
                     self.progress_tracker.update_progress(increment=True)
             
             # Combine loaded data with memory optimization
@@ -429,6 +427,28 @@ class DataTab:
             self.main_window.run_in_main_thread(
                 lambda: self.main_window.show_error_message("Error", f"Failed to load files: {error_msg}")
             )
+    
+    def _load_single_file_parallel(self, file_path: str) -> Optional[pd.DataFrame]:
+        """Load a single file - designed for parallel processing."""
+        try:
+            # Check if this is a large file
+            file_size = os.path.getsize(file_path)
+            is_large_file = file_size > 50 * 1024 * 1024  # 50MB
+            
+            # Detect format from extension
+            format_type = self._detect_format_from_path(file_path)
+            
+            # Load data with chunked approach for large files
+            if is_large_file and format_type in ['csv', 'txt']:
+                data = self._load_large_file_chunked(file_path, format_type)
+            else:
+                data = self.loader.load_file_by_type(file_path, format_type)
+            
+            return data
+            
+        except Exception as e:
+            self.logger.error(f"Error loading {file_path}: {str(e)}")
+            return None
     
     def _detect_format_from_path(self, file_path: str) -> str:
         """Detect format from file path."""

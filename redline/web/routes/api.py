@@ -8,6 +8,8 @@ import logging
 import os
 import pandas as pd
 from werkzeug.utils import secure_filename
+import gzip
+import json
 
 api_bp = Blueprint('api', __name__)
 logger = logging.getLogger(__name__)
@@ -15,10 +17,57 @@ logger = logging.getLogger(__name__)
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {'csv', 'json', 'parquet', 'feather', 'duckdb'}
 
+# API Configuration
+DEFAULT_PAGE_SIZE = 100
+MAX_PAGE_SIZE = 1000
+COMPRESSION_THRESHOLD = 1024  # Compress responses > 1KB
+
 def allowed_file(filename):
     """Check if file extension is allowed."""
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def compress_response(response_data):
+    """Compress response data if it's large enough."""
+    try:
+        response_json = json.dumps(response_data)
+        if len(response_json) > COMPRESSION_THRESHOLD:
+            compressed = gzip.compress(response_json.encode('utf-8'))
+            return compressed, True
+        return response_json.encode('utf-8'), False
+    except Exception as e:
+        logger.error(f"Error compressing response: {str(e)}")
+        return json.dumps(response_data).encode('utf-8'), False
+
+def paginate_data(data, page=1, per_page=None):
+    """Paginate data for API responses."""
+    if per_page is None:
+        per_page = DEFAULT_PAGE_SIZE
+    
+    # Ensure page and per_page are valid
+    page = max(1, int(page))
+    per_page = min(max(1, int(per_page)), MAX_PAGE_SIZE)
+    
+    # Calculate pagination
+    total_items = len(data)
+    total_pages = (total_items + per_page - 1) // per_page
+    start_idx = (page - 1) * per_page
+    end_idx = min(start_idx + per_page, total_items)
+    
+    # Get paginated data
+    paginated_data = data[start_idx:end_idx]
+    
+    return {
+        'data': paginated_data,
+        'pagination': {
+            'page': page,
+            'per_page': per_page,
+            'total': total_items,
+            'pages': total_pages,
+            'has_next': page < total_pages,
+            'has_prev': page > 1
+        }
+    }
 
 @api_bp.route('/upload', methods=['POST'])
 def upload_file():
@@ -145,34 +194,57 @@ def download_data(ticker):
 
 @api_bp.route('/data/<filename>', methods=['GET'])
 def get_data_preview(filename):
-    """Get preview of data file."""
+    """Get paginated preview of data file with compression."""
     try:
         data_path = os.path.join(os.getcwd(), 'data', filename)
         
         if not os.path.exists(data_path):
             return jsonify({'error': 'File not found'}), 404
         
-        # Load first 100 rows for preview
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', DEFAULT_PAGE_SIZE, type=int)
+        
+        # Load data
         from redline.core.format_converter import FormatConverter
         converter = FormatConverter()
         
         data = converter.load_file(data_path)
         
         if isinstance(data, pd.DataFrame):
-            preview = data.head(100).to_dict('records')
-            columns = list(data.columns)
-            total_rows = len(data)
+            # Convert to records for pagination
+            all_records = data.to_dict('records')
+            
+            # Paginate the data
+            paginated_result = paginate_data(all_records, page, per_page)
+            
+            response_data = {
+                'columns': list(data.columns),
+                'total_rows': len(data),
+                'filename': filename,
+                'preview': paginated_result['data'],
+                'pagination': paginated_result['pagination']
+            }
         else:
+            # Handle non-DataFrame data
             preview = str(data)[:1000]  # Truncate for non-DataFrame data
-            columns = []
-            total_rows = 0
+            response_data = {
+                'columns': [],
+                'total_rows': 0,
+                'filename': filename,
+                'preview': preview,
+                'pagination': {'page': 1, 'per_page': 1, 'total': 1, 'pages': 1, 'has_next': False, 'has_prev': False}
+            }
         
-        return jsonify({
-            'preview': preview,
-            'columns': columns,
-            'total_rows': total_rows,
-            'filename': filename
-        })
+        # Compress response if large
+        compressed_data, is_compressed = compress_response(response_data)
+        
+        response = jsonify(response_data)
+        if is_compressed:
+            response.headers['Content-Encoding'] = 'gzip'
+            response.headers['Content-Length'] = str(len(compressed_data))
+        
+        return response
         
     except Exception as e:
         logger.error(f"Error getting data preview for {filename}: {str(e)}")

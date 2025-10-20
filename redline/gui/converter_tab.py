@@ -9,6 +9,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import threading
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Any, Optional
 import pandas as pd
 
@@ -570,7 +571,7 @@ class ConverterTab:
                 )
                 
     def _batch_conversion_worker(self):
-        """Batch conversion worker."""
+        """Batch conversion worker with parallel processing."""
         import glob
         
         batch_dir = self.batch_dir_var.get()
@@ -585,57 +586,51 @@ class ConverterTab:
             
         total_files = len(files)
         
-        for i, input_file in enumerate(files):
-            if self.stop_event.is_set():
-                break
-                
-            try:
-                # Update progress
-                progress = (i / total_files) * 100
-                self.main_window.run_in_main_thread(
-                    lambda p=progress: self.progress_var.set(p)
-                )
-                
-                self.main_window.run_in_main_thread(
-                    lambda f=input_file: self.status_label.config(text=f"Converting: {os.path.basename(f)}")
-                )
-                
-                # Auto-detect input format
-                ext = os.path.splitext(input_file)[1].lower()
-                input_format = EXT_TO_FORMAT.get(ext, 'csv')
-                
-                # Perform conversion
-                result = self._convert_single_file(input_file, input_format)
-                
-                if result and not result.startswith("Skipped:"):
-                    # Successful conversion
-                    self.converted_files.append(result)
+        # Use parallel processing for batch conversion
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            # Submit all conversion tasks
+            future_to_file = {
+                executor.submit(self._convert_single_file, file): file
+                for file in files
+            }
+            
+            # Process completed conversions
+            completed = 0
+            for future in as_completed(future_to_file):
+                if self.stop_event.is_set():
+                    break
                     
-                    # Add to results
+                input_file = future_to_file[future]
+                try:
+                    output_file = future.result()
+                    completed += 1
+                    
+                    # Update progress
+                    progress = (completed / total_files) * 100
+                    self.main_window.run_in_main_thread(
+                        lambda p=progress: self.progress_var.set(p)
+                    )
+                
+                    if output_file:
+                        self.converted_files.append(output_file)
+                        
+                        # Add to results
+                        self.main_window.run_in_main_thread(
+                            lambda: self._add_conversion_result(
+                                input_file, self.input_format_var.get(),
+                                self.output_format_var.get(), "Success", output_file
+                            )
+                        )
+                        
+                except Exception as e:
+                    error_msg = str(e)
+                    self.logger.error(f"Error converting {input_file}: {error_msg}")
                     self.main_window.run_in_main_thread(
                         lambda: self._add_conversion_result(
-                            input_file, input_format,
-                            self.output_format_var.get(), "Success", result
+                            input_file, self.input_format_var.get(),
+                            self.output_format_var.get(), f"Error: {error_msg}", ""
                         )
                     )
-                elif result and result.startswith("Skipped:"):
-                    # File was skipped
-                    self.main_window.run_in_main_thread(
-                        lambda: self._add_conversion_result(
-                            input_file, input_format,
-                            self.output_format_var.get(), result, ""
-                        )
-                    )
-                    
-            except Exception as e:
-                error_msg = str(e)  # Capture exception message
-                self.logger.error(f"Error converting {input_file}: {error_msg}")
-                self.main_window.run_in_main_thread(
-                    lambda: self._add_conversion_result(
-                        input_file, input_format,
-                        self.output_format_var.get(), f"Error: {error_msg}", ""
-                    )
-                )
                 
     def _convert_single_file(self, input_file: str, input_format: str = None) -> str:
         """Convert a single file."""

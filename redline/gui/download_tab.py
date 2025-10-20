@@ -36,7 +36,7 @@ class DownloadTab:
         self.yahoo_downloader = YahooDownloader()
         self.stooq_downloader = StooqDownloader()
         self.multi_downloader = MultiSourceDownloader()
-        self.bulk_downloader = BulkDownloader(max_workers=1)  # Use only 1 worker to avoid rate limiting
+        self.bulk_downloader = BulkDownloader(max_workers=4)  # Use 4 workers for faster downloads
         
         # Variables
         self.ticker_input = tk.StringVar()
@@ -451,7 +451,7 @@ class DownloadTab:
                     # Add delay to avoid rate limiting
                     if i < total_tickers - 1:  # Don't delay after last ticker
                         import time
-                        time.sleep(3)  # 3 second delay between requests to avoid rate limiting
+                        time.sleep(0.5)  # 0.5 second delay - Yahoo Finance can handle this
                     
                     # Process results
                     if df is not None and not df.empty:
