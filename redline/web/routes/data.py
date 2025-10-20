@@ -378,6 +378,50 @@ def export_data():
         logger.error(f"Error exporting data: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@data_bp.route('/files')
+def list_files():
+    """List available data files."""
+    try:
+        data_dir = os.path.join(os.getcwd(), 'data')
+        files = []
+        
+        # Get files from main data directory
+        if os.path.exists(data_dir):
+            for filename in os.listdir(data_dir):
+                file_path = os.path.join(data_dir, filename)
+                if os.path.isfile(file_path) and not filename.startswith('.'):
+                    file_stat = os.stat(file_path)
+                    files.append({
+                        'name': filename,
+                        'size': file_stat.st_size,
+                        'modified': file_stat.st_mtime,
+                        'path': file_path
+                    })
+        
+        # Get files from downloaded directory
+        downloaded_dir = os.path.join(data_dir, 'downloaded')
+        if os.path.exists(downloaded_dir):
+            for filename in os.listdir(downloaded_dir):
+                file_path = os.path.join(downloaded_dir, filename)
+                if os.path.isfile(file_path) and not filename.startswith('.'):
+                    file_stat = os.stat(file_path)
+                    files.append({
+                        'name': filename,
+                        'size': file_stat.st_size,
+                        'modified': file_stat.st_mtime,
+                        'path': file_path,
+                        'location': 'downloaded'
+                    })
+        
+        # Sort by modification time (newest first)
+        files.sort(key=lambda x: x['modified'], reverse=True)
+        
+        return jsonify({'files': files})
+        
+    except Exception as e:
+        logger.error(f"Error listing files: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @data_bp.route('/db-stats')
 def get_database_stats():
     """Get database performance statistics."""

@@ -14,6 +14,66 @@ import json
 api_bp = Blueprint('api', __name__)
 logger = logging.getLogger(__name__)
 
+@api_bp.route('/status')
+def get_status():
+    """Get application status."""
+    try:
+        status = {
+            'status': 'running',
+            'version': '1.0.0',
+            'database': 'available',
+            'supported_formats': ['csv', 'json', 'parquet', 'feather', 'duckdb'],
+            'timestamp': pd.Timestamp.now().isoformat()
+        }
+        return jsonify(status)
+    except Exception as e:
+        logger.error(f"Error getting status: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/files')
+def api_list_files():
+    """List available data files via API."""
+    try:
+        data_dir = os.path.join(os.getcwd(), 'data')
+        files = []
+        
+        # Get files from main data directory
+        if os.path.exists(data_dir):
+            for filename in os.listdir(data_dir):
+                file_path = os.path.join(data_dir, filename)
+                if os.path.isfile(file_path) and not filename.startswith('.'):
+                    file_stat = os.stat(file_path)
+                    files.append({
+                        'name': filename,
+                        'size': file_stat.st_size,
+                        'modified': file_stat.st_mtime,
+                        'path': file_path
+                    })
+        
+        # Get files from downloaded directory
+        downloaded_dir = os.path.join(data_dir, 'downloaded')
+        if os.path.exists(downloaded_dir):
+            for filename in os.listdir(downloaded_dir):
+                file_path = os.path.join(downloaded_dir, filename)
+                if os.path.isfile(file_path) and not filename.startswith('.'):
+                    file_stat = os.stat(file_path)
+                    files.append({
+                        'name': filename,
+                        'size': file_stat.st_size,
+                        'modified': file_stat.st_mtime,
+                        'path': file_path,
+                        'location': 'downloaded'
+                    })
+        
+        # Sort by modification time (newest first)
+        files.sort(key=lambda x: x['modified'], reverse=True)
+        
+        return jsonify({'files': files})
+        
+    except Exception as e:
+        logger.error(f"Error listing files: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {'csv', 'json', 'parquet', 'feather', 'duckdb'}
 
@@ -492,20 +552,34 @@ def get_font_color_presets():
                 'text-link': '#374151',
                 'text-link-hover': '#1f2937'
             },
-            'dark': {
-                'text-primary': '#f9fafb',
-                'text-secondary': '#d1d5db',
-                'text-muted': '#9ca3af',
-                'text-light': '#6b7280',
-                'text-dark': '#ffffff',
-                'text-white': '#ffffff',
-                'text-success': '#10b981',
-                'text-warning': '#f59e0b',
-                'text-danger': '#ef4444',
-                'text-info': '#06b6d4',
-                'text-link': '#3b82f6',
-                'text-link-hover': '#2563eb'
-            }
+                    'dark': {
+                        'text-primary': '#f9fafb',
+                        'text-secondary': '#d1d5db',
+                        'text-muted': '#9ca3af',
+                        'text-light': '#6b7280',
+                        'text-dark': '#ffffff',
+                        'text-white': '#ffffff',
+                        'text-success': '#10b981',
+                        'text-warning': '#f59e0b',
+                        'text-danger': '#ef4444',
+                        'text-info': '#06b6d4',
+                        'text-link': '#3b82f6',
+                        'text-link-hover': '#2563eb'
+                    },
+                    'grayscale': {
+                        'text-primary': '#2d3748',
+                        'text-secondary': '#4a5568',
+                        'text-muted': '#718096',
+                        'text-light': '#a0aec0',
+                        'text-dark': '#1a202c',
+                        'text-white': '#ffffff',
+                        'text-success': '#38a169',
+                        'text-warning': '#d69e2e',
+                        'text-danger': '#e53e3e',
+                        'text-info': '#3182ce',
+                        'text-link': '#4a5568',
+                        'text-link-hover': '#2d3748'
+                    }
         }
         
         return jsonify({'presets': presets})

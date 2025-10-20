@@ -224,6 +224,38 @@
     --text-link-hover: #2563eb;
 }
 
+/* Grayscale Theme */
+.theme-grayscale {
+    --primary-color: #4a5568;
+    --secondary-color: #718096;
+    --success-color: #68d391;
+    --warning-color: #fbd38d;
+    --danger-color: #fc8181;
+    --info-color: #63b3ed;
+    --light-color: #f7fafc;
+    --dark-color: #2d3748;
+    --purple-color: #b794f6;
+    --pink-color: #f687b3;
+    --indigo-color: #7c3aed;
+    --teal-color: #4fd1c7;
+    --lime-color: #9ae6b4;
+    --rose-color: #fbb6ce;
+    
+    /* Font Color Variables - Grayscale palette */
+    --text-primary: #2d3748;
+    --text-secondary: #4a5568;
+    --text-muted: #718096;
+    --text-light: #a0aec0;
+    --text-dark: #1a202c;
+    --text-white: #ffffff;
+    --text-success: #38a169;
+    --text-warning: #d69e2e;
+    --text-danger: #e53e3e;
+    --text-info: #3182ce;
+    --text-link: #4a5568;
+    --text-link-hover: #2d3748;
+}
+
 /* Apply theme to body */
 body.theme-default { color-scheme: light; }
 body.theme-high-contrast { color-scheme: light; }
@@ -231,6 +263,7 @@ body.theme-ocean { color-scheme: light; }
 body.theme-forest { color-scheme: light; }
 body.theme-sunset { color-scheme: light; }
 body.theme-monochrome { color-scheme: light; }
+body.theme-grayscale { color-scheme: light; }
 body.theme-dark { 
     color-scheme: dark; 
     background-color: #111827 !important;
