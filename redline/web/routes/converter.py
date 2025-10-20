@@ -95,10 +95,21 @@ def convert_file():
                 'suggestion': 'Set overwrite to true or choose a different filename'
             }), 400
         
-        # Load input file
-        input_path = os.path.join(os.getcwd(), 'data', input_file)
+        # Determine input file path - check both root data directory and downloaded subdirectory
+        data_dir = os.path.join(os.getcwd(), 'data')
+        input_path = None
         
-        if not os.path.exists(input_path):
+        # Check in root data directory first
+        root_path = os.path.join(data_dir, input_file)
+        if os.path.exists(root_path):
+            input_path = root_path
+        else:
+            # Check in downloaded directory
+            downloaded_path = os.path.join(data_dir, 'downloaded', input_file)
+            if os.path.exists(downloaded_path):
+                input_path = downloaded_path
+        
+        if not input_path or not os.path.exists(input_path):
             return jsonify({'error': 'Input file not found'}), 404
         
         from redline.core.format_converter import FormatConverter
@@ -181,10 +192,21 @@ def batch_convert():
                     })
                     continue
                 
-                # Perform conversion
-                input_path = os.path.join(os.getcwd(), 'data', input_file)
+                # Determine input file path - check both root data directory and downloaded subdirectory
+                data_dir = os.path.join(os.getcwd(), 'data')
+                input_path = None
                 
-                if not os.path.exists(input_path):
+                # Check in root data directory first
+                root_path = os.path.join(data_dir, input_file)
+                if os.path.exists(root_path):
+                    input_path = root_path
+                else:
+                    # Check in downloaded directory
+                    downloaded_path = os.path.join(data_dir, 'downloaded', input_file)
+                    if os.path.exists(downloaded_path):
+                        input_path = downloaded_path
+                
+                if not input_path or not os.path.exists(input_path):
                     errors.append({
                         'input_file': input_file,
                         'error': 'Input file not found'

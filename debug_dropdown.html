@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Dropdown Test</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Debug Dropdown Test</h1>
+    <select id="fileSelect">
+        <option value="">Loading files...</option>
+    </select>
+    <button id="testBtn">Test Load Files</button>
+    <div id="debug"></div>
+
+    <script>
+    $(document).ready(function() {
+        console.log('Debug page ready');
+        console.log('jQuery version:', $.fn.jquery);
+        
+        $('#testBtn').click(function() {
+            console.log('Test button clicked');
+            loadFiles();
+        });
+        
+        // Auto-load files
+        setTimeout(loadFiles, 1000);
+    });
+    
+    function loadFiles() {
+        console.log('Loading files...');
+        $('#debug').append('<p>Loading files...</p>');
+        
+        $.ajax({
+            url: 'http://localhost:8082/data/files',
+            method: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                console.log('Success:', response);
+                $('#debug').append('<p>Success: ' + JSON.stringify(response) + '</p>');
+                
+                const select = $('#fileSelect');
+                select.empty();
+                select.append('<option value="">Select a file...</option>');
+                
+                if (response.files && response.files.length > 0) {
+                    response.files.forEach(file => {
+                        select.append(`<option value="${file.name}">${file.name}</option>`);
+                    });
+                    $('#debug').append('<p>Added ' + response.files.length + ' files to dropdown</p>');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.log('Error:', error, xhr.responseText);
+                $('#debug').append('<p>Error: ' + error + ' - ' + xhr.responseText + '</p>');
+            }
+        });
+    }
+    </script>
+</body>
+</html>

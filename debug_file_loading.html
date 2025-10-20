@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug File Loading</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        select { width: 400px; height: 30px; margin: 10px 0; }
+        button { padding: 10px 20px; margin: 10px 5px; }
+        .debug { background: #f0f0f0; padding: 10px; margin: 10px 0; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h1>Debug File Loading Test</h1>
+    
+    <div class="debug">
+        <h3>Status:</h3>
+        <div id="status">Initializing...</div>
+    </div>
+    
+    <select id="fileSelect">
+        <option value="">Loading files...</option>
+    </select>
+    
+    <button id="testBtn" onclick="testLoadFiles()">Test Load Files</button>
+    <button id="refreshBtn" onclick="loadFiles()">Refresh Files</button>
+    
+    <div class="debug">
+        <h3>Debug Log:</h3>
+        <div id="debugLog"></div>
+    </div>
+
+    <script>
+    function log(message) {
+        const timestamp = new Date().toLocaleTimeString();
+        const logDiv = document.getElementById('debugLog');
+        logDiv.innerHTML += `[${timestamp}] ${message}<br>`;
+        console.log(`[${timestamp}] ${message}`);
+    }
+    
+    function updateStatus(message) {
+        document.getElementById('status').innerHTML = message;
+        log(`Status: ${message}`);
+    }
+    
+    function loadFiles() {
+        log('Starting loadFiles() function');
+        updateStatus('Loading files...');
+        
+        $.ajax({
+            url: 'http://localhost:8082/data/files',
+            method: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                log(`AJAX Success: ${JSON.stringify(response).substring(0, 100)}...`);
+                updateStatus(`Success: ${response.files ? response.files.length : 0} files found`);
+                
+                const select = document.getElementById('fileSelect');
+                select.innerHTML = '<option value="">Select a file...</option>';
+                
+                if (response.files && response.files.length > 0) {
+                    log(`Adding ${response.files.length} files to dropdown`);
+                    response.files.forEach((file, index) => {
+                        const option = document.createElement('option');
+                        option.value = file.name;
+                        option.textContent = `${file.name} (${file.size} bytes)`;
+                        select.appendChild(option);
+                        if (index < 3) log(`Added file: ${file.name}`);
+                    });
+                    log('Files added to dropdown successfully');
+                } else {
+                    log('No files found in response');
+                    select.innerHTML = '<option value="">No files found</option>';
+                }
+            },
+            error: function(xhr, status, error) {
+                log(`AJAX Error: ${error} - Status: ${status}`);
+                log(`Response: ${xhr.responseText.substring(0, 200)}...`);
+                updateStatus(`Error: ${error}`);
+                
+                const select = document.getElementById('fileSelect');
+                select.innerHTML = '<option value="">Error loading files</option>';
+            }
+        });
+    }
+    
+    function testLoadFiles() {
+        log('Test button clicked');
+        loadFiles();
+    }
+    
+    // Auto-load on page load
+    $(document).ready(function() {
+        log('Document ready - jQuery version: ' + $.fn.jquery);
+        log('File select element found: ' + $('#fileSelect').length);
+        
+        // Test jQuery
+        if ($('#fileSelect').length > 0) {
+            log('jQuery is working correctly');
+            updateStatus('jQuery working, loading files...');
+            setTimeout(loadFiles, 1000);
+        } else {
+            log('ERROR: File select element not found');
+            updateStatus('ERROR: File select element not found');
+        }
+    });
+    </script>
+</body>
+</html>

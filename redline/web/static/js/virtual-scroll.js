@@ -295,6 +295,54 @@ class VirtualScrollTable {
         this.render();
     }
     
+    loadDataFromAPI(url, params = {}) {
+        return new Promise((resolve, reject) => {
+            this.showLoading();
+            
+            // Make API call
+            const queryString = new URLSearchParams(params).toString();
+            const fullUrl = queryString ? `${url}?${queryString}` : url;
+            
+            fetch(fullUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    this.setData(data);
+                    this.hideLoading();
+                    resolve(data);
+                })
+                .catch(error => {
+                    this.hideLoading();
+                    reject(error);
+                });
+        });
+    }
+    
+    setData(data) {
+        if (data && data.data) {
+            this.data = data.data;
+            this.columns = data.columns || [];
+            this.totalRows = data.total_rows || data.data.length;
+        } else if (Array.isArray(data)) {
+            this.data = data;
+            this.totalRows = data.length;
+            if (data.length > 0) {
+                this.columns = Object.keys(data[0]);
+            }
+        } else {
+            this.data = [];
+            this.columns = [];
+            this.totalRows = 0;
+        }
+        
+        this.currentPage = 1;
+        this.render();
+    }
+    
     showLoading() {
         this.isLoading = true;
         this.elements.loadingIndicator.show();

@@ -740,6 +740,16 @@ Help:
         # This could be implemented with a status bar
         self.logger.info(f"Status: {message}")
     
+    def switch_to_tab(self, tab_name: str):
+        """Switch to a specific tab by name."""
+        try:
+            tab_names = ["Data", "Analysis", "Download/API", "Converter", "Settings"]
+            if tab_name in tab_names:
+                tab_index = tab_names.index(tab_name)
+                self.notebook.select(tab_index)
+        except Exception as e:
+            self.logger.error(f"Error switching to tab {tab_name}: {str(e)}")
+    
     def show_error_message(self, title: str, message: str):
         """Show an error message dialog."""
         import tkinter.messagebox as messagebox

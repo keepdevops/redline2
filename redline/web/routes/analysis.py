@@ -46,7 +46,22 @@ def analyze_data():
         
         converter = FormatConverter()
         
-        data_path = os.path.join(os.getcwd(), 'data', filename)
+        # Determine file path - check both root data directory and downloaded subdirectory
+        data_dir = os.path.join(os.getcwd(), 'data')
+        data_path = None
+        
+        # Check in root data directory first
+        root_path = os.path.join(data_dir, filename)
+        if os.path.exists(root_path):
+            data_path = root_path
+        else:
+            # Check in downloaded directory
+            downloaded_path = os.path.join(data_dir, 'downloaded', filename)
+            if os.path.exists(downloaded_path):
+                data_path = downloaded_path
+        
+        if not data_path or not os.path.exists(data_path):
+            return jsonify({'error': 'File not found'}), 404
         
         # Detect format from file extension (same as Tkinter)
         ext = os.path.splitext(data_path)[1].lower()

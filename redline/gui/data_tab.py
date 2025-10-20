@@ -280,6 +280,10 @@ class DataTab:
             self.logger.error(f"Error showing converted files dialog: {str(e)}")
             self.main_window.show_error_message("Error", f"Failed to show file selection dialog: {str(e)}")
     
+    def load_file(self, file_path: str):
+        """Load a single file."""
+        self.load_files([file_path])
+    
     def load_files(self, file_paths: List[str]):
         """Load multiple files."""
         try:

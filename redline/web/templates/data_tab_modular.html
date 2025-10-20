@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Data Tab - REDLINE{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2><i class="fas fa-database me-2"></i>Data Tab</h2>
+            <p class="text-muted">Load and view your financial data files</p>
+        </div>
+    </div>
+
+    <!-- File Selection Section -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-file me-2"></i>File Selection</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <label for="fileSelect" class="form-label">Select Data File:</label>
+                            <select class="form-select" id="fileSelect" name="fileSelect">
+                                <option value="">Loading files...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid gap-2">
+                                <button type="button" class="btn btn-primary" id="loadFileBtn" disabled>
+                                    <i class="fas fa-upload me-2"></i>Load File
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="refreshFilesBtn">
+                                    <i class="fas fa-refresh me-2"></i>Refresh Files
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>File Info</h5>
+                </div>
+                <div class="card-body">
+                    <div id="fileInfo">
+                        <p class="text-muted mb-0">No file selected</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Display Section -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-table me-2"></i>Data View</h5>
+                </div>
+                <div class="card-body">
+                    <div id="dataTableContainer">
+                        <div class="text-center p-4">
+                            <i class="fas fa-info-circle me-2"></i>Select a file to load data
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Debug Section (for development) -->
+    <div class="row mt-4" id="debugSection" style="display: none;">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-bug me-2"></i>Debug Information</h5>
+                </div>
+                <div class="card-body">
+                    <div id="debugLog" class="bg-light p-3" style="height: 200px; overflow-y: auto; font-family: monospace; font-size: 12px;">
+                        <!-- Debug messages will appear here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Load modular JavaScript -->
+<script src="{{ url_for('static', filename='js/modules/file-loader.js') }}"></script>
+<script src="{{ url_for('static', filename='js/modules/data-loader.js') }}"></script>
+<script src="{{ url_for('static', filename='js/modules/file-selector.js') }}"></script>
+<script src="{{ url_for('static', filename='js/modules/data-display.js') }}"></script>
+<script src="{{ url_for('static', filename='js/modules/button-handler.js') }}"></script>
+<script src="{{ url_for('static', filename='js/modules/data-tab-controller.js') }}"></script>
+
+<script>
+// Initialize the data tab controller when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Initializing modular data tab...');
+    
+    try {
+        // Create the controller
+        const dataTabController = new DataTabController({
+            apiBaseUrl: '',
+            fileSelectId: 'fileSelect',
+            loadButtonId: 'loadFileBtn',
+            refreshButtonId: 'refreshFilesBtn',
+            dataContainerId: 'dataTableContainer'
+        });
+        
+        // Store reference globally for debugging
+        window.dataTabController = dataTabController;
+        
+        console.log('Modular data tab initialized successfully');
+        
+        // Show debug section if in development mode
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            document.getElementById('debugSection').style.display = 'block';
+        }
+        
+    } catch (error) {
+        console.error('Error initializing modular data tab:', error);
+        
+        // Show error message
+        document.getElementById('dataTableContainer').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Error initializing data tab: ${error.message}
+            </div>
+        `;
+    }
+});
+
+// Debug logging function
+function debugLog(message) {
+    const debugLog = document.getElementById('debugLog');
+    if (debugLog) {
+        const timestamp = new Date().toLocaleTimeString();
+        debugLog.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+        debugLog.scrollTop = debugLog.scrollHeight;
+    }
+    console.log(`[DEBUG] ${message}`);
+}
+
+// Override console.log to also show in debug panel
+const originalConsoleLog = console.log;
+console.log = function(...args) {
+    originalConsoleLog.apply(console, args);
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        debugLog(args.join(' '));
+    }
+};
+</script>
+{% endblock %}

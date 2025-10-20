@@ -71,9 +71,31 @@
             </div>
             <div class="card-body">
                 <div class="mb-3">
-                    <label for="batchFiles" class="form-label">Select Files for Batch Conversion</label>
+                    <label class="form-label">Select Files for Batch Conversion</label>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <select class="form-select" id="batchFileSelect" multiple size="8">
+                                <option value="">Loading files...</option>
+                            </select>
+                            <div class="form-text">Hold Ctrl/Cmd to select multiple files</div>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="button" class="btn btn-primary btn-sm mb-2" id="addToBatchBtn" disabled>
+                                <i class="fas fa-plus me-1"></i>Add Selected
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm mb-2" id="clearBatchBtn" disabled>
+                                <i class="fas fa-trash me-1"></i>Clear All
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="selectAllBatchBtn">
+                                <i class="fas fa-check-square me-1"></i>Select All
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Selected Files for Batch Conversion</label>
                     <div id="batchFilesList" class="border rounded p-3" style="min-height: 100px;">
-                        <small class="text-muted">Select files from the list above to add to batch conversion</small>
+                        <small class="text-muted">No files selected for batch conversion</small>
                     </div>
                 </div>
                 <div class="row">
@@ -187,6 +209,24 @@ $(document).ready(function() {
     $('#refreshConvertedBtn').on('click', function() {
         loadConvertedFiles();
     });
+    
+    // Batch conversion event handlers
+    $('#batchFileSelect').on('change', function() {
+        const selectedFiles = $(this).val() || [];
+        $('#addToBatchBtn').prop('disabled', selectedFiles.length === 0);
+    });
+    
+    $('#addToBatchBtn').on('click', function() {
+        addSelectedFilesToBatch();
+    });
+    
+    $('#clearBatchBtn').on('click', function() {
+        clearBatchFiles();
+    });
+    
+    $('#selectAllBatchBtn').on('click', function() {
+        selectAllFiles();
+    });
 });
 
 function loadAvailableFiles() {
@@ -195,12 +235,23 @@ function loadAvailableFiles() {
     REDLINE.api.get('/converter/files')
         .then(response => {
             availableFiles = response.files || [];
+            
+            // Populate single file selection dropdown
             const select = $('#inputFile');
             select.empty();
             select.append('<option value="">Select input file...</option>');
             
+            // Populate batch file selection dropdown
+            const batchSelect = $('#batchFileSelect');
+            batchSelect.empty();
+            batchSelect.append('<option value="">Select files for batch conversion...</option>');
+            
             availableFiles.forEach(file => {
+                // Single file dropdown
                 select.append(`<option value="${file.name}">${file.name} (${REDLINE.utils.formatFileSize(file.size)})</option>`);
+                
+                // Batch file dropdown
+                batchSelect.append(`<option value="${file.name}">${file.name} (${REDLINE.utils.formatFileSize(file.size)})</option>`);
             });
             
             REDLINE.ui.hideLoading();
@@ -327,6 +378,80 @@ function convertFile() {
             REDLINE.ui.hideLoading();
             REDLINE.ui.showToast('Error converting file: ' + error.message, 'error');
         });
+}
+
+function addSelectedFilesToBatch() {
+    const selectedFiles = $('#batchFileSelect').val() || [];
+    
+    if (selectedFiles.length === 0) {
+        REDLINE.ui.showToast('Please select files to add to batch', 'error');
+        return;
+    }
+    
+    selectedFiles.forEach(filename => {
+        if (filename && !batchFiles.find(f => f.name === filename)) {
+            const file = availableFiles.find(f => f.name === filename);
+            if (file) {
+                batchFiles.push(file);
+            }
+        }
+    });
+    
+    updateBatchFilesList();
+    updateBatchButtons();
+    
+    REDLINE.ui.showToast(`Added ${selectedFiles.length} file(s) to batch conversion`, 'success');
+}
+
+function clearBatchFiles() {
+    batchFiles = [];
+    updateBatchFilesList();
+    updateBatchButtons();
+    REDLINE.ui.showToast('Cleared all files from batch', 'info');
+}
+
+function selectAllFiles() {
+    const batchSelect = $('#batchFileSelect');
+    batchSelect.find('option').each(function() {
+        if ($(this).val()) {
+            $(this).prop('selected', true);
+        }
+    });
+    $('#addToBatchBtn').prop('disabled', false);
+}
+
+function updateBatchFilesList() {
+    const batchList = $('#batchFilesList');
+    
+    if (batchFiles.length === 0) {
+        batchList.html('<small class="text-muted">No files selected for batch conversion</small>');
+        return;
+    }
+    
+    const filesHtml = batchFiles.map((file, index) => `
+        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+            <div>
+                <strong>${file.name}</strong>
+                <small class="text-muted d-block">${REDLINE.utils.formatFileSize(file.size)}</small>
+            </div>
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeFromBatch(${index})">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `).join('');
+    
+    batchList.html(filesHtml);
+}
+
+function removeFromBatch(index) {
+    batchFiles.splice(index, 1);
+    updateBatchFilesList();
+    updateBatchButtons();
+}
+
+function updateBatchButtons() {
+    $('#clearBatchBtn').prop('disabled', batchFiles.length === 0);
+    $('#batchConvertBtn').prop('disabled', batchFiles.length === 0);
 }
 
 function batchConvert() {

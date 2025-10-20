@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Data Tab Test</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        select { width: 400px; height: 30px; margin: 10px 0; }
+        button { padding: 10px 20px; margin: 10px 5px; }
+        .debug { background: #f0f0f0; padding: 10px; margin: 10px 0; border: 1px solid #ccc; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <h1>Simple Data Tab Test</h1>
+    
+    <div class="debug">
+        <h3>File Selection:</h3>
+        <select id="fileSelect">
+            <option value="">Loading files...</option>
+        </select>
+        <br>
+        <button id="loadFileBtn" disabled>Load File</button>
+        <button id="refreshBtn">Refresh Files</button>
+    </div>
+    
+    <div class="debug">
+        <h3>Data Display:</h3>
+        <div id="dataTableContainer">No data loaded yet</div>
+    </div>
+    
+    <div class="debug">
+        <h3>Debug Log:</h3>
+        <div id="debugLog"></div>
+    </div>
+
+    <script>
+    function log(message) {
+        const timestamp = new Date().toLocaleTimeString();
+        const logDiv = document.getElementById('debugLog');
+        logDiv.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+        console.log(`[${timestamp}] ${message}`);
+    }
+    
+    function loadFileList() {
+        log('loadFileList called - starting AJAX request to /data/files');
+        
+        $.ajax({
+            url: 'http://localhost:8082/data/files',
+            method: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                log(`API Success: ${response.files ? response.files.length : 0} files found`);
+                
+                const select = document.getElementById('fileSelect');
+                select.innerHTML = '<option value="">Select a file...</option>';
+                
+                if (response.files && response.files.length > 0) {
+                    log(`Adding ${response.files.length} files to dropdown`);
+                    response.files.forEach((file, index) => {
+                        const option = document.createElement('option');
+                        option.value = file.name;
+                        option.textContent = `${file.name}`;
+                        select.appendChild(option);
+                        if (index < 3) log(`Added file: ${file.name}`);
+                    });
+                    log('Files added to dropdown successfully');
+                } else {
+                    log('No files found in response');
+                    select.innerHTML = '<option value="">No files found</option>';
+                }
+            },
+            error: function(xhr, status, error) {
+                log(`API Error: ${error} - Status: ${status}`);
+                log(`Response: ${xhr.responseText.substring(0, 200)}...`);
+                
+                const select = document.getElementById('fileSelect');
+                select.innerHTML = '<option value="">Error loading files</option>';
+            }
+        });
+    }
+    
+    function loadData(filename) {
+        log(`Loading data for file: ${filename}`);
+        
+        // Show loading message
+        $('#dataTableContainer').html('<div>Loading data...</div>');
+        
+        $.ajax({
+            url: 'http://localhost:8082/data/load',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ filename: filename }),
+            dataType: 'json',
+            success: function(response) {
+                log(`Data loaded successfully: ${response.total_rows} rows, ${response.columns.length} columns`);
+                
+                // Display data
+                displayDataInTable(response.data);
+            },
+            error: function(xhr, status, error) {
+                log(`Data loading error: ${error} - Status: ${status}`);
+                $('#dataTableContainer').html(`<div>Error loading data: ${error}</div>`);
+            }
+        });
+    }
+    
+    function displayDataInTable(data) {
+        log(`Displaying ${data.length} rows of data`);
+        
+        if (!data || data.length === 0) {
+            $('#dataTableContainer').html('<div>No data to display</div>');
+            return;
+        }
+        
+        let tableHtml = '<table><thead><tr>';
+        
+        // Add headers from first row
+        const headers = Object.keys(data[0]);
+        headers.forEach(header => {
+            tableHtml += `<th>${header}</th>`;
+        });
+        tableHtml += '</tr></thead><tbody>';
+        
+        // Add data rows (limit to first 10 rows for testing)
+        const maxRows = Math.min(data.length, 10);
+        for (let i = 0; i < maxRows; i++) {
+            tableHtml += '<tr>';
+            headers.forEach(header => {
+                const value = data[i][header];
+                tableHtml += `<td>${value !== null && value !== undefined ? value : ''}</td>`;
+            });
+            tableHtml += '</tr>';
+        }
+        
+        tableHtml += '</tbody></table>';
+        
+        if (data.length > 10) {
+            tableHtml += `<div>Showing first 10 of ${data.length} rows</div>`;
+        }
+        
+        $('#dataTableContainer').html(tableHtml);
+        log('Data displayed successfully');
+    }
+    
+    // Auto-load on page load
+    $(document).ready(function() {
+        log('Document ready - jQuery version: ' + $.fn.jquery);
+        log('File select element found: ' + $('#fileSelect').length);
+        
+        // Load files on page load
+        setTimeout(loadFileList, 1000);
+        
+        // Event handlers
+        $('#fileSelect').on('change', function() {
+            const selectedFile = $(this).val();
+            log(`File selected: ${selectedFile}`);
+            $('#loadFileBtn').prop('disabled', !selectedFile);
+        });
+        
+        $('#loadFileBtn').on('click', function() {
+            const selectedFile = $('#fileSelect').val();
+            if (selectedFile) {
+                log(`Load button clicked for file: ${selectedFile}`);
+                loadData(selectedFile);
+            } else {
+                log('Load button clicked but no file selected');
+            }
+        });
+        
+        $('#refreshBtn').on('click', function() {
+            log('Refresh button clicked');
+            loadFileList();
+        });
+    });
+    </script>
+</body>
+</html>

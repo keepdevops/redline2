@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Load Button</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        select { width: 400px; height: 30px; margin: 10px 0; }
+        button { padding: 10px 20px; margin: 10px 5px; }
+        .debug { background: #f0f0f0; padding: 10px; margin: 10px 0; border: 1px solid #ccc; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>Debug Load Button Issue</h1>
+    
+    <div class="debug">
+        <h3>Status:</h3>
+        <div id="status" class="status info">Initializing...</div>
+    </div>
+    
+    <div class="debug">
+        <h3>File Selection:</h3>
+        <select id="fileSelect">
+            <option value="">Loading files...</option>
+        </select>
+        <br>
+        <button id="loadFileBtn" class="btn-primary" disabled>Load File</button>
+        <button id="refreshBtn" onclick="loadFiles()">Refresh Files</button>
+        <button id="testBtn" onclick="testLoadData()">Test Load Data</button>
+    </div>
+    
+    <div class="debug">
+        <h3>Data Display:</h3>
+        <div id="dataDisplay">No data loaded yet</div>
+    </div>
+    
+    <div class="debug">
+        <h3>Debug Log:</h3>
+        <div id="debugLog"></div>
+    </div>
+
+    <script>
+    function log(message, type = 'info') {
+        const timestamp = new Date().toLocaleTimeString();
+        const logDiv = document.getElementById('debugLog');
+        const colorClass = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+        logDiv.innerHTML += `<div class="status ${colorClass}">[${timestamp}] ${message}</div>`;
+        console.log(`[${timestamp}] ${message}`);
+    }
+    
+    function updateStatus(message, type = 'info') {
+        const statusDiv = document.getElementById('status');
+        statusDiv.className = `status ${type}`;
+        statusDiv.innerHTML = message;
+        log(`Status: ${message}`, type);
+    }
+    
+    function loadFiles() {
+        log('Starting loadFiles() function');
+        updateStatus('Loading files...', 'info');
+        
+        $.ajax({
+            url: 'http://localhost:8082/data/files',
+            method: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                log(`AJAX Success: ${JSON.stringify(response).substring(0, 100)}...`, 'success');
+                updateStatus(`Success: ${response.files ? response.files.length : 0} files found`, 'success');
+                
+                const select = document.getElementById('fileSelect');
+                select.innerHTML = '<option value="">Select a file...</option>';
+                
+                if (response.files && response.files.length > 0) {
+                    log(`Adding ${response.files.length} files to dropdown`, 'success');
+                    response.files.forEach((file, index) => {
+                        const option = document.createElement('option');
+                        option.value = file.name;
+                        option.textContent = `${file.name} (${file.size} bytes)`;
+                        select.appendChild(option);
+                        if (index < 3) log(`Added file: ${file.name}`, 'success');
+                    });
+                    log('Files added to dropdown successfully', 'success');
+                    
+                    // Enable the load button when files are available
+                    $('#loadFileBtn').prop('disabled', false);
+                    log('Load button enabled', 'success');
+                } else {
+                    log('No files found in response', 'error');
+                    select.innerHTML = '<option value="">No files found</option>';
+                    updateStatus('No files found', 'error');
+                }
+            },
+            error: function(xhr, status, error) {
+                log(`AJAX Error: ${error} - Status: ${status}`, 'error');
+                log(`Response: ${xhr.responseText.substring(0, 200)}...`, 'error');
+                updateStatus(`Error: ${error}`, 'error');
+                
+                const select = document.getElementById('fileSelect');
+                select.innerHTML = '<option value="">Error loading files</option>';
+            }
+        });
+    }
+    
+    function testLoadData() {
+        const selectedFile = document.getElementById('fileSelect').value;
+        if (!selectedFile) {
+            alert('Please select a file first');
+            log('No file selected for loading', 'error');
+            return;
+        }
+        
+        log(`Testing data loading for file: ${selectedFile}`, 'info');
+        updateStatus(`Loading data for: ${selectedFile}`, 'info');
+        
+        $.ajax({
+            url: 'http://localhost:8082/data/load',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ filename: selectedFile }),
+            dataType: 'json',
+            success: function(response) {
+                log(`Data loaded successfully: ${response.total_rows} rows, ${response.columns.length} columns`, 'success');
+                updateStatus(`Data loaded: ${response.total_rows} rows`, 'success');
+                
+                // Display data
+                displayData(response.data);
+            },
+            error: function(xhr, status, error) {
+                log(`Data loading error: ${error} - Status: ${status}`, 'error');
+                log(`Response: ${xhr.responseText.substring(0, 200)}...`, 'error');
+                updateStatus(`Error loading data: ${error}`, 'error');
+            }
+        });
+    }
+    
+    function displayData(data) {
+        log(`Displaying ${data.length} rows of data`, 'success');
+        
+        if (!data || data.length === 0) {
+            document.getElementById('dataDisplay').innerHTML = '<p>No data to display</p>';
+            return;
+        }
+        
+        let tableHtml = '<table border="1" style="border-collapse: collapse; width: 100%;"><thead><tr>';
+        
+        // Add headers from first row
+        const headers = Object.keys(data[0]);
+        headers.forEach(header => {
+            tableHtml += `<th style="padding: 8px; background-color: #f2f2f2;">${header}</th>`;
+        });
+        tableHtml += '</tr></thead><tbody>';
+        
+        // Add data rows (limit to first 10 rows for testing)
+        const maxRows = Math.min(data.length, 10);
+        for (let i = 0; i < maxRows; i++) {
+            tableHtml += '<tr>';
+            headers.forEach(header => {
+                const value = data[i][header];
+                tableHtml += `<td style="padding: 8px;">${value !== null && value !== undefined ? value : ''}</td>`;
+            });
+            tableHtml += '</tr>';
+        }
+        
+        tableHtml += '</tbody></table>';
+        
+        if (data.length > 10) {
+            tableHtml += `<p><small>Showing first 10 of ${data.length} rows</small></p>`;
+        }
+        
+        document.getElementById('dataDisplay').innerHTML = tableHtml;
+        log('Data displayed successfully', 'success');
+    }
+    
+    // Auto-load on page load
+    $(document).ready(function() {
+        log('Document ready - jQuery version: ' + $.fn.jquery, 'success');
+        log('File select element found: ' + $('#fileSelect').length, 'success');
+        
+        // Test jQuery
+        if ($('#fileSelect').length > 0) {
+            log('jQuery is working correctly', 'success');
+            updateStatus('jQuery working, loading files...', 'info');
+            setTimeout(loadFiles, 1000);
+        } else {
+            log('ERROR: File select element not found', 'error');
+            updateStatus('ERROR: File select element not found', 'error');
+        }
+        
+        // Add event handlers
+        $('#fileSelect').on('change', function() {
+            const selectedFile = $(this).val();
+            log(`File selected: ${selectedFile}`, 'info');
+            $('#loadFileBtn').prop('disabled', !selectedFile);
+            log(`Load button disabled: ${!selectedFile}`, 'info');
+        });
+        
+        $('#loadFileBtn').on('click', function() {
+            log('Load button clicked!', 'success');
+            testLoadData();
+        });
+    });
+    </script>
+</body>
+</html>

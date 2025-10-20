@@ -207,10 +207,32 @@ def convert_file():
             return jsonify({'error': 'Missing required parameters'}), 400
         
         from redline.core.format_converter import FormatConverter
+        from redline.core.schema import EXT_TO_FORMAT
         converter = FormatConverter()
         
+        # Determine input file path - check both root data directory and downloaded subdirectory
+        data_dir = os.path.join(os.getcwd(), 'data')
+        input_path = None
+        
+        # Check in root data directory first
+        root_path = os.path.join(data_dir, input_file)
+        if os.path.exists(root_path):
+            input_path = root_path
+        else:
+            # Check in downloaded directory
+            downloaded_path = os.path.join(data_dir, 'downloaded', input_file)
+            if os.path.exists(downloaded_path):
+                input_path = downloaded_path
+        
+        if not input_path or not os.path.exists(input_path):
+            return jsonify({'error': 'Input file not found'}), 404
+        
+        # Detect format from file extension
+        ext = os.path.splitext(input_path)[1].lower()
+        format_type = EXT_TO_FORMAT.get(ext, 'csv')
+        
         # Load data
-        data_obj = converter.load_file(input_file)
+        data_obj = converter.load_file_by_type(input_path, format_type)
         
         # Convert and save
         converter.save_file_by_type(data_obj, output_file, output_format)

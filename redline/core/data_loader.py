@@ -47,11 +47,11 @@ class DataLoader:
         self.config = configparser.ConfigParser()
         self.config.read(config_path)
         
-        # Initialize paths from config
-        self.db_path = self.config['Data'].get('db_path', 'redline_data.duckdb')
-        self.csv_dir = self.config['Data'].get('csv_dir', 'data')
-        self.json_dir = self.config['Data'].get('json_dir', 'data/json')
-        self.parquet_dir = self.config['Data'].get('parquet_dir', 'data/parquet')
+        # Initialize paths from config with fallbacks
+        self.db_path = self.config.get('Data', 'db_path', fallback='redline_data.duckdb')
+        self.csv_dir = self.config.get('Data', 'csv_dir', fallback='data')
+        self.json_dir = self.config.get('Data', 'json_dir', fallback='data/json')
+        self.parquet_dir = self.config.get('Data', 'parquet_dir', fallback='data/parquet')
         
         # Initialize helper classes
         self.validator = DataValidator()

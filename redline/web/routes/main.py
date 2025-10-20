@@ -54,3 +54,8 @@ def health():
 def tasks_page():
     """Background tasks page."""
     return render_template('tasks_tab.html')
+
+@main_bp.route('/data-modular')
+def data_modular():
+    """Modular data tab page."""
+    return render_template('data_tab_modular.html')

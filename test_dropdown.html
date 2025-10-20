@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Dropdown</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Test File Dropdown</h1>
+    <select id="fileSelect" style="width: 400px; height: 30px;">
+        <option value="">Loading files...</option>
+    </select>
+    <button id="refreshBtn" onclick="loadFiles()">Refresh</button>
+    <div id="status"></div>
+
+    <script>
+    function loadFiles() {
+        $('#status').html('Loading files...');
+        console.log('Loading files...');
+        
+        $.ajax({
+            url: 'http://localhost:8082/data/files',
+            method: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                console.log('Success:', response);
+                $('#status').html('Success: ' + response.files.length + ' files found');
+                
+                const select = $('#fileSelect');
+                select.empty();
+                select.append('<option value="">Select a file...</option>');
+                
+                if (response.files && response.files.length > 0) {
+                    response.files.forEach(file => {
+                        select.append(`<option value="${file.name}">${file.name}</option>`);
+                    });
+                }
+            },
+            error: function(xhr, status, error) {
+                console.log('Error:', error);
+                $('#status').html('Error: ' + error + ' - ' + xhr.responseText);
+            }
+        });
+    }
+    
+    // Auto-load on page load
+    $(document).ready(function() {
+        loadFiles();
+    });
+    </script>
+</body>
+</html>

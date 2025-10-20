@@ -15,6 +15,103 @@ optimized_db = OptimizedDatabaseConnector(max_connections=8, cache_size=64, cach
 data_bp = Blueprint('data', __name__)
 logger = logging.getLogger(__name__)
 
+def _detect_format_from_path(file_path: str) -> str:
+    """Detect file format from extension."""
+    ext = os.path.splitext(file_path)[1].lower()
+    format_map = {
+        '.csv': 'csv',
+        '.json': 'json',
+        '.parquet': 'parquet',
+        '.feather': 'feather',
+        '.duckdb': 'duckdb',
+        '.txt': 'txt'
+    }
+    return format_map.get(ext)
+
+def _load_file_by_format(file_path: str, format_type: str) -> pd.DataFrame:
+    """Load file based on format type."""
+    try:
+        if format_type == 'csv':
+            return pd.read_csv(file_path)
+        elif format_type == 'json':
+            return pd.read_json(file_path)
+        elif format_type == 'parquet':
+            return pd.read_parquet(file_path)
+        elif format_type == 'feather':
+            return pd.read_feather(file_path)
+        elif format_type == 'duckdb':
+            # For DuckDB, we'll need to use a different approach
+            # For now, return empty DataFrame
+            return pd.DataFrame()
+        elif format_type == 'txt':
+            # Try to read as CSV first
+            try:
+                return pd.read_csv(file_path)
+            except:
+                # If that fails, read as text and try to parse
+                return pd.read_csv(file_path, sep='\t')
+        else:
+            return pd.DataFrame()
+    except Exception as e:
+        logger.error(f"Error loading file {file_path}: {str(e)}")
+        return pd.DataFrame()
+
+def _save_file_by_format(df: pd.DataFrame, file_path: str, format_type: str) -> bool:
+    """Save DataFrame to file based on format type."""
+    try:
+        if format_type == 'csv':
+            df.to_csv(file_path, index=False)
+        elif format_type == 'json':
+            df.to_json(file_path, orient='records', indent=2)
+        elif format_type == 'parquet':
+            df.to_parquet(file_path, index=False)
+        elif format_type == 'feather':
+            df.to_feather(file_path)
+        else:
+            # Default to CSV
+            df.to_csv(file_path, index=False)
+        return True
+    except Exception as e:
+        logger.error(f"Error saving file {file_path}: {str(e)}")
+        return False
+
+def _apply_filters(df: pd.DataFrame, filters: dict) -> pd.DataFrame:
+    """Apply filters to DataFrame."""
+    filtered_df = df.copy()
+    
+    for column, filter_config in filters.items():
+        if column not in filtered_df.columns:
+            continue
+            
+        filter_type = filter_config.get('type')
+        filter_value = filter_config.get('value')
+        
+        if not filter_type or not filter_value:
+            continue
+        
+        try:
+            if filter_type == 'equals':
+                filtered_df = filtered_df[filtered_df[column].astype(str) == str(filter_value)]
+            elif filter_type == 'contains':
+                filtered_df = filtered_df[filtered_df[column].astype(str).str.contains(str(filter_value), case=False, na=False)]
+            elif filter_type == 'greater_than':
+                filtered_df = filtered_df[pd.to_numeric(filtered_df[column], errors='coerce') > float(filter_value)]
+            elif filter_type == 'less_than':
+                filtered_df = filtered_df[pd.to_numeric(filtered_df[column], errors='coerce') < float(filter_value)]
+            elif filter_type == 'date_range':
+                # Handle date range filtering
+                if ' to ' in filter_value:
+                    start_date, end_date = filter_value.split(' to ')
+                    filtered_df = filtered_df[
+                        (pd.to_datetime(filtered_df[column], errors='coerce') >= pd.to_datetime(start_date)) &
+                        (pd.to_datetime(filtered_df[column], errors='coerce') <= pd.to_datetime(end_date))
+                    ]
+        except Exception as e:
+            logger.error(f"Error applying filter {column}: {str(e)}")
+            continue
+    
+    return filtered_df
+
 def _load_large_file_chunked(file_path: str, format_type: str, chunk_size: int = 10000) -> pd.DataFrame:
     """Load large files in chunks to prevent memory issues (same as Tkinter)."""
     try:
@@ -86,9 +183,21 @@ def load_data():
         if not filename:
             return jsonify({'error': 'No filename provided'}), 400
         
-        data_path = os.path.join(os.getcwd(), 'data', filename)
+        # Determine file path - check both root data directory and downloaded subdirectory
+        data_dir = os.path.join(os.getcwd(), 'data')
+        data_path = None
         
-        if not os.path.exists(data_path):
+        # Check in root data directory first
+        root_path = os.path.join(data_dir, filename)
+        if os.path.exists(root_path):
+            data_path = root_path
+        else:
+            # Check in downloaded directory
+            downloaded_path = os.path.join(data_dir, 'downloaded', filename)
+            if os.path.exists(downloaded_path):
+                data_path = downloaded_path
+        
+        if not data_path or not os.path.exists(data_path):
             return jsonify({'error': 'File not found'}), 404
         
         # Use EXACT same data loading pipeline as Tkinter GUI
@@ -128,123 +237,6 @@ def load_data():
     except Exception as e:
         logger.error(f"Error loading data: {str(e)}")
         return jsonify({'error': str(e)}), 500
-
-@data_bp.route('/filter', methods=['POST'])
-def filter_data():
-    """Apply filters to loaded data."""
-    try:
-        data = request.get_json()
-        filename = data.get('filename')
-        filters = data.get('filters', {})
-        
-        if not filename:
-            return jsonify({'error': 'No filename provided'}), 400
-        
-        data_path = os.path.join(os.getcwd(), 'data', filename)
-        
-        # Use EXACT same data loading pipeline as Tkinter GUI
-        from redline.core.format_converter import FormatConverter
-        from redline.core.schema import EXT_TO_FORMAT
-        
-        converter = FormatConverter()
-        
-        # Detect format from file extension (same as Tkinter _detect_format_from_path)
-        ext = os.path.splitext(data_path)[1].lower()
-        format_type = EXT_TO_FORMAT.get(ext, 'csv')
-        
-        # Check if this is a large file (same as Tkinter)
-        file_size = os.path.getsize(data_path)
-        is_large_file = file_size > 50 * 1024 * 1024  # 50MB
-        
-        # Load data with chunked approach for large files (same as Tkinter)
-        if is_large_file and format_type in ['csv', 'txt']:
-            df = _load_large_file_chunked(data_path, format_type)
-        else:
-            df = converter.load_file_by_type(data_path, format_type)
-        
-        if not isinstance(df, pd.DataFrame):
-            return jsonify({'error': 'Invalid data format'}), 400
-        
-        # Apply filters - handle both list and dict formats
-        filtered_df = df.copy()
-        
-        # Handle filters as a list (from frontend) or dict (legacy)
-        if isinstance(filters, list):
-            # New format: list of filter objects
-            for filter_obj in filters:
-                column = filter_obj.get('column')
-                operator = filter_obj.get('operator')  # 'equals', 'contains', 'greater_than', etc.
-                value = filter_obj.get('value')
-                
-                if column in filtered_df.columns:
-                    if operator == 'equals':
-                        filtered_df = filtered_df[filtered_df[column].astype(str) == str(value)]
-                    elif operator == 'contains':
-                        filtered_df = filtered_df[filtered_df[column].astype(str).str.contains(str(value), na=False)]
-                    elif operator == 'greater_than':
-                        try:
-                            numeric_value = float(value)
-                            filtered_df = filtered_df[pd.to_numeric(filtered_df[column], errors='coerce') > numeric_value]
-                        except (ValueError, TypeError):
-                            pass
-                    elif operator == 'less_than':
-                        try:
-                            numeric_value = float(value)
-                            filtered_df = filtered_df[pd.to_numeric(filtered_df[column], errors='coerce') < numeric_value]
-                        except (ValueError, TypeError):
-                            pass
-                    elif operator == 'date_range':
-                        if 'start' in value and 'end' in value:
-                            filtered_df = filtered_df[
-                                (filtered_df[column] >= value['start']) &
-                                (filtered_df[column] <= value['end'])
-                            ]
-        else:
-            # Legacy format: dict where keys are column names
-            for column, filter_config in filters.items():
-                if column in filtered_df.columns:
-                    filter_type = filter_config.get('type')
-                    filter_value = filter_config.get('value')
-                    
-                    if filter_type == 'equals':
-                        filtered_df = filtered_df[filtered_df[column].astype(str) == str(filter_value)]
-                    elif filter_type == 'contains':
-                        filtered_df = filtered_df[filtered_df[column].astype(str).str.contains(str(filter_value), na=False)]
-                    elif filter_type == 'greater_than':
-                        try:
-                            numeric_value = float(filter_value)
-                            filtered_df = filtered_df[pd.to_numeric(filtered_df[column], errors='coerce') > numeric_value]
-                        except (ValueError, TypeError):
-                            pass
-                    elif filter_type == 'less_than':
-                        try:
-                            numeric_value = float(filter_value)
-                            filtered_df = filtered_df[pd.to_numeric(filtered_df[column], errors='coerce') < numeric_value]
-                        except (ValueError, TypeError):
-                            pass
-                    elif filter_type == 'date_range':
-                        if 'start' in filter_value and 'end' in filter_value:
-                            filtered_df = filtered_df[
-                                (filtered_df[column] >= filter_value['start']) &
-                                (filtered_df[column] <= filter_value['end'])
-                            ]
-        
-        # Convert to JSON-serializable format
-        data_dict = {
-            'columns': list(filtered_df.columns),
-            'data': filtered_df.head(1000).to_dict('records'),
-            'total_rows': len(filtered_df),
-            'original_rows': len(df),
-            'filters_applied': len(filters)
-        }
-        
-        return jsonify(data_dict)
-        
-    except Exception as e:
-        logger.error(f"Error filtering data: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-@data_bp.route('/columns/<filename>')
 def get_columns(filename):
     """Get column information for a file."""
     try:
@@ -302,87 +294,6 @@ def get_columns(filename):
         logger.error(f"Error getting columns for {filename}: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@data_bp.route('/export', methods=['POST'])
-def export_data():
-    """Export filtered data to file."""
-    try:
-        data = request.get_json()
-        filename = data.get('filename')
-        export_format = data.get('format', 'csv')
-        export_filename = data.get('export_filename')
-        filters = data.get('filters', {})
-        
-        if not all([filename, export_filename]):
-            return jsonify({'error': 'Missing required parameters'}), 400
-        
-        data_path = os.path.join(os.getcwd(), 'data', filename)
-        export_path = os.path.join(os.getcwd(), 'data', export_filename)
-        
-        # Use EXACT same data loading pipeline as Tkinter GUI
-        from redline.core.format_converter import FormatConverter
-        from redline.core.schema import EXT_TO_FORMAT
-        
-        converter = FormatConverter()
-        
-        # Detect format from file extension (same as Tkinter _detect_format_from_path)
-        ext = os.path.splitext(data_path)[1].lower()
-        format_type = EXT_TO_FORMAT.get(ext, 'csv')
-        
-        # Check if this is a large file (same as Tkinter)
-        file_size = os.path.getsize(data_path)
-        is_large_file = file_size > 50 * 1024 * 1024  # 50MB
-        
-        # Load data with chunked approach for large files (same as Tkinter)
-        if is_large_file and format_type in ['csv', 'txt']:
-            df = _load_large_file_chunked(data_path, format_type)
-        else:
-            df = converter.load_file_by_type(data_path, format_type)
-        
-        # Apply filters if provided
-        if filters:
-            filtered_df = df.copy()
-            for column, filter_config in filters.items():
-                if column in filtered_df.columns:
-                    filter_type = filter_config.get('type')
-                    filter_value = filter_config.get('value')
-                    
-                    if filter_type == 'equals':
-                        filtered_df = filtered_df[filtered_df[column].astype(str) == str(filter_value)]
-                    elif filter_type == 'contains':
-                        filtered_df = filtered_df[filtered_df[column].astype(str).str.contains(str(filter_value), na=False)]
-                    elif filter_type == 'greater_than':
-                        try:
-                            numeric_value = float(filter_value)
-                            filtered_df = filtered_df[pd.to_numeric(filtered_df[column], errors='coerce') > numeric_value]
-                        except (ValueError, TypeError):
-                            pass
-                    elif filter_type == 'less_than':
-                        try:
-                            numeric_value = float(filter_value)
-                            filtered_df = filtered_df[pd.to_numeric(filtered_df[column], errors='coerce') < numeric_value]
-                        except (ValueError, TypeError):
-                            pass
-            
-            df = filtered_df
-        
-        # Save in requested format
-        converter.save_file_by_type(df, export_path, export_format)
-        
-        return jsonify({
-            'message': 'Data exported successfully',
-            'export_filename': export_filename,
-            'records_exported': len(df)
-        })
-        
-    except Exception as e:
-        logger.error(f"Error exporting data: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-@data_bp.route('/files')
-def list_files():
-    """List available data files."""
-    try:
-        data_dir = os.path.join(os.getcwd(), 'data')
         files = []
         
         # Get files from main data directory
@@ -396,6 +307,208 @@ def list_files():
                         'size': file_stat.st_size,
                         'modified': file_stat.st_mtime,
                         'path': file_path
+                    })
+        
+        # Get files from downloaded directory
+        downloaded_dir = os.path.join(data_dir, 'downloaded')
+        if os.path.exists(downloaded_dir):
+            for filename in os.listdir(downloaded_dir):
+                file_path = os.path.join(downloaded_dir, filename)
+                if os.path.isfile(file_path) and not filename.startswith('.'):
+                    file_stat = os.stat(file_path)
+                    files.append({
+                        'name': filename,
+                        'size': file_stat.st_size,
+                        'modified': file_stat.st_mtime,
+                        'path': file_path,
+                        'location': 'downloaded'
+                    })
+        
+        # Sort by modification time (newest first)
+        files.sort(key=lambda x: x['modified'], reverse=True)
+        
+        return jsonify({'files': files})
+        
+    except Exception as e:
+        logger.error(f"Error listing files: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@data_bp.route('/load', methods=['POST'])
+def load_file_data():
+    """Load data from a file."""
+    try:
+        data = request.get_json()
+        filename = data.get('filename')
+        
+        if not filename:
+            return jsonify({'error': 'Filename is required'}), 400
+        
+        # Determine file path - check both root data directory and downloaded subdirectory
+        data_dir = os.path.join(os.getcwd(), 'data')
+        file_path = None
+        
+        # Check in root data directory first
+        root_path = os.path.join(data_dir, filename)
+        if os.path.exists(root_path):
+            file_path = root_path
+        else:
+            # Check in downloaded directory
+            downloaded_path = os.path.join(data_dir, 'downloaded', filename)
+            if os.path.exists(downloaded_path):
+                file_path = downloaded_path
+        
+        if not file_path or not os.path.exists(file_path):
+            return jsonify({'error': 'File not found'}), 404
+        
+        # Detect file format
+        format_type = _detect_format_from_path(file_path)
+        if not format_type:
+            return jsonify({'error': 'Unsupported file format'}), 400
+        
+        # Load data
+        file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
+        is_large_file = file_size_mb > 50  # 50MB threshold
+        
+        if is_large_file and format_type in ['csv', 'txt']:
+            df = _load_large_file_chunked(file_path, format_type)
+        else:
+            df = _load_file_by_format(file_path, format_type)
+        
+        if df.empty:
+            return jsonify({'error': 'No data found in file'}), 404
+        
+        # Convert to JSON-serializable format
+        data_dict = df.to_dict('records')
+        
+        return jsonify({
+            'data': data_dict,
+            'columns': list(df.columns),
+            'total_rows': len(df),
+            'file_size': os.path.getsize(file_path),
+            'filename': filename
+        })
+        
+    except Exception as e:
+        logger.error(f"Error loading data: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@data_bp.route('/filter', methods=['POST'])
+def filter_file_data():
+    """Apply filters to loaded data."""
+    try:
+        data = request.get_json()
+        filename = data.get('filename')
+        filters = data.get('filters', {})
+        
+        if not filename:
+            return jsonify({'error': 'Filename is required'}), 400
+        
+        # Load the file first
+        data_dir = 'data'
+        file_path = None
+        
+        root_path = os.path.join(data_dir, filename)
+        if os.path.exists(root_path):
+            file_path = root_path
+        else:
+            downloaded_path = os.path.join(data_dir, 'downloaded', filename)
+            if os.path.exists(downloaded_path):
+                file_path = downloaded_path
+        
+        if not file_path:
+            return jsonify({'error': 'File not found'}), 404
+        
+        # Load and filter data
+        format_type = _detect_format_from_path(file_path)
+        df = _load_file_by_format(file_path, format_type)
+        
+        # Apply filters
+        filtered_df = _apply_filters(df, filters)
+        
+        # Convert to JSON-serializable format
+        data_dict = filtered_df.to_dict('records')
+        
+        return jsonify({
+            'data': data_dict,
+            'columns': list(filtered_df.columns),
+            'total_rows': len(filtered_df),
+            'original_rows': len(df),
+            'filename': filename
+        })
+        
+    except Exception as e:
+        logger.error(f"Error filtering data: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@data_bp.route('/export', methods=['POST'])
+def export_file_data():
+    """Export filtered data to a file."""
+    try:
+        data = request.get_json()
+        filename = data.get('filename')
+        format_type = data.get('format', 'csv')
+        export_filename = data.get('export_filename')
+        filters = data.get('filters', {})
+        
+        if not filename or not export_filename:
+            return jsonify({'error': 'Filename and export filename are required'}), 400
+        
+        # Load and filter data
+        data_dir = 'data'
+        file_path = None
+        
+        root_path = os.path.join(data_dir, filename)
+        if os.path.exists(root_path):
+            file_path = root_path
+        else:
+            downloaded_path = os.path.join(data_dir, 'downloaded', filename)
+            if os.path.exists(downloaded_path):
+                file_path = downloaded_path
+        
+        if not file_path:
+            return jsonify({'error': 'File not found'}), 404
+        
+        # Load data
+        original_format = _detect_format_from_path(file_path)
+        df = _load_file_by_format(file_path, original_format)
+        
+        # Apply filters if any
+        if filters:
+            df = _apply_filters(df, filters)
+        
+        # Export to new format
+        export_path = os.path.join(data_dir, export_filename)
+        _save_file_by_format(df, export_path, format_type)
+        
+        return jsonify({
+            'message': f'Data exported successfully to {export_filename}',
+            'export_path': export_path,
+            'rows_exported': len(df)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error exporting data: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@data_bp.route('/files')
+def list_files():
+    """List available data files."""
+    try:
+        data_dir = os.path.join(os.getcwd(), 'data')
+        files = []
+        
+        # Get files from root data directory
+        if os.path.exists(data_dir):
+            for filename in os.listdir(data_dir):
+                file_path = os.path.join(data_dir, filename)
+                if os.path.isfile(file_path) and not filename.startswith('.'):
+                    file_stat = os.stat(file_path)
+                    files.append({
+                        'name': filename,
+                        'size': file_stat.st_size,
+                        'modified': file_stat.st_mtime,
+                        'path': file_path,
+                        'location': 'root'
                     })
         
         # Get files from downloaded directory
