@@ -1,0 +1,185 @@
+/* REDLINE Color Scheme Themes */
+
+/* Default Color-Blind Friendly Theme */
+.theme-default {
+    --primary-color: #2563eb;
+    --secondary-color: #64748b;
+    --success-color: #059669;
+    --warning-color: #d97706;
+    --danger-color: #dc2626;
+    --info-color: #0891b2;
+    --light-color: #f8fafc;
+    --dark-color: #1e293b;
+    --purple-color: #7c3aed;
+    --pink-color: #db2777;
+    --indigo-color: #4338ca;
+    --teal-color: #0d9488;
+    --lime-color: #65a30d;
+    --rose-color: #e11d48;
+}
+
+/* High Contrast Theme */
+.theme-high-contrast {
+    --primary-color: #0000ff;
+    --secondary-color: #808080;
+    --success-color: #008000;
+    --warning-color: #ff8000;
+    --danger-color: #ff0000;
+    --info-color: #0080ff;
+    --light-color: #ffffff;
+    --dark-color: #000000;
+    --purple-color: #800080;
+    --pink-color: #ff0080;
+    --indigo-color: #400080;
+    --teal-color: #008080;
+    --lime-color: #80ff00;
+    --rose-color: #ff0040;
+}
+
+/* Ocean Theme */
+.theme-ocean {
+    --primary-color: #0369a1;
+    --secondary-color: #64748b;
+    --success-color: #0d9488;
+    --warning-color: #f59e0b;
+    --danger-color: #dc2626;
+    --info-color: #0891b2;
+    --light-color: #f0f9ff;
+    --dark-color: #0f172a;
+    --purple-color: #6366f1;
+    --pink-color: #ec4899;
+    --indigo-color: #4338ca;
+    --teal-color: #14b8a6;
+    --lime-color: #84cc16;
+    --rose-color: #f43f5e;
+}
+
+/* Forest Theme */
+.theme-forest {
+    --primary-color: #166534;
+    --secondary-color: #64748b;
+    --success-color: #16a34a;
+    --warning-color: #ca8a04;
+    --danger-color: #dc2626;
+    --info-color: #0891b2;
+    --light-color: #f0fdf4;
+    --dark-color: #14532d;
+    --purple-color: #7c3aed;
+    --pink-color: #db2777;
+    --indigo-color: #4338ca;
+    --teal-color: #0d9488;
+    --lime-color: #65a30d;
+    --rose-color: #e11d48;
+}
+
+/* Sunset Theme */
+.theme-sunset {
+    --primary-color: #ea580c;
+    --secondary-color: #64748b;
+    --success-color: #16a34a;
+    --warning-color: #f59e0b;
+    --danger-color: #dc2626;
+    --info-color: #0891b2;
+    --light-color: #fff7ed;
+    --dark-color: #431407;
+    --purple-color: #7c3aed;
+    --pink-color: #db2777;
+    --indigo-color: #4338ca;
+    --teal-color: #0d9488;
+    --lime-color: #65a30d;
+    --rose-color: #e11d48;
+}
+
+/* Monochrome Theme */
+.theme-monochrome {
+    --primary-color: #374151;
+    --secondary-color: #6b7280;
+    --success-color: #059669;
+    --warning-color: #d97706;
+    --danger-color: #dc2626;
+    --info-color: #0891b2;
+    --light-color: #f9fafb;
+    --dark-color: #111827;
+    --purple-color: #7c3aed;
+    --pink-color: #db2777;
+    --indigo-color: #4338ca;
+    --teal-color: #0d9488;
+    --lime-color: #65a30d;
+    --rose-color: #e11d48;
+}
+
+/* Dark Theme */
+.theme-dark {
+    --primary-color: #3b82f6;
+    --secondary-color: #9ca3af;
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+    --info-color: #06b6d4;
+    --light-color: #1f2937;
+    --dark-color: #f9fafb;
+    --purple-color: #8b5cf6;
+    --pink-color: #ec4899;
+    --indigo-color: #6366f1;
+    --teal-color: #14b8a6;
+    --lime-color: #84cc16;
+    --rose-color: #f43f5e;
+}
+
+/* Apply theme to body */
+body.theme-default { color-scheme: light; }
+body.theme-high-contrast { color-scheme: light; }
+body.theme-ocean { color-scheme: light; }
+body.theme-forest { color-scheme: light; }
+body.theme-sunset { color-scheme: light; }
+body.theme-monochrome { color-scheme: light; }
+body.theme-dark { 
+    color-scheme: dark; 
+    background-color: #111827 !important;
+    color: #f9fafb !important;
+}
+
+/* Dark theme specific overrides */
+.theme-dark .navbar {
+    background-color: #1f2937 !important;
+    border-bottom: 1px solid #374151;
+}
+
+.theme-dark .card {
+    background-color: #1f2937 !important;
+    border: 1px solid #374151;
+    color: #f9fafb !important;
+}
+
+.theme-dark .welcome-section {
+    background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+}
+
+.theme-dark .stats-card {
+    background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+}
+
+.theme-dark .data-table-container {
+    background-color: #1f2937 !important;
+    border: 1px solid #374151;
+}
+
+.theme-dark .form-control {
+    background-color: #374151 !important;
+    border-color: #4b5563 !important;
+    color: #f9fafb !important;
+}
+
+.theme-dark .form-control:focus {
+    background-color: #374151 !important;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25) !important;
+}
+
+.theme-dark .table {
+    color: #f9fafb !important;
+}
+
+.theme-dark .table-striped > tbody > tr:nth-of-type(odd) > td {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}

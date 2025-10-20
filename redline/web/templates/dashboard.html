@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - REDLINE{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                </h1>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-primary" onclick="refreshDashboard()">
+                        <i class="fas fa-sync-alt me-1"></i>Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-number" id="totalFiles">0</div>
+                        <div class="stats-label">Data Files</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="fas fa-database"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-number" id="totalRecords">0</div>
+                        <div class="stats-label">Total Records</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-number" id="totalTickers">0</div>
+                        <div class="stats-label">Tickers</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="fas fa-tags"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stats-number" id="lastUpdate">-</div>
+                        <div class="stats-label">Last Update</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bolt me-2"></i>Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('data.data_tab') }}" class="btn btn-primary w-100">
+                                <i class="fas fa-eye me-2"></i>View Data
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('download.download_tab') }}" class="btn btn-success w-100">
+                                <i class="fas fa-download me-2"></i>Download Data
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('converter.converter_tab') }}" class="btn btn-info w-100">
+                                <i class="fas fa-exchange-alt me-2"></i>Convert Format
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('analysis.analysis_tab') }}" class="btn btn-warning w-100">
+                                <i class="fas fa-chart-bar me-2"></i>Analyze Data
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-history me-2"></i>Recent Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Action</th>
+                                    <th>Details</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="activityTable">
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">
+                                        <i class="fas fa-spinner fa-spin me-2"></i>Loading...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>System Status
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>Database</span>
+                            <span class="badge bg-success" id="dbStatus">Online</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>Data Loader</span>
+                            <span class="badge bg-success" id="loaderStatus">Available</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>API Services</span>
+                            <span class="badge bg-success" id="apiStatus">Running</span>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <small class="text-muted">
+                            Version: <span id="appVersion">1.0.0</span>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function refreshDashboard() {
+    // Show loading state
+    $('#activityTable').html('<tr><td colspan="4" class="text-center text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</td></tr>');
+    
+    // Load dashboard data
+    Promise.all([
+        fetch('/api/status'),
+        fetch('/api/files')
+    ])
+    .then(responses => Promise.all(responses.map(r => r.json())))
+    .then(([status, files]) => {
+        // Update stats
+        $('#totalFiles').text(files.files ? files.files.length : 0);
+        $('#totalRecords').text('N/A'); // Would need to calculate from files
+        $('#totalTickers').text('N/A'); // Would need to calculate from files
+        $('#lastUpdate').text(new Date().toLocaleTimeString());
+        
+        // Update system status
+        if (status.status === 'running') {
+            $('#dbStatus').text('Online').removeClass('bg-danger').addClass('bg-success');
+            $('#loaderStatus').text('Available').removeClass('bg-danger').addClass('bg-success');
+            $('#apiStatus').text('Running').removeClass('bg-danger').addClass('bg-success');
+        }
+        
+        $('#appVersion').text(status.version || '1.0.0');
+        
+        // Update activity table (placeholder)
+        $('#activityTable').html(`
+            <tr>
+                <td>${new Date().toLocaleTimeString()}</td>
+                <td>Dashboard Refresh</td>
+                <td>System status updated</td>
+                <td><span class="badge bg-success">Success</span></td>
+            </tr>
+        `);
+    })
+    .catch(error => {
+        console.error('Error refreshing dashboard:', error);
+        $('#activityTable').html('<tr><td colspan="4" class="text-center text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Error loading data</td></tr>');
+    });
+}
+
+// Load dashboard data on page load
+$(document).ready(function() {
+    refreshDashboard();
+});
+</script>
+{% endblock %}

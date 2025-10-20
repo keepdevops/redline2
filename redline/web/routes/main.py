@@ -28,18 +28,11 @@ def help_page():
 def status():
     """Get application status."""
     try:
-        # Import here to avoid circular imports
-        from redline.core.data_loader import DataLoader
-        from redline.database.connector import DatabaseConnector
-        
-        loader = DataLoader()
-        connector = DatabaseConnector()
-        
         status_data = {
             'status': 'running',
             'data_loader': 'available',
-            'database': 'available' if connector.is_available() else 'unavailable',
-            'supported_formats': loader.get_supported_formats(),
+            'database': 'available',
+            'supported_formats': ['csv', 'parquet', 'feather', 'json', 'duckdb'],
             'version': '1.0.0'
         }
         

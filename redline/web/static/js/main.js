@@ -436,6 +436,74 @@ const chartHelper = {
     }
 };
 
+// Theme System Functions
+const themeSystem = {
+    // Initialize theme system
+    init: function() {
+        // Load saved theme from localStorage
+        const savedTheme = localStorage.getItem('redline-theme') || 'theme-default';
+        this.applyTheme(savedTheme);
+        
+        // Handle theme selection
+        $('.theme-option').on('click', function(e) {
+            e.preventDefault();
+            const theme = $(this).data('theme');
+            themeSystem.applyTheme(theme);
+            localStorage.setItem('redline-theme', theme);
+            
+            // Update active state
+            $('.theme-option').removeClass('active');
+            $(this).addClass('active');
+            
+            // Close dropdown
+            $('#themeDropdown').dropdown('hide');
+        });
+        
+        // Set active theme in dropdown
+        $('.theme-option').each(function() {
+            if ($(this).data('theme') === savedTheme) {
+                $(this).addClass('active');
+            }
+        });
+    },
+
+    // Apply theme to body
+    applyTheme: function(theme) {
+        // Remove all theme classes
+        $('body').removeClass('theme-default theme-high-contrast theme-ocean theme-forest theme-sunset theme-monochrome theme-dark');
+        
+        // Apply new theme
+        $('body').addClass(theme);
+        
+        // Update theme button text
+        const themeNames = {
+            'theme-default': 'Default',
+            'theme-high-contrast': 'High Contrast',
+            'theme-ocean': 'Ocean',
+            'theme-forest': 'Forest',
+            'theme-sunset': 'Sunset',
+            'theme-monochrome': 'Monochrome',
+            'theme-dark': 'Dark'
+        };
+        
+        $('#themeDropdown').html('<i class="fas fa-palette me-1"></i>' + themeNames[theme]);
+        
+        // Trigger theme change event
+        $(document).trigger('themeChanged', [theme]);
+    },
+
+    // Get current theme
+    getCurrentTheme: function() {
+        return localStorage.getItem('redline-theme') || 'theme-default';
+    },
+
+    // Set theme
+    setTheme: function(theme) {
+        localStorage.setItem('redline-theme', theme);
+        this.applyTheme(theme);
+    }
+};
+
 // Event handlers
 $(document).ready(function() {
     // Initialize tooltips
@@ -443,6 +511,9 @@ $(document).ready(function() {
     
     // Initialize popovers
     $('[data-bs-toggle="popover"]').popover();
+    
+    // Initialize theme system
+    themeSystem.init();
     
     // Handle file upload drag and drop
     $('.file-upload-area').on('dragover', function(e) {
@@ -581,6 +652,7 @@ window.REDLINE = {
     dataManager: dataManager,
     fileManager: fileManager,
     chartHelper: chartHelper,
+    themeSystem: themeSystem,
     showLoading: ui.showLoading,
     hideLoading: ui.hideLoading,
     showToast: ui.showToast,

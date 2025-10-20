@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+
+{% block title %}Help & Documentation - REDLINE{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-question-circle me-2"></i>Help & Documentation
+                </h1>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Help -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-rocket me-2"></i>Getting Started
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-download text-primary me-2"></i>1. Download Data</h6>
+                            <p class="text-muted">Use the Download tab to fetch financial data from Yahoo Finance or Stooq.</p>
+                            
+                            <h6><i class="fas fa-eye text-success me-2"></i>2. View Data</h6>
+                            <p class="text-muted">Navigate to the Data tab to view and filter your downloaded datasets.</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-exchange-alt text-info me-2"></i>3. Convert Formats</h6>
+                            <p class="text-muted">Use the Converter tab to convert between different data formats.</p>
+                            
+                            <h6><i class="fas fa-chart-bar text-warning me-2"></i>4. Analyze Data</h6>
+                            <p class="text-muted">Perform analysis and generate insights in the Analysis tab.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-palette me-2"></i>Customization
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <h6>Color Themes</h6>
+                    <p class="text-muted">Choose from multiple color-blind friendly themes using the Theme dropdown in the navigation bar.</p>
+                    
+                    <h6>Accessibility</h6>
+                    <p class="text-muted">All themes are designed to be accessible for users with various types of color blindness.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features Overview -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-star me-2"></i>Features Overview
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="feature-item mb-3">
+                                <h6><i class="fas fa-database text-primary me-2"></i>Data Management</h6>
+                                <ul class="list-unstyled text-muted">
+                                    <li>• Download from multiple sources</li>
+                                    <li>• Support for various formats</li>
+                                    <li>• Virtual scrolling for large datasets</li>
+                                    <li>• Advanced filtering capabilities</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="feature-item mb-3">
+                                <h6><i class="fas fa-chart-line text-success me-2"></i>Analysis Tools</h6>
+                                <ul class="list-unstyled text-muted">
+                                    <li>• Statistical analysis</li>
+                                    <li>• Financial calculations</li>
+                                    <li>• Interactive charts</li>
+                                    <li>• Export capabilities</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="feature-item mb-3">
+                                <h6><i class="fas fa-cogs text-info me-2"></i>Format Support</h6>
+                                <ul class="list-unstyled text-muted">
+                                    <li>• CSV, JSON, Parquet</li>
+                                    <li>• Feather, DuckDB</li>
+                                    <li>• Batch conversion</li>
+                                    <li>• Format validation</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Documentation -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-code me-2"></i>API Documentation
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Data Operations</h6>
+                            <div class="code-block mb-3">
+                                <code>GET /api/files</code> - List available files<br>
+                                <code>GET /api/data/&lt;filename&gt;</code> - Get data preview<br>
+                                <code>POST /api/upload</code> - Upload file<br>
+                                <code>DELETE /api/files/&lt;filename&gt;</code> - Delete file
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>System Operations</h6>
+                            <div class="code-block mb-3">
+                                <code>GET /api/status</code> - System status<br>
+                                <code>GET /api/health</code> - Health check<br>
+                                <code>GET /api/themes</code> - Available themes<br>
+                                <code>POST /api/theme</code> - Set theme
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Troubleshooting -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-wrench me-2"></i>Troubleshooting
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="accordion" id="troubleshootingAccordion">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingOne">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne">
+                                    File Upload Issues
+                                </button>
+                            </h2>
+                            <div id="collapseOne" class="accordion-collapse collapse show" data-bs-parent="#troubleshootingAccordion">
+                                <div class="accordion-body">
+                                    <ul>
+                                        <li>Ensure file format is supported (CSV, JSON, Parquet, Feather, DuckDB)</li>
+                                        <li>Check file size limits</li>
+                                        <li>Verify file permissions</li>
+                                        <li>Try uploading smaller files first</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingTwo">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo">
+                                    Theme Issues
+                                </button>
+                            </h2>
+                            <div id="collapseTwo" class="accordion-collapse collapse" data-bs-parent="#troubleshootingAccordion">
+                                <div class="accordion-body">
+                                    <ul>
+                                        <li>Clear browser cache and reload</li>
+                                        <li>Check if localStorage is enabled</li>
+                                        <li>Try switching to a different theme</li>
+                                        <li>Verify browser supports CSS custom properties</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingThree">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree">
+                                    Performance Issues
+                                </button>
+                            </h2>
+                            <div id="collapseThree" class="accordion-collapse collapse" data-bs-parent="#troubleshootingAccordion">
+                                <div class="accordion-body">
+                                    <ul>
+                                        <li>Close unnecessary browser tabs</li>
+                                        <li>Check available memory</li>
+                                        <li>Try with smaller datasets</li>
+                                        <li>Clear browser cache</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact & Support -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-life-ring me-2"></i>Support & Resources
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6>Documentation</h6>
+                            <ul class="list-unstyled">
+                                <li><a href="#" class="text-decoration-none">User Guide</a></li>
+                                <li><a href="#" class="text-decoration-none">API Reference</a></li>
+                                <li><a href="#" class="text-decoration-none">Theme System Guide</a></li>
+                                <li><a href="#" class="text-decoration-none">Accessibility Guide</a></li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Resources</h6>
+                            <ul class="list-unstyled">
+                                <li><a href="#" class="text-decoration-none">Sample Data</a></li>
+                                <li><a href="#" class="text-decoration-none">Tutorial Videos</a></li>
+                                <li><a href="#" class="text-decoration-none">Best Practices</a></li>
+                                <li><a href="#" class="text-decoration-none">FAQ</a></li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>System Info</h6>
+                            <ul class="list-unstyled text-muted">
+                                <li>Version: 1.0.0</li>
+                                <li>Last Updated: <span id="lastUpdated"></span></li>
+                                <li>Browser: <span id="browserInfo"></span></li>
+                                <li>Theme: <span id="currentTheme"></span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.code-block {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    font-family: 'Courier New', monospace;
+}
+
+.feature-item {
+    border-left: 3px solid var(--primary-color);
+    padding-left: 1rem;
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: var(--primary-color);
+    color: white;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Update system info
+    $('#lastUpdated').text(new Date().toLocaleDateString());
+    $('#browserInfo').text(navigator.userAgent.split(' ').slice(-2).join(' '));
+    
+    // Get current theme
+    const currentTheme = localStorage.getItem('redline-theme') || 'theme-default';
+    const themeNames = {
+        'theme-default': 'Default',
+        'theme-high-contrast': 'High Contrast',
+        'theme-ocean': 'Ocean',
+        'theme-forest': 'Forest',
+        'theme-sunset': 'Sunset',
+        'theme-monochrome': 'Monochrome',
+        'theme-dark': 'Dark'
+    };
+    $('#currentTheme').text(themeNames[currentTheme] || 'Default');
+});
+</script>
+{% endblock %}
