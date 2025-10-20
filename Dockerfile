@@ -29,28 +29,7 @@ RUN apt-get update && \
     curl \
     wget \
     git \
-    # GUI and X11 packages
-    python3-tk \
-    tk-dev \
-    tcl-dev \
-    libx11-dev \
-    libxext-dev \
-    libxrender-dev \
-    libxss1 \
-    libgconf-2-4 \
-    libxtst6 \
-    libxrandr2 \
-    libasound2 \
-    libpangocairo-1.0-0 \
-    libatk1.0-0 \
-    libcairo-gobject2 \
-    libgtk-3-0 \
-    libgdk-pixbuf2.0-0 \
-    # VNC and virtual display packages
-    xvfb \
-    x11vnc \
-    fluxbox \
-    # Web server packages (for future web interface)
+    # Web server packages
     nginx \
     # Additional utilities
     procps \

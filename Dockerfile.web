@@ -1,0 +1,53 @@
+# Dockerfile for REDLINE Web Interface
+# Optimized for web deployment
+
+FROM python:3.11-slim
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV WEB_PORT=8080
+ENV FLASK_APP=web_app.py
+
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y \
+    curl \
+    wget \
+    git \
+    && apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -m -s /bin/bash redline
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements first for better Docker layer caching
+COPY requirements_docker.txt ./
+
+# Install Python packages
+RUN pip install --upgrade pip && \
+    pip install -r requirements_docker.txt
+
+# Copy application files
+COPY main.py data_config.ini ./
+COPY redline/ ./redline/
+COPY web_app.py ./
+
+# Create data directories with proper permissions
+RUN mkdir -p data data/converted data/downloaded data/stooq_format && \
+    chown -R redline:redline /app
+
+# Switch to non-root user
+USER redline
+
+# Expose port
+EXPOSE ${WEB_PORT}
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${WEB_PORT}/health || exit 1
+
+# Run the web application
+CMD ["python", "web_app.py"]
