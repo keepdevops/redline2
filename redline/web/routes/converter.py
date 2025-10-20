@@ -106,7 +106,13 @@ def convert_file():
         
         # Load data
         logger.info(f"Loading data from {input_file}")
-        data_obj = converter.load_file(input_path)
+        from redline.core.schema import EXT_TO_FORMAT
+        
+        # Detect format from file extension
+        ext = os.path.splitext(input_path)[1].lower()
+        format_type = EXT_TO_FORMAT.get(ext, 'csv')
+        
+        data_obj = converter.load_file_by_type(input_path, format_type)
         
         if data_obj is None:
             return jsonify({'error': 'Failed to load input file'}), 400
@@ -189,7 +195,13 @@ def batch_convert():
                 converter = FormatConverter()
                 
                 # Load and convert
-                data_obj = converter.load_file(input_path)
+                from redline.core.schema import EXT_TO_FORMAT
+                
+                # Detect format from file extension
+                ext = os.path.splitext(input_path)[1].lower()
+                format_type = EXT_TO_FORMAT.get(ext, 'csv')
+                
+                data_obj = converter.load_file_by_type(input_path, format_type)
                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
                 converter.save_file_by_type(data_obj, output_path, output_format)
                 
@@ -309,17 +321,26 @@ def preview_file(filename):
         from redline.core.format_converter import FormatConverter
         converter = FormatConverter()
         
-        data = converter.load_file(file_path)
+        from redline.core.schema import EXT_TO_FORMAT
+        
+        # Detect format from file extension
+        ext = os.path.splitext(file_path)[1].lower()
+        format_type = EXT_TO_FORMAT.get(ext, 'csv')
+        
+        data = converter.load_file_by_type(file_path, format_type)
         
         if isinstance(data, pd.DataFrame):
             preview = {
                 'type': 'dataframe',
                 'columns': list(data.columns),
                 'dtypes': data.dtypes.astype(str).to_dict(),
-                'shape': data.shape,
+                'shape': {
+                    'rows': int(data.shape[0]),
+                    'columns': int(data.shape[1])
+                },
                 'sample_data': data.head(10).to_dict('records'),
-                'null_counts': data.isnull().sum().to_dict(),
-                'memory_usage': data.memory_usage(deep=True).sum()
+                'null_counts': {k: int(v) for k, v in data.isnull().sum().to_dict().items()},
+                'memory_usage': int(data.memory_usage(deep=True).sum())
             }
         else:
             preview = {

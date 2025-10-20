@@ -7,9 +7,23 @@ from flask import Blueprint, render_template, request, jsonify
 import logging
 import pandas as pd
 import numpy as np
+import os
 
 analysis_bp = Blueprint('analysis', __name__)
 logger = logging.getLogger(__name__)
+
+def convert_numpy_types(obj):
+    """Convert numpy types to native Python types for JSON serialization."""
+    if isinstance(obj, dict):
+        return {k: convert_numpy_types(v) for k, v in obj.items()}
+    elif isinstance(obj, (np.integer, np.int64)):
+        return int(obj)
+    elif isinstance(obj, (np.floating, np.float64)):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    else:
+        return obj
 
 @analysis_bp.route('/')
 def analysis_tab():
@@ -28,10 +42,17 @@ def analyze_data():
             return jsonify({'error': 'No filename provided'}), 400
         
         from redline.core.format_converter import FormatConverter
+        from redline.core.schema import EXT_TO_FORMAT
+        
         converter = FormatConverter()
         
-        data_path = f"data/{filename}"
-        df = converter.load_file(data_path)
+        data_path = os.path.join(os.getcwd(), 'data', filename)
+        
+        # Detect format from file extension (same as Tkinter)
+        ext = os.path.splitext(data_path)[1].lower()
+        format_type = EXT_TO_FORMAT.get(ext, 'csv')
+        
+        df = converter.load_file_by_type(data_path, format_type)
         
         if not isinstance(df, pd.DataFrame):
             return jsonify({'error': 'Invalid data format'}), 400
@@ -66,12 +87,12 @@ def perform_basic_analysis(df):
     try:
         analysis = {
             'shape': {
-                'rows': len(df),
-                'columns': len(df.columns)
+                'rows': int(len(df)),
+                'columns': int(len(df.columns))
             },
             'data_types': df.dtypes.astype(str).to_dict(),
-            'null_counts': df.isnull().sum().to_dict(),
-            'memory_usage': df.memory_usage(deep=True).sum(),
+            'null_counts': convert_numpy_types(df.isnull().sum().to_dict()),
+            'memory_usage': int(df.memory_usage(deep=True).sum()),
             'numeric_summary': {},
             'categorical_summary': {}
         }
@@ -80,16 +101,17 @@ def perform_basic_analysis(df):
         numeric_cols = df.select_dtypes(include=[np.number]).columns
         if len(numeric_cols) > 0:
             numeric_df = df[numeric_cols]
+            
             analysis['numeric_summary'] = {
-                'count': numeric_df.count().to_dict(),
-                'mean': numeric_df.mean().to_dict(),
-                'std': numeric_df.std().to_dict(),
-                'min': numeric_df.min().to_dict(),
-                'max': numeric_df.max().to_dict(),
+                'count': convert_numpy_types(numeric_df.count().to_dict()),
+                'mean': convert_numpy_types(numeric_df.mean().to_dict()),
+                'std': convert_numpy_types(numeric_df.std().to_dict()),
+                'min': convert_numpy_types(numeric_df.min().to_dict()),
+                'max': convert_numpy_types(numeric_df.max().to_dict()),
                 'percentiles': {
-                    '25%': numeric_df.quantile(0.25).to_dict(),
-                    '50%': numeric_df.quantile(0.50).to_dict(),
-                    '75%': numeric_df.quantile(0.75).to_dict()
+                    '25%': convert_numpy_types(numeric_df.quantile(0.25).to_dict()),
+                    '50%': convert_numpy_types(numeric_df.quantile(0.50).to_dict()),
+                    '75%': convert_numpy_types(numeric_df.quantile(0.75).to_dict())
                 }
             }
         
@@ -98,9 +120,9 @@ def perform_basic_analysis(df):
         if len(categorical_cols) > 0:
             for col in categorical_cols:
                 analysis['categorical_summary'][col] = {
-                    'unique_count': df[col].nunique(),
-                    'most_common': df[col].value_counts().head(5).to_dict(),
-                    'null_count': df[col].isnull().sum()
+                    'unique_count': int(df[col].nunique()),
+                    'most_common': convert_numpy_types(df[col].value_counts().head(5).to_dict()),
+                    'null_count': int(df[col].isnull().sum())
                 }
         
         return analysis
@@ -130,32 +152,32 @@ def perform_financial_analysis(df):
             prices = pd.to_numeric(df[price_col], errors='coerce')
             
             analysis['price_analysis'] = {
-                'current_price': float(prices.iloc[-1]) if not prices.empty else None,
-                'price_range': {
-                    'min': float(prices.min()),
-                    'max': float(prices.max()),
-                    'avg': float(prices.mean())
-                },
-                'price_change': {
-                    'absolute': float(prices.iloc[-1] - prices.iloc[0]) if len(prices) > 1 else 0,
-                    'percentage': float(((prices.iloc[-1] - prices.iloc[0]) / prices.iloc[0]) * 100) if len(prices) > 1 and prices.iloc[0] != 0 else 0
+                    'current_price': convert_numpy_types(prices.iloc[-1]) if not prices.empty else None,
+                    'price_range': {
+                        'min': convert_numpy_types(prices.min()),
+                        'max': convert_numpy_types(prices.max()),
+                        'avg': convert_numpy_types(prices.mean())
+                    },
+                    'price_change': {
+                        'absolute': convert_numpy_types(prices.iloc[-1] - prices.iloc[0]) if len(prices) > 1 else 0,
+                        'percentage': convert_numpy_types(((prices.iloc[-1] - prices.iloc[0]) / prices.iloc[0]) * 100) if len(prices) > 1 and prices.iloc[0] != 0 else 0
+                    }
                 }
-            }
             
             # Calculate returns
             returns = prices.pct_change().dropna()
             if not returns.empty:
                 analysis['returns_analysis'] = {
-                    'mean_return': float(returns.mean()),
-                    'std_return': float(returns.std()),
-                    'total_return': float((prices.iloc[-1] / prices.iloc[0] - 1) * 100) if prices.iloc[0] != 0 else 0,
-                    'sharpe_ratio': float(returns.mean() / returns.std()) if returns.std() != 0 else 0
+                    'mean_return': convert_numpy_types(returns.mean()),
+                    'std_return': convert_numpy_types(returns.std()),
+                    'total_return': convert_numpy_types((prices.iloc[-1] / prices.iloc[0] - 1) * 100) if prices.iloc[0] != 0 else 0,
+                    'sharpe_ratio': convert_numpy_types(returns.mean() / returns.std()) if returns.std() != 0 else 0
                 }
                 
                 analysis['volatility_analysis'] = {
-                    'daily_volatility': float(returns.std()),
-                    'annualized_volatility': float(returns.std() * np.sqrt(252)),
-                    'max_drawdown': float((returns.cumsum().expanding().max() - returns.cumsum()).max())
+                    'daily_volatility': convert_numpy_types(returns.std()),
+                    'annualized_volatility': convert_numpy_types(returns.std() * np.sqrt(252)),
+                    'max_drawdown': convert_numpy_types((returns.cumsum().expanding().max() - returns.cumsum()).max())
                 }
         
         if volume_cols:
@@ -163,9 +185,9 @@ def perform_financial_analysis(df):
             volumes = pd.to_numeric(df[volume_col], errors='coerce')
             
             analysis['volume_analysis'] = {
-                'avg_volume': float(volumes.mean()),
-                'max_volume': float(volumes.max()),
-                'min_volume': float(volumes.min()),
+                'avg_volume': convert_numpy_types(volumes.mean()),
+                'max_volume': convert_numpy_types(volumes.max()),
+                'min_volume': convert_numpy_types(volumes.min()),
                 'volume_trend': 'increasing' if volumes.iloc[-5:].mean() > volumes.iloc[:5].mean() else 'decreasing'
             }
         
@@ -191,15 +213,15 @@ def perform_statistical_analysis(df):
             numeric_df = df[numeric_cols]
             
             # Descriptive statistics
-            analysis['descriptive_stats'] = numeric_df.describe().to_dict()
+            analysis['descriptive_stats'] = convert_numpy_types(numeric_df.describe().to_dict())
             
             # Distribution analysis
             for col in numeric_cols:
                 col_data = numeric_df[col].dropna()
                 if not col_data.empty:
                     analysis['distribution_analysis'][col] = {
-                        'skewness': float(col_data.skew()),
-                        'kurtosis': float(col_data.kurtosis()),
+                        'skewness': convert_numpy_types(col_data.skew()),
+                        'kurtosis': convert_numpy_types(col_data.kurtosis()),
                         'normality_test': 'normal' if abs(col_data.skew()) < 0.5 and abs(col_data.kurtosis()) < 0.5 else 'non-normal'
                     }
             
@@ -217,14 +239,14 @@ def perform_statistical_analysis(df):
                     
                     analysis['outlier_detection'][col] = {
                         'outlier_count': len(outliers),
-                        'outlier_percentage': float(len(outliers) / len(col_data) * 100),
+                        'outlier_percentage': convert_numpy_types(len(outliers) / len(col_data) * 100),
                         'outlier_values': outliers.tolist()[:10]  # First 10 outliers
                     }
             
             # Correlation matrix
             if len(numeric_cols) > 1:
                 correlation_matrix = numeric_df.corr()
-                analysis['correlation_matrix'] = correlation_matrix.to_dict()
+                analysis['correlation_matrix'] = convert_numpy_types(correlation_matrix.to_dict())
         
         return analysis
         
@@ -252,14 +274,14 @@ def perform_correlation_analysis(df):
                     strong_correlations.append({
                         'column1': correlation_matrix.columns[i],
                         'column2': correlation_matrix.columns[j],
-                        'correlation': float(corr_value),
+                        'correlation': convert_numpy_types(corr_value),
                         'strength': 'strong positive' if corr_value > 0.7 else 'strong negative'
                     })
         
         analysis = {
-            'correlation_matrix': correlation_matrix.to_dict(),
+            'correlation_matrix': convert_numpy_types(correlation_matrix.to_dict()),
             'strong_correlations': strong_correlations,
-            'avg_correlation': float(correlation_matrix.values[np.triu_indices_from(correlation_matrix.values, k=1)].mean())
+            'avg_correlation': convert_numpy_types(correlation_matrix.values[np.triu_indices_from(correlation_matrix.values, k=1)].mean())
         }
         
         return analysis

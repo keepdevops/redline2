@@ -7,7 +7,7 @@ from flask import Blueprint, render_template, request, jsonify
 import logging
 import os
 import pandas as pd
-from ..database.optimized_connector import OptimizedDatabaseConnector
+from ...database.optimized_connector import OptimizedDatabaseConnector
 
 # Initialize optimized database connector
 optimized_db = OptimizedDatabaseConnector(max_connections=8, cache_size=64, cache_ttl=300)
@@ -165,36 +165,69 @@ def filter_data():
         if not isinstance(df, pd.DataFrame):
             return jsonify({'error': 'Invalid data format'}), 400
         
-        # Apply filters
+        # Apply filters - handle both list and dict formats
         filtered_df = df.copy()
         
-        for column, filter_config in filters.items():
-            if column in filtered_df.columns:
-                filter_type = filter_config.get('type')
-                filter_value = filter_config.get('value')
+        # Handle filters as a list (from frontend) or dict (legacy)
+        if isinstance(filters, list):
+            # New format: list of filter objects
+            for filter_obj in filters:
+                column = filter_obj.get('column')
+                operator = filter_obj.get('operator')  # 'equals', 'contains', 'greater_than', etc.
+                value = filter_obj.get('value')
                 
-                if filter_type == 'equals':
-                    filtered_df = filtered_df[filtered_df[column].astype(str) == str(filter_value)]
-                elif filter_type == 'contains':
-                    filtered_df = filtered_df[filtered_df[column].astype(str).str.contains(str(filter_value), na=False)]
-                elif filter_type == 'greater_than':
-                    try:
-                        numeric_value = float(filter_value)
-                        filtered_df = filtered_df[pd.to_numeric(filtered_df[column], errors='coerce') > numeric_value]
-                    except (ValueError, TypeError):
-                        pass
-                elif filter_type == 'less_than':
-                    try:
-                        numeric_value = float(filter_value)
-                        filtered_df = filtered_df[pd.to_numeric(filtered_df[column], errors='coerce') < numeric_value]
-                    except (ValueError, TypeError):
-                        pass
-                elif filter_type == 'date_range':
-                    if 'start' in filter_value and 'end' in filter_value:
-                        filtered_df = filtered_df[
-                            (filtered_df[column] >= filter_value['start']) &
-                            (filtered_df[column] <= filter_value['end'])
-                        ]
+                if column in filtered_df.columns:
+                    if operator == 'equals':
+                        filtered_df = filtered_df[filtered_df[column].astype(str) == str(value)]
+                    elif operator == 'contains':
+                        filtered_df = filtered_df[filtered_df[column].astype(str).str.contains(str(value), na=False)]
+                    elif operator == 'greater_than':
+                        try:
+                            numeric_value = float(value)
+                            filtered_df = filtered_df[pd.to_numeric(filtered_df[column], errors='coerce') > numeric_value]
+                        except (ValueError, TypeError):
+                            pass
+                    elif operator == 'less_than':
+                        try:
+                            numeric_value = float(value)
+                            filtered_df = filtered_df[pd.to_numeric(filtered_df[column], errors='coerce') < numeric_value]
+                        except (ValueError, TypeError):
+                            pass
+                    elif operator == 'date_range':
+                        if 'start' in value and 'end' in value:
+                            filtered_df = filtered_df[
+                                (filtered_df[column] >= value['start']) &
+                                (filtered_df[column] <= value['end'])
+                            ]
+        else:
+            # Legacy format: dict where keys are column names
+            for column, filter_config in filters.items():
+                if column in filtered_df.columns:
+                    filter_type = filter_config.get('type')
+                    filter_value = filter_config.get('value')
+                    
+                    if filter_type == 'equals':
+                        filtered_df = filtered_df[filtered_df[column].astype(str) == str(filter_value)]
+                    elif filter_type == 'contains':
+                        filtered_df = filtered_df[filtered_df[column].astype(str).str.contains(str(filter_value), na=False)]
+                    elif filter_type == 'greater_than':
+                        try:
+                            numeric_value = float(filter_value)
+                            filtered_df = filtered_df[pd.to_numeric(filtered_df[column], errors='coerce') > numeric_value]
+                        except (ValueError, TypeError):
+                            pass
+                    elif filter_type == 'less_than':
+                        try:
+                            numeric_value = float(filter_value)
+                            filtered_df = filtered_df[pd.to_numeric(filtered_df[column], errors='coerce') < numeric_value]
+                        except (ValueError, TypeError):
+                            pass
+                    elif filter_type == 'date_range':
+                        if 'start' in filter_value and 'end' in filter_value:
+                            filtered_df = filtered_df[
+                                (filtered_df[column] >= filter_value['start']) &
+                                (filtered_df[column] <= filter_value['end'])
+                            ]
         
         # Convert to JSON-serializable format
         data_dict = {

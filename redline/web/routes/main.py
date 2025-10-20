@@ -49,3 +49,8 @@ def status():
 def health():
     """Health check endpoint for Docker."""
     return jsonify({'status': 'healthy', 'service': 'redline-web'})
+
+@main_bp.route('/tasks')
+def tasks_page():
+    """Background tasks page."""
+    return render_template('tasks_tab.html')

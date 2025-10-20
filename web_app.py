@@ -54,6 +54,7 @@ def create_app():
     from redline.web.routes.download import download_bp
     from redline.web.routes.converter import converter_bp
     from redline.web.routes.settings import settings_bp
+    from redline.web.routes.tasks import tasks_bp
     
     app.register_blueprint(main_bp)
     app.register_blueprint(api_bp, url_prefix='/api')
@@ -62,6 +63,7 @@ def create_app():
     app.register_blueprint(download_bp, url_prefix='/download')
     app.register_blueprint(converter_bp, url_prefix='/converter')
     app.register_blueprint(settings_bp, url_prefix='/settings')
+    app.register_blueprint(tasks_bp, url_prefix='/tasks')
     
     # Error handlers
     @app.errorhandler(404)

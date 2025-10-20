@@ -1,0 +1,655 @@
+{% extends "base.html" %}
+
+{% block title %}Background Tasks - REDLINE{% endblock %}
+
+{% block page_title %}Background Task Processing{% endblock %}
+{% block page_subtitle %}Monitor and manage asynchronous operations{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Task System Status -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-server me-2"></i>System Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="systemStatus">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border spinner-border-sm me-2" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <span>Loading system status...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Queue Statistics -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>Queue Statistics
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="queueStats">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border spinner-border-sm me-2" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <span>Loading queue statistics...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Task Management -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-tasks me-2"></i>Task Management
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <button id="refreshTasksBtn" class="btn btn-outline-primary">
+                            <i class="fas fa-sync-alt me-2"></i>Refresh Tasks
+                        </button>
+                        <button id="cleanupTasksBtn" class="btn btn-outline-secondary">
+                            <i class="fas fa-trash me-2"></i>Cleanup Old Tasks
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <select id="statusFilter" class="form-select">
+                                <option value="">All Status</option>
+                                <option value="PENDING">Pending</option>
+                                <option value="PROGRESS">In Progress</option>
+                                <option value="SUCCESS">Success</option>
+                                <option value="FAILURE">Failed</option>
+                                <option value="REVOKED">Cancelled</option>
+                            </select>
+                            <button id="filterTasksBtn" class="btn btn-outline-primary">
+                                <i class="fas fa-filter"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="tasksList">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border spinner-border-sm me-2" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <span>Loading tasks...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submit New Task -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-plus-circle me-2"></i>Submit New Task
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label class="form-label">Task Type</label>
+                        <select id="taskType" class="form-select">
+                            <option value="">Select task type...</option>
+                            <option value="process_data_conversion">Data Conversion</option>
+                            <option value="process_data_download">Data Download</option>
+                            <option value="process_data_analysis">Data Analysis</option>
+                            <option value="process_file_upload">File Upload</option>
+                            <option value="process_bulk_operations">Bulk Operations</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Priority</label>
+                        <select id="taskPriority" class="form-select">
+                            <option value="1">High (1)</option>
+                            <option value="3">Medium (3)</option>
+                            <option value="5" selected>Normal (5)</option>
+                            <option value="7">Low (7)</option>
+                            <option value="9">Very Low (9)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">&nbsp;</label>
+                        <button id="submitTaskBtn" class="btn btn-primary d-block" disabled>
+                            <i class="fas fa-paper-plane me-2"></i>Submit Task
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="taskConfig" class="mt-3" style="display: none;">
+                    <!-- Task-specific configuration will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Task Details Modal -->
+<div class="modal fade" id="taskDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Task Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="taskDetailsContent">
+                    <!-- Task details will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-danger" id="cancelTaskBtn" style="display: none;">
+                    <i class="fas fa-times me-2"></i>Cancel Task
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentTaskId = null;
+let refreshInterval = null;
+
+$(document).ready(function() {
+    loadSystemStatus();
+    loadQueueStats();
+    loadTasks();
+    
+    // Start auto-refresh
+    startAutoRefresh();
+    
+    // Event handlers
+    $('#refreshTasksBtn').on('click', function() {
+        loadTasks();
+    });
+    
+    $('#cleanupTasksBtn').on('click', function() {
+        cleanupOldTasks();
+    });
+    
+    $('#filterTasksBtn').on('click', function() {
+        loadTasks();
+    });
+    
+    $('#taskType').on('change', function() {
+        loadTaskConfig();
+    });
+    
+    $('#submitTaskBtn').on('click', function() {
+        submitTask();
+    });
+    
+    $('#cancelTaskBtn').on('click', function() {
+        cancelTask();
+    });
+    
+    // Stop auto-refresh when page is hidden
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            stopAutoRefresh();
+        } else {
+            startAutoRefresh();
+        }
+    });
+});
+
+function loadSystemStatus() {
+    $.get('/tasks/health')
+        .done(function(data) {
+            const statusHtml = `
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="stats-card">
+                            <div class="stats-number">
+                                <i class="fas ${data.celery_available ? 'fa-check-circle text-success' : 'fa-times-circle text-danger'}"></i>
+                            </div>
+                            <div class="stats-label">Celery Available</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card">
+                            <div class="stats-number">
+                                <i class="fas ${data.celery_connected ? 'fa-check-circle text-success' : 'fa-times-circle text-danger'}"></i>
+                            </div>
+                            <div class="stats-label">Celery Connected</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card">
+                            <div class="stats-number">${data.registry_size}</div>
+                            <div class="stats-label">Tasks in Registry</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card">
+                            <div class="stats-number">
+                                <span class="badge bg-${data.status === 'healthy' ? 'success' : 'danger'}">${data.status}</span>
+                            </div>
+                            <div class="stats-label">System Status</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            $('#systemStatus').html(statusHtml);
+        })
+        .fail(function() {
+            $('#systemStatus').html('<div class="alert alert-danger">Failed to load system status</div>');
+        });
+}
+
+function loadQueueStats() {
+    $.get('/tasks/queue/stats')
+        .done(function(data) {
+            const statsHtml = `
+                <div class="row">
+                    <div class="col-md-2">
+                        <div class="stats-card">
+                            <div class="stats-number">${data.active_tasks || 0}</div>
+                            <div class="stats-label">Active Tasks</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="stats-card">
+                            <div class="stats-number">${data.scheduled_tasks || 0}</div>
+                            <div class="stats-label">Scheduled</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="stats-card">
+                            <div class="stats-number">${data.reserved_tasks || 0}</div>
+                            <div class="stats-label">Reserved</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="stats-card">
+                            <div class="stats-number">${data.registered_tasks || 0}</div>
+                            <div class="stats-label">Registered</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stats-card">
+                            <div class="stats-label">Mode</div>
+                            <div class="stats-number">
+                                <span class="badge bg-${data.mode === 'synchronous' ? 'warning' : 'info'}">${data.mode || 'asynchronous'}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            $('#queueStats').html(statsHtml);
+        })
+        .fail(function() {
+            $('#queueStats').html('<div class="alert alert-danger">Failed to load queue statistics</div>');
+        });
+}
+
+function loadTasks() {
+    const statusFilter = $('#statusFilter').val();
+    const url = statusFilter ? `/tasks/list?status=${statusFilter}` : '/tasks/list';
+    
+    $.get(url)
+        .done(function(data) {
+            if (data.tasks && data.tasks.length > 0) {
+                const tasksHtml = data.tasks.map(task => createTaskRow(task)).join('');
+                $('#tasksList').html(`
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Task ID</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Submitted</th>
+                                    <th>Progress</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tasksHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                `);
+            } else {
+                $('#tasksList').html('<div class="alert alert-info">No tasks found</div>');
+            }
+        })
+        .fail(function() {
+            $('#tasksList').html('<div class="alert alert-danger">Failed to load tasks</div>');
+        });
+}
+
+function createTaskRow(task) {
+    const statusBadge = getStatusBadge(task.status);
+    const progressHtml = task.status === 'PROGRESS' && task.progress ? 
+        `<div class="progress" style="height: 20px;">
+            <div class="progress-bar" style="width: ${task.progress.progress || 0}%">${task.progress.progress || 0}%</div>
+        </div>` : 
+        `<span class="text-muted">-</span>`;
+    
+    const submittedAt = new Date(task.submitted_at).toLocaleString();
+    const taskIdShort = task.task_id.substring(0, 8) + '...';
+    
+    return `
+        <tr>
+            <td>
+                <code>${taskIdShort}</code>
+                <button class="btn btn-sm btn-outline-primary ms-1" onclick="showTaskDetails('${task.task_id}')">
+                    <i class="fas fa-eye"></i>
+                </button>
+            </td>
+            <td>${task.task_name}</td>
+            <td>${statusBadge}</td>
+            <td>${submittedAt}</td>
+            <td>${progressHtml}</td>
+            <td>
+                ${task.status === 'PENDING' || task.status === 'PROGRESS' ? 
+                    `<button class="btn btn-sm btn-danger" onclick="cancelTaskById('${task.task_id}')">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>` : 
+                    `<button class="btn btn-sm btn-outline-primary" onclick="showTaskDetails('${task.task_id}')">
+                        <i class="fas fa-eye"></i> View
+                    </button>`
+                }
+            </td>
+        </tr>
+    `;
+}
+
+function getStatusBadge(status) {
+    const badges = {
+        'PENDING': '<span class="badge bg-warning">Pending</span>',
+        'PROGRESS': '<span class="badge bg-info">In Progress</span>',
+        'SUCCESS': '<span class="badge bg-success">Success</span>',
+        'FAILURE': '<span class="badge bg-danger">Failed</span>',
+        'REVOKED': '<span class="badge bg-secondary">Cancelled</span>'
+    };
+    return badges[status] || `<span class="badge bg-secondary">${status}</span>`;
+}
+
+function showTaskDetails(taskId) {
+    currentTaskId = taskId;
+    
+    $.get(`/tasks/status/${taskId}`)
+        .done(function(data) {
+            const detailsHtml = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Task Information</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>Task ID:</strong></td><td><code>${data.task_id}</code></td></tr>
+                            <tr><td><strong>Task Name:</strong></td><td>${data.task_name}</td></tr>
+                            <tr><td><strong>Status:</strong></td><td>${getStatusBadge(data.status)}</td></tr>
+                            <tr><td><strong>Submitted:</strong></td><td>${new Date(data.submitted_at).toLocaleString()}</td></tr>
+                            ${data.completed_at ? `<tr><td><strong>Completed:</strong></td><td>${new Date(data.completed_at).toLocaleString()}</td></tr>` : ''}
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Task Parameters</h6>
+                        <pre class="bg-light p-2"><code>${JSON.stringify({args: data.args, kwargs: data.kwargs}, null, 2)}</code></pre>
+                    </div>
+                </div>
+                ${data.result ? `
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>Result</h6>
+                            <pre class="bg-light p-2"><code>${JSON.stringify(data.result, null, 2)}</code></pre>
+                        </div>
+                    </div>
+                ` : ''}
+                ${data.error ? `
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>Error</h6>
+                            <div class="alert alert-danger">${data.error}</div>
+                        </div>
+                    </div>
+                ` : ''}
+            `;
+            
+            $('#taskDetailsContent').html(detailsHtml);
+            $('#cancelTaskBtn').toggle(data.status === 'PENDING' || data.status === 'PROGRESS');
+            $('#taskDetailsModal').modal('show');
+        })
+        .fail(function() {
+            REDLINE.ui.showToast('Failed to load task details', 'error');
+        });
+}
+
+function cancelTaskById(taskId) {
+    if (confirm('Are you sure you want to cancel this task?')) {
+        $.post(`/tasks/cancel/${taskId}`)
+            .done(function() {
+                REDLINE.ui.showToast('Task cancelled successfully', 'success');
+                loadTasks();
+            })
+            .fail(function() {
+                REDLINE.ui.showToast('Failed to cancel task', 'error');
+            });
+    }
+}
+
+function cancelTask() {
+    if (currentTaskId) {
+        cancelTaskById(currentTaskId);
+        $('#taskDetailsModal').modal('hide');
+    }
+}
+
+function loadTaskConfig() {
+    const taskType = $('#taskType').val();
+    $('#submitTaskBtn').prop('disabled', !taskType);
+    
+    if (!taskType) {
+        $('#taskConfig').hide();
+        return;
+    }
+    
+    let configHtml = '';
+    
+    switch (taskType) {
+        case 'process_data_conversion':
+            configHtml = `
+                <div class="row">
+                    <div class="col-md-4">
+                        <label class="form-label">Input File</label>
+                        <input type="text" id="inputFile" class="form-control" placeholder="path/to/input/file.csv">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Output Format</label>
+                        <select id="outputFormat" class="form-select">
+                            <option value="csv">CSV</option>
+                            <option value="json">JSON</option>
+                            <option value="parquet">Parquet</option>
+                            <option value="feather">Feather</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Output File</label>
+                        <input type="text" id="outputFile" class="form-control" placeholder="path/to/output/file.csv">
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'process_data_download':
+            configHtml = `
+                <div class="row">
+                    <div class="col-md-3">
+                        <label class="form-label">Ticker</label>
+                        <input type="text" id="ticker" class="form-control" placeholder="AAPL">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" id="startDate" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">End Date</label>
+                        <input type="date" id="endDate" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Source</label>
+                        <select id="source" class="form-select">
+                            <option value="yahoo">Yahoo Finance</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'process_data_analysis':
+            configHtml = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Data File</label>
+                        <input type="text" id="dataFile" class="form-control" placeholder="path/to/data/file.csv">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Analysis Type</label>
+                        <select id="analysisType" class="form-select">
+                            <option value="basic_stats">Basic Statistics</option>
+                            <option value="financial_metrics">Financial Metrics</option>
+                            <option value="time_series">Time Series Analysis</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'process_file_upload':
+            configHtml = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">File Path</label>
+                        <input type="text" id="filePath" class="form-control" placeholder="path/to/uploaded/file.csv">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Target Format</label>
+                        <select id="targetFormat" class="form-select">
+                            <option value="">Auto-detect</option>
+                            <option value="csv">CSV</option>
+                            <option value="json">JSON</option>
+                            <option value="parquet">Parquet</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+            break;
+    }
+    
+    $('#taskConfig').html(configHtml).show();
+}
+
+function submitTask() {
+    const taskType = $('#taskType').val();
+    const priority = parseInt($('#taskPriority').val());
+    
+    let taskData = {
+        priority: priority
+    };
+    
+    switch (taskType) {
+        case 'process_data_conversion':
+            taskData = {
+                ...taskData,
+                input_file: $('#inputFile').val(),
+                output_format: $('#outputFormat').val(),
+                output_file: $('#outputFile').val()
+            };
+            break;
+            
+        case 'process_data_download':
+            taskData = {
+                ...taskData,
+                ticker: $('#ticker').val(),
+                start_date: $('#startDate').val(),
+                end_date: $('#endDate').val(),
+                source: $('#source').val()
+            };
+            break;
+            
+        case 'process_data_analysis':
+            taskData = {
+                ...taskData,
+                data_file: $('#dataFile').val(),
+                analysis_type: $('#analysisType').val()
+            };
+            break;
+            
+        case 'process_file_upload':
+            taskData = {
+                ...taskData,
+                file_path: $('#filePath').val(),
+                target_format: $('#targetFormat').val() || null
+            };
+            break;
+    }
+    
+    // Submit task
+    const endpoint = taskType.replace('process_', '').replace('_', '/');
+    
+    $.post(`/tasks/${endpoint}`, taskData)
+        .done(function(response) {
+            REDLINE.ui.showToast(`Task submitted successfully: ${response.task_id}`, 'success');
+            loadTasks();
+            
+            // Clear form
+            $('#taskType').val('');
+            $('#taskConfig').hide();
+            $('#submitTaskBtn').prop('disabled', true);
+        })
+        .fail(function(xhr) {
+            const error = xhr.responseJSON?.error || 'Failed to submit task';
+            REDLINE.ui.showToast(`Error: ${error}`, 'error');
+        });
+}
+
+function cleanupOldTasks() {
+    if (confirm('Are you sure you want to cleanup old tasks? This will remove completed tasks older than 7 days.')) {
+        $.post('/tasks/cleanup', {days: 7})
+            .done(function() {
+                REDLINE.ui.showToast('Old tasks cleaned up successfully', 'success');
+                loadTasks();
+            })
+            .fail(function() {
+                REDLINE.ui.showToast('Failed to cleanup old tasks', 'error');
+            });
+    }
+}
+
+function startAutoRefresh() {
+    if (refreshInterval) return;
+    
+    refreshInterval = setInterval(function() {
+        loadSystemStatus();
+        loadQueueStats();
+        loadTasks();
+    }, 5000); // Refresh every 5 seconds
+}
+
+function stopAutoRefresh() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+    }
+}
+</script>
+{% endblock %}
