@@ -53,15 +53,15 @@ def _load_large_file_chunked(file_path: str, format_type: str, chunk_size: int =
                 logger.warning(f"Error in chunked text loading: {str(e)}")
             
             # Fallback to regular loading
-            from redline.core.data_loader import DataLoader
-            loader = DataLoader()
-            return loader.load_file_by_type(file_path, format_type)
+            from redline.core.format_converter import FormatConverter
+            converter = FormatConverter()
+            return converter.load_file_by_type(file_path, format_type)
         
         else:
             # For other formats, use regular loading
-            from redline.core.data_loader import DataLoader
-            loader = DataLoader()
-            return loader.load_file_by_type(file_path, format_type)
+            from redline.core.format_converter import FormatConverter
+            converter = FormatConverter()
+            return converter.load_file_by_type(file_path, format_type)
             
     except Exception as e:
         logger.error(f"Error in chunked loading: {str(e)}")
@@ -88,10 +88,10 @@ def load_data():
             return jsonify({'error': 'File not found'}), 404
         
         # Use EXACT same data loading pipeline as Tkinter GUI
-        from redline.core.data_loader import DataLoader
+        from redline.core.format_converter import FormatConverter
         from redline.core.schema import EXT_TO_FORMAT
         
-        loader = DataLoader()
+        converter = FormatConverter()
         
         # Detect format from file extension (same as Tkinter _detect_format_from_path)
         ext = os.path.splitext(data_path)[1].lower()
@@ -105,7 +105,7 @@ def load_data():
         if is_large_file and format_type in ['csv', 'txt']:
             df = _load_large_file_chunked(data_path, format_type)
         else:
-            df = loader.load_file_by_type(data_path, format_type)
+            df = converter.load_file_by_type(data_path, format_type)
         
         if not isinstance(df, pd.DataFrame):
             return jsonify({'error': 'Invalid data format'}), 400
@@ -139,10 +139,10 @@ def filter_data():
         data_path = os.path.join(os.getcwd(), 'data', filename)
         
         # Use EXACT same data loading pipeline as Tkinter GUI
-        from redline.core.data_loader import DataLoader
+        from redline.core.format_converter import FormatConverter
         from redline.core.schema import EXT_TO_FORMAT
         
-        loader = DataLoader()
+        converter = FormatConverter()
         
         # Detect format from file extension (same as Tkinter _detect_format_from_path)
         ext = os.path.splitext(data_path)[1].lower()
@@ -156,7 +156,7 @@ def filter_data():
         if is_large_file and format_type in ['csv', 'txt']:
             df = _load_large_file_chunked(data_path, format_type)
         else:
-            df = loader.load_file_by_type(data_path, format_type)
+            df = converter.load_file_by_type(data_path, format_type)
         
         if not isinstance(df, pd.DataFrame):
             return jsonify({'error': 'Invalid data format'}), 400
@@ -217,10 +217,10 @@ def get_columns(filename):
             return jsonify({'error': 'File not found'}), 404
         
         # Use EXACT same data loading pipeline as Tkinter GUI
-        from redline.core.data_loader import DataLoader
+        from redline.core.format_converter import FormatConverter
         from redline.core.schema import EXT_TO_FORMAT
         
-        loader = DataLoader()
+        converter = FormatConverter()
         
         # Detect format from file extension (same as Tkinter _detect_format_from_path)
         ext = os.path.splitext(data_path)[1].lower()
@@ -234,7 +234,7 @@ def get_columns(filename):
         if is_large_file and format_type in ['csv', 'txt']:
             df = _load_large_file_chunked(data_path, format_type)
         else:
-            df = loader.load_file_by_type(data_path, format_type)
+            df = converter.load_file_by_type(data_path, format_type)
         
         if not isinstance(df, pd.DataFrame):
             return jsonify({'error': 'Invalid data format'}), 400
@@ -282,10 +282,10 @@ def export_data():
         export_path = os.path.join(os.getcwd(), 'data', export_filename)
         
         # Use EXACT same data loading pipeline as Tkinter GUI
-        from redline.core.data_loader import DataLoader
+        from redline.core.format_converter import FormatConverter
         from redline.core.schema import EXT_TO_FORMAT
         
-        loader = DataLoader()
+        converter = FormatConverter()
         
         # Detect format from file extension (same as Tkinter _detect_format_from_path)
         ext = os.path.splitext(data_path)[1].lower()
@@ -299,7 +299,7 @@ def export_data():
         if is_large_file and format_type in ['csv', 'txt']:
             df = _load_large_file_chunked(data_path, format_type)
         else:
-            df = loader.load_file_by_type(data_path, format_type)
+            df = converter.load_file_by_type(data_path, format_type)
         
         # Apply filters if provided
         if filters:
