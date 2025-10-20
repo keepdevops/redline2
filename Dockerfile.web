@@ -1,19 +1,36 @@
-# Dockerfile for REDLINE Web Interface
-# Optimized for web deployment
+# Optimized Dockerfile for REDLINE Web Interface Only
+# Supports: x86_64, ARM64, Apple Silicon
+# Minimal image for web-only deployment
 
-FROM python:3.11-slim
+FROM --platform=$BUILDPLATFORM python:3.11-slim
 
-# Set environment variables
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
 ENV WEB_PORT=8080
-ENV FLASK_APP=web_app.py
+
+# Build arguments
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
+# Labels for metadata
+LABEL maintainer="REDLINE Team"
+LABEL description="REDLINE Web Interface Only"
+LABEL version="1.0.0"
+LABEL org.opencontainers.image.source="https://github.com/redline/redline"
 
 # Install system dependencies
 RUN apt-get update && \
     apt-get install -y \
+    # Core packages
     curl \
     wget \
     git \
+    build-essential \
+    # Web server
+    nginx \
+    # Utilities
+    procps \
+    jq \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -27,8 +44,8 @@ WORKDIR /app
 COPY requirements_docker.txt ./
 
 # Install Python packages
-RUN pip install --upgrade pip && \
-    pip install -r requirements_docker.txt
+RUN python -m pip install --upgrade pip && \
+    python -m pip install --no-cache-dir -r requirements_docker.txt
 
 # Copy application files
 COPY main.py data_config.ini ./
@@ -39,6 +56,10 @@ COPY web_app.py ./
 RUN mkdir -p data data/converted data/downloaded data/stooq_format && \
     chown -R redline:redline /app
 
+# Copy web-specific entrypoint
+COPY entrypoint_web.sh ./
+RUN chmod +x entrypoint_web.sh
+
 # Switch to non-root user
 USER redline
 
@@ -47,7 +68,10 @@ EXPOSE ${WEB_PORT}
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${WEB_PORT}/health || exit 1
+    CMD curl -f http://localhost:${WEB_PORT}/status || exit 1
 
-# Run the web application
-CMD ["python", "web_app.py"]
+# Set entrypoint
+ENTRYPOINT ["./entrypoint_web.sh"]
+
+# Default command
+CMD ["--web"]

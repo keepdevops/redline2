@@ -1,7 +1,12 @@
 services:
-  # REDLINE X11 Mode - Traditional GUI with X11 forwarding
+  # REDLINE X11 Mode - Traditional GUI with X11 forwarding (Multi-platform)
   redline-x11:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
+        - linux/arm64
     container_name: redline-x11
     environment:
       - DISPLAY=${DISPLAY:-:0}
@@ -17,9 +22,14 @@ services:
     profiles:
       - x11
 
-  # REDLINE VNC Mode - Remote GUI access via VNC
+  # REDLINE VNC Mode - Remote GUI access via VNC (Multi-platform)
   redline-vnc:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
+        - linux/arm64
     container_name: redline-vnc
     environment:
       - VNC_PORT=${VNC_PORT:-5900}
@@ -66,11 +76,14 @@ services:
     profiles:
       - gui-headless
 
-  # REDLINE Web Mode - Modern web interface
+  # REDLINE Web Mode - Modern web interface (Multi-platform)
   redline-web:
     build:
       context: .
       dockerfile: Dockerfile.web
+      platforms:
+        - linux/amd64
+        - linux/arm64
     container_name: redline-web
     environment:
       - MODE=web
@@ -83,6 +96,54 @@ services:
     command: ["python3", "web_app.py"]
     profiles:
       - web
+
+  # REDLINE ARM64 Mode - Apple Silicon/ARM optimized
+  redline-arm:
+    build:
+      context: .
+      dockerfile: Dockerfile.arm
+      platforms:
+        - linux/arm64
+    container_name: redline-arm
+    environment:
+      - MODE=auto
+      - VNC_PORT=${VNC_PORT:-5900}
+      - WEB_PORT=${WEB_PORT:-8080}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    ports:
+      - "${VNC_PORT:-5900}:${VNC_PORT:-5900}"
+      - "${WEB_PORT:-8080}:${WEB_PORT:-8080}"
+    stdin_open: true
+    tty: true
+    command: ["--mode=auto"]
+    profiles:
+      - arm
+
+  # REDLINE x86_64 Mode - Intel/AMD optimized
+  redline-x86:
+    build:
+      context: .
+      dockerfile: Dockerfile.x86
+      platforms:
+        - linux/amd64
+    container_name: redline-x86
+    environment:
+      - MODE=auto
+      - VNC_PORT=${VNC_PORT:-5900}
+      - WEB_PORT=${WEB_PORT:-8080}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    ports:
+      - "${VNC_PORT:-5900}:${VNC_PORT:-5900}"
+      - "${WEB_PORT:-8080}:${WEB_PORT:-8080}"
+    stdin_open: true
+    tty: true
+    command: ["--mode=auto"]
+    profiles:
+      - x86
 
   # REDLINE Development Mode - For development and testing
   redline-dev:

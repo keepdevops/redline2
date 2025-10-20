@@ -1,28 +1,24 @@
-# Multi-platform Dockerfile for REDLINE Data Analyzer
-# Supports: x86_64, ARM64, Apple Silicon
-# Modes: X11 forwarding, VNC server, headless mode, and web interface
+# x86_64 Optimized Dockerfile for REDLINE
+# Optimized for Intel/AMD x86_64 processors
 
-FROM --platform=$BUILDPLATFORM ubuntu:24.04
+FROM --platform=linux/amd64 ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 ENV DISPLAY=:99
 
-# Build arguments for different modes and platforms
+# Build arguments
 ARG MODE=auto
 ARG VNC_PORT=5900
 ARG WEB_PORT=8080
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
 
 # Labels for metadata
 LABEL maintainer="REDLINE Team"
-LABEL description="REDLINE Data Analyzer with GUI support"
+LABEL description="REDLINE Data Analyzer - x86_64 Optimized"
 LABEL version="1.0.0"
-LABEL org.opencontainers.image.source="https://github.com/redline/redline"
-LABEL org.opencontainers.image.description="Multi-platform REDLINE Data Analyzer"
+LABEL architecture="amd64"
 
-# Install system dependencies for all modes and platforms
+# Install system dependencies optimized for x86_64
 RUN apt-get update && \
     apt-get install -y \
     # Core system packages
@@ -34,7 +30,7 @@ RUN apt-get update && \
     curl \
     wget \
     git \
-    # Platform-specific packages
+    # x86-specific packages
     software-properties-common \
     apt-transport-https \
     ca-certificates \
@@ -53,6 +49,10 @@ RUN apt-get update && \
     vim \
     jq \
     unzip \
+    # x86 optimization packages
+    libopenblas-dev \
+    liblapack-dev \
+    libatlas-base-dev \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -66,8 +66,13 @@ WORKDIR /app
 # Copy requirements first for better Docker layer caching
 COPY requirements_docker.txt ./
 
-# Install Python packages with platform-specific optimizations
+# Install Python packages with x86 optimizations
 RUN python3 -m pip install --upgrade pip setuptools wheel && \
+    # Set x86-specific environment variables for optimized builds
+    export OPENBLAS_NUM_THREADS=8 && \
+    export MKL_NUM_THREADS=8 && \
+    export NUMEXPR_NUM_THREADS=8 && \
+    export OMP_NUM_THREADS=8 && \
     # Install platform-specific packages first
     python3 -m pip install --no-cache-dir \
     numpy \
@@ -108,7 +113,7 @@ EXPOSE ${VNC_PORT} ${WEB_PORT}
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${WEB_PORT}/health || exit 1
+    CMD curl -f http://localhost:${WEB_PORT}/status || exit 1
 
 # Set entrypoint
 ENTRYPOINT ["./entrypoint.sh"]
