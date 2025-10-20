@@ -278,9 +278,21 @@ def download_data(ticker):
 def get_data_preview(filename):
     """Get paginated preview of data file with compression."""
     try:
-        data_path = os.path.join(os.getcwd(), 'data', filename)
+        # Check multiple locations for the file
+        data_dir = os.path.join(os.getcwd(), 'data')
+        data_path = None
         
-        if not os.path.exists(data_path):
+        # Check in root data directory first
+        root_path = os.path.join(data_dir, filename)
+        if os.path.exists(root_path):
+            data_path = root_path
+        else:
+            # Check in downloaded directory
+            downloaded_path = os.path.join(data_dir, 'downloaded', filename)
+            if os.path.exists(downloaded_path):
+                data_path = downloaded_path
+        
+        if not data_path or not os.path.exists(data_path):
             return jsonify({'error': 'File not found'}), 404
         
         # Get pagination parameters
@@ -289,9 +301,15 @@ def get_data_preview(filename):
         
         # Load data
         from redline.core.format_converter import FormatConverter
+        from redline.core.schema import EXT_TO_FORMAT
+        
         converter = FormatConverter()
         
-        data = converter.load_file(data_path)
+        # Detect format from file extension
+        ext = os.path.splitext(data_path)[1].lower()
+        format_type = EXT_TO_FORMAT.get(ext, 'csv')
+        
+        data = converter.load_file_by_type(data_path, format_type)
         
         if isinstance(data, pd.DataFrame):
             # Convert to records for pagination

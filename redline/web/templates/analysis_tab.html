@@ -156,27 +156,42 @@ function loadAvailableFiles() {
             
             if (response.files && response.files.length > 0) {
                 response.files.forEach(file => {
-                    select.append(`<option value="${file.name}">${file.name} (${REDLINE.utils.formatFileSize(file.size)})</option>`);
+                    // Validate file name before adding to dropdown
+                    if (file.name && typeof file.name === 'string') {
+                        const fileSize = file.size ? REDLINE.utils.formatFileSize(file.size) : 'Unknown size';
+                        select.append(`<option value="${file.name}">${file.name} (${fileSize})</option>`);
+                    }
                 });
+            } else {
+                select.append('<option value="" disabled>No files available</option>');
             }
             
             REDLINE.ui.hideLoading();
         })
         .catch(error => {
             REDLINE.ui.hideLoading();
-            REDLINE.ui.showToast('Error loading files: ' + error.message, 'error');
+            console.error('Error loading files:', error);
+            const errorMessage = error.message || error.error || 'Unknown error occurred';
+            REDLINE.ui.showToast('Error loading files: ' + errorMessage, 'error');
         });
 }
 
 function loadQuickStats(filename) {
+    // Validate filename before making request
+    if (!filename || typeof filename !== 'string') {
+        $('#quickStats').html('<small class="text-danger">Invalid filename</small>');
+        return;
+    }
+    
+    // Try to get quick stats, but don't fail if endpoint is not available
     REDLINE.api.get(`/api/data/${filename}`)
         .then(response => {
             const statsHtml = `
                 <div class="mb-2">
-                    <strong>Rows:</strong> ${REDLINE.utils.formatNumber(response.total_rows)}
+                    <strong>Rows:</strong> ${REDLINE.utils.formatNumber(response.total_rows || 0)}
                 </div>
                 <div class="mb-2">
-                    <strong>Columns:</strong> ${response.columns.length}
+                    <strong>Columns:</strong> ${response.columns ? response.columns.length : 'N/A'}
                 </div>
                 <div class="mb-2">
                     <strong>File Size:</strong> ${REDLINE.utils.formatFileSize(response.file_size || 0)}
@@ -184,15 +199,16 @@ function loadQuickStats(filename) {
                 <div class="mb-2">
                     <strong>Columns:</strong>
                     <ul class="list-unstyled mt-1">
-                        ${response.columns.slice(0, 5).map(col => `<li><small>• ${col}</small></li>`).join('')}
-                        ${response.columns.length > 5 ? `<li><small>• ... and ${response.columns.length - 5} more</small></li>` : ''}
+                        ${response.columns ? response.columns.slice(0, 5).map(col => `<li><small>• ${col}</small></li>`).join('') : ''}
+                        ${response.columns && response.columns.length > 5 ? `<li><small>• ... and ${response.columns.length - 5} more</small></li>` : ''}
                     </ul>
                 </div>
             `;
             $('#quickStats').html(statsHtml);
         })
         .catch(error => {
-            $('#quickStats').html('<small class="text-danger">Error loading stats</small>');
+            console.log('Quick stats not available:', error);
+            $('#quickStats').html('<small class="text-muted">Quick stats will be available after running analysis</small>');
         });
 }
 
@@ -202,6 +218,12 @@ function runAnalysis() {
     
     if (!filename || !analysisType) {
         REDLINE.ui.showToast('Please select both file and analysis type', 'error');
+        return;
+    }
+    
+    // Validate filename format - allow most common filename characters
+    if (!filename || filename.length === 0 || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+        REDLINE.ui.showToast('Invalid filename format', 'error');
         return;
     }
     
@@ -221,7 +243,19 @@ function runAnalysis() {
         })
         .catch(error => {
             REDLINE.ui.hideLoading();
-            REDLINE.ui.showToast('Error running analysis: ' + error.message, 'error');
+            console.error('Analysis error:', error);
+            console.error('Error type:', typeof error);
+            console.error('Error keys:', Object.keys(error));
+            
+            // Try to extract error message in multiple ways
+            let errorMessage = 'Unknown error occurred';
+            if (error && typeof error === 'object') {
+                errorMessage = error.message || error.error || error.toString() || 'Unknown error occurred';
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            }
+            
+            REDLINE.ui.showToast('Error running analysis: ' + errorMessage, 'error');
         });
 }
 
@@ -373,9 +407,9 @@ function displayStatisticalAnalysis(result) {
             html += `
                 <tr>
                     <td>${col}</td>
-                    <td>${analysis.skewness?.toFixed(2) || 'N/A'}</td>
-                    <td>${analysis.kurtosis?.toFixed(2) || 'N/A'}</td>
-                    <td><span class="badge ${analysis.normality === 'normal' ? 'bg-success' : 'bg-warning'}">${analysis.normality}</span></td>
+                    <td>${(analysis.skewness !== null && analysis.skewness !== undefined) ? analysis.skewness.toFixed(2) : 'N/A'}</td>
+                    <td>${(analysis.kurtosis !== null && analysis.kurtosis !== undefined) ? analysis.kurtosis.toFixed(2) : 'N/A'}</td>
+                    <td><span class="badge ${analysis.normality === 'normal' ? 'bg-success' : 'bg-warning'}">${analysis.normality || 'N/A'}</span></td>
                 </tr>
             `;
         });
@@ -391,8 +425,8 @@ function displayStatisticalAnalysis(result) {
             html += `
                 <tr>
                     <td>${col}</td>
-                    <td>${detection.outlier_count}</td>
-                    <td>${detection.outlier_percentage?.toFixed(2) || 'N/A'}%</td>
+                    <td>${detection.outlier_count || 0}</td>
+                    <td>${(detection.outlier_percentage !== null && detection.outlier_percentage !== undefined) ? detection.outlier_percentage.toFixed(2) : 'N/A'}%</td>
                 </tr>
             `;
         });
@@ -415,15 +449,15 @@ function displayCorrelationAnalysis(result) {
                 <tr>
                     <td>${corr.column1}</td>
                     <td>${corr.column2}</td>
-                    <td>${corr.correlation?.toFixed(3) || 'N/A'}</td>
-                    <td><span class="badge ${corr.strength.includes('positive') ? 'bg-success' : 'bg-danger'}">${corr.strength}</span></td>
+                    <td>${(corr.correlation !== null && corr.correlation !== undefined) ? corr.correlation.toFixed(3) : 'N/A'}</td>
+                    <td><span class="badge ${corr.strength && corr.strength.includes('positive') ? 'bg-success' : 'bg-danger'}">${corr.strength || 'N/A'}</span></td>
                 </tr>
             `;
         });
         html += '</tbody></table></div>';
     }
     
-    if (result.avg_correlation) {
+    if (result.avg_correlation !== null && result.avg_correlation !== undefined) {
         html += `<p><strong>Average Correlation:</strong> ${result.avg_correlation.toFixed(3)}</p>`;
     }
     

@@ -154,10 +154,12 @@ class FormatConverter:
                     if isinstance(data, pd.DataFrame):
                         # Register the DataFrame with DuckDB and create table
                         conn.register('temp_data', data)
+                        conn.execute("DROP TABLE IF EXISTS tickers_data")
                         conn.execute("CREATE TABLE tickers_data AS SELECT * FROM temp_data")
                     elif POLARS_AVAILABLE and isinstance(data, pl.DataFrame):
                         # Register the Polars DataFrame with DuckDB and create table
                         conn.register('temp_data', data)
+                        conn.execute("DROP TABLE IF EXISTS tickers_data")
                         conn.execute("CREATE TABLE tickers_data AS SELECT * FROM temp_data")
                     else:
                         # For other data types, convert to DataFrame first
@@ -166,6 +168,7 @@ class FormatConverter:
                         else:
                             df = pd.DataFrame(data)
                         conn.register('temp_data', df)
+                        conn.execute("DROP TABLE IF EXISTS tickers_data")
                         conn.execute("CREATE TABLE tickers_data AS SELECT * FROM temp_data")
                 except Exception as e:
                     # Ensure connection is closed even on error

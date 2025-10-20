@@ -237,7 +237,7 @@ def perform_statistical_analysis(df):
                     analysis['distribution_analysis'][col] = {
                         'skewness': convert_numpy_types(col_data.skew()),
                         'kurtosis': convert_numpy_types(col_data.kurtosis()),
-                        'normality_test': 'normal' if abs(col_data.skew()) < 0.5 and abs(col_data.kurtosis()) < 0.5 else 'non-normal'
+                        'normality': 'normal' if abs(col_data.skew()) < 0.5 and abs(col_data.kurtosis()) < 0.5 else 'non-normal'
                     }
             
             # Outlier detection using IQR method
