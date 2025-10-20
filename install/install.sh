@@ -190,11 +190,15 @@ main() {
     print_status "Running installation script: $script_dir/$install_script"
     echo ""
     
-    # Add Ubuntu 24.04 specific warning for Tkinter
+    # Add Ubuntu 24.04 specific warnings
     if [[ "$platform" == "ubuntu" && "$arch" == "amd64" ]]; then
         print_warning "Ubuntu 24.04 LTS uses different Tkinter package names"
         print_status "If you encounter 'package tkinter not found', run:"
         print_status "  ./install/fix_tkinter_ubuntu24.sh"
+        echo ""
+        print_warning "If you encounter user creation issues, you have options:"
+        print_status "1. Fix user creation: ./install/fix_user_creation.sh"
+        print_status "2. Install for current user: ./install/install_ubuntu_intel_current_user.sh"
         echo ""
     fi
     

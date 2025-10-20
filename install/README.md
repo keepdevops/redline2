@@ -12,6 +12,8 @@ This directory contains all installation scripts and documentation for REDLINE.
 ### 🔧 Troubleshooting Scripts
 - **`fix_tkinter_ubuntu24.sh`** - Fix Tkinter installation for Ubuntu 24.04 LTS
 - **`test_tkinter_packages.sh`** - Test Tkinter package availability
+- **`fix_user_creation.sh`** - Fix user creation issues
+- **`install_ubuntu_intel_current_user.sh`** - Alternative installation for current user
 
 ### 📚 Documentation
 - **`README.md`** - This file (overview of installation scripts)
@@ -128,7 +130,16 @@ sudo systemctl start redline-docker
    ./install/test_tkinter_packages.sh
    ```
 
-2. **Tkinter GUI not working**: On headless servers, use web interface instead
+2. **"User redline does not exist"**: User creation issues
+   ```bash
+   # Fix user creation
+   ./install/fix_user_creation.sh
+   
+   # Or install for current user instead
+   ./install/install_ubuntu_intel_current_user.sh
+   ```
+
+3. **Tkinter GUI not working**: On headless servers, use web interface instead
    ```bash
    # Web interface works without Tkinter
    sudo systemctl start redline-web

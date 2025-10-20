@@ -1,11 +1,11 @@
 #!/bin/bash
 set -e
 
-# REDLINE Ubuntu Intel Installation Script
-# Installs and configures REDLINE with both Tkinter GUI and Flask Web App using Docker
+# REDLINE Ubuntu Intel Installation Script (Current User)
+# Installs and configures REDLINE for the current user with both Tkinter GUI and Flask Web App using Docker
 
-echo "🚀 REDLINE Ubuntu Intel Installation Script"
-echo "============================================"
+echo "🚀 REDLINE Ubuntu Intel Installation Script (Current User)"
+echo "========================================================="
 
 # Colors for output
 RED='\033[0;31m'
@@ -31,9 +31,9 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Configuration variables
-REDLINE_USER="redline"
-REDLINE_HOME="/home/$REDLINE_USER"
+# Configuration variables - use current user
+CURRENT_USER="$USER"
+REDLINE_HOME="$HOME"
 REDLINE_DIR="$REDLINE_HOME/redline"
 DOCKER_COMPOSE_VERSION="2.20.0"
 PYTHON_VERSION="3.11"
@@ -161,7 +161,7 @@ install_docker() {
     sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     
     # Add current user to docker group
-    sudo usermod -aG docker $USER
+    sudo usermod -aG docker $CURRENT_USER
     
     # Enable Docker to start on boot
     sudo systemctl enable docker
@@ -182,27 +182,6 @@ install_docker_compose() {
     print_success "Docker Compose installed successfully"
 }
 
-# Function to create redline user
-create_redline_user() {
-    print_status "Creating redline user..."
-    
-    if id "$REDLINE_USER" &>/dev/null; then
-        print_warning "User $REDLINE_USER already exists"
-    else
-        # Create user with home directory and add to docker group
-        if sudo useradd -m -s /bin/bash $REDLINE_USER; then
-            print_success "User $REDLINE_USER created"
-            # Add to docker group
-            sudo usermod -aG docker $REDLINE_USER
-            print_success "User $REDLINE_USER added to docker group"
-        else
-            print_error "Failed to create user $REDLINE_USER"
-            print_warning "You may need to create the user manually or run as root"
-            return 1
-        fi
-    fi
-}
-
 # Function to clone REDLINE repository
 clone_redline() {
     print_status "Cloning REDLINE repository..."
@@ -210,13 +189,10 @@ clone_redline() {
     if [ -d "$REDLINE_DIR" ]; then
         print_warning "REDLINE directory already exists. Updating..."
         cd "$REDLINE_DIR"
-        sudo -u $REDLINE_USER git pull
+        git pull
     else
-        sudo -u $REDLINE_USER git clone https://github.com/redline/redline.git "$REDLINE_DIR"
+        git clone https://github.com/redline/redline.git "$REDLINE_DIR"
     fi
-    
-    # Set ownership
-    sudo chown -R $REDLINE_USER:$REDLINE_USER "$REDLINE_DIR"
     
     print_success "REDLINE repository cloned/updated"
 }
@@ -228,20 +204,21 @@ setup_python_env() {
     cd "$REDLINE_DIR"
     
     # Create virtual environment
-    sudo -u $REDLINE_USER python3 -m venv venv
+    python3 -m venv venv
     
     # Activate virtual environment and install packages
-    sudo -u $REDLINE_USER bash -c "source venv/bin/activate && pip install --upgrade pip"
+    source venv/bin/activate
+    pip install --upgrade pip
     
     # Install Tkinter via pip if system packages weren't available
     print_status "Installing Tkinter via pip..."
-    sudo -u $REDLINE_USER bash -c "source venv/bin/activate && pip install tk" || {
+    pip install tk || {
         print_warning "Failed to install Tkinter via pip, but continuing..."
     }
     
     # Install requirements
-    sudo -u $REDLINE_USER bash -c "source venv/bin/activate && pip install -r requirements.txt"
-    sudo -u $REDLINE_USER bash -c "source venv/bin/activate && pip install -r requirements_ubuntu.txt" 2>/dev/null || {
+    pip install -r requirements.txt
+    pip install -r requirements_ubuntu.txt 2>/dev/null || {
         print_warning "requirements_ubuntu.txt not found, skipping Ubuntu-specific packages"
     }
     
@@ -252,11 +229,11 @@ setup_python_env() {
 create_data_directories() {
     print_status "Creating data directories..."
     
-    sudo -u $REDLINE_USER mkdir -p "$REDLINE_DIR/data"
-    sudo -u $REDLINE_USER mkdir -p "$REDLINE_DIR/data/downloaded"
-    sudo -u $REDLINE_USER mkdir -p "$REDLINE_DIR/data/converted"
-    sudo -u $REDLINE_USER mkdir -p "$REDLINE_DIR/data/stooq_format"
-    sudo -u $REDLINE_USER mkdir -p "$REDLINE_DIR/logs"
+    mkdir -p "$REDLINE_DIR/data"
+    mkdir -p "$REDLINE_DIR/data/downloaded"
+    mkdir -p "$REDLINE_DIR/data/converted"
+    mkdir -p "$REDLINE_DIR/data/stooq_format"
+    mkdir -p "$REDLINE_DIR/logs"
     
     print_success "Data directories created"
 }
@@ -268,79 +245,10 @@ setup_docker_images() {
     cd "$REDLINE_DIR"
     
     # Build Docker images
-    sudo -u $REDLINE_USER docker build --platform linux/amd64 -f Dockerfile.x86 -t redline:x86 .
-    sudo -u $REDLINE_USER docker build --platform linux/amd64 -f Dockerfile.web -t redline-web:x86 .
+    docker build --platform linux/amd64 -f Dockerfile.x86 -t redline:x86 .
+    docker build --platform linux/amd64 -f Dockerfile.web -t redline-web:x86 .
     
     print_success "Docker images built successfully"
-}
-
-# Function to create systemd service files
-create_systemd_services() {
-    print_status "Creating systemd service files..."
-    
-    # Tkinter GUI service
-    sudo tee /etc/systemd/system/redline-gui.service > /dev/null <<EOF
-[Unit]
-Description=REDLINE Tkinter GUI
-After=network.target
-
-[Service]
-Type=simple
-User=$REDLINE_USER
-WorkingDirectory=$REDLINE_DIR
-Environment=DISPLAY=:0
-ExecStart=/usr/bin/python3 main.py --task=gui
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    # Flask Web App service
-    sudo tee /etc/systemd/system/redline-web.service > /dev/null <<EOF
-[Unit]
-Description=REDLINE Flask Web App
-After=network.target
-
-[Service]
-Type=simple
-User=$REDLINE_USER
-WorkingDirectory=$REDLINE_DIR
-Environment=WEB_PORT=8080
-Environment=FLASK_APP=web_app.py
-Environment=FLASK_ENV=production
-ExecStart=/usr/bin/python3 web_app.py
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    # Docker Compose service
-    sudo tee /etc/systemd/system/redline-docker.service > /dev/null <<EOF
-[Unit]
-Description=REDLINE Docker Services
-After=docker.service
-Requires=docker.service
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-User=$REDLINE_USER
-WorkingDirectory=$REDLINE_DIR
-ExecStart=/usr/local/bin/docker-compose --profile x86 up -d
-ExecStop=/usr/local/bin/docker-compose down
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    # Reload systemd
-    sudo systemctl daemon-reload
-    
-    print_success "Systemd service files created"
 }
 
 # Function to create startup scripts
@@ -348,7 +256,7 @@ create_startup_scripts() {
     print_status "Creating startup scripts..."
     
     # Tkinter GUI startup script
-    sudo -u $REDLINE_USER tee "$REDLINE_DIR/start_gui.sh" > /dev/null <<'EOF'
+    tee "$REDLINE_DIR/start_gui.sh" > /dev/null <<'EOF'
 #!/bin/bash
 cd "$(dirname "$0")"
 
@@ -366,7 +274,7 @@ python3 main.py --task=gui
 EOF
 
     # Flask Web App startup script
-    sudo -u $REDLINE_USER tee "$REDLINE_DIR/start_web.sh" > /dev/null <<'EOF'
+    tee "$REDLINE_DIR/start_web.sh" > /dev/null <<'EOF'
 #!/bin/bash
 cd "$(dirname "$0")"
 
@@ -381,7 +289,7 @@ python3 web_app.py
 EOF
 
     # Docker startup script
-    sudo -u $REDLINE_USER tee "$REDLINE_DIR/start_docker.sh" > /dev/null <<'EOF'
+    tee "$REDLINE_DIR/start_docker.sh" > /dev/null <<'EOF'
 #!/bin/bash
 cd "$(dirname "$0")"
 
@@ -396,7 +304,7 @@ echo "📊 VNC access: localhost:5900 (password: redline123)"
 EOF
 
     # Stop script
-    sudo -u $REDLINE_USER tee "$REDLINE_DIR/stop_docker.sh" > /dev/null <<'EOF'
+    tee "$REDLINE_DIR/stop_docker.sh" > /dev/null <<'EOF'
 #!/bin/bash
 cd "$(dirname "$0")"
 
@@ -409,7 +317,7 @@ echo "✅ REDLINE Docker services stopped"
 EOF
 
     # Make scripts executable
-    sudo -u $REDLINE_USER chmod +x "$REDLINE_DIR"/*.sh
+    chmod +x "$REDLINE_DIR"/*.sh
     
     print_success "Startup scripts created"
 }
@@ -418,8 +326,11 @@ EOF
 create_desktop_shortcuts() {
     print_status "Creating desktop shortcuts..."
     
+    # Create Desktop directory if it doesn't exist
+    mkdir -p "$REDLINE_HOME/Desktop"
+    
     # Tkinter GUI shortcut
-    sudo -u $REDLINE_USER tee "$REDLINE_HOME/Desktop/REDLINE-GUI.desktop" > /dev/null <<EOF
+    tee "$REDLINE_HOME/Desktop/REDLINE-GUI.desktop" > /dev/null <<EOF
 [Desktop Entry]
 Version=1.0
 Type=Application
@@ -432,7 +343,7 @@ Categories=Science;DataAnalysis;
 EOF
 
     # Flask Web App shortcut
-    sudo -u $REDLINE_USER tee "$REDLINE_HOME/Desktop/REDLINE-Web.desktop" > /dev/null <<EOF
+    tee "$REDLINE_HOME/Desktop/REDLINE-Web.desktop" > /dev/null <<EOF
 [Desktop Entry]
 Version=1.0
 Type=Application
@@ -445,7 +356,7 @@ Categories=Science;DataAnalysis;Network;
 EOF
 
     # Docker shortcut
-    sudo -u $REDLINE_USER tee "$REDLINE_HOME/Desktop/REDLINE-Docker.desktop" > /dev/null <<EOF
+    tee "$REDLINE_HOME/Desktop/REDLINE-Docker.desktop" > /dev/null <<EOF
 [Desktop Entry]
 Version=1.0
 Type=Application
@@ -458,7 +369,7 @@ Categories=Science;DataAnalysis;Development;
 EOF
 
     # Make shortcuts executable
-    sudo -u $REDLINE_USER chmod +x "$REDLINE_HOME/Desktop"/*.desktop
+    chmod +x "$REDLINE_HOME/Desktop"/*.desktop
     
     print_success "Desktop shortcuts created"
 }
@@ -468,7 +379,7 @@ create_config_files() {
     print_status "Creating configuration files..."
     
     # Docker environment file
-    sudo -u $REDLINE_USER tee "$REDLINE_DIR/docker.env" > /dev/null <<EOF
+    tee "$REDLINE_DIR/docker.env" > /dev/null <<EOF
 # REDLINE Docker Environment Configuration
 TARGET_PLATFORM=linux/amd64
 BUILD_MODE=auto
@@ -483,7 +394,7 @@ LOG_LEVEL=INFO
 EOF
 
     # Application configuration
-    sudo -u $REDLINE_USER tee "$REDLINE_DIR/redline.conf" > /dev/null <<EOF
+    tee "$REDLINE_DIR/redline.conf" > /dev/null <<EOF
 # REDLINE Application Configuration
 [DEFAULT]
 data_dir = ./data
@@ -537,7 +448,7 @@ run_tests() {
     cd "$REDLINE_DIR"
     
     # Test Docker
-    if sudo -u $REDLINE_USER docker --version &>/dev/null; then
+    if docker --version &>/dev/null; then
         print_success "Docker test passed"
     else
         print_error "Docker test failed"
@@ -545,7 +456,7 @@ run_tests() {
     fi
     
     # Test Docker Compose
-    if sudo -u $REDLINE_USER docker-compose --version &>/dev/null; then
+    if docker-compose --version &>/dev/null; then
         print_success "Docker Compose test passed"
     else
         print_error "Docker Compose test failed"
@@ -553,7 +464,7 @@ run_tests() {
     fi
     
     # Test Python environment
-    if sudo -u $REDLINE_USER bash -c "source venv/bin/activate && python3 --version" &>/dev/null; then
+    if source venv/bin/activate && python3 --version &>/dev/null; then
         print_success "Python environment test passed"
     else
         print_error "Python environment test failed"
@@ -562,7 +473,7 @@ run_tests() {
     
     # Test Tkinter installation
     print_status "Testing Tkinter installation..."
-    if sudo -u $REDLINE_USER bash -c "source venv/bin/activate && python3 -c 'import tkinter; print(\"Tkinter version:\", tkinter.TkVersion)'" &>/dev/null; then
+    if source venv/bin/activate && python3 -c 'import tkinter; print("Tkinter version:", tkinter.TkVersion)' &>/dev/null; then
         print_success "Tkinter test passed"
     else
         print_warning "Tkinter test failed - GUI may not work properly"
@@ -578,7 +489,7 @@ show_summary() {
     echo ""
     echo "📋 Installation Summary:"
     echo "========================"
-    echo "• User: $REDLINE_USER"
+    echo "• User: $CURRENT_USER"
     echo "• Installation directory: $REDLINE_DIR"
     echo "• Docker: $(docker --version)"
     echo "• Docker Compose: $(docker-compose --version)"
@@ -588,28 +499,18 @@ show_summary() {
     echo "========================"
     echo ""
     echo "1. Tkinter GUI (requires X server):"
-    echo "   sudo systemctl start redline-gui"
-    echo "   # OR"
     echo "   cd $REDLINE_DIR && ./start_gui.sh"
     echo ""
     echo "2. Flask Web App:"
-    echo "   sudo systemctl start redline-web"
-    echo "   # OR"
     echo "   cd $REDLINE_DIR && ./start_web.sh"
     echo "   # Then open: http://localhost:8080"
     echo ""
     echo "3. Docker Services:"
-    echo "   sudo systemctl start redline-docker"
-    echo "   # OR"
     echo "   cd $REDLINE_DIR && ./start_docker.sh"
     echo "   # Then open: http://localhost:8080"
     echo ""
     echo "🛑 How to stop REDLINE:"
     echo "======================"
-    echo "sudo systemctl stop redline-gui"
-    echo "sudo systemctl stop redline-web"
-    echo "sudo systemctl stop redline-docker"
-    echo "# OR"
     echo "cd $REDLINE_DIR && ./stop_docker.sh"
     echo ""
     echo "📊 Access Information:"
@@ -635,12 +536,12 @@ show_summary() {
     echo "• You may need to log out and log back in for Docker group changes to take effect"
     echo "• For GUI access, ensure X server is running"
     echo "• Check firewall settings if you can't access the web interface"
-    echo "• All services are configured to start automatically on boot"
+    echo "• All files are installed in your home directory: $REDLINE_DIR"
 }
 
 # Main installation function
 main() {
-    print_status "Starting REDLINE installation for Ubuntu Intel..."
+    print_status "Starting REDLINE installation for current user ($CURRENT_USER)..."
     
     # Pre-installation checks
     check_root
@@ -652,12 +553,10 @@ main() {
     install_essentials
     install_docker
     install_docker_compose
-    create_redline_user
     clone_redline
     setup_python_env
     create_data_directories
     setup_docker_images
-    create_systemd_services
     create_startup_scripts
     create_desktop_shortcuts
     create_config_files
