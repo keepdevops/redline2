@@ -176,6 +176,20 @@
     --teal-color: #0d9488;
     --lime-color: #65a30d;
     --rose-color: #e11d48;
+    
+    /* Font Color Variables */
+    --text-primary: #111827;
+    --text-secondary: #374151;
+    --text-muted: #6b7280;
+    --text-light: #9ca3af;
+    --text-dark: #000000;
+    --text-white: #ffffff;
+    --text-success: #059669;
+    --text-warning: #d97706;
+    --text-danger: #dc2626;
+    --text-info: #0891b2;
+    --text-link: #374151;
+    --text-link-hover: #1f2937;
 }
 
 /* Dark Theme */
@@ -194,6 +208,20 @@
     --teal-color: #14b8a6;
     --lime-color: #84cc16;
     --rose-color: #f43f5e;
+    
+    /* Font Color Variables */
+    --text-primary: #f9fafb;
+    --text-secondary: #d1d5db;
+    --text-muted: #9ca3af;
+    --text-light: #6b7280;
+    --text-dark: #ffffff;
+    --text-white: #ffffff;
+    --text-success: #10b981;
+    --text-warning: #f59e0b;
+    --text-danger: #ef4444;
+    --text-info: #06b6d4;
+    --text-link: #3b82f6;
+    --text-link-hover: #2563eb;
 }
 
 /* Apply theme to body */

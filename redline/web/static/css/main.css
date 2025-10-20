@@ -24,6 +24,7 @@
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: #f8fafc;
+    color: var(--text-primary, #1e293b);
     margin: 0;
     padding: 0;
 }
@@ -622,6 +623,20 @@ body {
 .text-info {
     color: var(--info-color) !important;
 }
+
+/* Font Color Classes for Customization */
+.text-primary-custom { color: var(--text-primary) !important; }
+.text-secondary-custom { color: var(--text-secondary) !important; }
+.text-muted-custom { color: var(--text-muted) !important; }
+.text-light-custom { color: var(--text-light) !important; }
+.text-dark-custom { color: var(--text-dark) !important; }
+.text-white-custom { color: var(--text-white) !important; }
+.text-success-custom { color: var(--text-success) !important; }
+.text-warning-custom { color: var(--text-warning) !important; }
+.text-danger-custom { color: var(--text-danger) !important; }
+.text-info-custom { color: var(--text-info) !important; }
+.text-link-custom { color: var(--text-link) !important; }
+.text-link-custom:hover { color: var(--text-link-hover) !important; }
 
 /* Utility Classes */
 .text-truncate {
