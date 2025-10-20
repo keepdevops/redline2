@@ -24,6 +24,8 @@ class ProgressTracker:
         # Progress tracking variables
         self.current_step = 0
         self.total_steps = 0
+        self.current_progress = 0
+        self.total_progress = 0
         self.current_operation = ""
         self.is_running = False
         
@@ -112,19 +114,26 @@ class ProgressTracker:
             elif step is not None:
                 self.current_step = step
             
+            # Update progress values
+            self.current_progress = self.current_step
+            self.total_progress = self.total_steps
+            
             # Store operation for GUI update
             self.current_operation = operation or self.current_operation
             
             # Update GUI safely with error handling
             try:
+                print(f"DEBUG: Progress update - {self.current_operation} ({self.current_progress}/{self.total_progress})")
                 # Use after(0) instead of after_idle to avoid GIL issues
                 self.parent.after(0, self._update_gui)
             except Exception as e:
+                print(f"DEBUG: Error scheduling GUI update: {str(e)}")
                 self.logger.error(f"Error scheduling GUI update: {str(e)}")
     
     def _update_gui(self):
         """Update GUI components (called from main thread)."""
         try:
+            print(f"DEBUG: _update_gui called - {self.current_operation} ({self.current_progress}/{self.total_progress})")
             # Update progress bar
             progress_value = (self.current_step / self.total_steps) * 100 if self.total_steps > 0 else 0
             self.progress_bar['value'] = progress_value
@@ -145,25 +154,27 @@ class ProgressTracker:
     
     def complete_operation(self):
         """Mark operation as complete."""
+        print(f"DEBUG: complete_operation called")
         with self.lock:
             self.is_running = False
             
             # Update GUI safely
             try:
+                print(f"DEBUG: Updating completion GUI")
                 self.status_label.config(text="Complete")
                 self.cancel_button.config(state='disabled')
             except Exception as e:
+                print(f"DEBUG: Error updating completion GUI: {str(e)}")
                 self.logger.error(f"Error updating completion GUI: {str(e)}")
             
             # Call completion callback safely
             if self.on_complete:
                 try:
-                    # Use after_idle to ensure we're in main thread
-                    if hasattr(self.parent, 'after_idle'):
-                        self.parent.after_idle(self._safe_completion_callback)
-                    else:
-                        self.parent.after(0, self._safe_completion_callback)
+                    print(f"DEBUG: Scheduling completion callback")
+                    # Use after(0) instead of after_idle to avoid GIL issues
+                    self.parent.after(0, self._safe_completion_callback)
                 except Exception as e:
+                    print(f"DEBUG: Error scheduling completion callback: {str(e)}")
                     self.logger.error(f"Error scheduling completion callback: {str(e)}")
     
     def _safe_completion_callback(self):

@@ -94,9 +94,7 @@ class DataTab:
         self.status_label = ttk.Label(self.status_frame, text="No data loaded")
         self.status_label.pack(side=tk.LEFT)
         
-        # Progress tracker
-        self.progress_tracker = ProgressTracker(self.status_frame, "Loading...")
-        self.progress_tracker.pack(side=tk.RIGHT)
+        # No progress tracker - removed for cleaner interface
         
         # Main data display frame
         self.data_frame = ttk.Frame(self.frame)
@@ -149,9 +147,7 @@ class DataTab:
         self.treeview.bind_event('<<TreeviewSelect>>', self.on_data_selection)
         self.treeview.bind_event('<Double-1>', self.on_data_double_click)
         
-        # Setup progress tracker callbacks
-        self.progress_tracker.set_completion_callback(self.on_loading_complete)
-        self.progress_tracker.set_cancel_callback(self.on_loading_cancelled)
+        # No progress tracker callbacks - removed for cleaner interface
     
     def open_file_dialog(self):
         """Open file dialog to select data files."""
@@ -340,8 +336,8 @@ class DataTab:
                     )
                 )
             
-            # Use parallel processing for file loading
-            with ThreadPoolExecutor(max_workers=4) as executor:
+            # Use parallel processing for file loading (I/O bound, so more workers)
+            with ThreadPoolExecutor(max_workers=8) as executor:
                 # Submit all file loading tasks
                 future_to_file = {
                     executor.submit(self._load_single_file_parallel, file_path): file_path
@@ -357,11 +353,6 @@ class DataTab:
                     file_path = future_to_file[future]
                     completed += 1
                     
-                    # Update progress
-                    self.progress_tracker.update_progress(
-                        operation=f"Loading {os.path.basename(file_path)}... ({completed}/{len(file_paths)})"
-                    )
-                    
                     try:
                         data = future.result()
                         if data is not None and not data.empty:
@@ -374,8 +365,8 @@ class DataTab:
                         self.logger.error(f"Error loading {file_path}: {str(e)}")
                         skipped_files.append(file_path)
                     
-                    # Increment progress
-                    self.progress_tracker.update_progress(increment=True)
+                    # Simple progress logging without GUI updates to avoid GIL issues
+                    print(f"Loading {os.path.basename(file_path)} ({completed}/{len(file_paths)})")
             
             # Combine loaded data with memory optimization
             if loaded_data:
@@ -407,16 +398,20 @@ class DataTab:
                     self.logger.error(f"Error combining data: {str(e)}")
                     raise
                 
-                # Update status
+                # Update status with correct count
                 self.main_window.run_in_main_thread(
                     lambda: self.status_label.config(
-                        text=f"Loaded {len(loaded_data)} files, {len(skipped_files)} skipped"
+                        text=f"Loaded {files_loaded_count} files, {len(skipped_files)} skipped"
                     )
                 )
             else:
                 self.main_window.run_in_main_thread(
                     lambda: self.status_label.config(text="No data loaded")
                 )
+            
+            # Simple completion logging without GUI updates
+            if loaded_data:
+                print(f"Successfully loaded and displayed {len(loaded_data)} files")
             
             # Show skipped files if any
             if skipped_files:
@@ -433,19 +428,27 @@ class DataTab:
             )
     
     def _load_single_file_parallel(self, file_path: str) -> Optional[pd.DataFrame]:
-        """Load a single file - designed for parallel processing."""
+        """Load a single file - optimized for speed with parallel processing."""
         try:
-            # Check if this is a large file
-            file_size = os.path.getsize(file_path)
-            is_large_file = file_size > 50 * 1024 * 1024  # 50MB
-            
             # Detect format from extension
             format_type = self._detect_format_from_path(file_path)
             
-            # Load data with chunked approach for large files
-            if is_large_file and format_type in ['csv', 'txt']:
-                data = self._load_large_file_chunked(file_path, format_type)
+            # Use direct pandas loading for speed (skip validation/cleaning for display)
+            if format_type == 'csv':
+                data = pd.read_csv(file_path)
+            elif format_type == 'parquet':
+                data = pd.read_parquet(file_path)
+            elif format_type == 'feather':
+                data = pd.read_feather(file_path)
+            elif format_type == 'json':
+                data = pd.read_json(file_path)
+            elif format_type == 'duckdb':
+                import duckdb
+                conn = duckdb.connect(file_path)
+                data = conn.execute("SELECT * FROM tickers_data").fetchdf()
+                conn.close()
             else:
+                # Fallback to loader for unsupported formats
                 data = self.loader.load_file_by_type(file_path, format_type)
             
             return data
@@ -513,6 +516,7 @@ class DataTab:
     
     def _display_data(self, data):
         """Display data in the treeview."""
+        print(f"DEBUG: _display_data called with {len(data)} rows")
         try:
             self.logger.info(f"Starting data display: {len(data)} rows, columns: {list(data.columns)}")
             
