@@ -398,37 +398,55 @@ function displayFinancialAnalysis(result) {
 function displayStatisticalAnalysis(result) {
     let html = '<h6>Statistical Analysis</h6>';
     
-    if (result.distribution_analysis && Object.keys(result.distribution_analysis).length > 0) {
-        html += '<h6>Distribution Analysis</h6>';
+    // Summary information
+    if (result.summary) {
+        html += '<div class="alert alert-info">';
+        html += `<p><strong>Dataset Summary:</strong></p>`;
+        html += `<ul>`;
+        html += `<li>Total Rows: ${result.summary.total_rows}</li>`;
+        html += `<li>Total Columns: ${result.summary.total_columns}</li>`;
+        html += `<li>Numeric Columns: ${result.summary.numeric_columns}</li>`;
+        html += `</ul></div>`;
+    }
+    
+    // Close price statistics (if available)
+    if (result.close_price_stats) {
+        html += '<h6>Close Price Statistics</h6>';
         html += '<div class="table-responsive"><table class="table table-sm">';
-        html += '<thead><tr><th>Column</th><th>Skewness</th><th>Kurtosis</th><th>Normality</th></tr></thead><tbody>';
+        html += '<thead><tr><th>Statistic</th><th>Value</th></tr></thead><tbody>';
         
-        Object.entries(result.distribution_analysis).forEach(([col, analysis]) => {
-            html += `
-                <tr>
-                    <td>${col}</td>
-                    <td>${(analysis.skewness !== null && analysis.skewness !== undefined) ? analysis.skewness.toFixed(2) : 'N/A'}</td>
-                    <td>${(analysis.kurtosis !== null && analysis.kurtosis !== undefined) ? analysis.kurtosis.toFixed(2) : 'N/A'}</td>
-                    <td><span class="badge ${analysis.normality === 'normal' ? 'bg-success' : 'bg-warning'}">${analysis.normality || 'N/A'}</span></td>
-                </tr>
-            `;
+        Object.entries(result.close_price_stats).forEach(([stat, value]) => {
+            html += `<tr><td><strong>${stat}</strong></td><td>${value.toFixed(2)}</td></tr>`;
         });
         html += '</tbody></table></div>';
     }
     
-    if (result.outlier_detection && Object.keys(result.outlier_detection).length > 0) {
-        html += '<h6>Outlier Detection</h6>';
+    // Descriptive statistics
+    if (result.descriptive_stats) {
+        html += '<h6>Descriptive Statistics</h6>';
         html += '<div class="table-responsive"><table class="table table-sm">';
-        html += '<thead><tr><th>Column</th><th>Outliers</th><th>Percentage</th></tr></thead><tbody>';
+        html += '<thead><tr><th>Statistic</th>';
         
-        Object.entries(result.outlier_detection).forEach(([col, detection]) => {
-            html += `
-                <tr>
-                    <td>${col}</td>
-                    <td>${detection.outlier_count || 0}</td>
-                    <td>${(detection.outlier_percentage !== null && detection.outlier_percentage !== undefined) ? detection.outlier_percentage.toFixed(2) : 'N/A'}%</td>
-                </tr>
-            `;
+        // Add column headers
+        const firstStat = Object.values(result.descriptive_stats)[0];
+        if (firstStat && typeof firstStat === 'object') {
+            Object.keys(firstStat).forEach(col => {
+                html += `<th>${col}</th>`;
+            });
+        }
+        html += '</tr></thead><tbody>';
+        
+        // Add data rows
+        Object.entries(result.descriptive_stats).forEach(([stat, values]) => {
+            html += `<tr><td><strong>${stat}</strong></td>`;
+            if (typeof values === 'object') {
+                Object.values(values).forEach(value => {
+                    html += `<td>${typeof value === 'number' ? value.toFixed(2) : value}</td>`;
+                });
+            } else {
+                html += `<td>${values}</td>`;
+            }
+            html += '</tr>';
         });
         html += '</tbody></table></div>';
     }
@@ -439,26 +457,44 @@ function displayStatisticalAnalysis(result) {
 function displayCorrelationAnalysis(result) {
     let html = '<h6>Correlation Analysis</h6>';
     
-    if (result.strong_correlations && result.strong_correlations.length > 0) {
-        html += '<h6>Strong Correlations</h6>';
-        html += '<div class="table-responsive"><table class="table table-sm">';
-        html += '<thead><tr><th>Column 1</th><th>Column 2</th><th>Correlation</th><th>Strength</th></tr></thead><tbody>';
-        
-        result.strong_correlations.forEach(corr => {
-            html += `
-                <tr>
-                    <td>${corr.column1}</td>
-                    <td>${corr.column2}</td>
-                    <td>${(corr.correlation !== null && corr.correlation !== undefined) ? corr.correlation.toFixed(3) : 'N/A'}</td>
-                    <td><span class="badge ${corr.strength && corr.strength.includes('positive') ? 'bg-success' : 'bg-danger'}">${corr.strength || 'N/A'}</span></td>
-                </tr>
-            `;
-        });
-        html += '</tbody></table></div>';
+    // Summary information
+    if (result.summary) {
+        html += '<div class="alert alert-info">';
+        html += `<p><strong>Correlation Summary:</strong></p>`;
+        html += `<ul>`;
+        html += `<li>Total Numeric Columns: ${result.summary.total_numeric_columns}</li>`;
+        html += `<li>Columns Analyzed: ${result.summary.columns_analyzed.join(', ')}</li>`;
+        html += `</ul></div>`;
     }
     
-    if (result.avg_correlation !== null && result.avg_correlation !== undefined) {
-        html += `<p><strong>Average Correlation:</strong> ${result.avg_correlation.toFixed(3)}</p>`;
+    // Correlation matrix
+    if (result.correlation_matrix) {
+        html += '<h6>Correlation Matrix</h6>';
+        html += '<div class="table-responsive"><table class="table table-sm">';
+        html += '<thead><tr><th>Column</th>';
+        
+        // Add column headers
+        const firstRow = Object.values(result.correlation_matrix)[0];
+        if (firstRow && typeof firstRow === 'object') {
+            Object.keys(firstRow).forEach(col => {
+                html += `<th>${col}</th>`;
+            });
+        }
+        html += '</tr></thead><tbody>';
+        
+        // Add data rows
+        Object.entries(result.correlation_matrix).forEach(([col, correlations]) => {
+            html += `<tr><td><strong>${col}</strong></td>`;
+            if (typeof correlations === 'object') {
+                Object.values(correlations).forEach(value => {
+                    html += `<td>${typeof value === 'number' ? value.toFixed(3) : value}</td>`;
+                });
+            } else {
+                html += `<td>${correlations}</td>`;
+            }
+            html += '</tr>';
+        });
+        html += '</tbody></table></div>';
     }
     
     return html;

@@ -213,55 +213,37 @@ def perform_financial_analysis(df):
         return {'error': str(e)}
 
 def perform_statistical_analysis(df):
-    """Perform statistical analysis."""
+    """Perform statistical analysis - simplified version matching Tkinter GUI."""
     try:
+        # Simple approach like Tkinter GUI
+        stats = df.describe()
+        
+        # Convert to simple dictionary format
         analysis = {
-            'descriptive_stats': {},
-            'distribution_analysis': {},
-            'outlier_detection': {},
-            'correlation_matrix': {}
+            'descriptive_stats': stats.to_dict(),
+            'summary': {
+                'total_rows': len(df),
+                'total_columns': len(df.columns),
+                'numeric_columns': len(df.select_dtypes(include=[np.number]).columns)
+            }
         }
         
-        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        # Additional analysis - check for close price column (like Tkinter)
+        close_col = None
+        if 'close' in df.columns:
+            close_col = 'close'
+        elif '<CLOSE>' in df.columns:
+            close_col = '<CLOSE>'
         
-        if len(numeric_cols) > 0:
-            numeric_df = df[numeric_cols]
-            
-            # Descriptive statistics
-            analysis['descriptive_stats'] = convert_numpy_types(numeric_df.describe().to_dict())
-            
-            # Distribution analysis
-            for col in numeric_cols:
-                col_data = numeric_df[col].dropna()
-                if not col_data.empty:
-                    analysis['distribution_analysis'][col] = {
-                        'skewness': convert_numpy_types(col_data.skew()),
-                        'kurtosis': convert_numpy_types(col_data.kurtosis()),
-                        'normality': 'normal' if abs(col_data.skew()) < 0.5 and abs(col_data.kurtosis()) < 0.5 else 'non-normal'
-                    }
-            
-            # Outlier detection using IQR method
-            for col in numeric_cols:
-                col_data = numeric_df[col].dropna()
-                if not col_data.empty:
-                    Q1 = col_data.quantile(0.25)
-                    Q3 = col_data.quantile(0.75)
-                    IQR = Q3 - Q1
-                    lower_bound = Q1 - 1.5 * IQR
-                    upper_bound = Q3 + 1.5 * IQR
-                    
-                    outliers = col_data[(col_data < lower_bound) | (col_data > upper_bound)]
-                    
-                    analysis['outlier_detection'][col] = {
-                        'outlier_count': len(outliers),
-                        'outlier_percentage': convert_numpy_types(len(outliers) / len(col_data) * 100),
-                        'outlier_values': outliers.tolist()[:10]  # First 10 outliers
-                    }
-            
-            # Correlation matrix
-            if len(numeric_cols) > 1:
-                correlation_matrix = numeric_df.corr()
-                analysis['correlation_matrix'] = convert_numpy_types(correlation_matrix.to_dict())
+        if close_col:
+            close_stats = {
+                'Mean': float(df[close_col].mean()),
+                'Median': float(df[close_col].median()),
+                'Std Dev': float(df[close_col].std()),
+                'Min': float(df[close_col].min()),
+                'Max': float(df[close_col].max())
+            }
+            analysis['close_price_stats'] = close_stats
         
         return analysis
         
@@ -270,33 +252,24 @@ def perform_statistical_analysis(df):
         return {'error': str(e)}
 
 def perform_correlation_analysis(df):
-    """Perform correlation analysis."""
+    """Perform correlation analysis - simplified version matching Tkinter GUI."""
     try:
-        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        # Select numeric columns for correlation (like Tkinter)
+        numeric_cols = df.select_dtypes(include=['number']).columns
         
         if len(numeric_cols) < 2:
-            return {'error': 'Need at least 2 numeric columns for correlation analysis'}
+            return {'error': 'Not enough numeric columns for correlation analysis'}
         
-        numeric_df = df[numeric_cols]
-        correlation_matrix = numeric_df.corr()
+        # Calculate correlation matrix (simple approach like Tkinter)
+        correlation_matrix = df[numeric_cols].corr()
         
-        # Find strong correlations
-        strong_correlations = []
-        for i in range(len(correlation_matrix.columns)):
-            for j in range(i+1, len(correlation_matrix.columns)):
-                corr_value = correlation_matrix.iloc[i, j]
-                if abs(corr_value) > 0.7:  # Strong correlation threshold
-                    strong_correlations.append({
-                        'column1': correlation_matrix.columns[i],
-                        'column2': correlation_matrix.columns[j],
-                        'correlation': convert_numpy_types(corr_value),
-                        'strength': 'strong positive' if corr_value > 0.7 else 'strong negative'
-                    })
-        
+        # Simple analysis like Tkinter GUI
         analysis = {
-            'correlation_matrix': convert_numpy_types(correlation_matrix.to_dict()),
-            'strong_correlations': strong_correlations,
-            'avg_correlation': convert_numpy_types(correlation_matrix.values[np.triu_indices_from(correlation_matrix.values, k=1)].mean())
+            'correlation_matrix': correlation_matrix.to_dict(),
+            'summary': {
+                'total_numeric_columns': len(numeric_cols),
+                'columns_analyzed': list(numeric_cols)
+            }
         }
         
         return analysis
