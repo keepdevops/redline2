@@ -95,7 +95,18 @@ pip install -r requirements.txt
 python main.py
 ```
 
-### **Option 3: Test Installation**
+### **Option 3: Web GUI (Flask)**
+```bash
+# Install Flask dependencies
+pip install flask flask-socketio gunicorn
+
+# Start web interface
+python web_app.py
+
+# Access at: http://localhost:8080
+```
+
+### **Option 4: Test Installation**
 ```bash
 # Test if everything works
 ./test_x11.bash  # For Docker GUI testing
@@ -227,6 +238,7 @@ python main.py
 ### **Local Environment Dependencies**
 - **Core**: pandas, numpy, pyarrow, polars, duckdb, yfinance
 - **GUI**: tkinter (built into Python)
+- **Web GUI**: flask, flask-socketio, gunicorn
 - **Optional**: scikit-learn, matplotlib, seaborn
 - **Development**: pytest, black, flake8
 
@@ -256,6 +268,10 @@ python main.py
 # Option C: Manual installation
 conda install pandas numpy pyarrow polars duckdb yfinance scikit-learn matplotlib -c conda-forge
 python main.py
+
+# Option D: Web GUI with Flask
+pip install flask flask-socketio gunicorn
+python web_app.py
 ```
 
 #### **Method 3: Development Setup**

@@ -61,7 +61,18 @@ pip install -r requirements.txt
 python main.py
 ```
 
-#### **Option C: Manual Installation**
+#### **Option C: Web GUI (Flask)**
+```bash
+# Install Flask dependencies
+pip install flask flask-socketio gunicorn
+
+# Start web interface
+python web_app.py
+
+# Access at: http://localhost:8080
+```
+
+#### **Option D: Manual Installation**
 ```bash
 # Install core dependencies
 conda install pandas numpy pyarrow polars duckdb yfinance -c conda-forge
@@ -91,6 +102,13 @@ python main.py
 | Package | Purpose | Installation |
 |---------|---------|--------------|
 | **tkinter** | GUI framework | Built into Python |
+
+### **Web GUI Dependencies**
+| Package | Purpose | Installation |
+|---------|---------|--------------|
+| **flask** | Web framework | `pip install flask` |
+| **flask-socketio** | Real-time communication | `pip install flask-socketio` |
+| **gunicorn** | Production WSGI server | `pip install gunicorn` |
 
 ### **Optional Dependencies**
 | Package | Purpose | Installation |

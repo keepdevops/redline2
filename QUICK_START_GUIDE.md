@@ -44,6 +44,17 @@ pip install pandas yfinance duckdb pyarrow polars tkinter
 python main.py
 ```
 
+**🌐 Web GUI Option: Flask Interface**
+```bash
+# Install Flask dependencies
+pip install flask flask-socketio gunicorn
+
+# Start web interface
+python web_app.py
+
+# Access at: http://localhost:8080
+```
+
 ### **Step 3: Download Your First Data (2 minutes)**
 
 1. **Click the "Download" tab**
