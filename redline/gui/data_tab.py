@@ -19,7 +19,6 @@ from ..database.connector import DatabaseConnector
 from ..database.operations import DatabaseOperations
 from .widgets.virtual_treeview import VirtualScrollingTreeview
 from .widgets.data_source import DataSource
-from .widgets.progress_tracker import ProgressTracker
 
 logger = logging.getLogger(__name__)
 
@@ -283,26 +282,10 @@ class DataTab:
     def load_files(self, file_paths: List[str]):
         """Load multiple files."""
         try:
-            # Start progress tracking
-            self.progress_tracker.start_operation(len(file_paths), "Loading files...")
-            
             # Load files in background thread
             self.loading_thread = threading.Thread(target=self._load_files_thread, args=(file_paths,))
             self.loading_thread.daemon = True
             self.loading_thread.start()
-            
-            # Set up timeout to prevent infinite loading
-            def check_timeout():
-                if hasattr(self, 'loading_thread') and self.loading_thread.is_alive():
-                    self.main_window.show_warning_message(
-                        "Loading Timeout", 
-                        "File loading is taking longer than expected. This may indicate a problem with the file format or size."
-                    )
-                    # Stop the progress tracker
-                    self.progress_tracker.cancel_operation()
-            
-            # Set timeout after 30 seconds
-            self.frame.after(30000, check_timeout)
             
         except Exception as e:
             self.logger.error(f"Error starting file loading: {str(e)}")
@@ -347,9 +330,6 @@ class DataTab:
                 # Process completed loads
                 completed = 0
                 for future in as_completed(future_to_file):
-                    if not self.progress_tracker.is_operation_running():
-                        break
-                        
                     file_path = future_to_file[future]
                     completed += 1
                     
@@ -364,13 +344,13 @@ class DataTab:
                     except Exception as e:
                         self.logger.error(f"Error loading {file_path}: {str(e)}")
                         skipped_files.append(file_path)
-                    
-                    # Simple progress logging without GUI updates to avoid GIL issues
-                    print(f"Loading {os.path.basename(file_path)} ({completed}/{len(file_paths)})")
             
             # Combine loaded data with memory optimization
             if loaded_data:
                 try:
+                    # Store count before clearing
+                    files_loaded_count = len(loaded_data)
+                    
                     # Combine data with memory management
                     if len(loaded_data) == 1:
                         combined_data = loaded_data[0]
@@ -399,6 +379,7 @@ class DataTab:
                     raise
                 
                 # Update status with correct count
+                self.logger.info(f"Updating status: {files_loaded_count} files loaded, {len(skipped_files)} skipped")
                 self.main_window.run_in_main_thread(
                     lambda: self.status_label.config(
                         text=f"Loaded {files_loaded_count} files, {len(skipped_files)} skipped"
@@ -408,10 +389,6 @@ class DataTab:
                 self.main_window.run_in_main_thread(
                     lambda: self.status_label.config(text="No data loaded")
                 )
-            
-            # Simple completion logging without GUI updates
-            if loaded_data:
-                print(f"Successfully loaded and displayed {len(loaded_data)} files")
             
             # Show skipped files if any
             if skipped_files:
@@ -516,7 +493,6 @@ class DataTab:
     
     def _display_data(self, data):
         """Display data in the treeview."""
-        print(f"DEBUG: _display_data called with {len(data)} rows")
         try:
             self.logger.info(f"Starting data display: {len(data)} rows, columns: {list(data.columns)}")
             
@@ -722,14 +698,6 @@ class DataTab:
         """Handle data double-click events."""
         # Could open detailed view or edit dialog
         pass
-    
-    def on_loading_complete(self):
-        """Handle loading completion."""
-        self.status_label.config(text="Loading complete")
-    
-    def on_loading_cancelled(self):
-        """Handle loading cancellation."""
-        self.status_label.config(text="Loading cancelled")
     
     def on_tab_activated(self):
         """Handle tab activation."""
