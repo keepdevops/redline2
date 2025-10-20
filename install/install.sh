@@ -199,6 +199,7 @@ main() {
         print_warning "If you encounter user creation issues, you have options:"
         print_status "1. Fix user creation: ./install/fix_user_creation.sh"
         print_status "2. Install for current user: ./install/install_ubuntu_intel_current_user.sh"
+        print_status "3. Local install (no GitHub): ./install/install_local_current_user.sh"
         echo ""
     fi
     

@@ -5,7 +5,8 @@ This directory contains all installation scripts and documentation for REDLINE.
 ## 📁 Files in this directory:
 
 ### 🚀 Installation Scripts
-- **`install.sh`** - Main installation wrapper script with auto-detection
+- **`install_universal.sh`** - Universal installer that works on any platform (RECOMMENDED)
+- **`install.sh`** - One-liner installer for quick setup
 - **`install_ubuntu_intel.sh`** - Complete Ubuntu Intel installation script
 - **`verify_installation.sh`** - Installation verification and testing script
 
@@ -14,14 +15,26 @@ This directory contains all installation scripts and documentation for REDLINE.
 - **`test_tkinter_packages.sh`** - Test Tkinter package availability
 - **`fix_user_creation.sh`** - Fix user creation issues
 - **`install_ubuntu_intel_current_user.sh`** - Alternative installation for current user
+- **`install_local_current_user.sh`** - Local installation (no GitHub required)
 
 ### 📚 Documentation
 - **`README.md`** - This file (overview of installation scripts)
+- **`UNIVERSAL_INSTALLATION_GUIDE.md`** - Universal installation guide (RECOMMENDED)
+- **`LOCAL_INSTALLATION_GUIDE.md`** - Local installation guide
 - **`INSTALLATION_README.md`** - Comprehensive installation guide
 
 ## 🚀 Quick Start
 
-### Automatic Installation (Recommended)
+### Universal Installation (Recommended)
+```bash
+# One-liner installation (requires internet)
+curl -fsSL https://raw.githubusercontent.com/redline/redline/main/install.sh | bash
+
+# Or local universal installation
+./install/install_universal.sh
+```
+
+### Automatic Installation (Legacy)
 ```bash
 # From the project root directory
 ./install/install.sh
@@ -139,7 +152,13 @@ sudo systemctl start redline-docker
    ./install/install_ubuntu_intel_current_user.sh
    ```
 
-3. **Tkinter GUI not working**: On headless servers, use web interface instead
+3. **"No GitHub authorization"**: Use local installation
+   ```bash
+   # Install from local files (no GitHub required)
+   ./install/install_local_current_user.sh
+   ```
+
+4. **Tkinter GUI not working**: On headless servers, use web interface instead
    ```bash
    # Web interface works without Tkinter
    sudo systemctl start redline-web
