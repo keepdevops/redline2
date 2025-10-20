@@ -1,197 +1,147 @@
-# REDLINE Installation Scripts
+# REDLINE Installation
 
-This directory contains all installation scripts and documentation for REDLINE.
+## 🚀 **Quick Start**
 
-## 📁 Files in this directory:
-
-### 🚀 Installation Scripts
-- **`install_universal.sh`** - Universal installer that works on any platform (RECOMMENDED)
-- **`install.sh`** - One-liner installer for quick setup
-- **`install_ubuntu_intel.sh`** - Complete Ubuntu Intel installation script
-- **`verify_installation.sh`** - Installation verification and testing script
-
-### 🔧 Troubleshooting Scripts
-- **`fix_tkinter_ubuntu24.sh`** - Fix Tkinter installation for Ubuntu 24.04 LTS
-- **`test_tkinter_packages.sh`** - Test Tkinter package availability
-- **`fix_user_creation.sh`** - Fix user creation issues
-- **`install_ubuntu_intel_current_user.sh`** - Alternative installation for current user
-- **`install_local_current_user.sh`** - Local installation (no GitHub required)
-
-### 📚 Documentation
-- **`README.md`** - This file (overview of installation scripts)
-- **`UNIVERSAL_INSTALLATION_GUIDE.md`** - Universal installation guide (RECOMMENDED)
-- **`LOCAL_INSTALLATION_GUIDE.md`** - Local installation guide
-- **`INSTALLATION_README.md`** - Comprehensive installation guide
-
-## 🚀 Quick Start
-
-### Universal Installation (Recommended)
+### **Universal Installation (Recommended)**
 ```bash
-# One-liner installation (requires internet)
-curl -fsSL https://raw.githubusercontent.com/redline/redline/main/install.sh | bash
-
-# Or local universal installation
-./install/install_universal.sh
-```
-
-### Automatic Installation (Legacy)
-```bash
-# From the project root directory
-./install/install.sh
-
-# Or from anywhere
-cd install && ./install.sh
-```
-
-### Manual Installation
-```bash
-# Ubuntu Intel/AMD
-cd install && ./install_ubuntu_intel.sh
-
-# Verify installation
-cd install && ./verify_installation.sh
-```
-
-## 📋 What Gets Installed
-
-### Core Components
-- **Python 3.11+** - Main runtime environment
-- **Docker & Docker Compose** - Containerization platform
-- **REDLINE Application** - Data analysis toolkit
-- **All Dependencies** - Required Python packages
-
-### Applications
-- **Tkinter GUI** - Traditional desktop interface
-- **Flask Web App** - Modern web interface (port 8080)
-- **Docker Images** - Containerized deployment options
-
-### Services & Integration
-- **Systemd Services** - Automatic startup on boot
-- **Desktop Shortcuts** - Easy access from desktop
-- **Configuration Files** - Pre-configured settings
-- **Firewall Rules** - Network access configuration
-
-## 🎯 Supported Platforms
-
-| Platform | Architecture | Script | Status |
-|----------|-------------|---------|---------|
-| Ubuntu | Intel/AMD x86_64 | `install_ubuntu_intel.sh` | ✅ Ready |
-| Ubuntu | ARM64/Apple Silicon | `install_ubuntu_arm.sh` | 🚧 Planned |
-| macOS | Intel/Apple Silicon | `install_macos.sh` | 🚧 Planned |
-| Windows | WSL2 | `install_windows.sh` | 🚧 Planned |
-
-## 🔧 Usage Examples
-
-### Auto-detect Platform
-```bash
+# From REDLINE project root
 ./install.sh
 ```
 
-### Force Specific Platform
+### **One-Liner Installation**
 ```bash
-./install.sh --platform ubuntu --arch amd64
+curl -fsSL https://raw.githubusercontent.com/your-repo/redline/main/install.sh | bash
 ```
 
-### Show Help
+## 📋 **Installation Options**
+
+### **Installation Modes**
+- **`auto`** - Automatically detect and install appropriate components (default)
+- **`minimal`** - Install only essential components (Python + web)
+- **`full`** - Install everything (Python + Docker + GUI + web)
+
+### **Command Line Options**
 ```bash
-./install.sh --help
+./install.sh --mode minimal          # Minimal installation
+./install.sh --mode web-only         # Web interface only
+./install.sh --skip-docker           # Skip Docker installation
+./install.sh --skip-gui              # Skip GUI components
+./install.sh --user username         # Install for specific user
+./install.sh --dir /path/to/redline  # Custom installation directory
 ```
 
-### Verify Installation
+## 🛠️ **Troubleshooting**
+
+### **Common Issues**
+
+#### **1. Pandas Import Error**
 ```bash
-./verify_installation.sh
+# Quick fix
+./quick_fix_pandas.sh
+
+# Or use the comprehensive fix
+./install/archive/fix_pandas_import.sh
 ```
 
-## 🚀 Post-Installation Access
-
-### Web Interface
+#### **2. Tkinter Issues (Ubuntu 24.04)**
 ```bash
-# Start web app
-sudo systemctl start redline-web
-# Access at: http://localhost:8080
+# Fix Tkinter installation
+./install/archive/fix_tkinter_ubuntu24.sh
 ```
 
-### Tkinter GUI
+#### **3. User Creation Issues**
 ```bash
-# Start GUI (requires X server)
-sudo systemctl start redline-gui
+# Fix user creation
+./install/archive/fix_user_creation.sh
 ```
 
-### Docker Services
+#### **4. General Import Issues**
 ```bash
-# Start Docker services
-sudo systemctl start redline-docker
-# Web: http://localhost:8080
-# VNC: localhost:5900 (password: redline123)
+# Comprehensive import fix
+./install/archive/fix_import_issues.sh
 ```
 
-## 🔍 Troubleshooting
-
-### Common Issues
-1. **Permission Denied**: Run with proper sudo privileges
-2. **Docker Not Running**: Start Docker service
-3. **Port Conflicts**: Check what's using ports 8080/5900
-4. **X Server Issues**: Ensure display server is running for GUI
-
-### Ubuntu 24.04 LTS Specific Issues
-1. **"Package tkinter not found"**: This is a known issue with Ubuntu 24.04
-   ```bash
-   # Run the Tkinter fix script
-   ./install/fix_tkinter_ubuntu24.sh
-   
-   # Or test available packages
-   ./install/test_tkinter_packages.sh
-   ```
-
-2. **"User redline does not exist"**: User creation issues
-   ```bash
-   # Fix user creation
-   ./install/fix_user_creation.sh
-   
-   # Or install for current user instead
-   ./install/install_ubuntu_intel_current_user.sh
-   ```
-
-3. **"No GitHub authorization"**: Use local installation
-   ```bash
-   # Install from local files (no GitHub required)
-   ./install/install_local_current_user.sh
-   ```
-
-4. **Tkinter GUI not working**: On headless servers, use web interface instead
-   ```bash
-   # Web interface works without Tkinter
-   sudo systemctl start redline-web
-   # Access at: http://localhost:8080
-   ```
-
-### Verification
+### **Dependency Verification**
 ```bash
-# Run verification script
-./verify_installation.sh
+# Check all dependencies
+./install/check_dependencies.sh
 
-# Check logs
-sudo journalctl -u redline-web -f
-sudo journalctl -u redline-gui -f
-
-# Test Tkinter specifically
-./install/test_tkinter_packages.sh
+# Run comprehensive test
+python3 test_all_dependencies.py
 ```
 
-## 📚 Additional Resources
+## 📁 **Directory Structure**
 
-- **Main Documentation**: `INSTALLATION_README.md`
-- **Docker Guide**: `../DOCKER_MULTI_PLATFORM_GUIDE.md`
-- **User Guide**: `../REDLINE_USER_GUIDE.md`
+```
+install/
+├── README.md                    # This file
+├── check_dependencies.sh        # Dependency verification
+├── archive/                     # Legacy installation scripts
+│   ├── install_*.sh            # Old installation scripts
+│   ├── fix_*.sh                # Troubleshooting scripts
+│   └── test_*.sh               # Testing scripts
+└── *.md                        # Documentation files
+```
 
-## 🤝 Contributing
+## 🎯 **What Gets Installed**
 
-To add support for new platforms:
-1. Create new installation script (e.g., `install_platform_arch.sh`)
-2. Update `install.sh` to detect and use new script
-3. Test on target platform
-4. Update documentation
+### **Required Dependencies (14)**
+- **Data Processing**: pandas, numpy, configparser
+- **Data Storage**: pyarrow, polars, duckdb
+- **Financial Data**: yfinance
+- **Web Framework**: flask, flask-socketio, flask-compress
+- **Utilities**: requests, urllib3, python-dateutil, pytz
 
-## 📄 License
+### **Optional Dependencies (8)**
+- **Scientific Computing**: matplotlib, seaborn, scipy, scikit-learn
+- **File I/O**: openpyxl, xlsxwriter
+- **System/Monitoring**: psutil, tkinter
 
-These installation scripts are part of REDLINE and are licensed under the MIT License.
+### **System Components**
+- **Python 3.11+** with virtual environment
+- **Docker** (if supported and not skipped)
+- **Startup scripts** for web, GUI, and Docker
+- **Configuration files** and data directories
+
+## 🚀 **After Installation**
+
+### **Start REDLINE**
+```bash
+cd ~/redline
+
+# Web interface (recommended)
+./start_web.sh
+# Then open: http://localhost:8080
+
+# GUI interface (if available)
+./start_gui.sh
+
+# Docker services (if available)
+./start_docker.sh
+```
+
+### **Access Points**
+- **Web Interface**: http://localhost:8080
+- **Installation Directory**: `~/redline/`
+- **Logs**: `~/redline/logs/`
+- **Data**: `~/redline/data/`
+
+## 📚 **Documentation**
+
+- **Universal Installation Guide**: `UNIVERSAL_INSTALLATION_GUIDE.md`
+- **Local Installation Guide**: `LOCAL_INSTALLATION_GUIDE.md`
+- **Dependency Analysis**: `../DEPENDENCY_ANALYSIS_REPORT.md`
+
+## 🔧 **Legacy Scripts**
+
+Legacy installation scripts are available in the `archive/` directory for troubleshooting specific issues:
+
+- `install_universal.sh` - Previous universal installer
+- `fix_pandas_import.sh` - Pandas import fix
+- `fix_tkinter_ubuntu24.sh` - Ubuntu 24.04 Tkinter fix
+- `fix_user_creation.sh` - User creation fix
+- `fix_import_issues.sh` - Comprehensive import fix
+
+---
+
+**For the latest installation method, always use `./install.sh` from the project root!** 🎉

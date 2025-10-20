@@ -323,11 +323,58 @@ setup_python_environment() {
     # Install Tkinter via pip if needed
     pip install tk || print_warning "Tkinter installation failed, GUI may not work"
     
-    # Install basic requirements
-    pip install flask pandas numpy matplotlib seaborn scipy scikit-learn requests
+    # Install basic requirements with specific versions for compatibility
+    print_status "Installing core dependencies..."
+    pip install --upgrade pip setuptools wheel
+    
+    # Install core data processing stack (REQUIRED)
+    print_status "Installing core data processing packages..."
+    pip install pandas>=2.0.0
+    pip install numpy>=1.24.0
+    pip install configparser>=5.3.0
+    
+    # Install data storage and processing (REQUIRED)
+    print_status "Installing data storage packages..."
+    pip install pyarrow>=10.0.0
+    pip install polars>=0.20.0
+    pip install duckdb>=0.8.0
+    
+    # Install financial data packages (REQUIRED)
+    print_status "Installing financial data packages..."
+    pip install yfinance>=0.2.0
+    
+    # Install web framework (REQUIRED for web interface)
+    print_status "Installing web framework..."
+    pip install flask>=2.3.0
+    pip install flask-socketio>=5.3.0
+    pip install flask-compress>=1.13
+    
+    # Install scientific computing stack (OPTIONAL but recommended)
+    print_status "Installing scientific computing packages..."
+    pip install matplotlib>=3.7.0
+    pip install seaborn>=0.12.0
+    pip install scipy>=1.9.0
+    pip install scikit-learn>=1.3.0
+    
+    # Install utilities (REQUIRED)
+    print_status "Installing utility packages..."
+    pip install requests>=2.31.0
+    pip install urllib3>=2.0.0
+    pip install python-dateutil>=2.8.0
+    pip install pytz>=2023.3
+    
+    # Install file I/O packages (OPTIONAL)
+    print_status "Installing file I/O packages..."
+    pip install openpyxl>=3.1.0 || print_warning "Excel support not available"
+    pip install xlsxwriter>=3.1.0 || print_warning "Excel writing not available"
+    
+    # Install system monitoring (OPTIONAL)
+    print_status "Installing system monitoring..."
+    pip install psutil>=5.9.0 || print_warning "System monitoring not available"
     
     # Try to install additional packages if requirements.txt exists
     if [[ -f "requirements.txt" ]]; then
+        print_status "Installing from requirements.txt..."
         pip install -r requirements.txt
     fi
     
