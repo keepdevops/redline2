@@ -93,10 +93,13 @@ class VirtualScrollingTreeview:
     
     def set_data_source(self, data_source: DataSource):
         """Set the data source for virtual scrolling."""
+        self.logger.info(f"Setting data source: {data_source}")
         self.data_source = data_source
         self.total_rows = data_source.get_total_rows()
+        self.logger.info(f"Data source set: {self.total_rows} total rows")
         self.cached_data.clear()
         self._update_visible_range()
+        self.logger.info("Visible range updated")
     
     def refresh(self):
         """Refresh the display."""

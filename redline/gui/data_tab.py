@@ -514,6 +514,8 @@ class DataTab:
     def _display_data(self, data):
         """Display data in the treeview."""
         try:
+            self.logger.info(f"Starting data display: {len(data)} rows, columns: {list(data.columns)}")
+            
             # Create data source
             if self.current_data_source:
                 self.current_data_source.close()
@@ -529,16 +531,21 @@ class DataTab:
                 # Try database approach first
                 # Use the same database file as the connector
                 db_path = self.connector.db_path
+                self.logger.info(f"Attempting database display with path: {db_path}")
                 self.connector.write_shared_data("temp_display_data", data, "display")
                 self.current_data_source = DataSource(db_path, "duckdb", "temp_display_data")
+                self.logger.info(f"Database data source created: {self.current_data_source.total_rows} rows")
                 self.treeview.set_data_source(self.current_data_source)
-            except (ImportError, ValueError) as db_error:
-                # Fallback to direct pandas display if database not available or data invalid
-                self.logger.warning(f"Database not available or data invalid, using direct display: {db_error}")
+                self.logger.info("Treeview data source set successfully")
+            except Exception as db_error:
+                # Fallback to direct pandas display if database not available, locked, or data invalid
+                self.logger.warning(f"Database not available or locked, using direct pandas display: {db_error}")
                 self.current_data_source = DataSource(None, "pandas")
                 self.current_data_source.data = data
                 self.current_data_source.total_rows = len(data)
+                self.logger.info(f"Pandas data source created: {self.current_data_source.total_rows} rows")
                 self.treeview.set_data_source(self.current_data_source)
+                self.logger.info("Treeview pandas data source set successfully")
             
             # Store current data
             self.current_data = data
@@ -547,6 +554,10 @@ class DataTab:
             
             # Update main window
             self.main_window.set_current_file_path("Multiple files")
+            
+            # Force treeview refresh
+            self.treeview.refresh()
+            self.logger.info("Data display completed successfully")
             
         except Exception as e:
             self.logger.error(f"Error displaying data: {str(e)}")
