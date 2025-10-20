@@ -68,16 +68,15 @@ def download_data():
         if source == 'yahoo':
             from redline.downloaders.yahoo_downloader import YahooDownloader
             downloader = YahooDownloader()
-            result = downloader.download_data(
+            result = downloader.download_single_ticker(
                 ticker=ticker,
                 start_date=start_date,
-                end_date=end_date,
-                interval=interval
+                end_date=end_date
             )
         elif source == 'stooq':
             from redline.downloaders.stooq_downloader import StooqDownloader
             downloader = StooqDownloader()
-            result = downloader.download_data(
+            result = downloader.download_single_ticker(
                 ticker=ticker,
                 start_date=start_date,
                 end_date=end_date
@@ -142,7 +141,7 @@ def batch_download():
                 if source == 'yahoo':
                     from redline.downloaders.yahoo_downloader import YahooDownloader
                     downloader = YahooDownloader()
-                    result = downloader.download_data(
+                    result = downloader.download_single_ticker(
                         ticker=ticker,
                         start_date=start_date,
                         end_date=end_date

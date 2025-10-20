@@ -236,7 +236,7 @@ def download_data(ticker):
         from redline.downloaders.yahoo_downloader import YahooDownloader
         
         downloader = YahooDownloader()
-        result = downloader.download_data(
+        result = downloader.download_single_ticker(
             ticker=ticker,
             start_date=start_date,
             end_date=end_date
