@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-<!-- Updated: 2025-10-20 11:55:00 - CACHE BUST - Fixed JavaScript to use /api/files -->
 
 {% block title %}Data Tab - REDLINE{% endblock %}
 
@@ -101,7 +100,7 @@ $(document).ready(function() {
 });
 
 function loadFileList() {
-    console.log('CACHE BUST: Loading file list from /api/files - ' + new Date().toISOString());
+    console.log('Loading file list from /api/files');
     
     $.ajax({
         url: '/api/files',
@@ -239,3 +238,5 @@ function formatFileSize(bytes) {
 }
 </script>
 {% endblock %}
+
+

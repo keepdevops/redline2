@@ -1,13 +1,19 @@
 """
 Data tab routes for REDLINE Web GUI
 Handles data viewing, filtering, and management
+Uses the same data loading logic as the tkinter GUI
 """
 
 from flask import Blueprint, render_template, request, jsonify
 import logging
 import os
 import pandas as pd
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import List, Optional, Dict, Any
 from ...database.optimized_connector import OptimizedDatabaseConnector
+from ...core.data_loader import DataLoader
+from ...core.schema import EXT_TO_FORMAT, FORMAT_DIALOG_INFO
+from ...gui.widgets.data_source import DataSource
 
 # Initialize optimized database connector
 optimized_db = OptimizedDatabaseConnector(max_connections=8, cache_size=64, cache_ttl=300)
@@ -16,17 +22,139 @@ data_bp = Blueprint('data', __name__)
 logger = logging.getLogger(__name__)
 
 def _detect_format_from_path(file_path: str) -> str:
-    """Detect file format from extension."""
+    """Detect format from file path - same as tkinter GUI."""
     ext = os.path.splitext(file_path)[1].lower()
-    format_map = {
-        '.csv': 'csv',
-        '.json': 'json',
-        '.parquet': 'parquet',
-        '.feather': 'feather',
-        '.duckdb': 'duckdb',
-        '.txt': 'txt'
-    }
-    return format_map.get(ext)
+    return EXT_TO_FORMAT.get(ext, 'csv')
+
+def _load_single_file_parallel(file_path: str) -> Optional[pd.DataFrame]:
+    """Load a single file - optimized for speed with parallel processing (same as tkinter GUI)."""
+    try:
+        # Detect format from extension
+        format_type = _detect_format_from_path(file_path)
+        
+        # Use direct pandas loading for speed (skip validation/cleaning for display)
+        if format_type == 'csv':
+            data = pd.read_csv(file_path)
+        elif format_type == 'parquet':
+            data = pd.read_parquet(file_path)
+        elif format_type == 'feather':
+            data = pd.read_feather(file_path)
+        elif format_type == 'json':
+            data = pd.read_json(file_path)
+        elif format_type == 'duckdb':
+            import duckdb
+            conn = duckdb.connect(file_path)
+            data = conn.execute("SELECT * FROM tickers_data").fetchdf()
+            conn.close()
+        else:
+            # Fallback to loader for unsupported formats
+            loader = DataLoader()
+            data = loader.load_file_by_type(file_path, format_type)
+        
+        return data
+        
+    except Exception as e:
+        logger.error(f"Error loading {file_path}: {str(e)}")
+        return None
+
+def _load_files_parallel(file_paths: List[str]) -> Dict[str, Any]:
+    """Load multiple files in parallel - same logic as tkinter GUI."""
+    try:
+        loaded_data = []
+        skipped_files = []
+        large_files = []
+        
+        # Check file sizes first
+        for file_path in file_paths:
+            try:
+                file_size = os.path.getsize(file_path)
+                if file_size > 100 * 1024 * 1024:  # 100MB
+                    large_files.append((file_path, file_size))
+            except:
+                pass
+        
+        # Use parallel processing for file loading (I/O bound, so more workers)
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            # Submit all file loading tasks
+            future_to_file = {
+                executor.submit(_load_single_file_parallel, file_path): file_path
+                for file_path in file_paths
+            }
+            
+            # Process completed loads
+            completed = 0
+            for future in as_completed(future_to_file):
+                file_path = future_to_file[future]
+                completed += 1
+                
+                try:
+                    data = future.result()
+                    if data is not None and not data.empty:
+                        loaded_data.append(data)
+                        logger.info(f"Successfully loaded {file_path}: {len(data)} rows")
+                    else:
+                        skipped_files.append(file_path)
+                        logger.warning(f"Skipped empty file: {file_path}")
+                except Exception as e:
+                    logger.error(f"Error loading {file_path}: {str(e)}")
+                    skipped_files.append(file_path)
+        
+        # Combine loaded data with memory optimization
+        if loaded_data:
+            try:
+                # Store count before clearing
+                files_loaded_count = len(loaded_data)
+                
+                # Combine data with memory management
+                if len(loaded_data) == 1:
+                    combined_data = loaded_data[0]
+                else:
+                    combined_data = pd.concat(loaded_data, ignore_index=True)
+                
+                # Clear the list to free memory
+                loaded_data.clear()
+                
+                return {
+                    'success': True,
+                    'data': combined_data,
+                    'files_loaded': files_loaded_count,
+                    'skipped_files': skipped_files,
+                    'large_files': large_files,
+                    'total_rows': len(combined_data),
+                    'columns': list(combined_data.columns)
+                }
+                
+            except MemoryError as mem_error:
+                logger.error(f"Memory error combining data: {str(mem_error)}")
+                return {
+                    'success': False,
+                    'error': 'Memory Error: File too large to load. Try loading smaller files.',
+                    'skipped_files': skipped_files,
+                    'large_files': large_files
+                }
+            except Exception as e:
+                logger.error(f"Error combining data: {str(e)}")
+                return {
+                    'success': False,
+                    'error': str(e),
+                    'skipped_files': skipped_files,
+                    'large_files': large_files
+                }
+        else:
+            return {
+                'success': False,
+                'error': 'No data loaded',
+                'skipped_files': skipped_files,
+                'large_files': large_files
+            }
+            
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in load files: {error_msg}")
+        return {
+            'success': False,
+            'error': f"Failed to load files: {error_msg}"
+        }
 
 def _load_file_by_format(file_path: str, format_type: str) -> pd.DataFrame:
     """Load file based on format type."""
@@ -170,8 +298,18 @@ def _load_large_file_chunked(file_path: str, format_type: str, chunk_size: int =
 
 @data_bp.route('/')
 def data_tab():
-    """Data tab main page."""
-    return render_template('data_tab.html')
+    """Data tab main page - TKINTER STYLE VERSION."""
+    return render_template('data_tab_tkinter_style.html')
+
+@data_bp.route('/debug')
+def data_tab_debug():
+    """Data tab debug page."""
+    return render_template('data_tab_debug.html')
+
+@data_bp.route('/simple')
+def data_tab_simple():
+    """Data tab simple version."""
+    return render_template('data_tab_simple.html')
 
 @data_bp.route('/load', methods=['POST'])
 def load_data():
@@ -201,23 +339,28 @@ def load_data():
             return jsonify({'error': 'File not found'}), 404
         
         # Use EXACT same data loading pipeline as Tkinter GUI
-        from redline.core.format_converter import FormatConverter
-        from redline.core.schema import EXT_TO_FORMAT
-        
-        converter = FormatConverter()
-        
         # Detect format from file extension (same as Tkinter _detect_format_from_path)
         ext = os.path.splitext(data_path)[1].lower()
         format_type = EXT_TO_FORMAT.get(ext, 'csv')
         
-        # Check if this is a large file (same as Tkinter)
-        file_size = os.path.getsize(data_path)
-        is_large_file = file_size > 50 * 1024 * 1024  # 50MB
-        
-        # Load data with chunked approach for large files (same as Tkinter)
-        if is_large_file and format_type in ['csv', 'txt']:
-            df = _load_large_file_chunked(data_path, format_type)
+        # Use direct pandas loading for speed (same as Tkinter _load_single_file_parallel)
+        if format_type == 'csv':
+            df = pd.read_csv(data_path)
+        elif format_type == 'parquet':
+            df = pd.read_parquet(data_path)
+        elif format_type == 'feather':
+            df = pd.read_feather(data_path)
+        elif format_type == 'json':
+            df = pd.read_json(data_path)
+        elif format_type == 'duckdb':
+            import duckdb
+            conn = duckdb.connect(data_path)
+            df = conn.execute("SELECT * FROM tickers_data").fetchdf()
+            conn.close()
         else:
+            # Fallback to loader for unsupported formats
+            from redline.core.format_converter import FormatConverter
+            converter = FormatConverter()
             df = converter.load_file_by_type(data_path, format_type)
         
         if not isinstance(df, pd.DataFrame):
@@ -246,23 +389,28 @@ def get_columns(filename):
             return jsonify({'error': 'File not found'}), 404
         
         # Use EXACT same data loading pipeline as Tkinter GUI
-        from redline.core.format_converter import FormatConverter
-        from redline.core.schema import EXT_TO_FORMAT
-        
-        converter = FormatConverter()
-        
         # Detect format from file extension (same as Tkinter _detect_format_from_path)
         ext = os.path.splitext(data_path)[1].lower()
         format_type = EXT_TO_FORMAT.get(ext, 'csv')
         
-        # Check if this is a large file (same as Tkinter)
-        file_size = os.path.getsize(data_path)
-        is_large_file = file_size > 50 * 1024 * 1024  # 50MB
-        
-        # Load data with chunked approach for large files (same as Tkinter)
-        if is_large_file and format_type in ['csv', 'txt']:
-            df = _load_large_file_chunked(data_path, format_type)
+        # Use direct pandas loading for speed (same as Tkinter _load_single_file_parallel)
+        if format_type == 'csv':
+            df = pd.read_csv(data_path)
+        elif format_type == 'parquet':
+            df = pd.read_parquet(data_path)
+        elif format_type == 'feather':
+            df = pd.read_feather(data_path)
+        elif format_type == 'json':
+            df = pd.read_json(data_path)
+        elif format_type == 'duckdb':
+            import duckdb
+            conn = duckdb.connect(data_path)
+            df = conn.execute("SELECT * FROM tickers_data").fetchdf()
+            conn.close()
         else:
+            # Fallback to loader for unsupported formats
+            from redline.core.format_converter import FormatConverter
+            converter = FormatConverter()
             df = converter.load_file_by_type(data_path, format_type)
         
         if not isinstance(df, pd.DataFrame):
@@ -544,3 +692,5 @@ def get_database_stats():
     except Exception as e:
         logger.error(f"Error getting database stats: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+

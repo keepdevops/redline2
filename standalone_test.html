@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Standalone Data Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .btn { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        .btn:hover { background: #0056b3; }
+        .btn:disabled { background: #6c757d; cursor: not-allowed; }
+        .list-group { list-style: none; padding: 0; }
+        .list-group-item { padding: 15px; border: 1px solid #ddd; margin-bottom: 5px; border-radius: 4px; cursor: pointer; }
+        .list-group-item:hover { background-color: #f8f9fa; }
+        .alert { padding: 15px; margin-bottom: 20px; border-radius: 4px; }
+        .alert-success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .alert-danger { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .alert-warning { background-color: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+        .table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .table th, .table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        .table th { background-color: #f8f9fa; font-weight: bold; }
+        .badge { background-color: #6c757d; color: white; padding: 4px 8px; border-radius: 3px; margin: 2px; display: inline-block; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .text-center { text-align: center; }
+        .text-muted { color: #6c757d; }
+        .debug { background-color: #f8f9fa; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 12px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🚀 Standalone Data Test</h1>
+    
+    <!-- Debug Console -->
+    <div class="card">
+        <h3>🔍 Debug Console</h3>
+        <div id="debug-console" class="debug">Ready to test...</div>
+    </div>
+    
+    <!-- File List -->
+    <div class="card">
+        <h3>📁 Available Files</h3>
+        <button class="btn" onclick="loadFiles()">Refresh Files</button>
+        <div id="file-list">Loading files...</div>
+    </div>
+    
+    <!-- Data Display -->
+    <div class="card">
+        <h3>📊 File Data</h3>
+        <div id="data-display">Click a file to load data</div>
+    </div>
+</div>
+
+<script>
+// Debug logging
+function log(message) {
+    const debug = document.getElementById('debug-console');
+    const timestamp = new Date().toLocaleTimeString();
+    debug.innerHTML += '<br>' + timestamp + ': ' + message;
+    console.log(timestamp + ': ' + message);
+}
+
+// Load files on page load
+document.addEventListener('DOMContentLoaded', function() {
+    log('🚀 Page loaded, starting file load test');
+    loadFiles();
+});
+
+// Load files from API
+function loadFiles() {
+    log('📡 Fetching files from /api/files');
+    
+    const fileList = document.getElementById('file-list');
+    fileList.innerHTML = '<div class="text-center"><div class="spinner"></div><p>Loading files...</p></div>';
+    
+    fetch('/api/files')
+        .then(response => {
+            log('📡 Files response status: ' + response.status);
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+            }
+            return response.json();
+        })
+        .then(data => {
+            log('✅ Files loaded successfully: ' + (data.files ? data.files.length : 0) + ' files');
+            displayFiles(data.files || []);
+        })
+        .catch(error => {
+            log('❌ Error loading files: ' + error.message);
+            document.getElementById('file-list').innerHTML = '<div class="alert alert-danger">❌ Error: ' + error.message + '</div>';
+        });
+}
+
+// Display files in list
+function displayFiles(files) {
+    const container = document.getElementById('file-list');
+    
+    if (files.length === 0) {
+        container.innerHTML = '<div class="alert alert-warning">⚠️ No files found</div>';
+        return;
+    }
+    
+    let html = '<div class="list-group">';
+    files.forEach(file => {
+        const fileSize = formatFileSize(file.size || 0);
+        const modifiedDate = new Date(file.modified * 1000).toLocaleDateString();
+        
+        html += `
+            <div class="list-group-item" onclick="loadFile('${file.name}')">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong>${file.name}</strong><br>
+                        <small class="text-muted">Modified: ${modifiedDate}</small>
+                    </div>
+                    <div>
+                        <small class="text-muted">${fileSize}</small>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    
+    container.innerHTML = html;
+    log('📋 Files displayed: ' + files.length);
+}
+
+// Load file data
+function loadFile(filename) {
+    log('📂 Loading file: ' + filename);
+    
+    const container = document.getElementById('data-display');
+    container.innerHTML = `
+        <div class="text-center">
+            <div class="spinner"></div>
+            <p>Loading ${filename}...</p>
+        </div>
+    `;
+    
+    fetch('/data/load', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ filename: filename })
+    })
+    .then(response => {
+        log('📡 Data load response status: ' + response.status);
+        log('📡 Response headers: ' + JSON.stringify([...response.headers.entries()]));
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+        }
+        return response.json();
+    })
+    .then(data => {
+        log('✅ Data loaded successfully: ' + data.total_rows + ' rows, ' + data.columns.length + ' columns');
+        log('📊 Data structure: ' + JSON.stringify(Object.keys(data)));
+        displayData(data);
+    })
+    .catch(error => {
+        log('❌ Error loading data: ' + error.message);
+        container.innerHTML = '<div class="alert alert-danger">❌ Error: ' + error.message + '</div>';
+    });
+}
+
+// Display file data
+function displayData(data) {
+    log('🎨 Displaying data for: ' + data.filename);
+    
+    const container = document.getElementById('data-display');
+    
+    let html = `
+        <div class="alert alert-success">
+            <h4>📄 ${data.filename}</h4>
+            <p><strong>Rows:</strong> ${data.total_rows} | <strong>Columns:</strong> ${data.columns.length}</p>
+        </div>
+    `;
+    
+    // Show columns
+    if (data.columns && data.columns.length > 0) {
+        html += '<h5>🏷️ Columns:</h5><div>';
+        data.columns.forEach(col => {
+            html += `<span class="badge">${col}</span>`;
+        });
+        html += '</div>';
+    }
+    
+    // Show data table
+    if (data.data && data.data.length > 0) {
+        html += '<h5>📊 Data Preview:</h5>';
+        html += '<table class="table">';
+        
+        // Headers
+        html += '<thead><tr>';
+        data.columns.forEach(col => {
+            html += `<th>${col}</th>`;
+        });
+        html += '</tr></thead>';
+        
+        // Data rows
+        html += '<tbody>';
+        data.data.slice(0, 10).forEach(row => {
+            html += '<tr>';
+            data.columns.forEach(col => {
+                html += `<td>${row[col] || ''}</td>`;
+            });
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+        
+        if (data.data.length > 10) {
+            html += `<p class="text-muted">📄 Showing first 10 of ${data.data.length} rows</p>`;
+        }
+    } else {
+        html += '<div class="alert alert-warning">⚠️ No data found in file</div>';
+    }
+    
+    container.innerHTML = html;
+    log('✅ Data display completed');
+}
+
+// Format file size
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+</script>
+</body>
+</html>

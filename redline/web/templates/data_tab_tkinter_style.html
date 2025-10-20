@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data View - Tkinter Style</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .file-list-item {
+            cursor: pointer;
+            padding: 10px;
+            border: 1px solid #ddd;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .file-list-item:hover {
+            background-color: #f8f9fa;
+        }
+        .file-list-item.selected {
+            background-color: #007bff;
+            color: white;
+        }
+        .data-table {
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+        }
+        .loading-spinner {
+            text-align: center;
+            padding: 40px;
+        }
+        .data-info {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+        .table th {
+            background-color: #343a40 !important;
+            color: white !important;
+            font-weight: bold;
+        }
+        .table td {
+            vertical-align: middle;
+        }
+        .table-responsive {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+<div class="container-fluid mt-4">
+    <div class="row">
+        <!-- File List Panel -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">📁 Files</h5>
+                    <button class="btn btn-sm btn-outline-primary" onclick="refreshFileList()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="fileList">
+                        <div class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i> Loading files...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Data Display Panel -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">📊 Data View</h5>
+                </div>
+                <div class="card-body">
+                    <div id="dataDisplay">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-mouse-pointer fa-2x mb-3"></i>
+                            <p>Click on a file to load its data</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Global variables
+let currentFile = null;
+let currentData = null;
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Tkinter-style data view loaded');
+    refreshFileList();
+});
+
+// Refresh file list (like tkinter refresh)
+function refreshFileList() {
+    console.log('Refreshing file list...');
+    
+    const fileListDiv = document.getElementById('fileList');
+    fileListDiv.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading files...</div>';
+    
+    fetch('/api/files')
+        .then(response => response.json())
+        .then(data => {
+            console.log('Files loaded:', data.files.length);
+            displayFileList(data.files || []);
+        })
+        .catch(error => {
+            console.error('Error loading files:', error);
+            fileListDiv.innerHTML = '<div class="text-center text-danger">Error loading files</div>';
+        });
+}
+
+// Display file list (like tkinter file listbox)
+function displayFileList(files) {
+    const fileListDiv = document.getElementById('fileList');
+    
+    if (files.length === 0) {
+        fileListDiv.innerHTML = '<div class="text-center text-muted">No files found</div>';
+        return;
+    }
+    
+    let html = '';
+    files.forEach(file => {
+        const fileSize = formatFileSize(file.size || 0);
+        const modifiedDate = new Date(file.modified * 1000).toLocaleDateString();
+        
+        html += `
+            <div class="file-list-item" onclick="loadFileData('${file.name}')">
+                <div class="fw-bold">${file.name}</div>
+                <small class="text-muted">${fileSize} • ${modifiedDate}</small>
+            </div>
+        `;
+    });
+    
+    fileListDiv.innerHTML = html;
+}
+
+// Load file data (like tkinter refresh_data)
+function loadFileData(filename) {
+    console.log('Loading data for file:', filename);
+    
+    // Update selected file
+    document.querySelectorAll('.file-list-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    event.target.closest('.file-list-item').classList.add('selected');
+    
+    // Show loading spinner
+    const dataDisplay = document.getElementById('dataDisplay');
+    dataDisplay.innerHTML = `
+        <div class="text-center p-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading ${filename}...</p>
+        </div>
+    `;
+    
+    // Load data
+    fetch('/data/load', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ filename: filename })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Data loaded:', data.total_rows, 'rows,', data.columns.length, 'columns');
+        console.log('Columns:', data.columns);
+        console.log('Sample data:', data.data ? data.data.slice(0, 2) : 'No data');
+        currentFile = filename;
+        currentData = data.data;
+        displayDataTable(data);
+    })
+    .catch(error => {
+        console.error('Error loading data:', error);
+        dataDisplay.innerHTML = `
+            <div class="text-center text-danger">
+                <i class="fas fa-exclamation-triangle"></i> Error loading data: ${error.message}
+            </div>
+        `;
+    });
+}
+
+// Display data table (like tkinter data_tree)
+function displayDataTable(data) {
+    const dataDisplay = document.getElementById('dataDisplay');
+    
+    // Data info
+    let html = `
+        <div class="data-info">
+            <h6>📄 ${data.filename}</h6>
+            <p class="mb-0"><strong>Rows:</strong> ${data.total_rows} | <strong>Columns:</strong> ${data.columns.length}</p>
+        </div>
+    `;
+    
+    if (data.data && data.data.length > 0) {
+        // Create table with proper Bootstrap styling
+        html += '<div class="table-responsive">';
+        html += '<table class="table table-striped table-hover table-sm">';
+        
+        // Headers - use actual column names
+        html += '<thead class="table-dark"><tr>';
+        data.columns.forEach(col => {
+            html += `<th scope="col">${col}</th>`;
+        });
+        html += '</tr></thead>';
+        
+        // Data rows - display actual values
+        html += '<tbody>';
+        data.data.slice(0, 100).forEach((row, index) => { // Limit to 100 rows like tkinter
+            html += '<tr>';
+            data.columns.forEach(col => {
+                const value = row[col];
+                // Format numeric values properly
+                let displayValue = '';
+                if (value === null || value === undefined) {
+                    displayValue = '';
+                } else if (typeof value === 'number') {
+                    // Format numbers with appropriate precision
+                    displayValue = Number(value).toLocaleString();
+                } else {
+                    displayValue = String(value);
+                }
+                html += `<td>${displayValue}</td>`;
+            });
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+        html += '</div>';
+        
+        if (data.data.length > 100) {
+            html += `<p class="text-muted mt-2">Showing first 100 of ${data.data.length} rows</p>`;
+        }
+    } else {
+        html += '<div class="text-center text-muted">No data found in file</div>';
+    }
+    
+    dataDisplay.innerHTML = html;
+}
+
+// Format file size (like tkinter)
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+</script>
+</body>
+</html>

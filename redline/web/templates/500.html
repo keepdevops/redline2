@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Internal Server Error - REDLINE{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <div class="error-template">
+                <h1 class="display-1 text-danger">500</h1>
+                <h2>Internal Server Error</h2>
+                <div class="error-details">
+                    <p>Something went wrong on our end. We're working to fix this issue.</p>
+                    <p>Please try again later or contact support if the problem persists.</p>
+                </div>
+                <div class="error-actions mt-4">
+                    <a href="{{ url_for('main.index') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-home"></i> Take Me Home
+                    </a>
+                    <a href="javascript:history.back()" class="btn btn-secondary btn-lg ms-2">
+                        <i class="fas fa-arrow-left"></i> Go Back
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.error-template {
+    padding: 40px 15px;
+    text-align: center;
+}
+
+.error-template h1 {
+    font-size: 8rem;
+    font-weight: bold;
+    color: #dc3545;
+    margin-bottom: 20px;
+}
+
+.error-template h2 {
+    font-size: 2rem;
+    color: #6c757d;
+    margin-bottom: 30px;
+}
+
+.error-details {
+    font-size: 1.1rem;
+    color: #6c757d;
+    margin-bottom: 30px;
+}
+
+.error-actions .btn {
+    margin: 5px;
+}
+</style>
+{% endblock %}

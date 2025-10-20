@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Data Tab Simple - REDLINE{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h2>Data Tab - Simple Version</h2>
+            
+            <!-- File Selection -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Select Data File</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="fileSelect" class="form-label">Choose File:</label>
+                        <select id="fileSelect" class="form-select">
+                            <option value="">Loading files...</option>
+                        </select>
+                    </div>
+                    <button id="loadFabtn" class="btn btn-primary">Load File</button>
+                    <button id="refreshBtn" class="btn btn-secondary">Refresh</button>
+                </div>
+            </div>
+            
+            <!-- Results -->
+            <div class="card">
+                <div class="card-header">
+                    <h5>Data Preview</h5>
+                </div>
+                <div class="card-body">
+                    <div id="dataResults">
+                        <p>Select a file to load data.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    console.log('Simple data tab loaded');
+    
+    // Load files on page load
+    loadFiles();
+    
+    // Event handlers
+    $('#loadFabtn').click(function() {
+        const selectedFile = $('#fileSelect').val();
+        if (selectedFile) {
+            loadFileData(selectedFile);
+        } else {
+            alert('Please select a file first');
+        }
+    });
+    
+    $('#refreshBtn').click(function() {
+        loadFiles();
+    });
+});
+
+function loadFiles() {
+    console.log('Loading files...');
+    
+    $.ajax({
+        url: '/api/files',
+        method: 'GET',
+        dataType: 'json',
+        success: function(response) {
+            console.log('Files loaded successfully:', response);
+            
+            const select = $('#fileSelect');
+            select.empty();
+            select.append('<option value="">Select a file...</option>');
+            
+            if (response.files && response.files.length > 0) {
+                response.files.forEach(function(file) {
+                    select.append(`<option value="${file.name}">${file.name}</option>`);
+                });
+                console.log('Files added to dropdown:', response.files.length);
+            } else {
+                select.append('<option value="">No files found</option>');
+                console.log('No files found');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error loading files:', error);
+            console.error('Response:', xhr.responseText);
+            $('#fileSelect').html('<option value="">Error loading files</option>');
+        }
+    });
+}
+
+function loadFileData(filename) {
+    console.log('Loading file data for:', filename);
+    
+    $('#dataResults').html('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</div>');
+    
+    $.ajax({
+        url: '/data/load',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ filename: filename }),
+        dataType: 'json',
+        success: function(response) {
+            console.log('File data loaded successfully:', response);
+            
+            let html = `
+                <div class="alert alert-success">
+                    <h6>File: ${response.filename}</h6>
+                    <p>Rows: ${response.total_rows} | Columns: ${response.columns ? response.columns.length : 0}</p>
+                </div>
+            `;
+            
+            if (response.data && response.data.length > 0) {
+                html += '<div class="table-responsive"><table class="table table-striped"><thead><tr>';
+                
+                // Add headers
+                if (response.columns) {
+                    response.columns.forEach(function(col) {
+                        html += `<th>${col}</th>`;
+                    });
+                }
+                html += '</tr></thead><tbody>';
+                
+                // Add first 10 rows
+                response.data.slice(0, 10).forEach(function(row) {
+                    html += '<tr>';
+                    if (response.columns) {
+                        response.columns.forEach(function(col) {
+                            html += `<td>${row[col] || ''}</td>`;
+                        });
+                    }
+                    html += '</tr>';
+                });
+                
+                html += '</tbody></table></div>';
+                
+                if (response.data.length > 10) {
+                    html += `<p class="text-muted">Showing first 10 of ${response.data.length} rows</p>`;
+                }
+            } else {
+                html += '<div class="alert alert-warning">No data found in file</div>';
+            }
+            
+            $('#dataResults').html(html);
+        },
+        error: function(xhr, status, error) {
+            console.error('Error loading file data:', error);
+            console.error('Response:', xhr.responseText);
+            $('#dataResults').html(`
+                <div class="alert alert-danger">
+                    <h6>Error Loading Data</h6>
+                    <p>Error: ${error}</p>
+                    <p>Status: ${status}</p>
+                </div>
+            `);
+        }
+    });
+}
+</script>
+{% endblock %}

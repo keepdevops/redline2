@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-<!-- Updated: 2025-10-20 11:55:00 - CACHE BUST - Fixed JavaScript to use /api/files -->
+<!-- FIXED TEMPLATE - Uses /api/files endpoint -->
 
 {% block title %}Data Tab - REDLINE{% endblock %}
 
@@ -71,25 +71,28 @@ let currentFile = null;
 let currentData = null;
 
 $(document).ready(function() {
-    console.log('Data tab loaded - using tkinter-style data loading');
+    console.log('FIXED Data tab loaded - using /api/files endpoint');
     
-    // Load file list on page load
+    // Load file list immediately
     loadFileList();
     
     // Event handlers
     $('#fileSelect').on('change', function() {
         const selectedFile = $(this).val();
         $('#loadFileBtn').prop('disabled', !selectedFile);
+        console.log('File selected:', selectedFile);
     });
     
     $('#loadFileBtn').on('click', function() {
         const selectedFile = $('#fileSelect').val();
+        console.log('Load button clicked for file:', selectedFile);
         if (selectedFile) {
             loadData(selectedFile);
         }
     });
     
     $('#refreshFilesBtn').on('click', function() {
+        console.log('Refresh button clicked');
         loadFileList();
     });
     
@@ -101,14 +104,14 @@ $(document).ready(function() {
 });
 
 function loadFileList() {
-    console.log('CACHE BUST: Loading file list from /api/files - ' + new Date().toISOString());
+    console.log('FIXED: Loading file list from /api/files');
     
     $.ajax({
         url: '/api/files',
         method: 'GET',
         dataType: 'json',
         success: function(response) {
-            console.log('Files loaded:', response.files.length);
+            console.log('FIXED: Files loaded successfully:', response.files.length, 'files');
             const select = $('#fileSelect');
             select.empty();
             select.append('<option value="">Select a file to load...</option>');
@@ -118,19 +121,22 @@ function loadFileList() {
                     const fileSize = formatFileSize(file.size || 0);
                     select.append(`<option value="${file.name}">${file.name} (${fileSize})</option>`);
                 });
+                console.log('FIXED: Files added to dropdown successfully');
             } else {
                 select.append('<option value="">No files found</option>');
+                console.log('FIXED: No files found');
             }
         },
         error: function(xhr, status, error) {
-            console.error('Error loading files:', error);
+            console.error('FIXED: Error loading files:', error);
+            console.error('FIXED: Response:', xhr.responseText);
             $('#fileSelect').empty().append('<option value="">Error loading files</option>');
         }
     });
 }
 
 function loadData(filename) {
-    console.log('Loading data for file:', filename);
+    console.log('FIXED: Loading data for file:', filename);
     
     // Show loading message
     $('#dataTableContainer').html('<div class="text-center p-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading data...</div>');
@@ -143,7 +149,7 @@ function loadData(filename) {
         data: JSON.stringify({ filename: filename }),
         dataType: 'json',
         success: function(response) {
-            console.log('Data loaded successfully:', response.total_rows, 'rows');
+            console.log('FIXED: Data loaded successfully:', response.total_rows, 'rows');
             currentFile = filename;
             currentData = response.data;
             
@@ -161,14 +167,14 @@ function loadData(filename) {
             });
         },
         error: function(xhr, status, error) {
-            console.error('Error loading data:', error);
+            console.error('FIXED: Error loading data:', error);
             $('#dataTableContainer').html('<div class="text-center p-4 text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Error loading data: ' + error + '</div>');
         }
     });
 }
 
 function displayDataInTable(data) {
-    console.log('Displaying data in table:', data.length, 'rows');
+    console.log('FIXED: Displaying data in table:', data.length, 'rows');
     
     if (!data || data.length === 0) {
         $('#dataTableContainer').html('<div class="text-center p-4"><i class="fas fa-info-circle me-2"></i>No data to display</div>');
@@ -239,3 +245,5 @@ function formatFileSize(bytes) {
 }
 </script>
 {% endblock %}
+
+
