@@ -167,8 +167,19 @@ class FormatConverter:
                             df = pd.DataFrame(data)
                         conn.register('temp_data', df)
                         conn.execute("CREATE TABLE tickers_data AS SELECT * FROM temp_data")
+                except Exception as e:
+                    # Ensure connection is closed even on error
+                    try:
+                        conn.close()
+                    except:
+                        pass
+                    raise e
                 finally:
-                    conn.close()
+                    # Always close the connection
+                    try:
+                        conn.close()
+                    except Exception as close_error:
+                        self.logger.warning(f"Error closing DuckDB connection: {close_error}")
                 
             else:
                 raise ValueError(f"Unsupported format: {format}")
@@ -217,9 +228,22 @@ class FormatConverter:
             elif format == 'duckdb':
                 import duckdb
                 conn = duckdb.connect(file_path)
-                result = conn.execute("SELECT * FROM tickers_data").fetchdf()
-                conn.close()
-                return result
+                try:
+                    result = conn.execute("SELECT * FROM tickers_data").fetchdf()
+                    return result
+                except Exception as e:
+                    # Ensure connection is closed even on error
+                    try:
+                        conn.close()
+                    except:
+                        pass
+                    raise e
+                finally:
+                    # Always close the connection
+                    try:
+                        conn.close()
+                    except Exception as close_error:
+                        self.logger.warning(f"Error closing DuckDB connection: {close_error}")
             else:
                 raise ValueError(f"Unsupported format: {format}")
                 

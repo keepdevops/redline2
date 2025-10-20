@@ -98,10 +98,24 @@ start_flask_app() {
     fi
 }
 
+# Function to clean up conversion files
+cleanup_conversion_files() {
+    echo "🧹 Cleaning up conversion files..."
+    if [ -f "cleanup_conversion_files.py" ]; then
+        python cleanup_conversion_files.py --days 1 >/dev/null 2>&1 || true
+        echo "✅ Conversion files cleaned"
+    else
+        echo "⚠️  Cleanup script not found, skipping..."
+    fi
+}
+
 # Main execution
 echo "=========================================="
 echo "🚀 Redline Web App Startup Script"
 echo "=========================================="
+
+# Clean up conversion files
+cleanup_conversion_files
 
 # Clear browser cache
 clear_browser_cache

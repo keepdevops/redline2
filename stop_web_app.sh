@@ -129,6 +129,13 @@ cleanup_temp_files() {
     # Remove any temporary web files
     rm -f flask_app.pid 2>/dev/null
     
+    # Clean up conversion files
+    echo "🧹 Cleaning up conversion files..."
+    if [ -f "cleanup_conversion_files.py" ]; then
+        python cleanup_conversion_files.py --days 1 >/dev/null 2>&1 || true
+        echo "✅ Conversion files cleaned"
+    fi
+    
     echo "✅ Temporary files cleaned"
 }
 

@@ -1,0 +1,559 @@
+{% extends "base.html" %}
+
+{% block title %}Multi-File Data View - REDLINE{% endblock %}
+
+{% block head %}
+<style>
+    .file-selector {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .file-list {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        background: white;
+    }
+    
+    .file-item {
+        padding: 10px 15px;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        transition: background-color 0.2s;
+    }
+    
+    .file-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .file-item.selected {
+        background-color: #e3f2fd;
+        border-left: 4px solid #2196f3;
+    }
+    
+    .file-item input[type="checkbox"] {
+        margin-right: 10px;
+    }
+    
+    .file-info {
+        flex: 1;
+        font-size: 14px;
+    }
+    
+    .file-name {
+        font-weight: 500;
+        color: #333;
+    }
+    
+    .file-size {
+        color: #666;
+        font-size: 12px;
+    }
+    
+    .data-display-area {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        min-height: 500px;
+    }
+    
+    .dataset-container {
+        margin-bottom: 30px;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .dataset-header {
+        background: #f8f9fa;
+        padding: 15px 20px;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        justify-content: between;
+        align-items: center;
+    }
+    
+    .dataset-title {
+        font-weight: 600;
+        color: #333;
+        margin: 0;
+    }
+    
+    .dataset-info {
+        color: #666;
+        font-size: 14px;
+        margin: 0;
+    }
+    
+    .dataset-content {
+        padding: 0;
+    }
+    
+    .loading-spinner {
+        text-align: center;
+        padding: 40px;
+    }
+    
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+    }
+    
+    .table-responsive {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .table th {
+        background-color: #343a40 !important;
+        color: white !important;
+        font-weight: bold;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .table td {
+        vertical-align: middle;
+    }
+    
+    .no-data-message {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+        font-style: italic;
+    }
+    
+    .load-button {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.2s;
+    }
+    
+    .load-button:hover {
+        background: #0056b3;
+    }
+    
+    .load-button:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+    }
+    
+    .clear-button {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        margin-left: 10px;
+    }
+    
+    .clear-button:hover {
+        background: #c82333;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="btn-group" role="group">
+                <a href="/data/" class="btn btn-outline-primary">Single File View</a>
+                <a href="/data/multi" class="btn btn-outline-primary active">Multi-File View</a>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <!-- File Selector Panel -->
+        <div class="col-md-4">
+            <div class="file-selector">
+                <h5 class="mb-3">📁 Select Files to Load</h5>
+                <div class="mb-3">
+                    <button id="loadSelectedBtn" class="load-button" disabled>
+                        Load Selected Files
+                    </button>
+                    <button id="clearAllBtn" class="clear-button">
+                        Clear All
+                    </button>
+                </div>
+                
+                <div class="file-list" id="fileList">
+                    <div class="text-center p-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading files...</span>
+                        </div>
+                        <p class="mt-2 mb-0">Loading file list...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Data Display Area -->
+        <div class="col-md-8">
+            <div class="data-display-area">
+                <h5 class="mb-3">📊 Multi-File Data View</h5>
+                <div id="dataDisplay">
+                    <div class="no-data-message">
+                        <i class="fas fa-database fa-3x mb-3"></i>
+                        <h6>No files loaded</h6>
+                        <p>Select files from the left panel and click "Load Selected Files" to view data</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let selectedFiles = new Set();
+let loadedDatasets = new Map();
+
+// Load file list on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadFileList();
+    
+    // Event listeners
+    document.getElementById('loadSelectedBtn').addEventListener('click', loadSelectedFiles);
+    document.getElementById('clearAllBtn').addEventListener('click', clearAllData);
+});
+
+// Load file list from API
+async function loadFileList() {
+    try {
+        const response = await fetch('/api/files');
+        const data = await response.json();
+        
+        if (data.files && data.files.length > 0) {
+            displayFileList(data.files);
+        } else {
+            document.getElementById('fileList').innerHTML = 
+                '<div class="text-center p-3 text-muted">No files found</div>';
+        }
+    } catch (error) {
+        console.error('Error loading files:', error);
+        document.getElementById('fileList').innerHTML = 
+            '<div class="text-center p-3 text-danger">Error loading files</div>';
+    }
+}
+
+// Display file list with checkboxes
+function displayFileList(files) {
+    const fileList = document.getElementById('fileList');
+    
+    fileList.innerHTML = files.map(file => `
+        <div class="file-item" data-filename="${file.name}">
+            <input type="checkbox" id="file-${file.name}" 
+                   onchange="toggleFileSelection('${file.name}')">
+            <div class="file-info">
+                <div class="file-name">${file.name}</div>
+                <div class="file-size">${formatFileSize(file.size)} • ${formatDate(file.modified)}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Toggle file selection
+function toggleFileSelection(filename) {
+    const checkbox = document.getElementById(`file-${filename}`);
+    const fileItem = document.querySelector(`[data-filename="${filename}"]`);
+    
+    if (checkbox.checked) {
+        selectedFiles.add(filename);
+        fileItem.classList.add('selected');
+    } else {
+        selectedFiles.delete(filename);
+        fileItem.classList.remove('selected');
+    }
+    
+    // Update load button state
+    const loadBtn = document.getElementById('loadSelectedBtn');
+    loadBtn.disabled = selectedFiles.size === 0;
+}
+
+// Load selected files
+async function loadSelectedFiles() {
+    if (selectedFiles.size === 0) return;
+    
+    const loadBtn = document.getElementById('loadSelectedBtn');
+    loadBtn.disabled = true;
+    loadBtn.textContent = 'Loading...';
+    
+    try {
+        // Show loading states for all selected files
+        const filenames = Array.from(selectedFiles);
+        filenames.forEach(filename => showLoadingState(filename));
+        
+        // Load all files using batch endpoint
+        const response = await fetch('/data/load-multiple', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ filenames: filenames })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        // Handle successful loads
+        Object.entries(result.results).forEach(([filename, data]) => {
+            loadedDatasets.set(filename, data);
+        });
+        
+        // Handle errors
+        Object.entries(result.errors).forEach(([filename, error]) => {
+            showErrorState(filename, error);
+        });
+        
+        // Update display
+        updateDataDisplay();
+        
+        // Clear selection
+        selectedFiles.clear();
+        document.querySelectorAll('.file-item').forEach(item => {
+            item.classList.remove('selected');
+            const checkbox = item.querySelector('input[type="checkbox"]');
+            if (checkbox) checkbox.checked = false;
+        });
+        
+        // Show summary
+        if (result.error_count > 0) {
+            alert(`Loaded ${result.success_count} files successfully. ${result.error_count} files had errors. Check console for details.`);
+        }
+        
+    } catch (error) {
+        console.error('Error loading files:', error);
+        alert('Error loading files. Check console for details.');
+    } finally {
+        loadBtn.disabled = false;
+        loadBtn.textContent = 'Load Selected Files';
+    }
+}
+
+// Load data for a single file
+async function loadFileData(filename) {
+    try {
+        // Show loading state for this file
+        showLoadingState(filename);
+        
+        const response = await fetch('/data/load', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ filename: filename })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        // Store loaded data
+        loadedDatasets.set(filename, data);
+        
+        // Update display
+        updateDataDisplay();
+        
+    } catch (error) {
+        console.error(`Error loading ${filename}:`, error);
+        showErrorState(filename, error.message);
+    }
+}
+
+// Show loading state for a file
+function showLoadingState(filename) {
+    const dataDisplay = document.getElementById('dataDisplay');
+    
+    // If this is the first file being loaded, clear the "no data" message
+    if (loadedDatasets.size === 0) {
+        dataDisplay.innerHTML = '';
+    }
+    
+    // Add loading indicator for this file
+    const loadingId = `loading-${filename}`;
+    if (!document.getElementById(loadingId)) {
+        const loadingDiv = document.createElement('div');
+        loadingDiv.id = loadingId;
+        loadingDiv.className = 'dataset-container';
+        loadingDiv.innerHTML = `
+            <div class="dataset-header">
+                <h6 class="dataset-title">📄 ${filename}</h6>
+                <p class="dataset-info">Loading...</p>
+            </div>
+            <div class="dataset-content">
+                <div class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading ${filename}...</p>
+                </div>
+            </div>
+        `;
+        dataDisplay.appendChild(loadingDiv);
+    }
+}
+
+// Show error state for a file
+function showErrorState(filename, errorMessage) {
+    const loadingId = `loading-${filename}`;
+    const loadingDiv = document.getElementById(loadingId);
+    
+    if (loadingDiv) {
+        loadingDiv.innerHTML = `
+            <div class="dataset-header">
+                <h6 class="dataset-title">❌ ${filename}</h6>
+                <p class="dataset-info">Error loading file</p>
+            </div>
+            <div class="dataset-content">
+                <div class="no-data-message">
+                    <h6>Error loading ${filename}</h6>
+                    <p class="text-danger">${errorMessage}</p>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// Update the data display with all loaded datasets
+function updateDataDisplay() {
+    const dataDisplay = document.getElementById('dataDisplay');
+    
+    if (loadedDatasets.size === 0) {
+        dataDisplay.innerHTML = `
+            <div class="no-data-message">
+                <i class="fas fa-database fa-3x mb-3"></i>
+                <h6>No files loaded</h6>
+                <p>Select files from the left panel and click "Load Selected Files" to view data</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Clear loading indicators
+    document.querySelectorAll('[id^="loading-"]').forEach(el => el.remove());
+    
+    // Display all loaded datasets
+    let html = '';
+    loadedDatasets.forEach((data, filename) => {
+        html += createDatasetHTML(data, filename);
+    });
+    
+    dataDisplay.innerHTML = html;
+}
+
+// Create HTML for a single dataset
+function createDatasetHTML(data, filename) {
+    let html = `
+        <div class="dataset-container">
+            <div class="dataset-header">
+                <h6 class="dataset-title">📄 ${filename}</h6>
+                <p class="dataset-info">Rows: ${data.total_rows} | Columns: ${data.columns.length}</p>
+            </div>
+            <div class="dataset-content">
+    `;
+    
+    if (data.data && data.data.length > 0) {
+        html += '<div class="table-responsive">';
+        html += '<table class="table table-striped table-hover table-sm">';
+        
+        // Headers
+        html += '<thead class="table-dark"><tr>';
+        data.columns.forEach(col => {
+            html += `<th scope="col">${col}</th>`;
+        });
+        html += '</tr></thead>';
+        
+        // Data rows
+        html += '<tbody>';
+        data.data.slice(0, 100).forEach((row, index) => {
+            html += '<tr>';
+            data.columns.forEach(col => {
+                const value = row[col];
+                let displayValue = '';
+                if (value === null || value === undefined) {
+                    displayValue = '';
+                } else if (typeof value === 'number') {
+                    displayValue = Number(value).toLocaleString();
+                } else {
+                    displayValue = String(value);
+                }
+                html += `<td>${displayValue}</td>`;
+            });
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+        html += '</div>';
+        
+        if (data.data.length > 100) {
+            html += `<p class="text-muted mt-2">Showing first 100 of ${data.data.length} rows</p>`;
+        }
+    } else {
+        html += '<div class="no-data-message">No data found in file</div>';
+    }
+    
+    html += `
+            </div>
+        </div>
+    `;
+    
+    return html;
+}
+
+// Clear all loaded data
+function clearAllData() {
+    loadedDatasets.clear();
+    selectedFiles.clear();
+    
+    // Clear checkboxes
+    document.querySelectorAll('.file-item input[type="checkbox"]').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    
+    // Clear selection styling
+    document.querySelectorAll('.file-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    
+    // Update load button
+    document.getElementById('loadSelectedBtn').disabled = true;
+    
+    // Clear display
+    updateDataDisplay();
+}
+
+// Utility functions
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function formatDate(timestamp) {
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+}
+</script>
+{% endblock %}

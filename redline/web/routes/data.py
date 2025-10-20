@@ -301,6 +301,94 @@ def data_tab():
     """Data tab main page - TKINTER STYLE VERSION."""
     return render_template('data_tab_tkinter_style.html')
 
+@data_bp.route('/multi')
+def data_tab_multi():
+    """Multi-file data tab."""
+    return render_template('data_tab_multi_file.html')
+
+@data_bp.route('/load-multiple', methods=['POST'])
+def load_multiple_files():
+    """Load multiple files at once."""
+    try:
+        data = request.get_json()
+        filenames = data.get('filenames', [])
+        
+        if not filenames:
+            return jsonify({'error': 'No filenames provided'}), 400
+        
+        results = {}
+        errors = {}
+        
+        for filename in filenames:
+            try:
+                # Use the same logic as single file loading
+                data_dir = os.path.join(os.getcwd(), 'data')
+                data_path = None
+                
+                # Check in root data directory first
+                root_path = os.path.join(data_dir, filename)
+                if os.path.exists(root_path):
+                    data_path = root_path
+                else:
+                    # Check in downloaded directory
+                    downloaded_path = os.path.join(data_dir, 'downloaded', filename)
+                    if os.path.exists(downloaded_path):
+                        data_path = downloaded_path
+                
+                if not data_path or not os.path.exists(data_path):
+                    errors[filename] = 'File not found'
+                    continue
+                
+                # Detect format and load data
+                ext = os.path.splitext(data_path)[1].lower()
+                format_type = EXT_TO_FORMAT.get(ext, 'csv')
+                
+                if format_type == 'csv':
+                    df = pd.read_csv(data_path)
+                elif format_type == 'parquet':
+                    df = pd.read_parquet(data_path)
+                elif format_type == 'feather':
+                    df = pd.read_feather(data_path)
+                elif format_type == 'json':
+                    df = pd.read_json(data_path)
+                elif format_type == 'duckdb':
+                    import duckdb
+                    conn = duckdb.connect(data_path)
+                    df = conn.execute("SELECT * FROM tickers_data").fetchdf()
+                    conn.close()
+                else:
+                    from redline.core.format_converter import FormatConverter
+                    converter = FormatConverter()
+                    df = converter.load_file_by_type(data_path, format_type)
+                
+                if not isinstance(df, pd.DataFrame):
+                    errors[filename] = 'Invalid data format'
+                    continue
+                
+                # Convert to JSON-serializable format
+                results[filename] = {
+                    'columns': list(df.columns),
+                    'data': df.head(1000).to_dict('records'),  # Limit to 1000 rows
+                    'total_rows': len(df),
+                    'dtypes': df.dtypes.astype(str).to_dict(),
+                    'filename': filename
+                }
+                
+            except Exception as e:
+                errors[filename] = str(e)
+                logger.error(f"Error loading {filename}: {str(e)}")
+        
+        return jsonify({
+            'results': results,
+            'errors': errors,
+            'success_count': len(results),
+            'error_count': len(errors)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in load_multiple_files: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @data_bp.route('/debug')
 def data_tab_debug():
     """Data tab debug page."""
