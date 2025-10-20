@@ -11,6 +11,62 @@ import pandas as pd
 data_bp = Blueprint('data', __name__)
 logger = logging.getLogger(__name__)
 
+def _load_large_file_chunked(file_path: str, format_type: str, chunk_size: int = 10000) -> pd.DataFrame:
+    """Load large files in chunks to prevent memory issues (same as Tkinter)."""
+    try:
+        logger.info(f"Loading large file {file_path} in chunks of {chunk_size} rows")
+        
+        if format_type == 'csv':
+            # Load CSV in chunks
+            chunks = []
+            for chunk in pd.read_csv(file_path, chunksize=chunk_size):
+                chunks.append(chunk)
+                if len(chunks) >= 10:  # Limit memory usage
+                    combined = pd.concat(chunks, ignore_index=True)
+                    chunks = [combined]
+            
+            if chunks:
+                return pd.concat(chunks, ignore_index=True)
+            else:
+                return pd.DataFrame()
+        
+        elif format_type == 'txt':
+            # For text files, try to detect if it's Stooq format
+            try:
+                # Read first few lines to detect format
+                with open(file_path, 'r') as f:
+                    first_line = f.readline().strip()
+                    
+                if '<TICKER>' in first_line:
+                    # Stooq format - load in chunks
+                    chunks = []
+                    for chunk in pd.read_csv(file_path, chunksize=chunk_size, sep=','):
+                        chunks.append(chunk)
+                        if len(chunks) >= 10:
+                            combined = pd.concat(chunks, ignore_index=True)
+                            chunks = [combined]
+                    
+                    if chunks:
+                        return pd.concat(chunks, ignore_index=True)
+                
+            except Exception as e:
+                logger.warning(f"Error in chunked text loading: {str(e)}")
+            
+            # Fallback to regular loading
+            from redline.core.data_loader import DataLoader
+            loader = DataLoader()
+            return loader.load_file_by_type(file_path, format_type)
+        
+        else:
+            # For other formats, use regular loading
+            from redline.core.data_loader import DataLoader
+            loader = DataLoader()
+            return loader.load_file_by_type(file_path, format_type)
+            
+    except Exception as e:
+        logger.error(f"Error in chunked loading: {str(e)}")
+        return pd.DataFrame()
+
 @data_bp.route('/')
 def data_tab():
     """Data tab main page."""
@@ -31,10 +87,25 @@ def load_data():
         if not os.path.exists(data_path):
             return jsonify({'error': 'File not found'}), 404
         
-        from redline.core.format_converter import FormatConverter
-        converter = FormatConverter()
+        # Use EXACT same data loading pipeline as Tkinter GUI
+        from redline.core.data_loader import DataLoader
+        from redline.core.schema import EXT_TO_FORMAT
         
-        df = converter.load_file(data_path)
+        loader = DataLoader()
+        
+        # Detect format from file extension (same as Tkinter _detect_format_from_path)
+        ext = os.path.splitext(data_path)[1].lower()
+        format_type = EXT_TO_FORMAT.get(ext, 'csv')
+        
+        # Check if this is a large file (same as Tkinter)
+        file_size = os.path.getsize(data_path)
+        is_large_file = file_size > 50 * 1024 * 1024  # 50MB
+        
+        # Load data with chunked approach for large files (same as Tkinter)
+        if is_large_file and format_type in ['csv', 'txt']:
+            df = _load_large_file_chunked(data_path, format_type)
+        else:
+            df = loader.load_file_by_type(data_path, format_type)
         
         if not isinstance(df, pd.DataFrame):
             return jsonify({'error': 'Invalid data format'}), 400
@@ -67,10 +138,25 @@ def filter_data():
         
         data_path = os.path.join(os.getcwd(), 'data', filename)
         
-        from redline.core.format_converter import FormatConverter
-        converter = FormatConverter()
+        # Use EXACT same data loading pipeline as Tkinter GUI
+        from redline.core.data_loader import DataLoader
+        from redline.core.schema import EXT_TO_FORMAT
         
-        df = converter.load_file(data_path)
+        loader = DataLoader()
+        
+        # Detect format from file extension (same as Tkinter _detect_format_from_path)
+        ext = os.path.splitext(data_path)[1].lower()
+        format_type = EXT_TO_FORMAT.get(ext, 'csv')
+        
+        # Check if this is a large file (same as Tkinter)
+        file_size = os.path.getsize(data_path)
+        is_large_file = file_size > 50 * 1024 * 1024  # 50MB
+        
+        # Load data with chunked approach for large files (same as Tkinter)
+        if is_large_file and format_type in ['csv', 'txt']:
+            df = _load_large_file_chunked(data_path, format_type)
+        else:
+            df = loader.load_file_by_type(data_path, format_type)
         
         if not isinstance(df, pd.DataFrame):
             return jsonify({'error': 'Invalid data format'}), 400
@@ -84,13 +170,21 @@ def filter_data():
                 filter_value = filter_config.get('value')
                 
                 if filter_type == 'equals':
-                    filtered_df = filtered_df[filtered_df[column] == filter_value]
+                    filtered_df = filtered_df[filtered_df[column].astype(str) == str(filter_value)]
                 elif filter_type == 'contains':
                     filtered_df = filtered_df[filtered_df[column].astype(str).str.contains(str(filter_value), na=False)]
                 elif filter_type == 'greater_than':
-                    filtered_df = filtered_df[filtered_df[column] > filter_value]
+                    try:
+                        numeric_value = float(filter_value)
+                        filtered_df = filtered_df[pd.to_numeric(filtered_df[column], errors='coerce') > numeric_value]
+                    except (ValueError, TypeError):
+                        pass
                 elif filter_type == 'less_than':
-                    filtered_df = filtered_df[filtered_df[column] < filter_value]
+                    try:
+                        numeric_value = float(filter_value)
+                        filtered_df = filtered_df[pd.to_numeric(filtered_df[column], errors='coerce') < numeric_value]
+                    except (ValueError, TypeError):
+                        pass
                 elif filter_type == 'date_range':
                     if 'start' in filter_value and 'end' in filter_value:
                         filtered_df = filtered_df[
@@ -122,10 +216,25 @@ def get_columns(filename):
         if not os.path.exists(data_path):
             return jsonify({'error': 'File not found'}), 404
         
-        from redline.core.format_converter import FormatConverter
-        converter = FormatConverter()
+        # Use EXACT same data loading pipeline as Tkinter GUI
+        from redline.core.data_loader import DataLoader
+        from redline.core.schema import EXT_TO_FORMAT
         
-        df = converter.load_file(data_path)
+        loader = DataLoader()
+        
+        # Detect format from file extension (same as Tkinter _detect_format_from_path)
+        ext = os.path.splitext(data_path)[1].lower()
+        format_type = EXT_TO_FORMAT.get(ext, 'csv')
+        
+        # Check if this is a large file (same as Tkinter)
+        file_size = os.path.getsize(data_path)
+        is_large_file = file_size > 50 * 1024 * 1024  # 50MB
+        
+        # Load data with chunked approach for large files (same as Tkinter)
+        if is_large_file and format_type in ['csv', 'txt']:
+            df = _load_large_file_chunked(data_path, format_type)
+        else:
+            df = loader.load_file_by_type(data_path, format_type)
         
         if not isinstance(df, pd.DataFrame):
             return jsonify({'error': 'Invalid data format'}), 400
@@ -135,9 +244,9 @@ def get_columns(filename):
             col_info = {
                 'name': col,
                 'dtype': str(df[col].dtype),
-                'non_null_count': df[col].count(),
-                'null_count': df[col].isnull().sum(),
-                'unique_count': df[col].nunique()
+                'non_null_count': int(df[col].count()),
+                'null_count': int(df[col].isnull().sum()),
+                'unique_count': int(df[col].nunique())
             }
             
             # Add sample values for preview
@@ -172,10 +281,25 @@ def export_data():
         data_path = os.path.join(os.getcwd(), 'data', filename)
         export_path = os.path.join(os.getcwd(), 'data', export_filename)
         
-        from redline.core.format_converter import FormatConverter
-        converter = FormatConverter()
+        # Use EXACT same data loading pipeline as Tkinter GUI
+        from redline.core.data_loader import DataLoader
+        from redline.core.schema import EXT_TO_FORMAT
         
-        df = converter.load_file(data_path)
+        loader = DataLoader()
+        
+        # Detect format from file extension (same as Tkinter _detect_format_from_path)
+        ext = os.path.splitext(data_path)[1].lower()
+        format_type = EXT_TO_FORMAT.get(ext, 'csv')
+        
+        # Check if this is a large file (same as Tkinter)
+        file_size = os.path.getsize(data_path)
+        is_large_file = file_size > 50 * 1024 * 1024  # 50MB
+        
+        # Load data with chunked approach for large files (same as Tkinter)
+        if is_large_file and format_type in ['csv', 'txt']:
+            df = _load_large_file_chunked(data_path, format_type)
+        else:
+            df = loader.load_file_by_type(data_path, format_type)
         
         # Apply filters if provided
         if filters:
@@ -186,13 +310,21 @@ def export_data():
                     filter_value = filter_config.get('value')
                     
                     if filter_type == 'equals':
-                        filtered_df = filtered_df[filtered_df[column] == filter_value]
+                        filtered_df = filtered_df[filtered_df[column].astype(str) == str(filter_value)]
                     elif filter_type == 'contains':
                         filtered_df = filtered_df[filtered_df[column].astype(str).str.contains(str(filter_value), na=False)]
                     elif filter_type == 'greater_than':
-                        filtered_df = filtered_df[filtered_df[column] > filter_value]
+                        try:
+                            numeric_value = float(filter_value)
+                            filtered_df = filtered_df[pd.to_numeric(filtered_df[column], errors='coerce') > numeric_value]
+                        except (ValueError, TypeError):
+                            pass
                     elif filter_type == 'less_than':
-                        filtered_df = filtered_df[filtered_df[column] < filter_value]
+                        try:
+                            numeric_value = float(filter_value)
+                            filtered_df = filtered_df[pd.to_numeric(filtered_df[column], errors='coerce') < numeric_value]
+                        except (ValueError, TypeError):
+                            pass
             
             df = filtered_df
         
