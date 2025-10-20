@@ -6,7 +6,7 @@ Handles validation of financial data files and data integrity checks.
 
 import logging
 import pandas as pd
-from typing import List
+from typing import List, Dict, Any
 from .schema import STOOQ_COLUMNS, REQUIRED_COLUMNS
 
 logger = logging.getLogger(__name__)
@@ -200,3 +200,158 @@ class DataValidator:
         except Exception as e:
             self.logger.error(f"Error validating date range: {str(e)}")
             return False
+    
+    def validate_required_columns(self, data: pd.DataFrame, columns: List[str] = None) -> bool:
+        """
+        Validate that all required columns are present in the data.
+        
+        Args:
+            data: DataFrame to validate
+            columns: List of required columns (uses REQUIRED_COLUMNS if None)
+            
+        Returns:
+            True if all required columns are present
+        """
+        if columns is None:
+            columns = REQUIRED_COLUMNS
+        
+        missing_cols = [col for col in columns if col not in data.columns]
+        if missing_cols:
+            self.logger.warning(f"Missing required columns: {', '.join(missing_cols)}")
+            return False
+        
+        return True
+    
+    def validate_data_types(self, data: pd.DataFrame, schema: Dict[str, str] = None) -> bool:
+        """
+        Validate data types against expected schema.
+        
+        Args:
+            data: DataFrame to validate
+            schema: Dictionary mapping column names to expected types
+            
+        Returns:
+            True if data types match expected schema
+        """
+        if schema is None:
+            # Default schema for financial data
+            schema = {
+                'ticker': 'object',
+                'timestamp': 'datetime64[ns]',
+                'open': 'float64',
+                'high': 'float64',
+                'low': 'float64',
+                'close': 'float64',
+                'vol': 'int64'
+            }
+        
+        issues = []
+        for col, expected_type in schema.items():
+            if col in data.columns:
+                actual_type = str(data[col].dtype)
+                if actual_type != expected_type:
+                    issues.append(f"Column {col}: expected {expected_type}, got {actual_type}")
+        
+        if issues:
+            self.logger.warning(f"Data type validation issues: {issues}")
+            return False
+        
+        return True
+    
+    def validate_price_consistency(self, data: pd.DataFrame) -> List[str]:
+        """
+        Validate price data consistency (high >= low, etc.).
+        
+        Args:
+            data: DataFrame with price columns
+            
+        Returns:
+            List of consistency issues found
+        """
+        issues = []
+        
+        # Check high >= low
+        if 'high' in data.columns and 'low' in data.columns:
+            violations = (data['high'] < data['low']).sum()
+            if violations > 0:
+                issues.append(f"Found {violations} high < low price violations")
+        
+        # Check high >= open and high >= close
+        if 'high' in data.columns:
+            if 'open' in data.columns:
+                violations = (data['high'] < data['open']).sum()
+                if violations > 0:
+                    issues.append(f"Found {violations} high < open price violations")
+            
+            if 'close' in data.columns:
+                violations = (data['high'] < data['close']).sum()
+                if violations > 0:
+                    issues.append(f"Found {violations} high < close price violations")
+        
+        # Check low <= open and low <= close
+        if 'low' in data.columns:
+            if 'open' in data.columns:
+                violations = (data['low'] > data['open']).sum()
+                if violations > 0:
+                    issues.append(f"Found {violations} low > open price violations")
+            
+            if 'close' in data.columns:
+                violations = (data['low'] > data['close']).sum()
+                if violations > 0:
+                    issues.append(f"Found {violations} low > close price violations")
+        
+        return issues
+    
+    def comprehensive_validation(self, data: pd.DataFrame) -> Dict[str, Any]:
+        """
+        Perform comprehensive validation of financial data.
+        
+        Args:
+            data: DataFrame to validate
+            
+        Returns:
+            Dictionary with validation results and issues
+        """
+        results = {
+            'is_valid': True,
+            'issues': [],
+            'warnings': [],
+            'summary': {}
+        }
+        
+        # Basic data validation
+        if data.empty:
+            results['is_valid'] = False
+            results['issues'].append("DataFrame is empty")
+            return results
+        
+        # Required columns validation
+        if not self.validate_required_columns(data):
+            results['is_valid'] = False
+        
+        # Data integrity validation
+        integrity_issues = self.validate_data_integrity(data)
+        results['issues'].extend(integrity_issues)
+        
+        # Price consistency validation
+        price_issues = self.validate_price_consistency(data)
+        results['issues'].extend(price_issues)
+        
+        # Data type validation
+        if not self.validate_data_types(data):
+            results['warnings'].append("Data type validation failed")
+        
+        # Update validity
+        if results['issues']:
+            results['is_valid'] = False
+        
+        # Create summary
+        results['summary'] = {
+            'total_rows': len(data),
+            'total_columns': len(data.columns),
+            'total_issues': len(results['issues']),
+            'total_warnings': len(results['warnings']),
+            'columns': list(data.columns)
+        }
+        
+        return results

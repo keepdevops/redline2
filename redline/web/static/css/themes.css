@@ -18,11 +18,11 @@
     --rose-color: #e11d48;
     
     /* Font Color Variables */
-    --text-primary: #1e293b;
-    --text-secondary: #64748b;
-    --text-muted: #94a3b8;
-    --text-light: #cbd5e1;
-    --text-dark: #0f172a;
+    --text-primary: #000000;
+    --text-secondary: #333333;
+    --text-muted: #666666;
+    --text-light: #999999;
+    --text-dark: #000000;
     --text-white: #ffffff;
     --text-success: #059669;
     --text-warning: #d97706;
@@ -256,14 +256,42 @@
     --text-link-hover: #2d3748;
 }
 
-/* Apply theme to body */
-body.theme-default { color-scheme: light; }
-body.theme-high-contrast { color-scheme: light; }
-body.theme-ocean { color-scheme: light; }
-body.theme-forest { color-scheme: light; }
-body.theme-sunset { color-scheme: light; }
-body.theme-monochrome { color-scheme: light; }
-body.theme-grayscale { color-scheme: light; }
+/* Apply theme to body - Ensure proper contrast */
+body.theme-default { 
+    color-scheme: light; 
+    background-color: #ffffff !important;
+    color: #000000 !important;
+}
+body.theme-high-contrast { 
+    color-scheme: light; 
+    background-color: #ffffff !important;
+    color: #000000 !important;
+}
+body.theme-ocean { 
+    color-scheme: light; 
+    background-color: #ffffff !important;
+    color: #000000 !important;
+}
+body.theme-forest { 
+    color-scheme: light; 
+    background-color: #ffffff !important;
+    color: #000000 !important;
+}
+body.theme-sunset { 
+    color-scheme: light; 
+    background-color: #ffffff !important;
+    color: #000000 !important;
+}
+body.theme-monochrome { 
+    color-scheme: light; 
+    background-color: #ffffff !important;
+    color: #000000 !important;
+}
+body.theme-grayscale { 
+    color-scheme: light; 
+    background-color: #ffffff !important;
+    color: #000000 !important;
+}
 body.theme-dark { 
     color-scheme: dark; 
     background-color: #111827 !important;
