@@ -9,6 +9,10 @@ This directory contains all installation scripts and documentation for REDLINE.
 - **`install_ubuntu_intel.sh`** - Complete Ubuntu Intel installation script
 - **`verify_installation.sh`** - Installation verification and testing script
 
+### 🔧 Troubleshooting Scripts
+- **`fix_tkinter_ubuntu24.sh`** - Fix Tkinter installation for Ubuntu 24.04 LTS
+- **`test_tkinter_packages.sh`** - Test Tkinter package availability
+
 ### 📚 Documentation
 - **`README.md`** - This file (overview of installation scripts)
 - **`INSTALLATION_README.md`** - Comprehensive installation guide
@@ -114,6 +118,23 @@ sudo systemctl start redline-docker
 3. **Port Conflicts**: Check what's using ports 8080/5900
 4. **X Server Issues**: Ensure display server is running for GUI
 
+### Ubuntu 24.04 LTS Specific Issues
+1. **"Package tkinter not found"**: This is a known issue with Ubuntu 24.04
+   ```bash
+   # Run the Tkinter fix script
+   ./install/fix_tkinter_ubuntu24.sh
+   
+   # Or test available packages
+   ./install/test_tkinter_packages.sh
+   ```
+
+2. **Tkinter GUI not working**: On headless servers, use web interface instead
+   ```bash
+   # Web interface works without Tkinter
+   sudo systemctl start redline-web
+   # Access at: http://localhost:8080
+   ```
+
 ### Verification
 ```bash
 # Run verification script
@@ -122,6 +143,9 @@ sudo systemctl start redline-docker
 # Check logs
 sudo journalctl -u redline-web -f
 sudo journalctl -u redline-gui -f
+
+# Test Tkinter specifically
+./install/test_tkinter_packages.sh
 ```
 
 ## 📚 Additional Resources

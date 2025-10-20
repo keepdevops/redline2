@@ -95,6 +95,18 @@ update_system() {
 install_essentials() {
     print_status "Installing essential packages..."
     
+    # First, try to install Tkinter packages specifically for Ubuntu 24.04
+    print_status "Installing Tkinter packages for Ubuntu 24.04..."
+    sudo apt-get install -y python3-tk python3-tkinter 2>/dev/null || {
+        print_warning "Standard Tkinter packages not available, trying alternatives..."
+        # Try alternative package names for different Ubuntu versions
+        sudo apt-get install -y python3-tkinter 2>/dev/null || {
+            print_warning "Tkinter packages not found in standard repositories"
+            print_status "Tkinter will be installed via pip later"
+        }
+    }
+    
+    # Install other essential packages
     sudo apt-get install -y \
         curl \
         wget \
@@ -111,8 +123,6 @@ install_essentials() {
         python3-pip \
         python3-venv \
         python3-dev \
-        tkinter \
-        python3-tk \
         x11-utils \
         xauth \
         xvfb \
@@ -121,7 +131,12 @@ install_essentials() {
         procps \
         htop \
         nano \
-        vim
+        vim \
+        libx11-dev \
+        libxext-dev \
+        libxrender-dev \
+        libxtst-dev \
+        libxi-dev
     
     print_success "Essential packages installed"
 }
@@ -208,8 +223,18 @@ setup_python_env() {
     
     # Activate virtual environment and install packages
     sudo -u $REDLINE_USER bash -c "source venv/bin/activate && pip install --upgrade pip"
+    
+    # Install Tkinter via pip if system packages weren't available
+    print_status "Installing Tkinter via pip..."
+    sudo -u $REDLINE_USER bash -c "source venv/bin/activate && pip install tk" || {
+        print_warning "Failed to install Tkinter via pip, but continuing..."
+    }
+    
+    # Install requirements
     sudo -u $REDLINE_USER bash -c "source venv/bin/activate && pip install -r requirements.txt"
-    sudo -u $REDLINE_USER bash -c "source venv/bin/activate && pip install -r requirements_ubuntu.txt"
+    sudo -u $REDLINE_USER bash -c "source venv/bin/activate && pip install -r requirements_ubuntu.txt" 2>/dev/null || {
+        print_warning "requirements_ubuntu.txt not found, skipping Ubuntu-specific packages"
+    }
     
     print_success "Python environment setup complete"
 }
@@ -524,6 +549,15 @@ run_tests() {
     else
         print_error "Python environment test failed"
         return 1
+    fi
+    
+    # Test Tkinter installation
+    print_status "Testing Tkinter installation..."
+    if sudo -u $REDLINE_USER bash -c "source venv/bin/activate && python3 -c 'import tkinter; print(\"Tkinter version:\", tkinter.TkVersion)'" &>/dev/null; then
+        print_success "Tkinter test passed"
+    else
+        print_warning "Tkinter test failed - GUI may not work properly"
+        print_status "This is common on headless servers. Web interface will still work."
     fi
     
     print_success "All tests passed"

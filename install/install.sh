@@ -170,25 +170,36 @@ main() {
             ;;
     esac
     
+    # Get the directory where this script is located
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
     # Check if installation script exists
-    if [[ ! -f "$install_script" ]]; then
-        print_error "Installation script not found: $install_script"
+    if [[ ! -f "$script_dir/$install_script" ]]; then
+        print_error "Installation script not found: $script_dir/$install_script"
         print_status "Available installation scripts:"
-        ls -la install_*.sh 2>/dev/null || print_warning "No installation scripts found"
+        ls -la "$script_dir"/install_*.sh 2>/dev/null || print_warning "No installation scripts found"
         exit 1
     fi
     
     # Check if installation script is executable
-    if [[ ! -x "$install_script" ]]; then
+    if [[ ! -x "$script_dir/$install_script" ]]; then
         print_status "Making installation script executable..."
-        chmod +x "$install_script"
+        chmod +x "$script_dir/$install_script"
     fi
     
-    print_status "Running installation script: $install_script"
+    print_status "Running installation script: $script_dir/$install_script"
     echo ""
     
+    # Add Ubuntu 24.04 specific warning for Tkinter
+    if [[ "$platform" == "ubuntu" && "$arch" == "amd64" ]]; then
+        print_warning "Ubuntu 24.04 LTS uses different Tkinter package names"
+        print_status "If you encounter 'package tkinter not found', run:"
+        print_status "  ./install/fix_tkinter_ubuntu24.sh"
+        echo ""
+    fi
+    
     # Run the appropriate installation script
-    exec "./$install_script"
+    exec "$script_dir/$install_script"
 }
 
 # Run main function
