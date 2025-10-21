@@ -144,7 +144,7 @@ def main():
         
         # Start the application with proper production settings
         logger.info("Starting Flask-SocketIO server...")
-        socketio.run(app, host=host, port=port, debug=debug, log_output=True)
+        socketio.run(app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=True, log_output=True)
         
     except Exception as e:
         logger.error(f"Failed to start REDLINE Web Application: {str(e)}")
