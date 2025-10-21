@@ -18,19 +18,19 @@ fi
 echo "✅ Found web_app.py - we're in the right directory"
 echo ""
 
-# Create ultra-minimal requirements if it doesn't exist
-if [ ! -f "requirements-ultra-minimal.txt" ]; then
-    echo "Creating ultra-minimal requirements..."
-    cat > requirements-ultra-minimal.txt << 'EOF'
-flask==2.3.3
-flask-socketio==5.3.6
-gunicorn==21.2.0
-pandas==2.0.3
-numpy==1.24.3
+# Create conservative requirements if it doesn't exist
+if [ ! -f "requirements-conservative.txt" ]; then
+    echo "Creating conservative requirements..."
+    cat > requirements-conservative.txt << 'EOF'
+flask==2.2.5
+flask-socketio==5.3.4
+gunicorn==20.1.0
+pandas==1.5.3
+numpy==1.24.2
 duckdb==0.8.1
-requests==2.31.0
+requests==2.28.2
 EOF
-    echo "✅ Created requirements-ultra-minimal.txt"
+    echo "✅ Created requirements-conservative.txt"
 fi
 
 # Create ultra-simple Dockerfile if it doesn't exist
@@ -52,10 +52,10 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --upgrade pip
+RUN pip3 --version
 
-COPY requirements-ultra-minimal.txt /opt/redline/
-RUN pip3 install -r /opt/redline/requirements-ultra-minimal.txt
+COPY requirements-conservative.txt /opt/redline/
+RUN pip3 install -r /opt/redline/requirements-conservative.txt
 
 COPY . /opt/redline/
 
