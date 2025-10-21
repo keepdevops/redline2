@@ -134,13 +134,16 @@ def main():
         # Create application
         app, socketio = create_app()
         
-        # Get configuration from environment
-        host = os.environ.get('HOST', '0.0.0.0')
+        # Get configuration from environment - force 0.0.0.0 for Docker
+        host = '0.0.0.0'  # Force bind to all interfaces for Docker
         port = int(os.environ.get('WEB_PORT', os.environ.get('PORT', 8080)))
         debug = os.environ.get('DEBUG', 'false').lower() == 'true'
         
         logger.info(f"Starting server on {host}:{port}")
         logger.info(f"Debug mode: {debug}")
+        logger.info(f"Environment HOST: {os.environ.get('HOST', 'not set')}")
+        logger.info(f"Environment WEB_PORT: {os.environ.get('WEB_PORT', 'not set')}")
+        logger.info(f"Environment PORT: {os.environ.get('PORT', 'not set')}")
         
         # Start the application with proper production settings
         logger.info("Starting Flask-SocketIO server...")
