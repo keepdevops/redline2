@@ -1,0 +1,7 @@
+celery==5.5.3
+duckdb @ file:///Users/runner/miniforge3/conda-bld/python-duckdb-split_1759849569592/work
+gunicorn==23.0.0
+numpy==2.3.4
+pandas @ file:///Users/runner/miniforge3/conda-bld/pandas_1759265615787/work
+pandas-datareader @ file:///home/conda/feedstock_root/build_artifacts/pandas-datareader_1734746905323/work
+redis==6.4.0
