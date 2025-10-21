@@ -152,6 +152,9 @@ fi
 # Start container with X11 forwarding
 docker run -it --name $CONTAINER_NAME-gui \\
     -e DISPLAY=\$DISPLAY \\
+    -e GTK_MODULES="" \\
+    -e QT_ACCESSIBILITY=0 \\
+    -e NO_AT_BRIDGE=1 \\
     -v /tmp/.X11-unix:/tmp/.X11-unix:rw \\
     -v \$(pwd):/app/host \\
     --net=host \\
@@ -319,6 +322,9 @@ This Docker image supports:
 # Or manually
 docker run -it --name redline-gui \\
     -e DISPLAY=\$DISPLAY \\
+    -e GTK_MODULES="" \\
+    -e QT_ACCESSIBILITY=0 \\
+    -e NO_AT_BRIDGE=1 \\
     -v /tmp/.X11-unix:/tmp/.X11-unix:rw \\
     redline-universal \\
     ./start_gui.sh
@@ -342,6 +348,9 @@ docker run -d --name redline-web \\
 # Start interactive container
 docker run -it --name redline-interactive \\
     -e DISPLAY=\$DISPLAY \\
+    -e GTK_MODULES="" \\
+    -e QT_ACCESSIBILITY=0 \\
+    -e NO_AT_BRIDGE=1 \\
     -v /tmp/.X11-unix:/tmp/.X11-unix:rw \\
     -p 5000:5000 \\
     redline-universal \\
@@ -429,6 +438,18 @@ docker run --rm -e DISPLAY=\$DISPLAY $IMAGE_NAME xeyes
 # If GUI doesn't appear, try:
 xhost +local:docker
 export DISPLAY=\$DISPLAY
+\`\`\`
+
+### GTK/ATK Bridge Warnings
+\`\`\`bash
+# If you see "Not loading module 'atk-bridge'" warnings, they are harmless
+# But to suppress them, use these environment variables:
+export GTK_MODULES=""
+export QT_ACCESSIBILITY=0
+export NO_AT_BRIDGE=1
+
+# Or run container with these variables:
+docker run -it -e GTK_MODULES="" -e QT_ACCESSIBILITY=0 -e NO_AT_BRIDGE=1 $IMAGE_NAME
 \`\`\`
 
 ### Port Issues (Web App)

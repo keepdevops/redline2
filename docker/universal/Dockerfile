@@ -10,6 +10,11 @@ ENV FLASK_ENV=production
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV FLASK_RUN_PORT=5000
 
+# GTK and accessibility settings to prevent warnings
+ENV GTK_MODULES=""
+ENV QT_ACCESSIBILITY=0
+ENV NO_AT_BRIDGE=1
+
 # Install system dependencies for both GUI and web app
 RUN apt-get update && apt-get install -y \
     wget \
@@ -115,6 +120,9 @@ RUN echo '#!/bin/bash' > /app/start_gui.sh && \
     echo 'source /opt/conda/bin/activate redline-universal' >> /app/start_gui.sh && \
     echo 'cd /app' >> /app/start_gui.sh && \
     echo 'export DISPLAY=${DISPLAY:-:0}' >> /app/start_gui.sh && \
+    echo 'export GTK_MODULES=""' >> /app/start_gui.sh && \
+    echo 'export QT_ACCESSIBILITY=0' >> /app/start_gui.sh && \
+    echo 'export NO_AT_BRIDGE=1' >> /app/start_gui.sh && \
     echo 'python main.py' >> /app/start_gui.sh && \
     chmod +x /app/start_gui.sh
 
