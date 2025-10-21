@@ -24,6 +24,10 @@ requests==2.31.0
 setuptools==68.2.2
 wheel==0.41.2
 
+# Background Task Processing
+celery==5.5.3
+redis==6.4.0
+
 # Cryptography and SSL support (needed for _cffi_backend)
 cryptography==41.0.7
 cffi==1.16.0
