@@ -1,0 +1,25 @@
+# REDLINE Web GUI - Working Requirements (Python 3.9 Compatible)
+# Exact versions that work with Python 3.9 and include yfinance
+
+# Web Framework (Flask GUI) - exact versions from working system
+Flask==2.3.3
+Flask-Compress==1.13
+Flask-SocketIO==5.3.6
+gunicorn==21.2.0
+
+# Core Data Processing - exact versions from working system
+pandas==2.0.3
+numpy==1.24.3
+
+# Financial Data Download
+yfinance==0.2.18
+
+# Data Storage - exact version from working system
+duckdb==0.8.1
+
+# Network and HTTP
+requests==2.31.0
+
+# Essential Utilities
+setuptools==68.2.2
+wheel==0.41.2

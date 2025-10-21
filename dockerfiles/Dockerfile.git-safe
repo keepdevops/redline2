@@ -42,11 +42,11 @@ RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.9
 RUN python3.9 --version && python3.9 -m pip --version
 
 # Copy only the requirements file first
-COPY requirements-ultra-conservative.txt /opt/redline/
+COPY requirements-working.txt /opt/redline/
 
 # Install Python packages from requirements file
 RUN python3.9 -m pip install --upgrade pip setuptools wheel && \
-    python3.9 -m pip install -r /opt/redline/requirements-ultra-conservative.txt
+    python3.9 -m pip install -r /opt/redline/requirements-working.txt
 
 # Copy only the web app files (not the entire directory)
 COPY web_app_safe.py /opt/redline/
