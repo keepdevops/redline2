@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# REDLINE Docker Web Mode Script
-# Run REDLINE with web interface
+# Simple REDLINE Web GUI Runner for HP AMD64 Ubuntu
+# This avoids BuildKit issues
 
 set -e
 
@@ -25,6 +25,7 @@ log_warning() {
 
 # Default values
 WEB_PORT=${WEB_PORT:-8080}
+IMAGE_NAME="redline-web-simple"
 
 # Check if Docker is running
 check_docker() {
@@ -34,17 +35,16 @@ check_docker() {
     fi
 }
 
-# Build Docker image if needed
-build_image() {
-    local image_name="redline_arm:latest"
+# Build simple Docker image without BuildKit
+build_simple_image() {
+    log "Building simple REDLINE Docker image..."
     
-    if ! docker image inspect "$image_name" >/dev/null 2>&1; then
-        log "Building REDLINE Docker image..."
-        docker build -t "$image_name" .
-        log_success "Docker image built successfully"
-    else
-        log "Using existing Docker image: $image_name"
-    fi
+    # Disable BuildKit for this build
+    export DOCKER_BUILDKIT=0
+    export COMPOSE_DOCKER_CLI_BUILD=0
+    
+    docker build -t "$IMAGE_NAME" .
+    log_success "Simple Docker image built successfully"
 }
 
 # Check if web port is available
@@ -58,8 +58,7 @@ check_port() {
 
 # Run REDLINE with web interface
 run_redline() {
-    local image_name="redline_arm:latest"
-    local container_name="redline-web"
+    local container_name="redline-web-simple"
     
     # Stop and remove existing container if running
     docker stop "$container_name" 2>/dev/null || true
@@ -68,58 +67,50 @@ run_redline() {
     log "Starting REDLINE Web Interface..."
     log "Web Port: $WEB_PORT"
     
-    docker run -it --rm \
+    docker run -d \
         --name "$container_name" \
         --env WEB_PORT="$WEB_PORT" \
         --env MODE=web \
         --volume "$PWD/data:/opt/redline/data" \
         --volume "$PWD/logs:/var/log/redline" \
         --publish "$WEB_PORT:8080" \
-        "$image_name"
+        "$IMAGE_NAME"
+    
+    log_success "REDLINE Web Interface started!"
+    log "Container name: $container_name"
+    log "Access URL: http://localhost:$WEB_PORT"
 }
 
 # Show web interface info
 show_web_info() {
-    log_success "REDLINE Web Interface is starting!"
+    log_success "REDLINE Web Interface is running!"
     echo ""
     echo "Web Interface Information:"
     echo "========================="
     echo "URL: http://localhost:$WEB_PORT"
     echo "Port: $WEB_PORT"
-    echo ""
-    echo "Features:"
-    echo "  - Modern web-based GUI"
-    echo "  - Data downloading and viewing"
-    echo "  - Analysis and visualization"
-    echo "  - Format conversion"
-    echo "  - Real-time updates"
+    echo "Container: redline-web-simple"
     echo ""
     echo "To access from another machine:"
-    echo "  Replace 'localhost' with the Docker host IP address"
+    echo "  Replace 'localhost' with the HP machine's IP address"
     echo ""
-    echo "Press Ctrl+C to stop the container"
+    echo "To stop the container:"
+    echo "  docker stop redline-web-simple"
+    echo ""
+    echo "To view logs:"
+    echo "  docker logs redline-web-simple"
 }
 
 # Main execution
 main() {
-    log "REDLINE Web Docker Launcher"
-    log "==========================="
+    log "REDLINE Simple Web Launcher for HP AMD64"
+    log "========================================"
     
     check_docker
     check_port
-    build_image
-    
-    # Show web info in background
-    show_web_info &
-    INFO_PID=$!
-    
-    # Run REDLINE
+    build_simple_image
     run_redline
-    
-    # Clean up info process
-    kill $INFO_PID 2>/dev/null || true
-    
-    log_success "REDLINE Web session completed"
+    show_web_info
 }
 
 # Handle script arguments
@@ -129,7 +120,7 @@ case "${1:-}" in
         echo ""
         echo "Options:"
         echo "  --help, -h     Show this help message"
-        echo "  --build        Force rebuild Docker image"
+        echo "  --rebuild      Force rebuild Docker image"
         echo "  --port PORT    Set web port (default: 8080)"
         echo ""
         echo "Environment Variables:"
@@ -140,9 +131,9 @@ case "${1:-}" in
         echo "  WEB_PORT=8081 $0"
         exit 0
         ;;
-    --build)
-        docker rmi redline:latest 2>/dev/null || true
-        build_image
+    --rebuild)
+        docker rmi "$IMAGE_NAME" 2>/dev/null || true
+        build_simple_image
         ;;
     --port)
         WEB_PORT="$2"
