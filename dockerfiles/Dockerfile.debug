@@ -1,6 +1,7 @@
-# REDLINE Web GUI - Simplified Dockerfile (BuildKit-Free)
+# REDLINE Web GUI - Debug Dockerfile (BuildKit-Free)
 # Ubuntu 24.04 LTS with Python 3.12 and essential packages only
 # Runs as root to avoid permission issues
+# Includes debug output for troubleshooting
 
 FROM ubuntu:24.04
 
@@ -28,10 +29,17 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python packages
+# Show Python and pip versions
+RUN python3 --version && pip3 --version
+
+# Copy requirements and install Python packages with debug output
 COPY requirements-simple.txt /opt/redline/
-RUN pip3 install --upgrade pip setuptools wheel && \
-    pip3 install -r requirements-simple.txt --no-cache-dir
+RUN echo "=== Installing Python packages ===" && \
+    pip3 install --upgrade pip setuptools wheel && \
+    echo "=== Upgraded pip ===" && \
+    pip3 --version && \
+    echo "=== Installing requirements ===" && \
+    pip3 install -r requirements-simple.txt --no-cache-dir --verbose
 
 # Copy application code
 COPY . /opt/redline/

@@ -1,0 +1,21 @@
+# REDLINE Web GUI - Minimal Requirements (BuildKit-Free)
+# Absolute minimum packages for Flask web interface
+
+# Web Framework (Flask GUI) - minimal versions
+flask==2.3.3
+flask-socketio==5.3.6
+gunicorn==21.2.0
+
+# Core Data Processing - minimal versions
+pandas==2.0.3
+numpy==1.24.3
+
+# Data Storage
+duckdb==0.8.1
+
+# Network and HTTP
+requests==2.31.0
+
+# Essential Utilities
+setuptools==68.2.2
+wheel==0.41.2
