@@ -52,62 +52,24 @@ def create_app():
     if COMPRESS_AVAILABLE:
         Compress(app)
     
-    # Register blueprints with error handling
-    try:
-        from redline.web.routes.main import main_bp
-        app.register_blueprint(main_bp)
-        logger.info("Main blueprint registered successfully")
-    except Exception as e:
-        logger.warning(f"Could not register main blueprint: {e}")
+    # Register blueprints (same as local web_app.py)
+    from redline.web.routes.main import main_bp
+    from redline.web.routes.api import api_bp
+    from redline.web.routes.data import data_bp
+    from redline.web.routes.analysis import analysis_bp
+    from redline.web.routes.download import download_bp
+    from redline.web.routes.converter import converter_bp
+    from redline.web.routes.settings import settings_bp
+    from redline.web.routes.tasks import tasks_bp
     
-    try:
-        from redline.web.routes.api import api_bp
-        app.register_blueprint(api_bp, url_prefix='/api')
-        logger.info("API blueprint registered successfully")
-    except Exception as e:
-        logger.warning(f"Could not register API blueprint: {e}")
-    
-    try:
-        from redline.web.routes.data import data_bp
-        app.register_blueprint(data_bp, url_prefix='/data')
-        logger.info("Data blueprint registered successfully")
-    except Exception as e:
-        logger.warning(f"Could not register data blueprint: {e}")
-    
-    try:
-        from redline.web.routes.analysis import analysis_bp
-        app.register_blueprint(analysis_bp, url_prefix='/analysis')
-        logger.info("Analysis blueprint registered successfully")
-    except Exception as e:
-        logger.warning(f"Could not register analysis blueprint: {e}")
-    
-    try:
-        from redline.web.routes.download import download_bp
-        app.register_blueprint(download_bp, url_prefix='/download')
-        logger.info("Download blueprint registered successfully")
-    except Exception as e:
-        logger.warning(f"Could not register download blueprint: {e}")
-    
-    try:
-        from redline.web.routes.converter import converter_bp
-        app.register_blueprint(converter_bp, url_prefix='/converter')
-        logger.info("Converter blueprint registered successfully")
-    except Exception as e:
-        logger.warning(f"Could not register converter blueprint: {e}")
-    
-    try:
-        from redline.web.routes.settings import settings_bp
-        app.register_blueprint(settings_bp, url_prefix='/settings')
-        logger.info("Settings blueprint registered successfully")
-    except Exception as e:
-        logger.warning(f"Could not register settings blueprint: {e}")
-    
-    try:
-        from redline.web.routes.tasks import tasks_bp
-        app.register_blueprint(tasks_bp, url_prefix='/tasks')
-        logger.info("Tasks blueprint registered successfully")
-    except Exception as e:
-        logger.warning(f"Could not register tasks blueprint: {e}")
+    app.register_blueprint(main_bp)
+    app.register_blueprint(api_bp, url_prefix='/api')
+    app.register_blueprint(data_bp, url_prefix='/data')
+    app.register_blueprint(analysis_bp, url_prefix='/analysis')
+    app.register_blueprint(download_bp, url_prefix='/download')
+    app.register_blueprint(converter_bp, url_prefix='/converter')
+    app.register_blueprint(settings_bp, url_prefix='/settings')
+    app.register_blueprint(tasks_bp, url_prefix='/tasks')
     
     # Error handlers
     @app.errorhandler(404)
