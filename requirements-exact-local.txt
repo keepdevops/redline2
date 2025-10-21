@@ -1,0 +1,26 @@
+# REDLINE Web GUI - Exact Local Environment Requirements
+# Based on working localhost:5000 Flask app
+
+# Web Framework - exact versions from working local app
+Flask==3.1.2
+Flask-Compress==1.20
+Flask-SocketIO==5.5.1
+gunicorn==23.0.0
+
+# Core Data Processing - exact versions from working local app
+pandas==2.3.3
+numpy==2.3.4
+
+# Data Storage - exact version from working local app
+duckdb==1.4.1
+
+# Background Processing - exact versions from working local app
+celery==5.5.3
+redis==6.4.0
+
+# Network and HTTP
+requests==2.31.0
+
+# Essential Utilities
+setuptools==68.2.2
+wheel==0.41.2
