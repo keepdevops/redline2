@@ -1,32 +1,32 @@
-# REDLINE Web GUI - Updated Requirements (Python 3.9 Compatible)
-# Updated to match local Mac environment with newer versions
+# REDLINE Web GUI - Python 3.9 Compatible Requirements
+# Conservative versions that work with Python 3.9
 
-# Web Framework (Flask GUI) - updated to newer versions
-Flask==3.1.2
-Flask-Compress==1.20
-Flask-SocketIO==5.5.1
+# Web Framework (Flask GUI) - Python 3.9 compatible versions
+Flask==2.3.3
+Flask-Compress==1.13
+Flask-SocketIO==5.3.6
 gunicorn==21.2.0
 
-# Core Data Processing - updated to newer versions
-pandas==2.3.3
-numpy==2.3.4
+# Core Data Processing - Python 3.9 compatible versions
+pandas==2.0.3
+numpy==1.24.3
 
-# Financial Data Download - updated version
-yfinance==0.2.66
+# Financial Data Download - Python 3.9 compatible version
+yfinance==0.2.18
 
-# Data Storage - updated version
-duckdb==1.4.1
+# Data Storage - Python 3.9 compatible version
+duckdb==0.8.1
 
-# Network and HTTP - updated versions
-requests==2.32.5
-urllib3==2.5.0
+# Network and HTTP - Python 3.9 compatible versions
+requests==2.31.0
+urllib3==2.0.7
 
-# Configuration and File I/O - updated versions
+# Configuration and File I/O - Python 3.9 compatible versions
 configparser==5.3.0
-werkzeug==3.0.1
+werkzeug==2.3.7
 
-# Data Processing Extensions - updated version
-pyarrow==21.0.0
+# Data Processing Extensions - Python 3.9 compatible version
+pyarrow==12.0.1
 
 # Essential Utilities
 setuptools==68.2.2
@@ -38,13 +38,13 @@ redis==6.4.0
 
 # Cryptography and SSL support (CRITICAL - fixes _cffi_backend error)
 cryptography==41.0.7
-cffi==2.0.0
-pycparser==2.22
+cffi==1.16.0
+pycparser==2.21
 
 # Additional dependencies that might be needed
-python-socketio==5.14.2
+python-socketio==5.3.6
 pandas-datareader==0.10.0
 
-# Optional but recommended for enhanced functionality
+# Optional but recommended for enhanced functionality (Python 3.9 compatible)
 polars==0.20.31
 feather-format==0.4.1
