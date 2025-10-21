@@ -1,0 +1,23 @@
+# REDLINE Web GUI - Working Environment Requirements
+# Based on currently running Flask app on macOS with Python 3.9.6
+
+# Web Framework (Flask GUI) - exact versions from working system
+Flask==3.1.2
+Flask-Compress==1.20
+Flask-SocketIO==5.5.1
+gunicorn==23.0.0
+
+# Core Data Processing - exact versions from working system
+pandas==2.3.3
+numpy==2.3.4
+pandas-datareader==0.10.0
+
+# Data Storage - exact version from working system
+duckdb==1.4.1
+
+# Network and HTTP
+requests==2.31.0
+
+# Essential Utilities
+setuptools==68.2.2
+wheel==0.41.2
