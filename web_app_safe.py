@@ -123,6 +123,26 @@ def create_app():
     def health():
         return jsonify({'status': 'healthy', 'service': 'redline-web'})
     
+    # Simple test route
+    @app.route('/test')
+    def test():
+        return jsonify({'message': 'Flask app is working!', 'blueprints': len(app.blueprints)})
+    
+    # Simple HTML test route
+    @app.route('/simple')
+    def simple():
+        return '''
+        <html>
+        <head><title>REDLINE Test</title></head>
+        <body>
+            <h1>REDLINE Web GUI Test</h1>
+            <p>Flask app is working!</p>
+            <p>Blueprints registered: {}</p>
+            <p><a href="/">Go to main page</a></p>
+        </body>
+        </html>
+        '''.format(len(app.blueprints))
+    
     logger.info("REDLINE Web application created successfully")
     return app, socketio
 
