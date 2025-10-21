@@ -23,3 +23,8 @@ requests==2.31.0
 # Essential Utilities
 setuptools==68.2.2
 wheel==0.41.2
+
+# Cryptography and SSL support (needed for _cffi_backend)
+cryptography==41.0.7
+cffi==1.16.0
+pycparser==2.21

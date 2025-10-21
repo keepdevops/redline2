@@ -142,12 +142,9 @@ def main():
         logger.info(f"Starting server on {host}:{port}")
         logger.info(f"Debug mode: {debug}")
         
-        # Start the application
-        if not debug:
-            # Allow Werkzeug to run in non-debug mode
-            socketio.run(app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=True)
-        else:
-            socketio.run(app, host=host, port=port, debug=debug)
+        # Start the application with proper production settings
+        logger.info("Starting Flask-SocketIO server...")
+        socketio.run(app, host=host, port=port, debug=debug, log_output=True)
         
     except Exception as e:
         logger.error(f"Failed to start REDLINE Web Application: {str(e)}")
