@@ -1,5 +1,5 @@
-# REDLINE Web GUI - Safe Version Dockerfile
-# Uses web_app_safe.py with graceful error handling for missing dependencies
+# REDLINE Web GUI - Simple Safe Version Dockerfile
+# Uses requirements file for package installation
 
 FROM ubuntu:24.04
 
@@ -42,19 +42,12 @@ RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.9
 # Show Python and pip versions
 RUN python3.9 --version && python3.9 -m pip --version
 
-# Copy exact working requirements file
+# Copy requirements file
 COPY requirements-exact-local.txt /opt/redline/
 
-# Install Python packages step by step to avoid conflicts
-RUN python3.9 -m pip install --upgrade pip setuptools wheel
-RUN python3.9 -m pip install "Flask==3.1.2"
-RUN python3.9 -m pip install "Flask-Compress==1.20"
-RUN python3.9 -m pip install "Flask-SocketIO==5.5.1"
-RUN python3.9 -m pip install "gunicorn==23.0.0"
-RUN python3.9 -m pip install "pandas==2.3.3"
-RUN python3.9 -m pip install "numpy==2.3.4"
-RUN python3.9 -m pip install "duckdb==1.4.1"
-RUN python3.9 -m pip install "requests==2.31.0"
+# Install Python packages from requirements file
+RUN python3.9 -m pip install --upgrade pip setuptools wheel && \
+    python3.9 -m pip install -r /opt/redline/requirements-exact-local.txt
 
 # Copy application code
 COPY . /opt/redline/
