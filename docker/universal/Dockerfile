@@ -22,12 +22,10 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     nginx \
     supervisor \
-    # Tkinter GUI dependencies
-    tk \
-    libtk8.6 \
-    libtk8.6-dev \
-    tcl8.6 \
-    tcl8.6-dev \
+    # Tkinter GUI dependencies (architecture-agnostic)
+    python3-tk \
+    tk-dev \
+    tcl-dev \
     # X11 forwarding for GUI
     x11-apps \
     xauth \
