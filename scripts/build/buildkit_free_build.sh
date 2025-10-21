@@ -60,13 +60,13 @@ disable_buildkit() {
 check_simple_files() {
     log "Checking for simplified Docker files..."
     
-    if [ ! -f "Dockerfile.simple" ]; then
-        log_error "Dockerfile.simple not found. Please ensure it exists."
+    if [ ! -f "dockerfiles/Dockerfile.simple" ]; then
+        log_error "dockerfiles/Dockerfile.simple not found. Please ensure it exists."
         exit 1
     fi
     
-    if [ ! -f "requirements-simple.txt" ]; then
-        log_error "requirements-simple.txt not found. Please ensure it exists."
+    if [ ! -f "dockerfiles/requirements-simple.txt" ]; then
+        log_error "dockerfiles/requirements-simple.txt not found. Please ensure it exists."
         exit 1
     fi
     
@@ -77,9 +77,9 @@ check_simple_files() {
 build_legacy() {
     log "Building with legacy Docker (no BuildKit)..."
     
-    # Use the simple Dockerfile
+    # Use the simple Dockerfile from dockerfiles directory
     docker build \
-        --file Dockerfile.simple \
+        --file dockerfiles/Dockerfile.simple \
         --tag "$IMAGE_NAME:$TAG" \
         --tag "$IMAGE_NAME:latest" \
         --tag "$IMAGE_NAME:$(date +%Y%m%d)" \
