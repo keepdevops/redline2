@@ -1,0 +1,282 @@
+# REDLINE Web GUI Multi-Distribution Docker Compose Configuration
+# Supports multiple Linux distributions and architectures
+
+version: '3.8'
+
+services:
+  # Ubuntu-based REDLINE Web GUI (Default)
+  redline-web-ubuntu:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: redline-web-gui:ubuntu-latest
+    container_name: redline-web-ubuntu
+    hostname: redline-web-ubuntu
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - DISTRO=ubuntu
+      - PYTHON_VERSION=3.11+
+      - FLASK_ENV=production
+      - HOST=0.0.0.0
+      - PORT=8080
+    volumes:
+      - ./data:/opt/redline/data
+      - ./logs:/var/log/redline
+    networks:
+      - redline-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Alpine-based REDLINE Web GUI (Lightweight)
+  redline-web-alpine:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.alpine
+    image: redline-web-gui:alpine-latest
+    container_name: redline-web-alpine
+    hostname: redline-web-alpine
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    environment:
+      - DISTRO=alpine
+      - PYTHON_VERSION=3.11+
+      - FLASK_ENV=production
+      - HOST=0.0.0.0
+      - PORT=8080
+    volumes:
+      - ./data:/opt/redline/data
+      - ./logs:/var/log/redline
+    networks:
+      - redline-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # CentOS-based REDLINE Web GUI (Enterprise)
+  redline-web-centos:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.centos
+    image: redline-web-gui:centos-latest
+    container_name: redline-web-centos
+    hostname: redline-web-centos
+    restart: unless-stopped
+    ports:
+      - "8082:8080"
+    environment:
+      - DISTRO=centos
+      - PYTHON_VERSION=3.11+
+      - FLASK_ENV=production
+      - HOST=0.0.0.0
+      - PORT=8080
+    volumes:
+      - ./data:/opt/redline/data
+      - ./logs:/var/log/redline
+    networks:
+      - redline-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Rocky Linux-based REDLINE Web GUI (RHEL-compatible)
+  redline-web-rocky:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.rocky
+    image: redline-web-gui:rocky-latest
+    container_name: redline-web-rocky
+    hostname: redline-web-rocky
+    restart: unless-stopped
+    ports:
+      - "8083:8080"
+    environment:
+      - DISTRO=rocky
+      - PYTHON_VERSION=3.11+
+      - FLASK_ENV=production
+      - HOST=0.0.0.0
+      - PORT=8080
+    volumes:
+      - ./data:/opt/redline/data
+      - ./logs:/var/log/redline
+    networks:
+      - redline-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Debian-based REDLINE Web GUI (Stable)
+  redline-web-debian:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.debian
+    image: redline-web-gui:debian-latest
+    container_name: redline-web-debian
+    hostname: redline-web-debian
+    restart: unless-stopped
+    ports:
+      - "8084:8080"
+    environment:
+      - DISTRO=debian
+      - PYTHON_VERSION=3.11+
+      - FLASK_ENV=production
+      - HOST=0.0.0.0
+      - PORT=8080
+    volumes:
+      - ./data:/opt/redline/data
+      - ./logs:/var/log/redline
+    networks:
+      - redline-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Arch Linux-based REDLINE Web GUI (Rolling)
+  redline-web-arch:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.arch
+    image: redline-web-gui:arch-latest
+    container_name: redline-web-arch
+    hostname: redline-web-arch
+    restart: unless-stopped
+    ports:
+      - "8085:8080"
+    environment:
+      - DISTRO=arch
+      - PYTHON_VERSION=3.11+
+      - FLASK_ENV=production
+      - HOST=0.0.0.0
+      - PORT=8080
+    volumes:
+      - ./data:/opt/redline/data
+      - ./logs:/var/log/redline
+    networks:
+      - redline-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Redis for all distributions
+  redis:
+    image: redis:7-alpine
+    container_name: redline-redis
+    hostname: redline-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    environment:
+      - REDIS_PASSWORD=redline-redis-password
+    volumes:
+      - redis-data:/data
+    networks:
+      - redline-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx load balancer for all distributions
+  nginx-lb:
+    image: nginx:alpine
+    container_name: redline-nginx-lb
+    hostname: redline-nginx-lb
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx-lb.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - redline-web-ubuntu
+      - redline-web-alpine
+      - redline-web-centos
+      - redline-web-rocky
+      - redline-web-debian
+      - redline-web-arch
+    networks:
+      - redline-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Prometheus monitoring for all distributions
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: redline-prometheus
+    hostname: redline-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus-multidist.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - redline-network
+
+  # Grafana dashboard for all distributions
+  grafana:
+    image: grafana/grafana:latest
+    container_name: redline-grafana
+    hostname: redline-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./config/grafana:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    networks:
+      - redline-network
+
+# Named volumes
+volumes:
+  redis-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+# Networks
+networks:
+  redline-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

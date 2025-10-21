@@ -1,0 +1,223 @@
+# REDLINE Web GUI Multi-Distribution Dockerfile
+# Supports multiple Linux distributions and architectures
+
+# Alpine Linux (Lightweight, Security-focused)
+FROM alpine:3.19 AS alpine-base
+RUN apk add --no-cache \
+    python3 \
+    python3-dev \
+    py3-pip \
+    py3-setuptools \
+    py3-wheel \
+    build-base \
+    gcc \
+    musl-dev \
+    linux-headers \
+    && python3 -m venv /opt/redline/venv \
+    && /opt/redline/venv/bin/pip install --upgrade pip setuptools wheel
+
+# CentOS Stream (Enterprise-focused)
+FROM quay.io/centos/centos:stream9 AS centos-base
+RUN dnf update -y && dnf install -y \
+    python3 \
+    python3-devel \
+    python3-pip \
+    python3-setuptools \
+    python3-wheel \
+    gcc \
+    gcc-c++ \
+    make \
+    && python3 -m venv /opt/redline/venv \
+    && /opt/redline/venv/bin/pip install --upgrade pip setuptools wheel
+
+# Red Hat Enterprise Linux (RHEL)
+FROM registry.redhat.io/ubi9/python-311 AS rhel-base
+RUN python3 -m venv /opt/redline/venv \
+    && /opt/redline/venv/bin/pip install --upgrade pip setuptools wheel
+
+# Linux Mint (Ubuntu-based, Desktop-focused)
+FROM ubuntu:24.04 AS mint-base
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-dev \
+    python3-pip \
+    python3-setuptools \
+    python3-wheel \
+    python3-venv \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    && python3 -m venv /opt/redline/venv \
+    && /opt/redline/venv/bin/pip install --upgrade pip setuptools wheel
+
+# Rocky Linux (RHEL-compatible)
+FROM rockylinux:9 AS rocky-base
+RUN dnf update -y && dnf install -y \
+    python3 \
+    python3-devel \
+    python3-pip \
+    python3-setuptools \
+    python3-wheel \
+    gcc \
+    gcc-c++ \
+    make \
+    && python3 -m venv /opt/redline/venv \
+    && /opt/redline/venv/bin/pip install --upgrade pip setuptools wheel
+
+# Arch Linux (Rolling release)
+FROM archlinux:latest AS arch-base
+RUN pacman -Syu --noconfirm \
+    python \
+    python-pip \
+    python-setuptools \
+    python-wheel \
+    base-devel \
+    gcc \
+    make \
+    && python -m venv /opt/redline/venv \
+    && /opt/redline/venv/bin/pip install --upgrade pip setuptools wheel
+
+# Debian (Stable, Server-focused)
+FROM debian:12-slim AS debian-base
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-dev \
+    python3-pip \
+    python3-setuptools \
+    python3-wheel \
+    python3-venv \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    && python3 -m venv /opt/redline/venv \
+    && /opt/redline/venv/bin/pip install --upgrade pip setuptools wheel
+
+# Fedora (Cutting-edge, Developer-focused)
+FROM fedora:40 AS fedora-base
+RUN dnf update -y && dnf install -y \
+    python3 \
+    python3-devel \
+    python3-pip \
+    python3-setuptools \
+    python3-wheel \
+    gcc \
+    gcc-c++ \
+    make \
+    && python3 -m venv /opt/redline/venv \
+    && /opt/redline/venv/bin/pip install --upgrade pip setuptools wheel
+
+# OpenSUSE (Enterprise and Community)
+FROM opensuse/tumbleweed AS opensuse-base
+RUN zypper update -y && zypper install -y \
+    python3 \
+    python3-devel \
+    python3-pip \
+    python3-setuptools \
+    python3-wheel \
+    gcc \
+    gcc-c++ \
+    make \
+    && python3 -m venv /opt/redline/venv \
+    && /opt/redline/venv/bin/pip install --upgrade pip setuptools wheel
+
+# Common application setup (shared across all distributions)
+FROM alpine-base AS redline-alpine
+COPY requirements.txt /opt/redline/
+WORKDIR /opt/redline
+ENV PATH="/opt/redline/venv/bin:$PATH"
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . /opt/redline/
+RUN addgroup -g 1000 redline && adduser -u 1000 -G redline -s /bin/sh -D redline
+USER redline
+EXPOSE 8080
+CMD ["python3", "web_app.py"]
+
+FROM centos-base AS redline-centos
+COPY requirements.txt /opt/redline/
+WORKDIR /opt/redline
+ENV PATH="/opt/redline/venv/bin:$PATH"
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . /opt/redline/
+RUN groupadd -r redline && useradd -r -g redline redline
+USER redline
+EXPOSE 8080
+CMD ["python3", "web_app.py"]
+
+FROM rhel-base AS redline-rhel
+COPY requirements.txt /opt/redline/
+WORKDIR /opt/redline
+ENV PATH="/opt/redline/venv/bin:$PATH"
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . /opt/redline/
+RUN groupadd -r redline && useradd -r -g redline redline
+USER redline
+EXPOSE 8080
+CMD ["python3", "web_app.py"]
+
+FROM mint-base AS redline-mint
+COPY requirements.txt /opt/redline/
+WORKDIR /opt/redline
+ENV PATH="/opt/redline/venv/bin:$PATH"
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . /opt/redline/
+RUN groupadd -r redline && useradd -r -g redline redline
+USER redline
+EXPOSE 8080
+CMD ["python3", "web_app.py"]
+
+FROM rocky-base AS redline-rocky
+COPY requirements.txt /opt/redline/
+WORKDIR /opt/redline
+ENV PATH="/opt/redline/venv/bin:$PATH"
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . /opt/redline/
+RUN groupadd -r redline && useradd -r -g redline redline
+USER redline
+EXPOSE 8080
+CMD ["python3", "web_app.py"]
+
+FROM arch-base AS redline-arch
+COPY requirements.txt /opt/redline/
+WORKDIR /opt/redline
+ENV PATH="/opt/redline/venv/bin:$PATH"
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . /opt/redline/
+RUN groupadd -r redline && useradd -r -g redline redline
+USER redline
+EXPOSE 8080
+CMD ["python3", "web_app.py"]
+
+FROM debian-base AS redline-debian
+COPY requirements.txt /opt/redline/
+WORKDIR /opt/redline
+ENV PATH="/opt/redline/venv/bin:$PATH"
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . /opt/redline/
+RUN groupadd -r redline && useradd -r -g redline redline
+USER redline
+EXPOSE 8080
+CMD ["python3", "web_app.py"]
+
+FROM fedora-base AS redline-fedora
+COPY requirements.txt /opt/redline/
+WORKDIR /opt/redline
+ENV PATH="/opt/redline/venv/bin:$PATH"
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . /opt/redline/
+RUN groupadd -r redline && useradd -r -g redline redline
+USER redline
+EXPOSE 8080
+CMD ["python3", "web_app.py"]
+
+FROM opensuse-base AS redline-opensuse
+COPY requirements.txt /opt/redline/
+WORKDIR /opt/redline
+ENV PATH="/opt/redline/venv/bin:$PATH"
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . /opt/redline/
+RUN groupadd -r redline && useradd -r -g redline redline
+USER redline
+EXPOSE 8080
+CMD ["python3", "web_app.py"]
