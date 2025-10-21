@@ -1,6 +1,6 @@
-# REDLINE Web GUI - Simplified Dockerfile (BuildKit-Free)
+# REDLINE Web GUI - Simplified Dockerfile (BuildKit-Free) - Non-Root Version
 # Ubuntu 24.04 LTS with Python 3.12 and essential packages only
-# Runs as root to avoid permission issues
+# Properly handles user switching to avoid permission issues
 
 FROM ubuntu:24.04
 
@@ -28,6 +28,9 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Create redline user with proper UID/GID
+RUN groupadd -r redline && useradd -r -g redline -d /opt/redline -s /bin/bash redline
+
 # Copy requirements and install Python packages
 COPY dockerfiles/requirements-simple.txt /opt/redline/
 RUN pip3 install -r requirements-simple.txt
@@ -35,12 +38,18 @@ RUN pip3 install -r requirements-simple.txt
 # Copy application code
 COPY . /opt/redline/
 
-# Create necessary directories
+# Create necessary directories and set permissions
 RUN mkdir -p /opt/redline/data \
     /opt/redline/logs \
     /opt/redline/uploads \
     /opt/redline/temp \
-    /var/log/redline
+    /var/log/redline \
+    && chown -R redline:redline /opt/redline \
+    && chown -R redline:redline /var/log/redline \
+    && chmod -R 755 /opt/redline
+
+# Switch to non-root user
+USER redline
 
 # Expose port
 EXPOSE 8080
@@ -49,5 +58,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
-# Default command - run Flask directly as root
+# Default command - run Flask directly
 CMD ["python3", "web_app.py"]
