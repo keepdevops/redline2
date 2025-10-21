@@ -3,9 +3,13 @@ set -e
 
 # REDLINE GUI Docker Build and Run Script
 # Universal platform support with multi-architecture builds
+# NO SUDO REQUIRED - Docker handles all system operations
 
 echo "🖥️  REDLINE GUI Docker Build Script"
 echo "==================================="
+echo "✅ No sudo privileges required!"
+echo "🐳 All operations run inside Docker containers"
+echo ""
 
 # Colors for output
 RED='\033[0;31m'
@@ -61,6 +65,23 @@ detect_platform() {
 check_docker() {
     if ! command -v docker &> /dev/null; then
         print_error "Docker is not installed or not in PATH"
+        echo ""
+        echo "📋 Docker Installation Options (No sudo required):"
+        echo "1. Snap (recommended): snap install docker"
+        echo "2. Add to docker group: sudo usermod -aG docker \$USER (then logout/login)"
+        echo "3. Docker Desktop: Download from https://docker.com"
+        exit 1
+    fi
+    
+    # Check if user can run docker without sudo
+    if ! docker ps &> /dev/null; then
+        print_error "Cannot run Docker commands. User not in docker group."
+        echo ""
+        echo "🔧 Quick Fix:"
+        echo "sudo usermod -aG docker \$USER"
+        echo "newgrp docker  # or logout/login"
+        echo ""
+        echo "Alternative (no sudo): snap install docker"
         exit 1
     fi
     
@@ -314,6 +335,14 @@ main() {
     echo "📦 GUI Container: $CONTAINER_NAME"
     echo "🎨 Platform: $PLATFORM"
     echo "🎨 Optimized for Tkinter GUI applications"
+    echo ""
+    echo "🔐 Sudo Requirements:"
+    echo "✅ NO SUDO REQUIRED for Docker operations"
+    echo "✅ All system operations run inside containers"
+    echo "✅ Only Docker group membership needed (one-time setup)"
+    echo ""
+    echo "🚀 Quick Start:"
+    echo "xhost +local:docker && ./start_gui_container.sh"
 }
 
 # Run main function

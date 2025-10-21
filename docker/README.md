@@ -2,6 +2,44 @@
 
 This directory contains organized Docker configurations for different REDLINE deployment scenarios.
 
+## 🔐 **Sudo Requirements**
+
+### **✅ NO SUDO REQUIRED for Docker Operations**
+
+All Docker build scripts run **without sudo privileges**:
+- ✅ **Docker Build**: Runs as regular user
+- ✅ **Docker Run**: Runs as regular user  
+- ✅ **Container Management**: All docker commands
+- ✅ **Package Installation**: Happens inside containers
+- ✅ **File Operations**: Uses user's home directory
+
+### **📋 Prerequisites (One-Time Setup)**
+
+**Option 1: Docker Group (Recommended)**
+```bash
+# One-time sudo setup
+sudo usermod -aG docker $USER
+newgrp docker  # or logout/login
+
+# Verify
+docker ps  # Should work without sudo
+```
+
+**Option 2: Snap Docker (No Sudo)**
+```bash
+# Install Docker via snap (no sudo required)
+snap install docker
+
+# Use snap docker commands
+snap run docker build -f Dockerfile -t redline-web .
+```
+
+**Option 3: Docker Desktop**
+```bash
+# Download from https://docker.com
+# Install Docker Desktop (includes GUI)
+```
+
 ## 📁 Directory Structure
 
 ```
@@ -51,26 +89,36 @@ docker/
 
 ## 🚀 **Quick Start Guide**
 
-### **1. GUI Deployment**
+### **🔧 One-Time Setup**
+```bash
+# Add user to docker group (sudo required once)
+sudo usermod -aG docker $USER
+newgrp docker  # or logout/login
+
+# Verify Docker works without sudo
+docker ps
+```
+
+### **🖥️ GUI Deployment**
 ```bash
 cd docker/gui
-./build.sh
-./start_gui_container.sh
+./build.sh                    # Build GUI image (no sudo)
+./start_gui_container.sh       # Start GUI container (no sudo)
 ```
 
-### **2. Web App Deployment**
+### **🌐 Web App Deployment**
 ```bash
 cd docker/web
-./build.sh
-./start_web_container.sh
+./build.sh                    # Build Web App image (no sudo)
+./start_web_container.sh      # Start Web App container (no sudo)
 ```
 
-### **3. Universal Deployment**
+### **🚀 Universal Deployment**
 ```bash
 cd docker/universal
-./build.sh
-./start_gui_container.sh    # For GUI
-./start_web_container.sh    # For Web App
+./build.sh                    # Build Universal image (no sudo)
+./start_gui_container.sh      # Start GUI (no sudo)
+./start_web_container.sh     # Start Web App (no sudo)
 ```
 
 ## 🔧 **Platform Support**
@@ -134,6 +182,28 @@ Each directory contains:
 2. **Port Conflicts**: Check port availability
 3. **Platform Compatibility**: Verify architecture support
 4. **Conda Environment**: Ensure proper activation
+5. **Docker Permissions**: User not in docker group
+
+### **Docker Permission Issues**
+```bash
+# Error: "Cannot connect to the Docker daemon"
+# Solution: Add user to docker group
+sudo usermod -aG docker $USER
+newgrp docker  # or logout/login
+
+# Verify
+docker ps  # Should work without sudo
+```
+
+### **Alternative: Snap Docker (No Sudo)**
+```bash
+# Install Docker via snap
+snap install docker
+
+# Use snap docker commands
+snap run docker build -f Dockerfile -t redline-web .
+snap run docker run -d --name redline-web-container redline-web
+```
 
 ### **Support**
 - Check individual README.md files
