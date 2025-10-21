@@ -95,16 +95,24 @@ update_system() {
 install_essentials() {
     print_status "Installing essential packages..."
     
-    # First, try to install Tkinter packages specifically for Ubuntu 24.04
-    print_status "Installing Tkinter packages for Ubuntu 24.04..."
-    sudo apt-get install -y python3-tk python3-tkinter 2>/dev/null || {
-        print_warning "Standard Tkinter packages not available, trying alternatives..."
-        # Try alternative package names for different Ubuntu versions
-        sudo apt-get install -y python3-tkinter 2>/dev/null || {
-            print_warning "Tkinter packages not found in standard repositories"
-            print_status "Tkinter will be installed via pip later"
-        }
-    }
+    # Install Tkinter with better error handling
+    print_status "Installing Tkinter for GUI support..."
+    install_tkinter_success=false
+    
+    # Try different package names for different Ubuntu versions
+    for package in "python3-tk" "python3-tkinter" "python3-tk-dev"; do
+        if sudo apt-get install -y "$package" 2>/dev/null; then
+            print_success "Tkinter installed via $package"
+            install_tkinter_success=true
+            break
+        fi
+    done
+    
+    # If system packages failed, note that pip will handle it later
+    if [ "$install_tkinter_success" = false ]; then
+        print_warning "System Tkinter packages not available"
+        print_status "Tkinter will be installed via pip in virtual environment"
+    fi
     
     # Install other essential packages
     sudo apt-get install -y \
@@ -184,17 +192,26 @@ install_docker_compose() {
 
 # Function to clone REDLINE repository
 clone_redline() {
-    print_status "Cloning REDLINE repository..."
+    print_status "Setting up REDLINE directory..."
     
     if [ -d "$REDLINE_DIR" ]; then
-        print_warning "REDLINE directory already exists. Updating..."
-        cd "$REDLINE_DIR"
-        git pull
+        print_warning "REDLINE directory already exists."
+        
+        # Check if it's a git repository
+        if git rev-parse --git-dir > /dev/null 2>&1; then
+            print_status "This is a git repository, updating..."
+            cd "$REDLINE_DIR"
+            git pull
+        else
+            print_warning "Not a git repository, using existing files..."
+            print_status "Skipping git operations"
+        fi
     else
+        print_status "Cloning REDLINE repository..."
         git clone https://github.com/redline/redline.git "$REDLINE_DIR"
     fi
     
-    print_success "REDLINE repository cloned/updated"
+    print_success "REDLINE directory setup complete"
 }
 
 # Function to setup Python environment
