@@ -19,6 +19,14 @@ duckdb==0.8.1
 
 # Network and HTTP
 requests==2.31.0
+urllib3==2.0.7
+
+# Configuration and File I/O
+configparser==5.3.0
+werkzeug==2.3.7
+
+# Data Processing Extensions
+pyarrow==12.0.1
 
 # Essential Utilities
 setuptools==68.2.2
