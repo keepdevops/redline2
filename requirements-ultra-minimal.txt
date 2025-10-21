@@ -1,0 +1,10 @@
+# REDLINE Web GUI - Ultra-Minimal Requirements
+# Absolute minimum for Flask web interface
+
+flask==2.3.3
+flask-socketio==5.3.6
+gunicorn==21.2.0
+pandas==2.0.3
+numpy==1.24.3
+duckdb==0.8.1
+requests==2.31.0
