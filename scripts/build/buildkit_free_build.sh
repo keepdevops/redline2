@@ -60,13 +60,18 @@ disable_buildkit() {
 check_simple_files() {
     log "Checking for simplified Docker files..."
     
-    if [ ! -f "dockerfiles/Dockerfile.simple" ]; then
-        log_error "dockerfiles/Dockerfile.simple not found. Please ensure it exists."
+    # Get the project root directory (go up from scripts/build/)
+    PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+    
+    if [ ! -f "$PROJECT_ROOT/dockerfiles/Dockerfile.simple" ]; then
+        log_error "dockerfiles/Dockerfile.simple not found at $PROJECT_ROOT/dockerfiles/Dockerfile.simple"
+        log "Please ensure you're running this script from the project root directory"
         exit 1
     fi
     
-    if [ ! -f "requirements-simple.txt" ]; then
-        log_error "requirements-simple.txt not found. Please ensure it exists."
+    if [ ! -f "$PROJECT_ROOT/requirements-simple.txt" ]; then
+        log_error "requirements-simple.txt not found at $PROJECT_ROOT/requirements-simple.txt"
+        log "Please ensure you're running this script from the project root directory"
         exit 1
     fi
     
@@ -76,6 +81,12 @@ check_simple_files() {
 # Build with legacy Docker
 build_legacy() {
     log "Building with legacy Docker (no BuildKit)..."
+    
+    # Get the project root directory
+    PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+    
+    # Change to project root directory for build context
+    cd "$PROJECT_ROOT"
     
     # Use the simple Dockerfile from dockerfiles directory
     docker build \
