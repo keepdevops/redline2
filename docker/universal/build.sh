@@ -256,7 +256,11 @@ This Docker image provides both GUI and Web App capabilities in a single contain
 
 ### 2. Test Installation
 \`\`\`bash
+# Basic test
 ./test_universal.sh
+
+# Comprehensive multi-platform test
+./test_all_platforms.sh
 \`\`\`
 
 ### 3. Run GUI Application
@@ -363,6 +367,33 @@ export FLASK_RUN_HOST=0.0.0.0
 export FLASK_RUN_PORT=5000
 \`\`\`
 
+## Testing
+
+### Basic Testing
+\`\`\`bash
+# Quick test of installation
+./test_universal.sh
+\`\`\`
+
+### Comprehensive Testing
+\`\`\`bash
+# Full test suite across all platforms
+./test_all_platforms.sh
+\`\`\`
+
+The comprehensive test suite includes:
+- **Platform Detection**: Tests on AMD64, ARM64, and ARMv7
+- **Container Functionality**: Basic container operations
+- **Conda Environment**: Environment activation and package management
+- **Python Packages**: All required packages (pandas, numpy, matplotlib, flask, etc.)
+- **GUI Components**: Tkinter and matplotlib GUI backend
+- **Web Components**: Flask, Gunicorn, and Nginx
+- **REDLINE Modules**: Core, GUI, and Web modules
+- **Startup Scripts**: All startup scripts availability
+- **Platform-Specific**: Architecture detection and compatibility
+- **Networking**: Port binding and connectivity
+- **File System**: File operations and permissions
+
 ## Commands
 
 \`\`\`bash
@@ -371,6 +402,9 @@ export FLASK_RUN_PORT=5000
 
 # Test installation
 ./test_universal.sh
+
+# Comprehensive testing
+./test_all_platforms.sh
 
 # Start GUI
 ./start_gui_container.sh
@@ -443,16 +477,19 @@ main() {
     echo ""
     echo "📋 Next steps:"
     echo "1. Test universal installation: ./test_universal.sh"
-    echo "2. Start GUI container: ./start_gui_container.sh"
-    echo "3. Start Web App container: ./start_web_container.sh"
-    echo "4. Access GUI: X11 forwarding required"
-    echo "5. Access Web App: http://localhost:5000 or http://localhost:80"
+    echo "2. Run comprehensive platform tests: ./test_all_platforms.sh"
+    echo "3. Start GUI container: ./start_gui_container.sh"
+    echo "4. Start Web App container: ./start_web_container.sh"
+    echo "5. Access GUI: X11 forwarding required"
+    echo "6. Access Web App: http://localhost:5000 or http://localhost:80"
     echo ""
     echo "📁 Files created:"
-    echo "- Dockerfile (Universal Docker configuration)"
+    echo "- Dockerfile (Universal Docker configuration - optimized)"
+    echo "- .dockerignore (Excludes test files and unnecessary files)"
     echo "- start_gui_container.sh (GUI container startup)"
     echo "- start_web_container.sh (Web App container startup)"
-    echo "- test_universal.sh (Universal installation test)"
+    echo "- test_universal.sh (Basic universal installation test)"
+    echo "- test_all_platforms.sh (Comprehensive multi-platform test suite)"
     echo "- README.md (Usage instructions)"
     echo ""
     echo "🚀 Universal Docker image: $IMAGE_NAME"
@@ -467,8 +504,15 @@ main() {
     echo "✅ Only Docker group membership needed (one-time setup)"
     echo ""
     echo "🚀 Quick Start:"
+    echo "Test: ./test_all_platforms.sh"
     echo "GUI: xhost +local:docker && ./start_gui_container.sh"
     echo "Web: ./start_web_container.sh && open http://localhost:5000"
+    echo ""
+    echo "📊 Build Optimizations:"
+    echo "✅ Excludes test files and unnecessary files (.dockerignore)"
+    echo "✅ Selective file copying (only essential files)"
+    echo "✅ Multi-platform support (AMD64, ARM64, ARMv7)"
+    echo "✅ Comprehensive testing suite"
 }
 
 # Run main function

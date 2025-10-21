@@ -1,0 +1,102 @@
+# Docker ignore file for REDLINE Universal Docker build
+# Excludes unnecessary files to reduce image size and improve build performance
+
+# Test files
+test_*.py
+test_*.sh
+test_*.html
+*test*.py
+*test*.sh
+*test*.html
+run_gui_tests.py
+simple_feather_test.py
+
+# Documentation files (keep only essential ones)
+*.md
+!README.md
+!API_DOCUMENTATION.md
+!REDLINE_USER_GUIDE.md
+
+# Log files
+*.log
+logs/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git files
+.git/
+.gitignore
+
+# Docker files (except the one being used)
+docker/
+!docker/universal/Dockerfile
+!docker/universal/build.sh
+!docker/universal/test_all_platforms.sh
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.cache/
+.pytest_cache/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Data files (optional - uncomment if you want to exclude data)
+# data/
+# *.duckdb
+# *.db
+
+# Configuration backup files
+*.backup
+*.bak
+
+# Installation scripts (not needed in container)
+install/
+install_*.sh
+install_*.bash
+*.sh
+*.bash
+!docker/universal/build.sh
+!docker/universal/test_all_platforms.sh
+
+# Archive files
+*.zip
+*.tar.gz
+*.rar
+
+# PID files
+*.pid
+
+# Environment files (sensitive)
+.env
+docker.env.template
+
+# Test results and reports
+*TEST_RESULTS*.md
+*TEST*.md
+*_TEST_*.md

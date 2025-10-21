@@ -43,25 +43,43 @@ RUN apt-get update && apt-get install -y \
     libxtst-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and install Miniconda
-RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh && \
+# Download and install Miniconda (multi-platform)
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then \
+        MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"; \
+    elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then \
+        MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh"; \
+    else \
+        echo "Unsupported architecture: $ARCH" && exit 1; \
+    fi && \
+    wget "$MINICONDA_URL" -O /tmp/miniconda.sh && \
     bash /tmp/miniconda.sh -b -p $CONDA_DIR && \
     rm /tmp/miniconda.sh && \
     $CONDA_DIR/bin/conda clean -afy
 
-# Initialize conda
-RUN $CONDA_DIR/bin/conda init bash
+# Initialize conda and accept Terms of Service
+RUN $CONDA_DIR/bin/conda init bash && \
+    $CONDA_DIR/bin/conda config --set channel_priority strict && \
+    $CONDA_DIR/bin/conda config --add channels conda-forge && \
+    $CONDA_DIR/bin/conda config --set show_channel_urls true && \
+    $CONDA_DIR/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main && \
+    $CONDA_DIR/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
 
 # Set working directory
 WORKDIR /app
 
-# Copy REDLINE files
-COPY . /app/
+# Copy essential REDLINE files only
+COPY redline/ /app/redline/
+COPY main.py /app/
+COPY web_app.py /app/
+COPY requirements*.txt /app/
+COPY data_config.ini* /app/
+COPY redline_template.json /app/
+COPY api_keys.json /app/
 
 # Create conda environment with all dependencies
 RUN $CONDA_DIR/bin/conda create -n redline-universal python=3.11 -y && \
-    $CONDA_DIR/bin/conda activate redline-universal && \
-    $CONDA_DIR/bin/conda install -n redline-universal -c conda-forge \
+    $CONDA_DIR/bin/conda run -n redline-universal conda install -c conda-forge \
     pandas \
     numpy \
     matplotlib \
