@@ -65,8 +65,8 @@ check_simple_files() {
         exit 1
     fi
     
-    if [ ! -f "dockerfiles/requirements-simple.txt" ]; then
-        log_error "dockerfiles/requirements-simple.txt not found. Please ensure it exists."
+    if [ ! -f "requirements-simple.txt" ]; then
+        log_error "requirements-simple.txt not found. Please ensure it exists."
         exit 1
     fi
     

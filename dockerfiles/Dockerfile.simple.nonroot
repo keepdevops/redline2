@@ -32,7 +32,7 @@ RUN apt-get update && apt-get install -y \
 RUN groupadd -r redline && useradd -r -g redline -d /opt/redline -s /bin/bash redline
 
 # Copy requirements and install Python packages
-COPY dockerfiles/requirements-simple.txt /opt/redline/
+COPY requirements-simple.txt /opt/redline/
 RUN pip3 install -r requirements-simple.txt
 
 # Copy application code
