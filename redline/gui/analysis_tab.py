@@ -84,12 +84,12 @@ class AnalysisTab:
             self.results_text.insert(tk.END, "Statistical Summary:\n")
             self.results_text.insert(tk.END, str(stats) + "\n\n")
             
-            # Additional analysis - check for close price column
+            # Additional analysis - check for close price column with enhanced detection
             close_col = None
-            if 'close' in current_data.columns:
-                close_col = 'close'
-            elif '<CLOSE>' in current_data.columns:
-                close_col = '<CLOSE>'
+            # Enhanced field detection for various formats
+            price_cols = [col for col in current_data.columns if any(price in col.lower() for price in ['close', 'price', 'adj close', 'px_last', '<close>', 'c'])]
+            if price_cols:
+                close_col = price_cols[0]  # Use first match
             
             if close_col:
                 close_stats = {
@@ -153,21 +153,20 @@ class AnalysisTab:
                 self.results_text.insert(tk.END, "No data available for analysis.\n")
                 return
             
-            # Check for required columns (handle both standard and Stooq format)
+            # Check for required columns with enhanced detection
             close_col = None
             timestamp_col = None
             
-            # Try standard column names first
-            if 'close' in current_data.columns and 'timestamp' in current_data.columns:
-                close_col = 'close'
-                timestamp_col = 'timestamp'
-            # Try Stooq format column names
-            elif '<CLOSE>' in current_data.columns and '<DATE>' in current_data.columns:
-                close_col = '<CLOSE>'
-                timestamp_col = '<DATE>'
+            # Enhanced field detection for various formats
+            price_cols = [col for col in current_data.columns if any(price in col.lower() for price in ['close', 'price', 'adj close', 'px_last', '<close>', 'c'])]
+            date_cols = [col for col in current_data.columns if any(date in col.lower() for date in ['date', 'timestamp', 'time', '<date>', 't'])]
+            
+            if price_cols and date_cols:
+                close_col = price_cols[0]
+                timestamp_col = date_cols[0]
             else:
                 available_cols = list(current_data.columns)
-                self.results_text.insert(tk.END, f"Required columns (close/<CLOSE>, timestamp/<DATE>) not found.\n")
+                self.results_text.insert(tk.END, f"Required columns not found.\n")
                 self.results_text.insert(tk.END, f"Available columns: {available_cols}\n")
                 return
             
@@ -208,12 +207,12 @@ class AnalysisTab:
                 self.results_text.insert(tk.END, "No data available for analysis.\n")
                 return
             
-            # Check for volume column (handle both standard and Stooq format)
+            # Check for volume column with enhanced detection
             vol_col = None
-            if 'vol' in current_data.columns:
-                vol_col = 'vol'
-            elif '<VOL>' in current_data.columns:
-                vol_col = '<VOL>'
+            # Enhanced field detection for various formats
+            volume_cols = [col for col in current_data.columns if any(vol in col.lower() for vol in ['volume', 'vol', '<vol>', 'px_volume', 'v'])]
+            if volume_cols:
+                vol_col = volume_cols[0]  # Use first match
             
             if vol_col is None:
                 self.results_text.insert(tk.END, "Volume column (vol/<VOL>) not found.\n")

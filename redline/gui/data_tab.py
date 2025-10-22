@@ -413,6 +413,22 @@ class DataTab:
             # Use direct pandas loading for speed (skip validation/cleaning for display)
             if format_type == 'csv':
                 data = pd.read_csv(file_path)
+            elif format_type == 'txt':
+                # Try different separators for TXT files
+                data = None
+                for sep in [',', '\t', ';', ' ', '|']:
+                    try:
+                        test_data = pd.read_csv(file_path, sep=sep)
+                        # Check if we got multiple columns (good parsing)
+                        if len(test_data.columns) > 1:
+                            data = test_data
+                            break
+                    except:
+                        continue
+                
+                if data is None:
+                    # If all separators fail, try reading as fixed-width
+                    data = pd.read_fwf(file_path)
             elif format_type == 'parquet':
                 data = pd.read_parquet(file_path)
             elif format_type == 'feather':
@@ -459,29 +475,28 @@ class DataTab:
                     return pd.DataFrame()
             
             elif format_type == 'txt':
-                # For text files, try to detect if it's Stooq format
-                try:
-                    # Read first few lines to detect format
-                    with open(file_path, 'r') as f:
-                        first_line = f.readline().strip()
-                        
-                    if '<TICKER>' in first_line:
-                        # Stooq format - load in chunks
-                        chunks = []
-                        for chunk in pd.read_csv(file_path, chunksize=chunk_size, sep=','):
+                # Try different separators for TXT files in chunks
+                chunks = []
+                for sep in [',', '\t', ';', ' ', '|']:
+                    try:
+                        for chunk in pd.read_csv(file_path, sep=sep, chunksize=chunk_size):
                             chunks.append(chunk)
-                            if len(chunks) >= 10:
+                            if len(chunks) >= 10:  # Limit memory usage
                                 combined = pd.concat(chunks, ignore_index=True)
                                 chunks = [combined]
                         
                         if chunks:
                             return pd.concat(chunks, ignore_index=True)
-                    
+                        break
+                    except:
+                        continue
+                
+                # If all separators fail, try reading as fixed-width
+                try:
+                    return pd.read_fwf(file_path)
                 except Exception as e:
                     self.logger.warning(f"Error in chunked text loading: {str(e)}")
-                
-                # Fallback to regular loading
-                return self.loader.load_file_by_type(file_path, format_type)
+                    return pd.DataFrame()
             
             else:
                 # For other formats, use regular loading
