@@ -283,8 +283,11 @@ install_webgui() {
         return 1
     fi
     
-    # Use the Buildx-compatible Dockerfile
-    local dockerfile="Dockerfile.webgui.buildx"
+    # Use the universal Dockerfile (compatible with all Docker versions)
+    local dockerfile="Dockerfile.webgui.universal"
+    if [ ! -f "$dockerfile" ]; then
+        dockerfile="Dockerfile.webgui.buildx"
+    fi
     if [ ! -f "$dockerfile" ]; then
         dockerfile="Dockerfile.webgui.simple"
     fi
@@ -295,19 +298,36 @@ install_webgui() {
         dockerfile="Dockerfile.webgui"
     fi
     
-    # Build web-based GUI image using Buildx
-    print_status "Building web-based GUI Docker image with Buildx"
+    # Build web-based GUI image with version detection
+    print_status "Building web-based GUI Docker image"
     
-    # Enable Buildx if not already enabled
-    docker buildx create --name redline-builder --use 2>/dev/null || docker buildx use redline-builder 2>/dev/null || true
+    # Check Docker version and capabilities
+    local docker_version=$(docker --version | grep -oE '[0-9]+\.[0-9]+' | head -1)
+    local docker_major=$(echo $docker_version | cut -d. -f1)
+    local docker_minor=$(echo $docker_version | cut -d. -f2)
     
-    # Build with Buildx
-    docker buildx build \
-        --platform linux/amd64 \
-        --file "$dockerfile" \
-        --tag redline-webgui:latest \
-        --load \
-        .
+    print_status "Docker version: $docker_version"
+    
+    # Try Buildx if Docker version supports it (20.10+)
+    if [ "$docker_major" -gt 20 ] || ([ "$docker_major" -eq 20 ] && [ "$docker_minor" -ge 10 ]); then
+        print_status "Using Docker Buildx (modern Docker detected)"
+        
+        # Enable Buildx if not already enabled
+        docker buildx create --name redline-builder --use 2>/dev/null || docker buildx use redline-builder 2>/dev/null || true
+        
+        # Build with Buildx (without --platform for compatibility)
+        docker buildx build \
+            --file "$dockerfile" \
+            --tag redline-webgui:latest \
+            --load \
+            . || {
+            print_warning "Buildx failed, falling back to regular docker build"
+            docker build -f "$dockerfile" -t redline-webgui:latest .
+        }
+    else
+        print_status "Using regular docker build (older Docker detected)"
+        docker build -f "$dockerfile" -t redline-webgui:latest .
+    fi
     
     if [ $? -eq 0 ]; then
         print_success "Web-based GUI image built successfully"
