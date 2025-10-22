@@ -25,14 +25,48 @@ def get_sources():
                 'description': 'Free financial data from Yahoo Finance',
                 'supported_tickers': 'US and international stocks, ETFs, indices',
                 'data_types': ['OHLCV', 'dividends', 'splits'],
-                'delay': '15-20 minutes for real-time data'
+                'delay': '15-20 minutes for real-time data',
+                'rate_limit': 'Rate limited - may fail frequently',
+                'api_key_required': False
             },
             'stooq': {
                 'name': 'Stooq',
                 'description': 'Free historical financial data',
                 'supported_tickers': 'Global stocks and indices',
                 'data_types': ['OHLCV'],
-                'delay': 'End of day'
+                'delay': 'End of day',
+                'rate_limit': 'May require 2FA',
+                'api_key_required': False
+            },
+            'alpha_vantage': {
+                'name': 'Alpha Vantage',
+                'description': 'Professional financial data API',
+                'supported_tickers': 'US and international stocks',
+                'data_types': ['OHLCV', 'fundamentals', 'news'],
+                'delay': 'Real-time',
+                'rate_limit': '5 calls per minute (free tier)',
+                'api_key_required': True,
+                'api_key_url': 'https://www.alphavantage.co/support/#api-key'
+            },
+            'finnhub': {
+                'name': 'Finnhub',
+                'description': 'Global financial data API',
+                'supported_tickers': 'Global stocks, forex, crypto',
+                'data_types': ['OHLCV', 'fundamentals', 'news'],
+                'delay': 'Real-time',
+                'rate_limit': '60 calls per minute (free tier)',
+                'api_key_required': True,
+                'api_key_url': 'https://finnhub.io/register'
+            },
+            'csv': {
+                'name': 'CSV Files',
+                'description': 'Local CSV files and sample data',
+                'supported_tickers': 'Any ticker (creates sample data)',
+                'data_types': ['OHLCV'],
+                'delay': 'Instant',
+                'rate_limit': 'No limits',
+                'api_key_required': False,
+                'note': 'Uses existing CSV files or creates sample data'
             }
         }
         
@@ -76,6 +110,30 @@ def download_data():
         elif source == 'stooq':
             from redline.downloaders.stooq_downloader import StooqDownloader
             downloader = StooqDownloader()
+            result = downloader.download_single_ticker(
+                ticker=ticker,
+                start_date=start_date,
+                end_date=end_date
+            )
+        elif source == 'alpha_vantage':
+            from redline.downloaders.alpha_vantage_downloader import AlphaVantageDownloader
+            downloader = AlphaVantageDownloader()
+            result = downloader.download_single_ticker(
+                ticker=ticker,
+                start_date=start_date,
+                end_date=end_date
+            )
+        elif source == 'finnhub':
+            from redline.downloaders.finnhub_downloader import FinnhubDownloader
+            downloader = FinnhubDownloader()
+            result = downloader.download_single_ticker(
+                ticker=ticker,
+                start_date=start_date,
+                end_date=end_date
+            )
+        elif source == 'csv':
+            from redline.downloaders.csv_downloader import CSVDownloader
+            downloader = CSVDownloader()
             result = downloader.download_single_ticker(
                 ticker=ticker,
                 start_date=start_date,
@@ -149,6 +207,15 @@ def batch_download():
         elif source == 'stooq':
             from redline.downloaders.stooq_downloader import StooqDownloader
             downloader = StooqDownloader()
+        elif source == 'alpha_vantage':
+            from redline.downloaders.alpha_vantage_downloader import AlphaVantageDownloader
+            downloader = AlphaVantageDownloader()
+        elif source == 'finnhub':
+            from redline.downloaders.finnhub_downloader import FinnhubDownloader
+            downloader = FinnhubDownloader()
+        elif source == 'csv':
+            from redline.downloaders.csv_downloader import CSVDownloader
+            downloader = CSVDownloader()
         
         for i, ticker in enumerate(tickers):
             try:
