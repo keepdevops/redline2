@@ -137,20 +137,23 @@ def batch_download():
         results = []
         errors = []
         
-        for ticker in tickers:
+        # Create a single downloader instance to share rate limiting
+        downloader = None
+        if source == 'yahoo':
+            from redline.downloaders.yahoo_downloader import YahooDownloader
+            downloader = YahooDownloader()
+        elif source == 'stooq':
+            from redline.downloaders.stooq_downloader import StooqDownloader
+            downloader = StooqDownloader()
+        
+        for i, ticker in enumerate(tickers):
             try:
-                # Use the single download logic
-                download_data = {
-                    'ticker': ticker,
-                    'source': source,
-                    'start_date': start_date,
-                    'end_date': end_date
-                }
+                # Add delay between downloads to respect rate limits
+                if i > 0 and downloader:
+                    import time
+                    time.sleep(2)  # 2 second delay between downloads
                 
-                # Simulate the download call
-                if source == 'yahoo':
-                    from redline.downloaders.yahoo_downloader import YahooDownloader
-                    downloader = YahooDownloader()
+                if downloader:
                     result = downloader.download_single_ticker(
                         ticker=ticker,
                         start_date=start_date,
@@ -176,24 +179,38 @@ def batch_download():
                         'filename': filename
                     })
                 else:
+                    error_msg = 'No data found'
+                    if source == 'yahoo':
+                        error_msg += ' (possibly due to rate limiting)'
                     errors.append({
                         'ticker': ticker,
-                        'error': 'No data found'
+                        'error': error_msg
                     })
                     
             except Exception as e:
+                error_msg = str(e)
+                if "Too Many Requests" in error_msg or "rate limit" in error_msg.lower():
+                    error_msg = f"Rate limited for {ticker}. Please wait before trying again."
                 errors.append({
                     'ticker': ticker,
-                    'error': str(e)
+                    'error': error_msg
                 })
         
+        # Check if all failures are due to rate limiting
+        rate_limit_count = sum(1 for error in errors if 'rate limit' in error['error'].lower())
+        
+        message = f'Batch download completed. {len(results)} successful, {len(errors)} failed.'
+        if rate_limit_count > 0:
+            message += f' {rate_limit_count} failures due to rate limiting. Please wait a few minutes before retrying.'
+        
         return jsonify({
-            'message': f'Batch download completed. {len(results)} successful, {len(errors)} failed.',
+            'message': message,
             'results': results,
             'errors': errors,
             'total_requested': len(tickers),
             'successful': len(results),
-            'failed': len(errors)
+            'failed': len(errors),
+            'rate_limit_failures': rate_limit_count
         })
         
     except Exception as e:
