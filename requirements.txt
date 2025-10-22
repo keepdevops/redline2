@@ -17,6 +17,20 @@ flask-socketio>=5.5.1
 flask-compress>=1.20
 gunicorn>=23.0.0
 
+# Flask Core Dependencies (CRITICAL - Flask won't work without these)
+werkzeug>=3.0.1
+jinja2>=3.1.2
+markupsafe>=2.1.1
+click>=8.1.0
+blinker>=1.6.2
+itsdangerous>=2.1.2
+
+# SocketIO Dependencies (CRITICAL - Flask-SocketIO won't work without these)
+python-socketio>=5.5.1
+eventlet>=0.33.3
+gevent>=23.7.0
+gevent-websocket>=0.10.1
+
 # Background Task Processing
 celery>=5.5.3
 redis>=6.4.0
