@@ -107,20 +107,7 @@ COPY . /app
 WORKDIR /app
 
 # Install Python dependencies with version compatibility
-RUN pip3 install -r requirements.docker.txt || {
-    echo "Docker requirements failed, trying main requirements..."
-    pip3 install -r requirements.txt || {
-        echo "Main requirements failed, installing compatible versions..."
-        pip3 install pandas numpy matplotlib seaborn plotly flask requests duckdb pyarrow fastparquet || true
-        pip3 install flask-socketio flask-compress gunicorn || true
-        pip3 install celery redis || true
-        pip3 install scikit-learn || true
-        pip3 install requests urllib3 || true
-        pip3 install configparser || true
-        pip3 install openpyxl xlsxwriter || true
-        echo "Installed compatible package versions"
-    }
-}
+RUN pip3 install -r requirements.docker.txt || pip3 install -r requirements.txt || pip3 install pandas numpy matplotlib seaborn plotly flask requests duckdb pyarrow fastparquet flask-socketio flask-compress gunicorn celery redis scikit-learn requests urllib3 configparser openpyxl xlsxwriter
 
 # Create startup script for REDLINE GUI
 RUN echo '#!/bin/bash\n\

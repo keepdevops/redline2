@@ -283,8 +283,11 @@ install_webgui() {
         return 1
     fi
     
-    # Use the simplified Dockerfile
-    local dockerfile="Dockerfile.webgui.simple"
+    # Use the Buildx-compatible Dockerfile
+    local dockerfile="Dockerfile.webgui.buildx"
+    if [ ! -f "$dockerfile" ]; then
+        dockerfile="Dockerfile.webgui.simple"
+    fi
     if [ ! -f "$dockerfile" ]; then
         dockerfile="Dockerfile.webgui.fixed"
     fi
@@ -292,9 +295,19 @@ install_webgui() {
         dockerfile="Dockerfile.webgui"
     fi
     
-    # Build web-based GUI image
-    print_status "Building web-based GUI Docker image"
-    docker build -f "$dockerfile" -t redline-webgui:latest .
+    # Build web-based GUI image using Buildx
+    print_status "Building web-based GUI Docker image with Buildx"
+    
+    # Enable Buildx if not already enabled
+    docker buildx create --name redline-builder --use 2>/dev/null || docker buildx use redline-builder 2>/dev/null || true
+    
+    # Build with Buildx
+    docker buildx build \
+        --platform linux/amd64 \
+        --file "$dockerfile" \
+        --tag redline-webgui:latest \
+        --load \
+        .
     
     if [ $? -eq 0 ]; then
         print_success "Web-based GUI image built successfully"
