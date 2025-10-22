@@ -40,11 +40,11 @@
             z-index: 3;
         }
         .file-list-item:hover {
-            background-color: #f8f9fa;
+            background-color: var(--light-color, #f8f9fa);
         }
         .file-list-item.selected {
-            background-color: #007bff;
-            color: white;
+            background-color: var(--primary-color);
+            color: var(--text-white);
         }
         .data-table {
             max-height: 600px;
@@ -60,7 +60,7 @@
             z-index: 3;
         }
         .data-info {
-            background-color: #e9ecef;
+            background-color: var(--light-color, #e9ecef);
             padding: 15px;
             border-radius: 4px;
             margin-bottom: 15px;
@@ -72,8 +72,8 @@
             height: 3rem;
         }
         .table th {
-            background-color: #343a40 !important;
-            color: white !important;
+            background-color: var(--dark-color, #343a40) !important;
+            color: var(--text-white) !important;
             font-weight: bold;
             position: sticky;
             top: 0;

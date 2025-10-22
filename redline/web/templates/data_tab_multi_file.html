@@ -27,17 +27,17 @@
     }
     
     .file-list::-webkit-scrollbar-track {
-        background: #f1f1f1;
+        background: var(--light-color, #f1f1f1);
         border-radius: 4px;
     }
     
     .file-list::-webkit-scrollbar-thumb {
-        background: #c1c1c1;
+        background: var(--secondary-color, #c1c1c1);
         border-radius: 4px;
     }
     
     .file-list::-webkit-scrollbar-thumb:hover {
-        background: #a8a8a8;
+        background: var(--text-muted, #a8a8a8);
     }
     
     .file-item {
@@ -113,7 +113,7 @@
     }
     
     .dataset-header {
-        background: #f8f9fa;
+        background: var(--light-color, #f8f9fa);
         padding: 15px 20px;
         border-bottom: 1px solid #dee2e6;
         display: flex;
@@ -153,8 +153,8 @@
     }
     
     .table th {
-        background-color: #343a40 !important;
-        color: white !important;
+        background-color: var(--dark-color, #343a40) !important;
+        color: var(--text-white) !important;
         font-weight: bold;
         position: sticky;
         top: 0;
@@ -173,8 +173,8 @@
     }
     
     .load-button {
-        background: #007bff;
-        color: white;
+        background: var(--primary-color);
+        color: var(--text-white);
         border: none;
         padding: 10px 20px;
         border-radius: 4px;
@@ -184,17 +184,17 @@
     }
     
     .load-button:hover {
-        background: #0056b3;
+        background: var(--primary-color);
     }
     
     .load-button:disabled {
-        background: #6c757d;
+        background: var(--secondary-color);
         cursor: not-allowed;
     }
     
     .clear-button {
-        background: #dc3545;
-        color: white;
+        background: var(--danger-color);
+        color: var(--text-white);
         border: none;
         padding: 8px 16px;
         border-radius: 4px;
@@ -204,7 +204,7 @@
     }
     
     .clear-button:hover {
-        background: #c82333;
+        background: var(--danger-color);
     }
 </style>
 {% endblock %}

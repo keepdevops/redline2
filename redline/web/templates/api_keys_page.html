@@ -99,16 +99,16 @@
     }
     
     .signup-steps {
-        background: #e3f2fd;
+        background: var(--info-color);
         padding: 15px;
         border-radius: 6px;
-        border-left: 4px solid #2196f3;
+        border-left: 4px solid var(--info-color);
         margin: 15px 0;
     }
     
     .signup-steps h6 {
         margin: 0 0 10px 0;
-        color: #1565c0;
+        color: var(--text-info);
         font-weight: 600;
     }
     
@@ -147,8 +147,8 @@
     }
     
     .test-button {
-        background: #28a745;
-        color: white;
+        background: var(--success-color);
+        color: var(--text-white);
         border: none;
         padding: 8px 16px;
         border-radius: 4px;
@@ -158,17 +158,17 @@
     }
     
     .test-button:hover {
-        background: #218838;
+        background: var(--success-color);
     }
     
     .test-button:disabled {
-        background: #6c757d;
+        background: var(--secondary-color);
         cursor: not-allowed;
     }
     
     .save-button {
-        background: #007bff;
-        color: white;
+        background: var(--primary-color);
+        color: var(--text-white);
         border: none;
         padding: 12px 24px;
         border-radius: 6px;
@@ -180,11 +180,11 @@
     }
     
     .save-button:hover {
-        background: #0056b3;
+        background: var(--primary-color);
     }
     
     .save-button:disabled {
-        background: #6c757d;
+        background: var(--secondary-color);
         cursor: not-allowed;
     }
     
@@ -196,27 +196,27 @@
     }
     
     .status-success {
-        background: #d4edda;
+        background: var(--success-color);
         color: var(--text-success);
-        border: 1px solid #c3e6cb;
+        border: 1px solid var(--success-color);
     }
     
     .status-error {
-        background: #f8d7da;
+        background: var(--danger-color);
         color: var(--text-danger);
-        border: 1px solid #f5c6cb;
+        border: 1px solid var(--danger-color);
     }
     
     .status-info {
-        background: #d1ecf1;
-        color: #0c5460;
-        border: 1px solid #bee5eb;
+        background: var(--info-color);
+        color: var(--text-info);
+        border: 1px solid var(--info-color);
     }
     
     .rate-limit-info {
-        background: #fff3cd;
-        color: #856404;
-        border: 1px solid #ffeaa7;
+        background: var(--warning-color);
+        color: var(--text-warning);
+        border: 1px solid var(--warning-color);
         padding: 10px;
         border-radius: 4px;
         margin: 10px 0;
@@ -233,8 +233,8 @@
     }
     
     .no-api-key {
-        background: #f8f9fa;
-        color: #6c757d;
+        background: var(--light-color, #f8f9fa);
+        color: var(--text-muted);
         padding: 15px;
         border-radius: 6px;
         text-align: center;
@@ -251,18 +251,18 @@
     }
     
     .status-valid {
-        background: #d4edda;
+        background: var(--success-color);
         color: var(--text-success);
     }
     
     .status-invalid {
-        background: #f8d7da;
+        background: var(--danger-color);
         color: var(--text-danger);
     }
     
     .status-unknown {
-        background: #fff3cd;
-        color: #856404;
+        background: var(--warning-color);
+        color: var(--text-warning);
     }
 </style>
 {% endblock %}
