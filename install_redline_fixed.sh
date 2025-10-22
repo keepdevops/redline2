@@ -496,6 +496,36 @@ EOF
 install_docker_compose() {
     print_header "Installing Docker Compose Setup"
     
+    # Always install Python dependencies first
+    print_status "Installing Python dependencies..."
+    local platform=$(detect_platform)
+    case $platform in
+        Linux)
+            local distro=$(detect_linux_distro)
+            case $distro in
+                ubuntu|debian)
+                    print_status "Installing Python dependencies for Ubuntu/Debian"
+                    sudo apt update
+                    sudo apt install -y python3-distutils python3-setuptools python3-pip || true
+                    pip3 install setuptools || true
+                    ;;
+                centos|rhel|fedora)
+                    print_status "Installing Python dependencies for CentOS/RHEL/Fedora"
+                    sudo yum install -y python3-distutils python3-setuptools python3-pip || true
+                    pip3 install setuptools || true
+                    ;;
+                *)
+                    print_status "Installing Python dependencies via pip"
+                    pip3 install setuptools || true
+                    ;;
+            esac
+            ;;
+        macOS)
+            print_status "Installing Python dependencies for macOS"
+            pip3 install setuptools || true
+            ;;
+    esac
+    
     # Check if Docker Compose is installed, install if not
     if ! command_exists docker-compose; then
         print_warning "Docker Compose not found, installing..."
@@ -508,24 +538,21 @@ install_docker_compose() {
                 case $distro in
                     ubuntu|debian)
                         print_status "Installing Docker Compose for Ubuntu/Debian"
-                        sudo apt update && sudo apt install -y docker-compose || {
-                            print_warning "APT installation failed, trying standalone installation"
-                            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-                            sudo chmod +x /usr/local/bin/docker-compose
+                        sudo apt install -y docker-compose || {
+                            print_warning "APT installation failed, trying pip installation"
+                            pip3 install docker-compose
                         }
                         ;;
                     centos|rhel|fedora)
                         print_status "Installing Docker Compose for CentOS/RHEL/Fedora"
                         sudo yum install -y docker-compose || {
-                            print_warning "YUM installation failed, trying standalone installation"
-                            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-                            sudo chmod +x /usr/local/bin/docker-compose
+                            print_warning "YUM installation failed, trying pip installation"
+                            pip3 install docker-compose
                         }
                         ;;
                     *)
-                        print_status "Installing Docker Compose via standalone method"
-                        sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-                        sudo chmod +x /usr/local/bin/docker-compose
+                        print_status "Installing Docker Compose via pip"
+                        pip3 install docker-compose
                         ;;
                 esac
                 ;;
@@ -534,8 +561,8 @@ install_docker_compose() {
                 if command_exists brew; then
                     brew install docker-compose
                 else
-                    print_error "Homebrew not found. Please install Docker Compose manually."
-                    return 1
+                    print_warning "Homebrew not found, trying pip installation"
+                    pip3 install docker-compose
                 fi
                 ;;
             *)

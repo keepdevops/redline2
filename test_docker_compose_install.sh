@@ -1,57 +1,50 @@
 #!/bin/bash
 
-# Test script to verify Docker Compose installation
+# Test Docker Compose Installation Script
 
 echo "🧪 TESTING DOCKER COMPOSE INSTALLATION"
-echo "====================================="
+echo "======================================"
 echo ""
 
-# Check if Docker Compose is already installed
-if command -v docker-compose > /dev/null 2>&1; then
-    echo "✅ Docker Compose already installed: $(docker-compose --version)"
-else
-    echo "❌ Docker Compose not found, testing installation..."
+# Test Python dependencies
+echo "📋 Testing Python dependencies:"
+python3 -c "import distutils" 2>/dev/null && echo "✅ distutils available" || echo "❌ distutils missing"
+python3 -c "import setuptools" 2>/dev/null && echo "✅ setuptools available" || echo "❌ setuptools missing"
+
+echo ""
+
+# Test Docker Compose
+echo "🐳 Testing Docker Compose:"
+if command -v docker-compose >/dev/null 2>&1; then
+    echo "✅ Docker Compose installed: $(docker-compose --version)"
     
-    # Detect platform
-    local os=$(uname -s)
-    case $os in
-        Linux)
-            echo "Linux detected, checking distribution..."
-            if [ -f /etc/os-release ]; then
-                . /etc/os-release
-                echo "Distribution: $ID"
-                
-                case $ID in
-                    ubuntu|debian)
-                        echo "Testing Ubuntu/Debian installation..."
-                        echo "Command: sudo apt update && sudo apt install -y docker-compose"
-                        ;;
-                    centos|rhel|fedora)
-                        echo "Testing CentOS/RHEL/Fedora installation..."
-                        echo "Command: sudo yum install -y docker-compose"
-                        ;;
-                    *)
-                        echo "Testing standalone installation..."
-                        echo "Command: sudo curl -L \"https://github.com/docker/compose/releases/latest/download/docker-compose-\$(uname -s)-\$(uname -m)\" -o /usr/local/bin/docker-compose"
-                        ;;
-                esac
-            fi
-            ;;
-        Darwin)
-            echo "macOS detected"
-            echo "Command: brew install docker-compose"
-            ;;
-        *)
-            echo "Unknown platform: $os"
-            ;;
-    esac
+    # Test Docker Compose functionality
+    echo ""
+    echo "🔧 Testing Docker Compose functionality:"
+    timeout 10 docker-compose --help >/dev/null 2>&1 && echo "✅ Docker Compose responds" || echo "❌ Docker Compose not responding"
+    
+    # Test Docker Compose config
+    if [ -f "docker-compose.yml" ]; then
+        echo ""
+        echo "📝 Testing docker-compose.yml syntax:"
+        docker-compose config >/dev/null 2>&1 && echo "✅ docker-compose.yml syntax is valid" || echo "❌ docker-compose.yml has syntax errors"
+    else
+        echo "⚠️ docker-compose.yml not found"
+    fi
+else
+    echo "❌ Docker Compose not found"
 fi
 
 echo ""
-echo "📋 TO TEST OPTION 4:"
-echo "1. Run: ./install_redline_fixed.sh"
-echo "2. Choose option 4"
-echo "3. Installer will automatically install Docker Compose if needed"
-echo "4. Then create Docker Compose configuration"
+
+# Test Docker daemon
+echo "🔧 Testing Docker daemon:"
+if docker info >/dev/null 2>&1; then
+    echo "✅ Docker daemon running"
+else
+    echo "❌ Docker daemon not running"
+    echo "   Start with: sudo systemctl start docker"
+fi
+
 echo ""
-echo "✅ Docker Compose installation test completed"
+echo "🎯 If all tests pass, Docker Compose installation is working!"
