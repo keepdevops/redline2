@@ -270,8 +270,11 @@ install_webgui() {
         return 1
     fi
     
-    # Use the fixed Dockerfile
-    local dockerfile="Dockerfile.webgui.fixed"
+    # Use the simplified Dockerfile
+    local dockerfile="Dockerfile.webgui.simple"
+    if [ ! -f "$dockerfile" ]; then
+        dockerfile="Dockerfile.webgui.fixed"
+    fi
     if [ ! -f "$dockerfile" ]; then
         dockerfile="Dockerfile.webgui"
     fi

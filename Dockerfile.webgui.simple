@@ -1,6 +1,6 @@
-# REDLINE Web-Based GUI Dockerfile (Fixed)
+# REDLINE Web-Based GUI Dockerfile (Simplified)
 # Uses noVNC + TigerVNC for web-based GUI access without X11 forwarding
-# Fixed package names for different Linux distributions
+# Simplified installation with better error handling
 
 FROM ubuntu:22.04
 
@@ -55,41 +55,28 @@ RUN apt-get update && \
 # Install Tkinter via pip as fallback (always try this)
 RUN pip3 install tk || echo "Tkinter not available via pip"
 
-# Install noVNC with proper directory handling
+# Install websockify via pip (more reliable than manual installation)
+RUN pip3 install websockify || echo "websockify installation failed"
+
+# Install noVNC (simplified approach)
 RUN mkdir -p /opt/noVNC \
     && cd /opt/noVNC \
     && wget -qO- https://github.com/novnc/noVNC/archive/v1.3.0.tar.gz | tar xz --strip 1 \
     && echo "noVNC installed successfully"
-
-# Install websockify separately (it's now a separate package)
-RUN cd /opt/noVNC \
-    && wget -qO- https://github.com/novnc/websockify/archive/v0.10.0.tar.gz | tar xz --strip 1 -C utils/websockify \
-    && mkdir -p utils/websockify \
-    && cd utils/websockify \
-    && wget -qO- https://github.com/novnc/websockify/archive/v0.10.0.tar.gz | tar xz --strip 1 \
-    && echo "websockify installed successfully"
 
 # Create VNC password
 RUN mkdir -p ~/.vnc \
     && echo "redline123" | vncpasswd -f > ~/.vnc/passwd \
     && chmod 600 ~/.vnc/passwd
 
-# Create VNC startup script
+# Create VNC startup script (simplified)
 RUN echo '#!/bin/bash\n\
 # Start VNC server\n\
 vncserver :1 -geometry $VNC_RESOLUTION -depth $VNC_COL_DEPTH\n\
 \n\
-# Start noVNC\n\
+# Start noVNC using pip-installed websockify\n\
 cd /opt/noVNC\n\
-if [ -f "utils/websockify/websockify.py" ]; then\n\
-    python3 utils/websockify/websockify.py --web /opt/noVNC $NO_VNC_PORT localhost:$VNC_PORT\n\
-elif [ -f "utils/novnc/websockify.py" ]; then\n\
-    python3 utils/novnc/websockify.py --web /opt/noVNC $NO_VNC_PORT localhost:$VNC_PORT\n\
-else\n\
-    echo "websockify not found, trying alternative installation"\n\
-    pip3 install websockify\n\
-    websockify --web /opt/noVNC $NO_VNC_PORT localhost:$VNC_PORT\n\
-fi\n\
+websockify --web /opt/noVNC $NO_VNC_PORT localhost:$VNC_PORT\n\
 \n\
 # Keep container running\n\
 tail -f /dev/null' > /start-vnc.sh \
