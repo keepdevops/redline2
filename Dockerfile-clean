@@ -36,8 +36,8 @@ COPY data_config.ini .
 COPY redline/ ./redline/
 COPY web_app.py .
 
-# Create data directory
-RUN mkdir -p data
+# Create data directories
+RUN mkdir -p data data/downloaded
 
 # Create non-root user
 RUN useradd -m -s /bin/bash redline && \
