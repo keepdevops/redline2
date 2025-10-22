@@ -111,7 +111,11 @@ def download_data():
                 'columns': list(result.columns)
             })
         else:
-            return jsonify({'error': f'No data found for {ticker}'}), 404
+            # Check if it's a rate limiting issue
+            error_msg = f'No data found for {ticker}'
+            if source == 'yahoo':
+                error_msg += '. This might be due to rate limiting. Please try again in a few minutes.'
+            return jsonify({'error': error_msg}), 429  # Use 429 for rate limiting
             
     except Exception as e:
         logger.error(f"Error downloading data for {ticker}: {str(e)}")

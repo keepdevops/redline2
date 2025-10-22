@@ -24,9 +24,9 @@ class YahooDownloader(BaseDownloader):
         self.output_dir = output_dir
         self.logger = logging.getLogger(__name__)
         
-        # Rate limiting
+        # Rate limiting - increased delay to avoid rate limiting
         self.last_request_time = 0
-        self.min_request_interval = 2.0  # 2 seconds between requests
+        self.min_request_interval = 5.0  # 5 seconds between requests to avoid rate limiting
         self.rate_limit_lock = threading.Lock()
     
     def _rate_limit(self):
@@ -84,7 +84,13 @@ class YahooDownloader(BaseDownloader):
             return standardized_data
             
         except Exception as e:
-            self.logger.error(f"Error downloading {ticker} from Yahoo Finance: {str(e)}")
+            error_msg = str(e)
+            if "Too Many Requests" in error_msg or "rate limit" in error_msg.lower():
+                self.logger.warning(f"Rate limited for {ticker} from Yahoo Finance. Please wait before trying again.")
+                # Increase delay for next request
+                self.min_request_interval = min(self.min_request_interval * 1.5, 30.0)
+            else:
+                self.logger.error(f"Error downloading {ticker} from Yahoo Finance: {error_msg}")
             return pd.DataFrame()
     
     def standardize_yahoo_data(self, data: pd.DataFrame, ticker: str) -> pd.DataFrame:
