@@ -493,10 +493,11 @@ EOF
 }
 
 # Function to install Docker Compose setup
+# Function to install Docker Compose setup (Hybrid approach)
 install_docker_compose() {
-    print_header "Installing Docker Compose Setup"
+    print_header "Installing Docker Compose Setup (Hybrid Approach)"
     
-    # Always install Python dependencies first
+    # Install Python dependencies first (from working approach)
     print_status "Installing Python dependencies..."
     local platform=$(detect_platform)
     case $platform in
@@ -526,78 +527,51 @@ install_docker_compose() {
             ;;
     esac
     
-    # Check if Docker Compose is installed, install if not
-    if ! command_exists docker-compose; then
-        print_warning "Docker Compose not found, installing..."
-        
-        # Detect Linux distribution and install accordingly
-        local platform=$(detect_platform)
+    # Install Docker Compose using pip (most reliable method)
+    print_status "Installing Docker Compose via pip..."
+    pip3 install docker-compose || {
+        print_warning "Pip installation failed, trying system package manager..."
         case $platform in
             Linux)
-                local distro=$(detect_linux_distro)
                 case $distro in
                     ubuntu|debian)
-                        print_status "Installing Docker Compose for Ubuntu/Debian"
-                        sudo apt install -y docker-compose || {
-                            print_warning "APT installation failed, trying pip installation"
-                            pip3 install docker-compose
-                        }
+                        sudo apt install -y docker-compose || true
                         ;;
                     centos|rhel|fedora)
-                        print_status "Installing Docker Compose for CentOS/RHEL/Fedora"
-                        sudo yum install -y docker-compose || {
-                            print_warning "YUM installation failed, trying pip installation"
-                            pip3 install docker-compose
-                        }
-                        ;;
-                    *)
-                        print_status "Installing Docker Compose via pip"
-                        pip3 install docker-compose
+                        sudo yum install -y docker-compose || true
                         ;;
                 esac
                 ;;
-            macOS)
-                print_status "Installing Docker Compose for macOS"
-                if command_exists brew; then
-                    brew install docker-compose
-                else
-                    print_warning "Homebrew not found, trying pip installation"
-                    pip3 install docker-compose
-                fi
-                ;;
-            *)
-                print_error "Cannot install Docker Compose on this platform automatically"
-                print_status "Please install Docker Compose manually and run again"
-                return 1
-                ;;
         esac
-        
-        # Verify installation
-        if command_exists docker-compose; then
-            print_success "Docker Compose installed successfully: $(docker-compose --version)"
-        else
-            print_error "Docker Compose installation failed"
-            return 1
-        fi
+    }
+    
+    # Verify Docker Compose installation
+    if command_exists docker-compose; then
+        print_success "Docker Compose installed: $(docker-compose --version)"
     else
-        print_success "Docker Compose found: $(docker-compose --version)"
+        print_error "Docker Compose installation failed"
+        return 1
     fi
     
-    # Create Docker Compose files if they don't exist
+    # Use the working webgui installation approach (from Option 1)
+    print_status "Installing web-based GUI (using working Option 1 approach)..."
+    install_webgui
+    
+    # Create Docker Compose files using the working approach
+    print_status "Creating Docker Compose configuration..."
     if [ ! -f "docker-compose.yml" ]; then
-        print_status "Creating docker-compose.yml"
         cat > docker-compose.yml << 'EOF'
-# REDLINE Simple Docker Compose Configuration
-# Web App + Web GUI (noVNC + TigerVNC)
+# REDLINE Docker Compose Configuration (Hybrid Approach)
+# Combines working webgui with Docker Compose orchestration
 
 version: '3.8'
 
 services:
-  # REDLINE Web App + Web GUI
+  # REDLINE Web App + Web GUI (using working Option 1 approach)
   redline-webgui:
     build:
       context: .
-      dockerfile: Dockerfile.webgui.simple
+      dockerfile: Dockerfile.webgui.universal
     image: redline-webgui:latest
     container_name: redline-web-app
     restart: unless-stopped
@@ -652,12 +626,12 @@ networks:
 EOF
     fi
     
-    # Create startup script
+    # Create startup script using the working approach
     cat > start_compose.sh << 'EOF'
 #!/bin/bash
 
-# REDLINE Docker Compose Startup Script
-# Simple web app + web GUI setup
+# REDLINE Docker Compose Startup Script (Hybrid Approach)
+# Combines working webgui with Docker Compose orchestration
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -685,7 +659,7 @@ print_header() {
     echo -e "${BLUE}--- $1 ---${NC}"
 }
 
-print_header "STARTING REDLINE WITH DOCKER COMPOSE"
+print_header "STARTING REDLINE WITH DOCKER COMPOSE (HYBRID)"
 echo ""
 
 # Check if Docker Compose is available
@@ -709,7 +683,7 @@ if [ ! -f "docker-compose.yml" ]; then
     exit 1
 fi
 
-print_status "Starting REDLINE services..."
+print_status "Starting REDLINE services (using working webgui approach)..."
 
 # Start services
 docker-compose up -d
@@ -739,7 +713,7 @@ fi
 EOF
     chmod +x start_compose.sh
     
-    print_success "Docker Compose setup complete"
+    print_success "Docker Compose setup complete (Hybrid approach)"
     print_status "Run: ./start_compose.sh"
 }
 
