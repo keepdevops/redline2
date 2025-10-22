@@ -1,0 +1,565 @@
+{% extends "base.html" %}
+
+{% block title %}API Keys - REDLINE{% endblock %}
+
+{% block head %}
+<style>
+    .api-source-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        overflow: hidden;
+        transition: box-shadow 0.3s;
+    }
+    
+    .api-source-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .api-source-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        position: relative;
+    }
+    
+    .api-source-header h3 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+    
+    .api-source-header .website {
+        margin: 5px 0 0 0;
+        opacity: 0.9;
+        font-size: 0.9rem;
+    }
+    
+    .api-source-body {
+        padding: 20px;
+    }
+    
+    .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin: 15px 0;
+    }
+    
+    .feature-item {
+        background: #f8f9fa;
+        padding: 10px;
+        border-radius: 4px;
+        border-left: 3px solid #007bff;
+    }
+    
+    .pros-cons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin: 15px 0;
+    }
+    
+    .pros, .cons {
+        padding: 15px;
+        border-radius: 6px;
+    }
+    
+    .pros {
+        background: #d4edda;
+        border-left: 4px solid #28a745;
+    }
+    
+    .cons {
+        background: #f8d7da;
+        border-left: 4px solid #dc3545;
+    }
+    
+    .pros h6, .cons h6 {
+        margin: 0 0 10px 0;
+        font-weight: 600;
+    }
+    
+    .pros h6 {
+        color: #155724;
+    }
+    
+    .cons h6 {
+        color: #721c24;
+    }
+    
+    .pros ul, .cons ul {
+        margin: 0;
+        padding-left: 20px;
+    }
+    
+    .pros li, .cons li {
+        margin: 5px 0;
+        font-size: 0.9rem;
+    }
+    
+    .signup-steps {
+        background: #e3f2fd;
+        padding: 15px;
+        border-radius: 6px;
+        border-left: 4px solid #2196f3;
+        margin: 15px 0;
+    }
+    
+    .signup-steps h6 {
+        margin: 0 0 10px 0;
+        color: #1565c0;
+        font-weight: 600;
+    }
+    
+    .signup-steps ol {
+        margin: 0;
+        padding-left: 20px;
+    }
+    
+    .signup-steps li {
+        margin: 5px 0;
+        font-size: 0.9rem;
+    }
+    
+    .api-key-input {
+        margin: 15px 0;
+    }
+    
+    .api-key-input label {
+        font-weight: 600;
+        margin-bottom: 5px;
+        display: block;
+    }
+    
+    .api-key-input input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-family: monospace;
+    }
+    
+    .api-key-input input:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+        outline: 0;
+    }
+    
+    .test-button {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        margin-left: 10px;
+    }
+    
+    .test-button:hover {
+        background: #218838;
+    }
+    
+    .test-button:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+    }
+    
+    .save-button {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 20px 0;
+        width: 100%;
+    }
+    
+    .save-button:hover {
+        background: #0056b3;
+    }
+    
+    .save-button:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+    }
+    
+    .status-message {
+        padding: 10px;
+        border-radius: 4px;
+        margin: 10px 0;
+        font-weight: 500;
+    }
+    
+    .status-success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .status-error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    
+    .status-info {
+        background: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+    }
+    
+    .rate-limit-info {
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+        padding: 10px;
+        border-radius: 4px;
+        margin: 10px 0;
+    }
+    
+    .rate-limit-info h6 {
+        margin: 0 0 5px 0;
+        font-weight: 600;
+    }
+    
+    .rate-limit-info p {
+        margin: 0;
+        font-size: 0.9rem;
+    }
+    
+    .no-api-key {
+        background: #f8f9fa;
+        color: #6c757d;
+        padding: 15px;
+        border-radius: 6px;
+        text-align: center;
+        font-style: italic;
+    }
+    
+    .api-key-status {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-left: 10px;
+    }
+    
+    .status-valid {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .status-invalid {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .status-unknown {
+        background: #fff3cd;
+        color: #856404;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="mb-3">🔑 API Keys Management</h1>
+            <p class="lead">Get free API keys to access real financial data from professional sources. This will give you better data quality and higher rate limits than the default sources.</p>
+        </div>
+    </div>
+    
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <h5 class="alert-heading">💡 Why Get API Keys?</h5>
+                <ul class="mb-0">
+                    <li><strong>Better Data Quality:</strong> Professional APIs provide more reliable and accurate data</li>
+                    <li><strong>Higher Rate Limits:</strong> Avoid the rate limiting issues with free sources</li>
+                    <li><strong>Real-time Data:</strong> Get current market data instead of delayed quotes</li>
+                    <li><strong>More Features:</strong> Access to fundamentals, news, and technical indicators</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div id="apiSourcesContainer">
+        <div class="text-center p-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading API sources...</span>
+            </div>
+            <p class="mt-2">Loading API sources...</p>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-12">
+            <button id="saveAllKeysBtn" class="save-button" disabled>
+                💾 Save All API Keys
+            </button>
+            <div id="saveStatus"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+let apiKeys = {};
+let apiSources = {};
+
+// Load API sources on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadApiSources();
+    loadSavedKeys();
+});
+
+// Load API sources
+async function loadApiSources() {
+    try {
+        const response = await fetch('/api-keys/sources');
+        const data = await response.json();
+        
+        if (data.sources) {
+            apiSources = data.sources;
+            displayApiSources(data.sources);
+        } else {
+            showError('Failed to load API sources');
+        }
+    } catch (error) {
+        console.error('Error loading API sources:', error);
+        showError('Error loading API sources: ' + error.message);
+    }
+}
+
+// Display API sources
+function displayApiSources(sources) {
+    const container = document.getElementById('apiSourcesContainer');
+    let html = '';
+    
+    Object.entries(sources).forEach(([key, source]) => {
+        html += createSourceCard(key, source);
+    });
+    
+    container.innerHTML = html;
+}
+
+// Create source card HTML
+function createSourceCard(key, source) {
+    const hasApiKey = source.signup_url !== null;
+    const currentKey = apiKeys[key] || '';
+    
+    return `
+        <div class="api-source-card">
+            <div class="api-source-header">
+                <h3>${source.name}</h3>
+                <p class="website">${source.website}</p>
+            </div>
+            <div class="api-source-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h5>Features</h5>
+                        <div class="feature-grid">
+                            ${source.features.map(feature => `<div class="feature-item">${feature}</div>`).join('')}
+                        </div>
+                        
+                        <div class="pros-cons">
+                            <div class="pros">
+                                <h6>✅ Pros</h6>
+                                <ul>
+                                    ${source.pros.map(pro => `<li>${pro}</li>`).join('')}
+                                </ul>
+                            </div>
+                            <div class="cons">
+                                <h6>❌ Cons</h6>
+                                <ul>
+                                    ${source.cons.map(con => `<li>${con}</li>`).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="rate-limit-info">
+                            <h6>📊 Rate Limits</h6>
+                            <p><strong>Free Tier:</strong> ${source.free_tier}</p>
+                            <p><strong>Rate Limit:</strong> ${source.rate_limit}</p>
+                            ${source.daily_limit ? `<p><strong>Daily Limit:</strong> ${source.daily_limit}</p>` : ''}
+                        </div>
+                        
+                        ${hasApiKey ? `
+                            <div class="api-key-input">
+                                <label for="apiKey-${key}">API Key:</label>
+                                <input type="text" 
+                                       id="apiKey-${key}" 
+                                       value="${currentKey}"
+                                       placeholder="Enter your ${source.name} API key"
+                                       onchange="updateApiKey('${key}', this.value)">
+                                <button class="test-button" 
+                                        onclick="testApiKey('${key}')"
+                                        id="testBtn-${key}">
+                                    Test Key
+                                </button>
+                                <span id="status-${key}" class="api-key-status status-unknown">Not tested</span>
+                            </div>
+                        ` : `
+                            <div class="no-api-key">
+                                <p>No API key required</p>
+                                <p>Built into REDLINE</p>
+                            </div>
+                        `}
+                        
+                        ${hasApiKey ? `
+                            <div class="signup-steps">
+                                <h6>📝 How to Get API Key:</h6>
+                                <ol>
+                                    ${source.signup_steps.map(step => `<li>${step}</li>`).join('')}
+                                </ol>
+                                <a href="${source.signup_url}" target="_blank" class="btn btn-primary btn-sm">
+                                    Get Free API Key →
+                                </a>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Update API key
+function updateApiKey(source, key) {
+    apiKeys[source] = key;
+    updateSaveButton();
+}
+
+// Test API key
+async function testApiKey(source) {
+    const key = apiKeys[source];
+    if (!key) {
+        showError('Please enter an API key first');
+        return;
+    }
+    
+    const testBtn = document.getElementById(`testBtn-${source}`);
+    const statusSpan = document.getElementById(`status-${source}`);
+    
+    testBtn.disabled = true;
+    testBtn.textContent = 'Testing...';
+    statusSpan.textContent = 'Testing...';
+    statusSpan.className = 'api-key-status status-unknown';
+    
+    try {
+        const response = await fetch('/api-keys/test', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                source: source,
+                api_key: key
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.valid) {
+            statusSpan.textContent = 'Valid ✓';
+            statusSpan.className = 'api-key-status status-valid';
+            showSuccess(`${apiSources[source].name} API key is working!`);
+        } else {
+            statusSpan.textContent = 'Invalid ✗';
+            statusSpan.className = 'api-key-status status-invalid';
+            showError(`${apiSources[source].name} API key error: ${result.message}`);
+        }
+        
+    } catch (error) {
+        statusSpan.textContent = 'Error ✗';
+        statusSpan.className = 'api-key-status status-invalid';
+        showError(`Error testing ${apiSources[source].name} API key: ${error.message}`);
+    } finally {
+        testBtn.disabled = false;
+        testBtn.textContent = 'Test Key';
+    }
+}
+
+// Load saved keys
+async function loadSavedKeys() {
+    try {
+        const response = await fetch('/api-keys/load');
+        const data = await response.json();
+        
+        if (data.api_keys) {
+            apiKeys = data.api_keys;
+            updateSaveButton();
+        }
+    } catch (error) {
+        console.error('Error loading saved keys:', error);
+    }
+}
+
+// Save all keys
+async function saveAllKeys() {
+    const saveBtn = document.getElementById('saveAllKeysBtn');
+    const statusDiv = document.getElementById('saveStatus');
+    
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+    
+    try {
+        const response = await fetch('/api-keys/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                api_keys: apiKeys
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.message) {
+            showSuccess(result.message);
+        } else {
+            showError('Failed to save API keys');
+        }
+        
+    } catch (error) {
+        showError('Error saving API keys: ' + error.message);
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾 Save All API Keys';
+    }
+}
+
+// Update save button state
+function updateSaveButton() {
+    const saveBtn = document.getElementById('saveAllKeysBtn');
+    const hasKeys = Object.values(apiKeys).some(key => key && key.trim());
+    saveBtn.disabled = !hasKeys;
+}
+
+// Show success message
+function showSuccess(message) {
+    const statusDiv = document.getElementById('saveStatus');
+    statusDiv.innerHTML = `<div class="status-message status-success">${message}</div>`;
+    setTimeout(() => statusDiv.innerHTML = '', 5000);
+}
+
+// Show error message
+function showError(message) {
+    const statusDiv = document.getElementById('saveStatus');
+    statusDiv.innerHTML = `<div class="status-message status-error">${message}</div>`;
+    setTimeout(() => statusDiv.innerHTML = '', 5000);
+}
+
+// Event listeners
+document.getElementById('saveAllKeysBtn').addEventListener('click', saveAllKeys);
+</script>
+{% endblock %}
