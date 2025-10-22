@@ -67,7 +67,39 @@ def analyze_data():
         ext = os.path.splitext(data_path)[1].lower()
         format_type = EXT_TO_FORMAT.get(ext, 'csv')
         
-        df = converter.load_file_by_type(data_path, format_type)
+        # Use direct pandas loading for speed (same as data routes)
+        if format_type == 'csv':
+            df = pd.read_csv(data_path)
+        elif format_type == 'txt':
+            # Try different separators for TXT files
+            df = None
+            for sep in [',', '\t', ';', ' ', '|']:
+                try:
+                    test_df = pd.read_csv(data_path, sep=sep)
+                    # Check if we got multiple columns (good parsing)
+                    if len(test_df.columns) > 1:
+                        df = test_df
+                        break
+                except:
+                    continue
+            
+            if df is None:
+                # If all separators fail, try reading as fixed-width
+                df = pd.read_fwf(data_path)
+        elif format_type == 'parquet':
+            df = pd.read_parquet(data_path)
+        elif format_type == 'feather':
+            df = pd.read_feather(data_path)
+        elif format_type == 'json':
+            df = pd.read_json(data_path)
+        elif format_type == 'duckdb':
+            import duckdb
+            conn = duckdb.connect(data_path)
+            df = conn.execute("SELECT * FROM tickers_data").fetchdf()
+            conn.close()
+        else:
+            # Fallback to converter for unsupported formats
+            df = converter.load_file_by_type(data_path, format_type)
         
         if not isinstance(df, pd.DataFrame):
             return jsonify({'error': 'Invalid data format'}), 400
@@ -156,11 +188,12 @@ def perform_financial_analysis(df):
             'volatility_analysis': {}
         }
         
-        # Common financial column names
-        price_cols = [col for col in df.columns if any(price in col.lower() for price in ['close', 'price', 'adj close'])]
-        volume_cols = [col for col in df.columns if 'volume' in col.lower()]
-        high_cols = [col for col in df.columns if 'high' in col.lower()]
-        low_cols = [col for col in df.columns if 'low' in col.lower()]
+        # Common financial column names - enhanced detection
+        price_cols = [col for col in df.columns if any(price in col.lower() for price in ['close', 'price', 'adj close', 'px_last', '<close>', 'c'])]
+        volume_cols = [col for col in df.columns if any(vol in col.lower() for vol in ['volume', 'vol', '<vol>', 'px_volume', 'v'])]
+        high_cols = [col for col in df.columns if any(high in col.lower() for high in ['high', '<high>', 'px_high', 'h'])]
+        low_cols = [col for col in df.columns if any(low in col.lower() for low in ['low', '<low>', 'px_low', 'l'])]
+        open_cols = [col for col in df.columns if any(open in col.lower() for open in ['open', '<open>', 'px_open', 'o'])]
         
         if price_cols:
             price_col = price_cols[0]  # Use first price column

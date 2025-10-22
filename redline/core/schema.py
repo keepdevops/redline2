@@ -13,8 +13,8 @@ EXT_TO_FORMAT = {
     '.json': 'json',
     '.duckdb': 'duckdb',
     '.parquet': 'parquet',
-    '.feather': 'feather'
-    # Removed: '.txt': 'txt' - read-only (Stooq format)
+    '.feather': 'feather',
+    '.txt': 'txt'
     # Removed: '.h5': 'keras' - not implemented
 }
 

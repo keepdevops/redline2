@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+<!-- Stooq Data Downloader Template -->
+
+{% block title %}Stooq Data Downloader - REDLINE{% endblock %}
+
+{% block page_title %}Stooq Data Downloader{% endblock %}
+{% block page_subtitle %}Download financial data from Stooq and convert to CSV format{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        <!-- Download Form -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-download me-2"></i>Download Data
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="downloadForm">
+                    <div class="mb-3">
+                        <label for="symbol" class="form-label">Symbol</label>
+                        <input type="text" id="symbol" class="form-control" placeholder="e.g., AAPL, MSFT, BTC" required>
+                        <div class="form-text">Enter stock symbol or ticker</div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="startDate" class="form-label">Start Date</label>
+                            <input type="date" id="startDate" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="endDate" class="form-label">End Date</label>
+                            <input type="date" id="endDate" class="form-control">
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary" id="downloadBtn">
+                            <i class="fas fa-download me-2"></i>Download Data
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="setDefaultDates()">
+                            <i class="fas fa-calendar me-2"></i>Last 30 Days
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Available Symbols -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list me-2"></i>Available Symbols
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="symbolsList">
+                    <div class="text-center p-3">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <!-- Download Status -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Download Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="downloadStatus">
+                    <div class="text-center p-4 text-muted">
+                        <i class="fas fa-cloud-download-alt fa-3x mb-3"></i>
+                        <p>Enter a symbol and click download to start</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Downloads -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-history me-2"></i>Recent Downloads
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="recentDownloads">
+                    <div class="text-center p-3 text-muted">
+                        <i class="fas fa-file-csv fa-2x mb-2"></i>
+                        <p>No recent downloads</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let recentDownloads = [];
+
+$(document).ready(function() {
+    console.log('Stooq Downloader loaded');
+    loadAvailableSymbols();
+    setDefaultDates();
+    
+    $('#downloadForm').on('submit', function(e) {
+        e.preventDefault();
+        downloadData();
+    });
+});
+
+function loadAvailableSymbols() {
+    $.ajax({
+        url: '/data/stooq/symbols',
+        method: 'GET',
+        dataType: 'json',
+        success: function(response) {
+            console.log('Symbols loaded:', response);
+            displaySymbols(response);
+        },
+        error: function(xhr, status, error) {
+            console.error('Error loading symbols:', error);
+            $('#symbolsList').html('<div class="text-center p-3 text-danger">Error loading symbols</div>');
+        }
+    });
+}
+
+function displaySymbols(symbols) {
+    const symbolsList = $('#symbolsList');
+    symbolsList.empty();
+    
+    Object.entries(symbols).forEach(([market, marketSymbols]) => {
+        const marketHtml = $(`
+            <div class="mb-3">
+                <h6 class="text-primary">${market}</h6>
+                <div class="d-flex flex-wrap gap-1">
+                    ${marketSymbols.map(symbol => 
+                        `<span class="badge bg-secondary symbol-badge" onclick="selectSymbol('${symbol}')" style="cursor: pointer;">${symbol}</span>`
+                    ).join('')}
+                </div>
+            </div>
+        `);
+        symbolsList.append(marketHtml);
+    });
+}
+
+function selectSymbol(symbol) {
+    $('#symbol').val(symbol);
+}
+
+function setDefaultDates() {
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+    
+    $('#endDate').val(today.toISOString().split('T')[0]);
+    $('#startDate').val(thirtyDaysAgo.toISOString().split('T')[0]);
+}
+
+function downloadData() {
+    const symbol = $('#symbol').val().toUpperCase();
+    const startDate = $('#startDate').val();
+    const endDate = $('#endDate').val();
+    
+    if (!symbol) {
+        alert('Please enter a symbol');
+        return;
+    }
+    
+    // Show loading
+    $('#downloadBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Downloading...');
+    $('#downloadStatus').html('<div class="text-center p-4"><div class="spinner-border" role="status"><span class="visually-hidden">Downloading...</span></div><p class="mt-2">Downloading data for ' + symbol + '...</p></div>');
+    
+    // Convert dates to YYYYMMDD format
+    const startDateFormatted = startDate.replace(/-/g, '');
+    const endDateFormatted = endDate.replace(/-/g, '');
+    
+    $.ajax({
+        url: '/data/stooq/download',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            symbol: symbol,
+            start_date: startDateFormatted,
+            end_date: endDateFormatted
+        }),
+        dataType: 'json',
+        success: function(response) {
+            console.log('Download successful:', response);
+            showDownloadSuccess(response);
+            addToRecentDownloads(response);
+        },
+        error: function(xhr, status, error) {
+            console.error('Download failed:', error);
+            showDownloadError(xhr.responseJSON?.error || error);
+        },
+        complete: function() {
+            $('#downloadBtn').prop('disabled', false).html('<i class="fas fa-download me-2"></i>Download Data');
+        }
+    });
+}
+
+function showDownloadSuccess(response) {
+    const statusHtml = `
+        <div class="alert alert-success">
+            <h6><i class="fas fa-check-circle me-2"></i>Download Successful!</h6>
+            <p><strong>Symbol:</strong> ${response.message.split(' ')[4]}</p>
+            <p><strong>File:</strong> ${response.filename}</p>
+            <p><strong>Rows:</strong> ${response.rows.toLocaleString()}</p>
+            <p><strong>Columns:</strong> ${response.columns.join(', ')}</p>
+            <div class="mt-2">
+                <button class="btn btn-sm btn-outline-primary" onclick="viewFile('${response.file_path}')">
+                    <i class="fas fa-eye me-1"></i>View File
+                </button>
+                <button class="btn btn-sm btn-outline-success" onclick="downloadFile('${response.file_path}')">
+                    <i class="fas fa-download me-1"></i>Download CSV
+                </button>
+            </div>
+        </div>
+    `;
+    $('#downloadStatus').html(statusHtml);
+}
+
+function showDownloadError(error) {
+    const statusHtml = `
+        <div class="alert alert-danger">
+            <h6><i class="fas fa-exclamation-triangle me-2"></i>Download Failed</h6>
+            <p>${error}</p>
+        </div>
+    `;
+    $('#downloadStatus').html(statusHtml);
+}
+
+function addToRecentDownloads(response) {
+    recentDownloads.unshift({
+        symbol: response.message.split(' ')[4],
+        filename: response.filename,
+        rows: response.rows,
+        timestamp: new Date().toLocaleString()
+    });
+    
+    // Keep only last 5 downloads
+    recentDownloads = recentDownloads.slice(0, 5);
+    
+    displayRecentDownloads();
+}
+
+function displayRecentDownloads() {
+    const recentDiv = $('#recentDownloads');
+    
+    if (recentDownloads.length === 0) {
+        recentDiv.html('<div class="text-center p-3 text-muted"><i class="fas fa-file-csv fa-2x mb-2"></i><p>No recent downloads</p></div>');
+        return;
+    }
+    
+    const downloadsHtml = recentDownloads.map(download => `
+        <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
+            <div>
+                <strong>${download.symbol}</strong><br>
+                <small class="text-muted">${download.rows} rows • ${download.timestamp}</small>
+            </div>
+            <div>
+                <button class="btn btn-sm btn-outline-primary" onclick="viewRecentFile('${download.filename}')">
+                    <i class="fas fa-eye"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+    
+    recentDiv.html(downloadsHtml);
+}
+
+function viewFile(filePath) {
+    // Open file browser to view the downloaded file
+    window.open('/data/browser?path=' + encodeURIComponent(filePath), '_blank');
+}
+
+function downloadFile(filePath) {
+    // Download the CSV file
+    window.open('/data/download/' + encodeURIComponent(filePath), '_blank');
+}
+
+function viewRecentFile(filename) {
+    // Open file browser to view recent file
+    const filePath = '/Users/caribou/redline/data/stooq/' + filename;
+    window.open('/data/browser?path=' + encodeURIComponent(filePath), '_blank');
+}
+</script>
+{% endblock %}

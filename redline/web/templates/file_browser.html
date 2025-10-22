@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+<!-- File Browser Template - Browse and load files from anywhere on the system -->
+
+{% block title %}File Browser - REDLINE{% endblock %}
+
+{% block page_title %}File Browser{% endblock %}
+{% block page_subtitle %}Browse and load files from anywhere on your system{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <!-- File Browser Panel -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-folder-open me-2"></i>File Browser
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- Current Path -->
+                <div class="mb-3">
+                    <label class="form-label">Current Path:</label>
+                    <div class="input-group">
+                        <input type="text" id="currentPath" class="form-control" readonly>
+                        <button class="btn btn-outline-secondary" onclick="goToHome()">
+                            <i class="fas fa-home"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- File List -->
+                <div id="fileList" class="list-group" style="max-height: 400px; overflow-y: auto;">
+                    <div class="text-center p-3">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- File Upload -->
+                <div class="mt-3">
+                    <label class="form-label">Upload File:</label>
+                    <input type="file" id="fileUpload" class="form-control" accept=".csv,.json,.parquet,.feather,.duckdb">
+                    <button class="btn btn-primary mt-2" onclick="uploadFile()">
+                        <i class="fas fa-upload me-2"></i>Upload
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <!-- Data Preview Panel -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-table me-2"></i>Data Preview
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="dataPreview">
+                    <div class="text-center p-4 text-muted">
+                        <i class="fas fa-file-alt fa-3x mb-3"></i>
+                        <p>Select a data file to preview</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- File Info Panel -->
+        <div class="card mt-3" id="fileInfoPanel" style="display: none;">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>File Information
+                </h5>
+            </div>
+            <div class="card-body" id="fileInfo">
+                <!-- File info will be populated here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentPath = '';
+
+$(document).ready(function() {
+    console.log('File Browser loaded');
+    loadDirectory(os.path.expanduser('~'));
+});
+
+function loadDirectory(path) {
+    console.log('Loading directory:', path);
+    
+    $.ajax({
+        url: '/data/browse',
+        method: 'GET',
+        data: { path: path },
+        dataType: 'json',
+        success: function(response) {
+            console.log('Directory loaded:', response);
+            currentPath = response.path;
+            $('#currentPath').val(currentPath);
+            displayFiles(response.items);
+        },
+        error: function(xhr, status, error) {
+            console.error('Error loading directory:', error);
+            $('#fileList').html('<div class="text-center p-3 text-danger">Error loading directory</div>');
+        }
+    });
+}
+
+function displayFiles(items) {
+    const fileList = $('#fileList');
+    fileList.empty();
+    
+    if (items.length === 0) {
+        fileList.html('<div class="text-center p-3 text-muted">No files found</div>');
+        return;
+    }
+    
+    items.forEach(item => {
+        const itemHtml = $(`
+            <div class="list-group-item list-group-item-action" onclick="handleItemClick('${item.path}', '${item.type}')">
+                <div class="d-flex w-100 justify-content-between align-items-center">
+                    <div>
+                        <i class="fas fa-${item.type === 'directory' ? 'folder' : 'file'} me-2"></i>
+                        <strong>${item.name}</strong>
+                    </div>
+                    <div class="text-end">
+                        ${item.type === 'file' ? formatFileSize(item.size) : ''}
+                    </div>
+                </div>
+                ${item.type === 'file' ? `<small class="text-muted">${formatDate(item.modified)}</small>` : ''}
+            </div>
+        `);
+        fileList.append(itemHtml);
+    });
+}
+
+function handleItemClick(path, type) {
+    if (type === 'directory') {
+        loadDirectory(path);
+    } else {
+        loadFileData(path);
+    }
+}
+
+function loadFileData(filePath) {
+    console.log('Loading file data:', filePath);
+    
+    // Show loading
+    $('#dataPreview').html('<div class="text-center p-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>');
+    
+    $.ajax({
+        url: '/data/load-from-path',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ file_path: filePath }),
+        dataType: 'json',
+        success: function(response) {
+            console.log('File data loaded:', response);
+            displayFileData(response);
+            showFileInfo(response);
+        },
+        error: function(xhr, status, error) {
+            console.error('Error loading file data:', error);
+            $('#dataPreview').html('<div class="text-center p-4 text-danger">Error loading file data</div>');
+        }
+    });
+}
+
+function displayFileData(data) {
+    const preview = $('#dataPreview');
+    
+    if (!data.data || data.data.length === 0) {
+        preview.html('<div class="text-center p-4 text-muted">No data to display</div>');
+        return;
+    }
+    
+    // Create table
+    let tableHtml = '<div class="table-responsive"><table class="table table-striped table-hover"><thead class="table-dark"><tr>';
+    
+    // Add headers
+    data.columns.forEach(column => {
+        tableHtml += `<th>${column}</th>`;
+    });
+    tableHtml += '</tr></thead><tbody>';
+    
+    // Add data rows (limit to first 50 rows for preview)
+    const maxRows = Math.min(data.data.length, 50);
+    for (let i = 0; i < maxRows; i++) {
+        tableHtml += '<tr>';
+        data.columns.forEach(column => {
+            const value = data.data[i][column];
+            tableHtml += `<td>${value !== null && value !== undefined ? value : ''}</td>`;
+        });
+        tableHtml += '</tr>';
+    }
+    
+    tableHtml += '</tbody></table></div>';
+    
+    if (data.data.length > 50) {
+        tableHtml += `<div class="text-center p-2"><small class="text-muted">Showing first 50 of ${data.total_rows} rows</small></div>`;
+    }
+    
+    preview.html(tableHtml);
+}
+
+function showFileInfo(data) {
+    const infoPanel = $('#fileInfoPanel');
+    const infoContent = $('#fileInfo');
+    
+    const infoHtml = `
+        <div class="row">
+            <div class="col-md-6">
+                <strong>File:</strong> ${data.filename}<br>
+                <strong>Total Rows:</strong> ${data.total_rows.toLocaleString()}<br>
+                <strong>Columns:</strong> ${data.columns.length}
+            </div>
+            <div class="col-md-6">
+                <strong>Data Types:</strong><br>
+                ${Object.entries(data.dtypes).map(([col, dtype]) => `${col}: ${dtype}`).join('<br>')}
+            </div>
+        </div>
+    `;
+    
+    infoContent.html(infoHtml);
+    infoPanel.show();
+}
+
+function uploadFile() {
+    const fileInput = document.getElementById('fileUpload');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('Please select a file to upload');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    $.ajax({
+        url: '/data/upload',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            console.log('File uploaded:', response);
+            alert('File uploaded successfully!');
+            loadDirectory(currentPath); // Refresh current directory
+        },
+        error: function(xhr, status, error) {
+            console.error('Error uploading file:', error);
+            alert('Error uploading file: ' + error);
+        }
+    });
+}
+
+function goToHome() {
+    loadDirectory(os.path.expanduser('~'));
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function formatDate(timestamp) {
+    return new Date(timestamp * 1000).toLocaleDateString();
+}
+
+// Add os object for path expansion
+const os = {
+    path: {
+        expanduser: function(path) {
+            if (path.startsWith('~')) {
+                return path.replace('~', '/Users/' + (window.location.hostname || 'caribou'));
+            }
+            return path;
+        }
+    }
+};
+</script>
+{% endblock %}
