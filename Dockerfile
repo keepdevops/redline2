@@ -98,15 +98,15 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 RUN python3 --version && python --version
 
 # Upgrade pip and install essential tools for Python 3.11
-RUN python3.11 -m pip install --upgrade pip setuptools wheel importlib-metadata
+RUN python3.11 -m pip install --upgrade pip && \
+    python3.11 -m pip install --upgrade setuptools wheel
 
 # Copy requirements first for better caching
 COPY requirements.txt /opt/redline/
 
 # Install Python dependencies using Python 3.11
 # Install yfinance separately first (it has complex dependencies)
-RUN python3 -m pip install --upgrade pip setuptools wheel && \
-    python3 -m pip install yfinance --no-cache-dir && \
+RUN python3 -m pip install yfinance --no-cache-dir && \
     python3 -m pip install -r requirements.txt --no-cache-dir
 
 # Copy application code

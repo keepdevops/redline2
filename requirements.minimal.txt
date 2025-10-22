@@ -1,0 +1,23 @@
+# Minimal requirements for REDLINE Docker build
+# Core dependencies only
+
+# Data processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Financial data
+yfinance>=0.2.0
+
+# Web framework
+flask>=2.3.0
+flask-socketio>=5.3.0
+
+# Network
+requests>=2.31.0
+
+# Configuration
+configparser>=5.3.0
+
+# Optional but useful
+pyarrow>=10.0.0
+duckdb>=0.8.0
