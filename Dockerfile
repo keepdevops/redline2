@@ -38,6 +38,12 @@ RUN apt-get update && apt-get install -y \
     g++ \
     make \
     cmake \
+    # yfinance dependencies
+    libffi-dev \
+    libssl-dev \
+    libxml2-dev \
+    libxslt1-dev \
+    zlib1g-dev \
     # System utilities
     curl \
     wget \
@@ -89,7 +95,10 @@ RUN python3.11 -m pip install --upgrade pip setuptools wheel importlib-metadata
 COPY requirements.txt /opt/redline/
 
 # Install Python dependencies using Python 3.11
-RUN python3.11 -m pip install -r requirements.txt
+# Install yfinance separately first (it has complex dependencies)
+RUN python3.11 -m pip install --upgrade pip setuptools wheel && \
+    python3.11 -m pip install yfinance --no-cache-dir && \
+    python3.11 -m pip install -r requirements.txt --no-cache-dir
 
 # Copy application code
 COPY . /opt/redline/
