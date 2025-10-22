@@ -5,7 +5,13 @@ Handles asynchronous task processing and monitoring
 
 from flask import Blueprint, request, jsonify
 import logging
-from ...background.task_manager import task_manager
+
+try:
+    from ...background.task_manager import task_manager
+    TASK_MANAGER_AVAILABLE = True
+except ImportError:
+    task_manager = None
+    TASK_MANAGER_AVAILABLE = False
 
 tasks_bp = Blueprint('tasks', __name__)
 logger = logging.getLogger(__name__)
@@ -13,6 +19,9 @@ logger = logging.getLogger(__name__)
 @tasks_bp.route('/submit', methods=['POST'])
 def submit_task():
     """Submit a background task."""
+    if not TASK_MANAGER_AVAILABLE:
+        return jsonify({'error': 'Background task processing not available'}), 503
+    
     try:
         data = request.get_json()
         task_name = data.get('task_name')
