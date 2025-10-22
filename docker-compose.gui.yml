@@ -1,0 +1,103 @@
+# REDLINE Tkinter GUI Docker Compose Configuration
+# Multi-platform support for AMD64 and ARM64 architectures
+
+version: '3.8'
+
+services:
+  # REDLINE Tkinter GUI Application
+  redline-gui:
+    build:
+      context: .
+      dockerfile: Dockerfile.gui
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    image: redline-gui:latest
+    container_name: redline-gui-container
+    hostname: redline-gui
+    restart: unless-stopped
+    
+    # Environment variables
+    environment:
+      # Display settings
+      - DISPLAY=${DISPLAY:-:0}
+      - XAUTHORITY=/tmp/.X11-unix/X0
+      
+      # Application settings
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      
+      # GUI settings
+      - MPLBACKEND=TkAgg
+      - QT_QPA_PLATFORM=xcb
+      
+      # Timezone
+      - TZ=${TZ:-UTC}
+    
+    # Volumes
+    volumes:
+      # Application data
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./config:/app/config
+      
+      # X11 forwarding (Linux/macOS)
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTHORITY:-$HOME/.Xauthority}:/tmp/.X11-unix/X0:rw
+      
+      # Temporary files
+      - redline-gui-temp:/tmp/redline
+    
+    # Network mode for X11 forwarding
+    network_mode: host
+    
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    
+    # User
+    user: "1000:1000"
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "/app/test_gui.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # X11 Virtual Display Server (for headless environments)
+  xvfb:
+    image: ubuntu:22.04
+    container_name: redline-xvfb
+    restart: unless-stopped
+    command: >
+      bash -c "
+        apt-get update &&
+        apt-get install -y xvfb x11-apps &&
+        Xvfb :0 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset &
+        sleep 2 &&
+        echo 'X11 Virtual Display Server started' &&
+        tail -f /dev/null
+      "
+    environment:
+      - DISPLAY=:0
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    network_mode: host
+    depends_on:
+      - redline-gui
+
+volumes:
+  redline-gui-temp:
+    driver: local

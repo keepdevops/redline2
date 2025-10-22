@@ -27,17 +27,17 @@
                     <div class="row">
                         <div class="col-md-6">
                             <h6><i class="fas fa-download text-primary me-2"></i>1. Download Data</h6>
-                            <p class="text-muted">Use the Download tab to fetch financial data from Yahoo Finance or Stooq.</p>
+                            <p class="text-muted">Use the Download tab to fetch financial data from Yahoo Finance, Stooq, Alpha Vantage, or Finnhub.</p>
                             
                             <h6><i class="fas fa-eye text-success me-2"></i>2. View Data</h6>
-                            <p class="text-muted">Navigate to the Data tab to view and filter your downloaded datasets.</p>
+                            <p class="text-muted">Navigate to the Data tab to view, filter, and browse datasets with virtual scrolling for large files.</p>
                         </div>
                         <div class="col-md-6">
                             <h6><i class="fas fa-exchange-alt text-info me-2"></i>3. Convert Formats</h6>
-                            <p class="text-muted">Use the Converter tab to convert between different data formats.</p>
+                            <p class="text-muted">Use the Converter tab to convert between CSV, Parquet, Feather, JSON, DuckDB, and TXT formats.</p>
                             
                             <h6><i class="fas fa-chart-bar text-warning me-2"></i>4. Analyze Data</h6>
-                            <p class="text-muted">Perform analysis and generate insights in the Analysis tab.</p>
+                            <p class="text-muted">Perform comprehensive analysis including financial, statistical, correlation, trend, volume, and price analysis.</p>
                         </div>
                     </div>
                 </div>
@@ -76,10 +76,11 @@
                             <div class="feature-item mb-3">
                                 <h6><i class="fas fa-database text-primary me-2"></i>Data Management</h6>
                                 <ul class="list-unstyled text-muted">
-                                    <li>• Download from multiple sources</li>
-                                    <li>• Support for various formats</li>
+                                    <li>• Download from Yahoo Finance, Stooq, Alpha Vantage, Finnhub</li>
+                                    <li>• Support for CSV, Parquet, Feather, JSON, DuckDB, TXT</li>
                                     <li>• Virtual scrolling for large datasets</li>
-                                    <li>• Advanced filtering capabilities</li>
+                                    <li>• File system browser and upload</li>
+                                    <li>• Enhanced financial field detection</li>
                                 </ul>
                             </div>
                         </div>
@@ -87,14 +88,26 @@
                             <div class="feature-item mb-3">
                                 <h6><i class="fas fa-chart-line text-success me-2"></i>Analysis Tools</h6>
                                 <ul class="list-unstyled text-muted">
+                                    <li>• Financial analysis (OHLCV)</li>
                                     <li>• Statistical analysis</li>
-                                    <li>• Financial calculations</li>
-                                    <li>• Interactive charts</li>
-                                    <li>• Export capabilities</li>
+                                    <li>• Correlation analysis</li>
+                                    <li>• Trend and volume analysis</li>
+                                    <li>• Price movement analysis</li>
                                 </ul>
                             </div>
                         </div>
                         <div class="col-md-4">
+                            <div class="feature-item mb-3">
+                                <h6><i class="fas fa-palette text-info me-2"></i>User Experience</h6>
+                                <ul class="list-unstyled text-muted">
+                                    <li>• 8 different themes</li>
+                                    <li>• Live color customization</li>
+                                    <li>• Responsive design</li>
+                                    <li>• Real-time updates</li>
+                                    <li>• Background task processing</li>
+                                </ul>
+                            </div>
+                        </div>
                             <div class="feature-item mb-3">
                                 <h6><i class="fas fa-cogs text-info me-2"></i>Format Support</h6>
                                 <ul class="list-unstyled text-muted">
@@ -128,16 +141,20 @@
                                 <code>GET /api/files</code> - List available files<br>
                                 <code>GET /api/data/&lt;filename&gt;</code> - Get data preview<br>
                                 <code>POST /api/upload</code> - Upload file<br>
-                                <code>DELETE /api/files/&lt;filename&gt;</code> - Delete file
+                                <code>POST /data/load-from-path</code> - Load from file path<br>
+                                <code>GET /data/browse</code> - Browse file system<br>
+                                <code>POST /data/stooq/download</code> - Download Stooq data
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <h6>System Operations</h6>
+                            <h6>Analysis & System</h6>
                             <div class="code-block mb-3">
+                                <code>POST /analysis/analyze</code> - Run analysis<br>
+                                <code>POST /converter/convert</code> - Convert format<br>
                                 <code>GET /api/status</code> - System status<br>
-                                <code>GET /api/health</code> - Health check<br>
                                 <code>GET /api/themes</code> - Available themes<br>
-                                <code>POST /api/theme</code> - Set theme
+                                <code>POST /api/theme</code> - Set theme<br>
+                                <code>GET /api/health</code> - Health check
                             </div>
                         </div>
                     </div>
@@ -228,19 +245,19 @@
                         <div class="col-md-4">
                             <h6>Documentation</h6>
                             <ul class="list-unstyled">
-                                <li><a href="#" class="text-decoration-none">User Guide</a></li>
-                                <li><a href="#" class="text-decoration-none">API Reference</a></li>
-                                <li><a href="#" class="text-decoration-none">Theme System Guide</a></li>
-                                <li><a href="#" class="text-decoration-none">Accessibility Guide</a></li>
+                                <li><a href="REDLINE_COMPREHENSIVE_DOCUMENTATION.md" class="text-decoration-none">Comprehensive Guide</a></li>
+                                <li><a href="REDLINE_API_REFERENCE.md" class="text-decoration-none">API Reference</a></li>
+                                <li><a href="REDLINE_INSTALLATION_GUIDE.md" class="text-decoration-none">Installation Guide</a></li>
+                                <li><a href="REDLINE_USER_GUIDE.md" class="text-decoration-none">User Guide</a></li>
                             </ul>
                         </div>
                         <div class="col-md-4">
-                            <h6>Resources</h6>
+                            <h6>Features</h6>
                             <ul class="list-unstyled">
-                                <li><a href="#" class="text-decoration-none">Sample Data</a></li>
-                                <li><a href="#" class="text-decoration-none">Tutorial Videos</a></li>
-                                <li><a href="#" class="text-decoration-none">Best Practices</a></li>
-                                <li><a href="#" class="text-decoration-none">FAQ</a></li>
+                                <li><a href="/data/browser" class="text-decoration-none">File Browser</a></li>
+                                <li><a href="/data/stooq" class="text-decoration-none">Stooq Downloader</a></li>
+                                <li><a href="/settings" class="text-decoration-none">Theme Customization</a></li>
+                                <li><a href="/analysis" class="text-decoration-none">Analysis Tools</a></li>
                             </ul>
                         </div>
                         <div class="col-md-4">
