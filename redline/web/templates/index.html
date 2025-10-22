@@ -36,10 +36,10 @@
     <div class="col-md-3">
         <div class="card feature-card">
             <div class="card-body text-center">
-                <i class="fas fa-eye feature-icon" style="color: #059669;"></i>
+                <i class="fas fa-eye feature-icon text-success"></i>
                 <h5 class="card-title">View & Filter</h5>
                 <p class="card-text">View and filter large datasets with advanced filtering capabilities and virtual scrolling.</p>
-                <a href="{{ url_for('data.data_tab') }}" class="btn" style="background-color: #059669; color: white;">
+                <a href="{{ url_for('data.data_tab') }}" class="btn btn-success">
                     <i class="fas fa-eye me-2"></i>View Data
                 </a>
             </div>
@@ -49,10 +49,10 @@
     <div class="col-md-3">
         <div class="card feature-card">
             <div class="card-body text-center">
-                <i class="fas fa-chart-bar feature-icon" style="color: #d97706;"></i>
+                <i class="fas fa-chart-bar feature-icon text-warning"></i>
                 <h5 class="card-title">Analyze Data</h5>
                 <p class="card-text">Perform statistical analysis, financial calculations, and generate insights.</p>
-                <a href="{{ url_for('analysis.analysis_tab') }}" class="btn" style="background-color: #d97706; color: white;">
+                <a href="{{ url_for('analysis.analysis_tab') }}" class="btn btn-warning">
                     <i class="fas fa-chart-bar me-2"></i>Analyze Data
                 </a>
             </div>
@@ -62,10 +62,10 @@
     <div class="col-md-3">
         <div class="card feature-card">
             <div class="card-body text-center">
-                <i class="fas fa-exchange-alt feature-icon" style="color: #0891b2;"></i>
+                <i class="fas fa-exchange-alt feature-icon text-info"></i>
                 <h5 class="card-title">Convert Formats</h5>
                 <p class="card-text">Convert between different data formats including CSV, JSON, Parquet, and more.</p>
-                <a href="{{ url_for('converter.converter_tab') }}" class="btn" style="background-color: #0891b2; color: white;">
+                <a href="{{ url_for('converter.converter_tab') }}" class="btn btn-info">
                     <i class="fas fa-exchange-alt me-2"></i>Convert Data
                 </a>
             </div>
@@ -234,7 +234,7 @@
 }
 
 .card-header {
-    background-color: #f8f9fa;
+    background-color: var(--light-color, #f8f9fa);
     border-bottom: 1px solid #dee2e6;
 }
 </style>

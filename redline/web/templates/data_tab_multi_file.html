@@ -5,7 +5,7 @@
 {% block head %}
 <style>
     .file-selector {
-        background-color: #f8f9fa;
+        background-color: var(--light-color, #f8f9fa);
         border: 1px solid #dee2e6;
         border-radius: 8px;
         padding: 20px;
@@ -53,12 +53,12 @@
     }
     
     .file-item:hover {
-        background-color: #f8f9fa;
+        background-color: var(--light-color, #f8f9fa);
     }
     
     .file-item.selected {
-        background-color: #e3f2fd;
-        border-left: 4px solid #2196f3;
+        background-color: var(--info-color);
+        border-left: 4px solid var(--info-color);
     }
     
     .file-item input[type="checkbox"] {
@@ -78,7 +78,7 @@
     
     .file-name {
         font-weight: 500;
-        color: #333;
+        color: var(--text-primary, #333);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -88,7 +88,7 @@
     }
     
     .file-size {
-        color: #666;
+        color: var(--text-muted, #666);
         font-size: 12px;
         white-space: nowrap;
         overflow: hidden;
@@ -123,12 +123,12 @@
     
     .dataset-title {
         font-weight: 600;
-        color: #333;
+        color: var(--text-primary, #333);
         margin: 0;
     }
     
     .dataset-info {
-        color: #666;
+        color: var(--text-muted, #666);
         font-size: 14px;
         margin: 0;
     }
@@ -168,7 +168,7 @@
     .no-data-message {
         text-align: center;
         padding: 40px;
-        color: #666;
+        color: var(--text-muted, #666);
         font-style: italic;
     }
     
