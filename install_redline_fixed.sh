@@ -496,10 +496,64 @@ EOF
 install_docker_compose() {
     print_header "Installing Docker Compose Setup"
     
+    # Check if Docker Compose is installed, install if not
     if ! command_exists docker-compose; then
-        print_error "Docker Compose not found"
-        print_status "Please install Docker Compose and run again"
-        return 1
+        print_warning "Docker Compose not found, installing..."
+        
+        # Detect Linux distribution and install accordingly
+        local platform=$(detect_platform)
+        case $platform in
+            Linux)
+                local distro=$(detect_linux_distro)
+                case $distro in
+                    ubuntu|debian)
+                        print_status "Installing Docker Compose for Ubuntu/Debian"
+                        sudo apt update && sudo apt install -y docker-compose || {
+                            print_warning "APT installation failed, trying standalone installation"
+                            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+                            sudo chmod +x /usr/local/bin/docker-compose
+                        }
+                        ;;
+                    centos|rhel|fedora)
+                        print_status "Installing Docker Compose for CentOS/RHEL/Fedora"
+                        sudo yum install -y docker-compose || {
+                            print_warning "YUM installation failed, trying standalone installation"
+                            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+                            sudo chmod +x /usr/local/bin/docker-compose
+                        }
+                        ;;
+                    *)
+                        print_status "Installing Docker Compose via standalone method"
+                        sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+                        sudo chmod +x /usr/local/bin/docker-compose
+                        ;;
+                esac
+                ;;
+            macOS)
+                print_status "Installing Docker Compose for macOS"
+                if command_exists brew; then
+                    brew install docker-compose
+                else
+                    print_error "Homebrew not found. Please install Docker Compose manually."
+                    return 1
+                fi
+                ;;
+            *)
+                print_error "Cannot install Docker Compose on this platform automatically"
+                print_status "Please install Docker Compose manually and run again"
+                return 1
+                ;;
+        esac
+        
+        # Verify installation
+        if command_exists docker-compose; then
+            print_success "Docker Compose installed successfully: $(docker-compose --version)"
+        else
+            print_error "Docker Compose installation failed"
+            return 1
+        fi
+    else
+        print_success "Docker Compose found: $(docker-compose --version)"
     fi
     
     # Create Docker Compose files if they don't exist
