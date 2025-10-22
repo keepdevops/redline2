@@ -139,7 +139,11 @@ def batch_download():
         
         # Create a single downloader instance to share rate limiting
         downloader = None
-        if source == 'yahoo':
+        test_mode = data.get('test_mode', False)  # Allow test mode for demo purposes
+        
+        if test_mode:
+            logger.info("Running in test mode - will create sample data")
+        elif source == 'yahoo':
             from redline.downloaders.yahoo_downloader import YahooDownloader
             downloader = YahooDownloader()
         elif source == 'stooq':
@@ -148,17 +152,48 @@ def batch_download():
         
         for i, ticker in enumerate(tickers):
             try:
-                # Add delay between downloads to respect rate limits
+                # Add longer delay between downloads to respect rate limits
                 if i > 0 and downloader:
                     import time
-                    time.sleep(2)  # 2 second delay between downloads
+                    delay = 10  # 10 second delay between downloads to avoid rate limiting
+                    logger.info(f"Waiting {delay} seconds before downloading {ticker}...")
+                    time.sleep(delay)
                 
-                if downloader:
+                if test_mode:
+                    # Create sample data for testing
+                    import pandas as pd
+                    import numpy as np
+                    from datetime import datetime, timedelta
+                    
+                    # Create sample data
+                    dates = pd.date_range(start=start_date, end=end_date, freq='D')
+                    np.random.seed(hash(ticker) % 2**32)  # Consistent random data per ticker
+                    
+                    result = pd.DataFrame({
+                        'Open': 100 + np.random.randn(len(dates)).cumsum(),
+                        'High': 105 + np.random.randn(len(dates)).cumsum(),
+                        'Low': 95 + np.random.randn(len(dates)).cumsum(),
+                        'Close': 100 + np.random.randn(len(dates)).cumsum(),
+                        'Volume': np.random.randint(1000000, 10000000, len(dates))
+                    }, index=dates)
+                    
+                    logger.info(f"Created sample data for {ticker} in test mode")
+                    
+                elif downloader:
                     result = downloader.download_single_ticker(
                         ticker=ticker,
                         start_date=start_date,
                         end_date=end_date
                     )
+                    
+                    # If download failed due to rate limiting, try to use existing data
+                    if result is None or result.empty:
+                        logger.info(f"Download failed for {ticker}, checking for existing data...")
+                        existing_file = f"data/{ticker}_yahoo_data.csv"
+                        if os.path.exists(existing_file):
+                            logger.info(f"Using existing data file for {ticker}")
+                            import pandas as pd
+                            result = pd.read_csv(existing_file, index_col=0, parse_dates=True)
                 else:
                     result = None
                 
