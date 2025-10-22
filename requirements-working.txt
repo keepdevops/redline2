@@ -1,50 +1,61 @@
-# REDLINE Web GUI - Python 3.9 Compatible Requirements
-# Conservative versions that work with Python 3.9
+# REDLINE Web GUI - Python 3.11 Compatible Requirements
+# Same versions as main requirements.txt for full feature parity
 
-# Web Framework (Flask GUI) - Python 3.9 compatible versions
-Flask==2.3.3
-Flask-Compress==1.13
-Flask-SocketIO==5.3.6
-gunicorn==21.2.0
+# Core Data Processing - Python 3.11 compatible versions
+pandas>=2.3.3
+numpy>=2.3.4
+yfinance>=0.2.66
 
-# Core Data Processing - Python 3.9 compatible versions
-pandas==2.0.3
-numpy==1.24.3
+# Data Processing and Storage - Python 3.11 compatible versions
+pyarrow>=21.0.0
+polars>=1.34.0
+duckdb>=1.4.1
 
-# Financial Data Download - Python 3.9 compatible version
-yfinance==0.2.18
-
-# Data Storage - Python 3.9 compatible version
-duckdb==0.8.1
-
-# Network and HTTP - Python 3.9 compatible versions
-requests==2.31.0
-urllib3==2.0.7
-
-# Configuration and File I/O - Python 3.9 compatible versions
-configparser==5.3.0
-werkzeug==2.3.7
-
-# Data Processing Extensions - Python 3.9 compatible version
-pyarrow==12.0.1
-
-# Essential Utilities
-setuptools==68.2.2
-wheel==0.41.2
+# Web Framework (Flask GUI) - Python 3.11 compatible versions
+flask>=3.1.2
+flask-socketio>=5.5.1
+flask-compress>=1.20
+gunicorn>=23.0.0
 
 # Background Task Processing
-celery==5.5.3
-redis==6.4.0
+celery>=5.5.3
+redis>=6.4.0
+
+# Network and HTTP - Python 3.11 compatible versions
+requests>=2.31.0
+urllib3>=2.0.0
+
+# Configuration and Logging
+configparser>=5.3.0
 
 # Cryptography and SSL support (CRITICAL - fixes _cffi_backend error)
-cryptography==41.0.7
-cffi==1.16.0
-pycparser==2.21
+cryptography>=41.0.7
+cffi>=2.0.0
+pycparser>=2.22
 
-# Additional dependencies that might be needed
-python-socketio==5.3.6
-pandas-datareader==0.10.0
+# Additional dependencies
+python-socketio>=5.5.1
+pandas-datareader>=0.10.0
+feather-format>=0.4.1
 
-# Optional but recommended for enhanced functionality (Python 3.9 compatible)
-polars==0.20.31
-feather-format==0.4.1
+# Essential Utilities
+setuptools>=65.0.0
+wheel>=0.40.0
+
+# Optional Dependencies for Enhanced Features
+scikit-learn>=1.3.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Development Dependencies (optional)
+pytest>=7.0.0
+black>=23.0.0
+flake8>=6.0.0
+
+# File I/O and Utilities
+openpyxl>=3.1.0  # For Excel support (future)
+xlsxwriter>=3.1.0  # For Excel writing (future)
+
+# Multi-Platform Dependencies
+importlib-metadata>=6.0.0  # For Flask version detection
+platformdirs>=4.0.0  # For cross-platform directory handling

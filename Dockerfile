@@ -8,7 +8,7 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PIP_NO_CACHE_DIR=1
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
-ENV PYTHON_VERSION=3.11
+ENV PYTHON_VERSION=3.11.14
 ENV PLATFORM=multi-arch
 
 # Set working directory
@@ -16,10 +16,11 @@ WORKDIR /opt/redline
 
 # Install system dependencies and modern Ubuntu features
 RUN apt-get update && apt-get install -y \
-    # Multi-platform Python support (3.11+ or 3.12)
-    python3 \
-    python3-dev \
-    python3-venv \
+    # Python 3.11 support (explicit version for HP compatibility)
+    python3.11 \
+    python3.11-dev \
+    python3.11-venv \
+    python3.11-distutils \
     python3-pip \
     python3-setuptools \
     python3-wheel \
@@ -69,18 +70,18 @@ RUN apt-get update && apt-get install -y \
 # Create non-root user for security
 RUN groupadd -r redline && useradd -r -g redline -d /opt/redline -s /bin/bash redline
 
-# Set up Python virtual environment (multi-platform)
-RUN python3 -m venv /opt/redline/venv
+# Set up Python 3.11 virtual environment
+RUN python3.11 -m venv /opt/redline/venv
 ENV PATH="/opt/redline/venv/bin:$PATH"
 
-# Upgrade pip and install essential tools for multi-platform compatibility
-RUN pip3 install --upgrade pip setuptools wheel importlib-metadata
+# Upgrade pip and install essential tools for Python 3.11
+RUN python3.11 -m pip install --upgrade pip setuptools wheel importlib-metadata
 
 # Copy requirements first for better caching
 COPY requirements.txt /opt/redline/
 
-# Install Python dependencies
-RUN pip3 install -r requirements.txt
+# Install Python dependencies using Python 3.11
+RUN python3.11 -m pip install -r requirements.txt
 
 # Copy application code
 COPY . /opt/redline/
