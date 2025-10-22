@@ -114,34 +114,52 @@ install_system_deps() {
             case $distro in
                 ubuntu|debian)
                     print_status "Installing dependencies for Ubuntu/Debian"
-                    sudo apt-get update
-                    sudo apt-get install -y python3 python3-pip python3-tk python3-dev \
-                        libgl1-mesa-glx libglib2.0-0 libxext6 libxrender1 libxtst6 libxi6
+                    sudo apt-get update || true
+                    sudo apt-get install -y python3 python3-pip python3-dev \
+                        libgl1-mesa-glx libglib2.0-0 libxext6 libxrender1 libxtst6 libxi6 || true
+                    # Try different Tkinter package names
+                    sudo apt-get install -y python3-tk || \
+                    sudo apt-get install -y python-tk || \
+                    sudo apt-get install -y tkinter || \
+                    print_warning "Tkinter package not found via apt, will try pip"
                     ;;
                 centos|rhel|fedora)
                     print_status "Installing dependencies for CentOS/RHEL/Fedora"
-                    sudo yum install -y python3 python3-pip tkinter python3-devel \
-                        mesa-libGL glib2 libXext libXrender libXtst libXi
+                    sudo yum install -y python3 python3-pip python3-devel \
+                        mesa-libGL glib2 libXext libXrender libXtst libXi || true
+                    # Try different Tkinter package names
+                    sudo yum install -y tkinter || \
+                    sudo yum install -y python3-tk || \
+                    sudo yum install -y python-tk || \
+                    print_warning "Tkinter package not found via yum, will try pip"
                     ;;
                 arch|manjaro)
                     print_status "Installing dependencies for Arch/Manjaro"
-                    sudo pacman -S --noconfirm python python-pip python-tkinter \
-                        mesa-libgl glib2 libxext libxrender libxtst libxi
+                    sudo pacman -S --noconfirm python python-pip \
+                        mesa-libgl glib2 libxext libxrender libxtst libxi || true
+                    # Try different Tkinter package names
+                    sudo pacman -S --noconfirm python-tkinter || \
+                    sudo pacman -S --noconfirm python-tk || \
+                    sudo pacman -S --noconfirm tkinter || \
+                    print_warning "Tkinter package not found via pacman, will try pip"
                     ;;
                 *)
                     print_warning "Unknown Linux distribution: $distro"
                     print_status "Attempting to install common packages"
-                    sudo apt-get update && sudo apt-get install -y python3 python3-pip python3-tk python3-dev || \
-                    sudo yum install -y python3 python3-pip tkinter python3-devel || \
-                    sudo pacman -S --noconfirm python python-pip python-tkinter || \
-                    print_error "Could not install system dependencies"
+                    # Try apt first
+                    sudo apt-get update && sudo apt-get install -y python3 python3-pip python3-tk python3-dev || true
+                    # Try yum if apt fails
+                    sudo yum install -y python3 python3-pip tkinter python3-devel || true
+                    # Try pacman if yum fails
+                    sudo pacman -S --noconfirm python python-pip python-tkinter || true
+                    print_warning "Some packages may not have installed correctly"
                     ;;
             esac
             ;;
         macOS)
             print_status "Installing dependencies for macOS"
             if command_exists brew; then
-                brew install python3
+                brew install python3 || true
                 # Tkinter is included with Python on macOS
             else
                 print_warning "Homebrew not found. Please install Python3 manually."
@@ -151,6 +169,10 @@ install_system_deps() {
             print_warning "Windows detected. Please install Python3 manually."
             ;;
     esac
+    
+    # Always try to install Tkinter via pip as fallback
+    print_status "Installing Tkinter via pip as fallback"
+    pip3 install tk || print_warning "Could not install Tkinter via pip"
 }
 
 # Function to check dependencies
