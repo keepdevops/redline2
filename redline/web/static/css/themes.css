@@ -30,7 +30,9 @@
     --text-info: #0891b2;
     --text-link: #2563eb;
     --text-link-hover: #1d4ed8;
-}
+    
+    /* Border Color Variables */
+    --border-color: #dee2e6;
 
 /* High Contrast Theme */
 .theme-high-contrast {
@@ -62,7 +64,9 @@
     --text-info: #0080ff;
     --text-link: #0000ff;
     --text-link-hover: #0000cc;
-}
+    
+    /* Border Color Variables */
+    --border-color: #c0c0c0;
 
 /* Ocean Theme */
 .theme-ocean {
@@ -94,7 +98,9 @@
     --text-info: #0891b2;
     --text-link: #0369a1;
     --text-link-hover: #075985;
-}
+    
+    /* Border Color Variables */
+    --border-color: #cbd5e1;
 
 /* Forest Theme */
 .theme-forest {
@@ -126,7 +132,9 @@
     --text-info: #0891b2;
     --text-link: #166534;
     --text-link-hover: #15803d;
-}
+    
+    /* Border Color Variables */
+    --border-color: #d1d5db;
 
 /* Sunset Theme */
 .theme-sunset {
@@ -158,7 +166,9 @@
     --text-info: #0891b2;
     --text-link: #ea580c;
     --text-link-hover: #c2410c;
-}
+    
+    /* Border Color Variables */
+    --border-color: #fed7aa;
 
 /* Monochrome Theme */
 .theme-monochrome {
@@ -190,7 +200,9 @@
     --text-info: #0891b2;
     --text-link: #374151;
     --text-link-hover: #1f2937;
-}
+    
+    /* Border Color Variables */
+    --border-color: #d1d5db;
 
 /* Dark Theme */
 .theme-dark {
@@ -222,7 +234,9 @@
     --text-info: #06b6d4;
     --text-link: #3b82f6;
     --text-link-hover: #2563eb;
-}
+    
+    /* Border Color Variables */
+    --border-color: #374151;
 
 /* Grayscale Theme */
 .theme-grayscale {
@@ -254,7 +268,9 @@
     --text-info: #3182ce;
     --text-link: #4a5568;
     --text-link-hover: #2d3748;
-}
+    
+    /* Border Color Variables */
+    --border-color: #e2e8f0;
 
 /* Apply theme to body - Use CSS variables for consistency */
 body.theme-default { 

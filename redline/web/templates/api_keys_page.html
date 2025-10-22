@@ -5,7 +5,7 @@
 {% block head %}
 <style>
     .api-source-card {
-        border: 1px solid #dee2e6;
+        border: 1px solid var(--border-color, #dee2e6);
         border-radius: 8px;
         margin-bottom: 20px;
         overflow: hidden;
@@ -135,14 +135,14 @@
     .api-key-input input {
         width: 100%;
         padding: 10px;
-        border: 1px solid #ced4da;
+        border: 1px solid var(--border-color, #ced4da);
         border-radius: 4px;
         font-family: monospace;
     }
     
     .api-key-input input:focus {
-        border-color: #007bff;
-        box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.2rem var(--primary-color);
         outline: 0;
     }
     

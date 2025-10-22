@@ -6,7 +6,7 @@
 <style>
     .file-selector {
         background-color: var(--light-color, #f8f9fa);
-        border: 1px solid #dee2e6;
+        border: 1px solid var(--border-color, #dee2e6);
         border-radius: 8px;
         padding: 20px;
         margin-bottom: 20px;
@@ -15,9 +15,9 @@
     .file-list {
         max-height: 300px;
         overflow-y: auto;
-        border: 1px solid #dee2e6;
+        border: 1px solid var(--border-color, #dee2e6);
         border-radius: 4px;
-        background: white;
+        background: var(--light-color);
         position: relative;
         z-index: 2;
     }
@@ -42,7 +42,7 @@
     
     .file-item {
         padding: 10px 15px;
-        border-bottom: 1px solid #eee;
+        border-bottom: 1px solid var(--border-color, #eee);
         cursor: pointer;
         display: flex;
         align-items: center;
@@ -98,8 +98,8 @@
     }
     
     .data-display-area {
-        background: white;
-        border: 1px solid #dee2e6;
+        background: var(--light-color);
+        border: 1px solid var(--border-color, #dee2e6);
         border-radius: 8px;
         padding: 20px;
         min-height: 500px;
@@ -107,7 +107,7 @@
     
     .dataset-container {
         margin-bottom: 30px;
-        border: 1px solid #dee2e6;
+        border: 1px solid var(--border-color, #dee2e6);
         border-radius: 8px;
         overflow: hidden;
     }
