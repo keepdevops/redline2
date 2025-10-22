@@ -86,8 +86,14 @@ def download_data():
         
         if result is not None and not result.empty:
             # Save the downloaded data
+            import os
             filename = f"{ticker}_{source}_{start_date}_to_{end_date}.csv"
-            filepath = f"data/downloaded/{filename}"
+            downloaded_dir = "data/downloaded"
+            
+            # Ensure downloaded directory exists
+            os.makedirs(downloaded_dir, exist_ok=True)
+            
+            filepath = os.path.join(downloaded_dir, filename)
             
             result.to_csv(filepath, index=True)
             
@@ -151,7 +157,12 @@ def batch_download():
                 
                 if result is not None and not result.empty:
                     filename = f"{ticker}_{source}_{start_date}_to_{end_date}.csv"
-                    filepath = f"data/downloaded/{filename}"
+                    downloaded_dir = "data/downloaded"
+                    
+                    # Ensure downloaded directory exists
+                    os.makedirs(downloaded_dir, exist_ok=True)
+                    
+                    filepath = os.path.join(downloaded_dir, filename)
                     result.to_csv(filepath, index=True)
                     
                     results.append({
