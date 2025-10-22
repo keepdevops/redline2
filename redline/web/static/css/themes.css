@@ -256,58 +256,168 @@
     --text-link-hover: #2d3748;
 }
 
-/* Apply theme to body - Ensure proper contrast */
+/* Apply theme to body - Use CSS variables for consistency */
 body.theme-default { 
     color-scheme: light; 
-    background-color: #ffffff !important;
-    color: #000000 !important;
+    background-color: var(--light-color);
+    color: var(--text-primary);
 }
+
 body.theme-high-contrast { 
     color-scheme: light; 
-    background-color: #ffffff !important;
-    color: #000000 !important;
+    background-color: var(--light-color);
+    color: var(--text-primary);
 }
+
 body.theme-ocean { 
     color-scheme: light; 
-    background-color: #ffffff !important;
-    color: #000000 !important;
+    background-color: var(--light-color);
+    color: var(--text-primary);
 }
+
 body.theme-forest { 
     color-scheme: light; 
-    background-color: #ffffff !important;
-    color: #000000 !important;
+    background-color: var(--light-color);
+    color: var(--text-primary);
 }
+
 body.theme-sunset { 
     color-scheme: light; 
-    background-color: #ffffff !important;
-    color: #000000 !important;
+    background-color: var(--light-color);
+    color: var(--text-primary);
 }
+
 body.theme-monochrome { 
     color-scheme: light; 
-    background-color: #ffffff !important;
-    color: #000000 !important;
+    background-color: var(--light-color);
+    color: var(--text-primary);
 }
+
 body.theme-grayscale { 
     color-scheme: light; 
-    background-color: #ffffff !important;
-    color: #000000 !important;
+    background-color: var(--light-color);
+    color: var(--text-primary);
 }
+
 body.theme-dark { 
     color-scheme: dark; 
-    background-color: #111827 !important;
-    color: #f9fafb !important;
+    background-color: var(--light-color);
+    color: var(--text-primary);
+}
+
+/* Theme-specific widget overrides for all themes */
+.theme-default .card,
+.theme-high-contrast .card,
+.theme-ocean .card,
+.theme-forest .card,
+.theme-sunset .card,
+.theme-monochrome .card,
+.theme-grayscale .card {
+    background-color: var(--light-color);
+    color: var(--text-primary);
+}
+
+.theme-default .table,
+.theme-high-contrast .table,
+.theme-ocean .table,
+.theme-forest .table,
+.theme-sunset .table,
+.theme-monochrome .table,
+.theme-grayscale .table {
+    background-color: var(--light-color);
+    color: var(--text-primary);
+}
+
+.theme-default .form-control,
+.theme-high-contrast .form-control,
+.theme-ocean .form-control,
+.theme-forest .form-control,
+.theme-sunset .form-control,
+.theme-monochrome .form-control,
+.theme-grayscale .form-control {
+    background-color: var(--light-color);
+    border-color: #ced4da;
+    color: var(--text-primary);
+}
+
+.theme-default .form-control:focus,
+.theme-high-contrast .form-control:focus,
+.theme-ocean .form-control:focus,
+.theme-forest .form-control:focus,
+.theme-sunset .form-control:focus,
+.theme-monochrome .form-control:focus,
+.theme-grayscale .form-control:focus {
+    background-color: var(--light-color);
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
+}
+
+.theme-default .navbar,
+.theme-high-contrast .navbar,
+.theme-ocean .navbar,
+.theme-forest .navbar,
+.theme-sunset .navbar,
+.theme-monochrome .navbar,
+.theme-grayscale .navbar {
+    background-color: var(--light-color);
+    color: var(--text-primary);
+}
+
+.theme-default .sidebar,
+.theme-high-contrast .sidebar,
+.theme-ocean .sidebar,
+.theme-forest .sidebar,
+.theme-sunset .sidebar,
+.theme-monochrome .sidebar,
+.theme-grayscale .sidebar {
+    background-color: var(--light-color);
+    color: var(--text-primary);
+}
+
+.theme-default .data-table-container,
+.theme-high-contrast .data-table-container,
+.theme-ocean .data-table-container,
+.theme-forest .data-table-container,
+.theme-sunset .data-table-container,
+.theme-monochrome .data-table-container,
+.theme-grayscale .data-table-container {
+    background-color: var(--light-color);
+    color: var(--text-primary);
+}
+
+.theme-default .filter-section,
+.theme-high-contrast .filter-section,
+.theme-ocean .filter-section,
+.theme-forest .filter-section,
+.theme-sunset .filter-section,
+.theme-monochrome .filter-section,
+.theme-grayscale .filter-section {
+    background-color: var(--light-color);
+    color: var(--text-primary);
+}
+
+.theme-default .chart-container,
+.theme-high-contrast .chart-container,
+.theme-ocean .chart-container,
+.theme-forest .chart-container,
+.theme-sunset .chart-container,
+.theme-monochrome .chart-container,
+.theme-grayscale .chart-container {
+    background-color: var(--light-color);
+    color: var(--text-primary);
 }
 
 /* Dark theme specific overrides */
 .theme-dark .navbar {
-    background-color: #1f2937 !important;
+    background-color: var(--light-color) !important;
     border-bottom: 1px solid #374151;
 }
 
 .theme-dark .card {
-    background-color: #1f2937 !important;
+    background-color: var(--light-color) !important;
     border: 1px solid #374151;
-    color: #f9fafb !important;
+    color: var(--text-primary) !important;
 }
 
 .theme-dark .welcome-section {
@@ -319,14 +429,14 @@ body.theme-dark {
 }
 
 .theme-dark .data-table-container {
-    background-color: #1f2937 !important;
+    background-color: var(--light-color) !important;
     border: 1px solid #374151;
 }
 
 .theme-dark .form-control {
     background-color: #374151 !important;
     border-color: #4b5563 !important;
-    color: #f9fafb !important;
+    color: var(--text-primary) !important;
 }
 
 .theme-dark .form-control:focus {
@@ -336,7 +446,7 @@ body.theme-dark {
 }
 
 .theme-dark .table {
-    color: #f9fafb !important;
+    color: var(--text-primary) !important;
 }
 
 .theme-dark .table-striped > tbody > tr:nth-of-type(odd) > td {

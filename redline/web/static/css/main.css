@@ -18,33 +18,35 @@
     --teal-color: #0d9488;
     --lime-color: #65a30d;
     --rose-color: #e11d48;
+    
+    /* Default text color variables */
+    --text-primary: #000000;
+    --text-secondary: #333333;
+    --text-muted: #666666;
+    --text-light: #999999;
+    --text-dark: #000000;
+    --text-white: #ffffff;
+    --text-success: #059669;
+    --text-warning: #d97706;
+    --text-danger: #dc2626;
+    --text-info: #0891b2;
+    --text-link: #2563eb;
+    --text-link-hover: #1d4ed8;
 }
 
 /* Global Styles */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #ffffff !important;
-    color: #000000 !important;
+    background-color: var(--light-color, #ffffff);
+    color: var(--text-primary, #000000);
     margin: 0;
     padding: 0;
 }
 
-/* Force proper contrast for all themes except dark */
-body:not(.theme-dark) {
-    background-color: #ffffff !important;
-    color: #000000 !important;
-}
-
-body:not(.theme-dark) * {
-    color: #000000 !important;
-}
-
-body:not(.theme-dark) .text-muted {
-    color: #666666 !important;
-}
-
-body:not(.theme-dark) .text-secondary {
-    color: #333333 !important;
+/* Default theme styling - will be overridden by specific theme classes */
+body:not([class*="theme-"]) {
+    background-color: var(--light-color, #ffffff);
+    color: var(--text-primary, #000000);
 }
 
 /* Navigation */
@@ -60,7 +62,7 @@ body:not(.theme-dark) .text-secondary {
 
 /* Sidebar */
 .sidebar {
-    background-color: #ffffff;
+    background-color: var(--light-color, #ffffff);
     border-right: 1px solid #dee2e6;
     min-height: calc(100vh - var(--header-height));
     padding: 0;
@@ -76,7 +78,7 @@ body:not(.theme-dark) .text-secondary {
 }
 
 .sidebar-title {
-    color: var(--dark-color);
+    color: var(--text-primary, var(--dark-color));
     font-weight: 600;
     margin-bottom: 1rem;
     font-size: 0.875rem;
@@ -113,13 +115,13 @@ body:not(.theme-dark) .text-secondary {
 }
 
 .content-title {
-    color: var(--dark-color);
+    color: var(--text-primary, var(--dark-color));
     font-weight: 700;
     margin-bottom: 0.5rem;
 }
 
 .content-subtitle {
-    color: var(--secondary-color);
+    color: var(--text-secondary, var(--secondary-color));
     font-size: 1.1rem;
 }
 
@@ -137,7 +139,7 @@ body:not(.theme-dark) .text-secondary {
 }
 
 .card-header {
-    background-color: #ffffff;
+    background-color: var(--light-color, #ffffff);
     border-bottom: 1px solid #e9ecef;
     border-radius: 12px 12px 0 0 !important;
     padding: 1.25rem 1.5rem;
@@ -166,23 +168,24 @@ body:not(.theme-dark) .text-secondary {
 }
 
 .btn-primary:hover {
-    background-color: #0056b3;
-    border-color: #0056b3;
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    opacity: 0.9;
 }
 
 /* Tables */
 .table {
-    background-color: #ffffff;
+    background-color: var(--light-color, #ffffff);
     border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .table thead th {
-    background-color: var(--light-color);
+    background-color: var(--light-color, #f8fafc);
     border-bottom: 2px solid #dee2e6;
     font-weight: 600;
-    color: var(--dark-color);
+    color: var(--text-primary, var(--dark-color));
     padding: 1rem;
 }
 
@@ -193,7 +196,7 @@ body:not(.theme-dark) .text-secondary {
 }
 
 .table tbody tr:hover {
-    background-color: #f8f9fa;
+    background-color: var(--light-color, #f8f9fa);
 }
 
 /* Forms */
@@ -217,7 +220,7 @@ body:not(.theme-dark) .text-secondary {
 
 .form-label {
     font-weight: 600;
-    color: var(--dark-color);
+    color: var(--text-primary, var(--dark-color));
     margin-bottom: 0.5rem;
 }
 
@@ -244,7 +247,7 @@ body:not(.theme-dark) .text-secondary {
 }
 
 .loading-text {
-    color: var(--dark-color);
+    color: var(--text-primary, var(--dark-color));
     font-weight: 500;
 }
 
@@ -255,12 +258,12 @@ body:not(.theme-dark) .text-secondary {
 }
 
 .toast-header {
-    background-color: #ffffff;
+    background-color: var(--light-color, #ffffff);
     border-bottom: 1px solid #e9ecef;
 }
 
 .toast-body {
-    background-color: #ffffff;
+    background-color: var(--light-color, #ffffff);
 }
 
 /* Progress Bars */
@@ -309,7 +312,7 @@ body:not(.theme-dark) .text-secondary {
 
 /* Data Tables */
 .data-table-container {
-    background-color: #ffffff;
+    background-color: var(--light-color, #ffffff);
     border-radius: 12px;
     padding: 1.5rem;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -327,7 +330,7 @@ body:not(.theme-dark) .text-secondary {
 
 .data-table-title {
     font-weight: 600;
-    color: var(--dark-color);
+    color: var(--text-primary, var(--dark-color));
     margin: 0;
 }
 
@@ -339,7 +342,7 @@ body:not(.theme-dark) .text-secondary {
 
 /* Filters */
 .filter-section {
-    background-color: #ffffff;
+    background-color: var(--light-color, #ffffff);
     border-radius: 12px;
     padding: 1.5rem;
     margin-bottom: 2rem;
@@ -361,7 +364,7 @@ body:not(.theme-dark) .text-secondary {
 
 /* Charts */
 .chart-container {
-    background-color: #ffffff;
+    background-color: var(--light-color, #ffffff);
     border-radius: 12px;
     padding: 1.5rem;
     margin-bottom: 2rem;
@@ -370,7 +373,7 @@ body:not(.theme-dark) .text-secondary {
 
 .chart-title {
     font-weight: 600;
-    color: var(--dark-color);
+    color: var(--text-primary, var(--dark-color));
     margin-bottom: 1rem;
 }
 
@@ -655,6 +658,35 @@ body:not(.theme-dark) .text-secondary {
 .text-info-custom { color: var(--text-info) !important; }
 .text-link-custom { color: var(--text-link) !important; }
 .text-link-custom:hover { color: var(--text-link-hover) !important; }
+
+/* Text color consistency */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text-primary, var(--dark-color));
+}
+
+p, span, div {
+    color: var(--text-primary, #000000);
+}
+
+.text-muted {
+    color: var(--text-muted, #666666) !important;
+}
+
+.text-secondary {
+    color: var(--text-secondary, #333333) !important;
+}
+
+.text-light {
+    color: var(--text-light, #999999) !important;
+}
+
+.text-dark {
+    color: var(--text-dark, #000000) !important;
+}
+
+.text-white {
+    color: var(--text-white, #ffffff) !important;
+}
 
 /* Utility Classes */
 .text-truncate {

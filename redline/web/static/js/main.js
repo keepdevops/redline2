@@ -490,6 +490,34 @@ const themeSystem = {
         
         // Trigger theme change event
         $(document).trigger('themeChanged', [theme]);
+        
+        // Force widget color updates
+        this.updateWidgetColors(theme);
+    },
+    
+    // Update widget colors when theme changes
+    updateWidgetColors: function(theme) {
+        // Force re-render of charts and other dynamic widgets
+        if (typeof chartHelper !== 'undefined' && chartHelper.updateTheme) {
+            chartHelper.updateTheme(theme);
+        }
+        
+        // Update any custom widgets
+        $('.custom-widget').each(function() {
+            $(this).css({
+                'background-color': 'var(--light-color)',
+                'color': 'var(--text-primary)'
+            });
+        });
+        
+        // Force CSS variable updates
+        const root = document.documentElement;
+        const computedStyle = getComputedStyle(root);
+        
+        // Trigger a reflow to ensure CSS variables are updated
+        root.style.display = 'none';
+        root.offsetHeight; // Trigger reflow
+        root.style.display = '';
     },
 
     // Get current theme
@@ -506,6 +534,27 @@ const themeSystem = {
 
 // Event handlers
 $(document).ready(function() {
+    // Listen for theme changes and update widgets
+    $(document).on('themeChanged', function(event, theme) {
+        // Update all widgets with theme-specific colors
+        setTimeout(function() {
+            // Force update of all dynamic content
+            $('.table, .card, .form-control, .btn').each(function() {
+                $(this).css('color', 'var(--text-primary)');
+            });
+            
+            // Update data tables if they exist
+            if (typeof dataTableHelper !== 'undefined' && dataTableHelper.updateTheme) {
+                dataTableHelper.updateTheme(theme);
+            }
+            
+            // Update charts if they exist
+            if (typeof chartHelper !== 'undefined' && chartHelper.updateTheme) {
+                chartHelper.updateTheme(theme);
+            }
+        }, 100);
+    });
+    
     // Initialize tooltips
     $('[data-bs-toggle="tooltip"]').tooltip();
     
