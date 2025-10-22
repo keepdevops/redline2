@@ -18,6 +18,26 @@
         border: 1px solid #dee2e6;
         border-radius: 4px;
         background: white;
+        position: relative;
+        z-index: 2;
+    }
+    
+    .file-list::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .file-list::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    .file-list::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 4px;
+    }
+    
+    .file-list::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
     }
     
     .file-item {
@@ -27,6 +47,9 @@
         display: flex;
         align-items: center;
         transition: background-color 0.2s;
+        position: relative;
+        z-index: 3;
+        min-height: 50px;
     }
     
     .file-item:hover {
@@ -40,21 +63,38 @@
     
     .file-item input[type="checkbox"] {
         margin-right: 10px;
+        flex-shrink: 0;
+        z-index: 4;
     }
     
     .file-info {
         flex: 1;
         font-size: 14px;
+        min-width: 0;
+        overflow: hidden;
+        position: relative;
+        z-index: 3;
     }
     
     .file-name {
         font-weight: 500;
         color: #333;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+        display: block;
+        margin-bottom: 2px;
     }
     
     .file-size {
         color: #666;
         font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+        display: block;
     }
     
     .data-display-area {
