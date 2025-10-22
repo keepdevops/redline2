@@ -101,9 +101,35 @@ class CSVDownloader(BaseDownloader):
                     date_columns = ['Date', 'date', 'DATE', 'timestamp', 'Timestamp']
                     for col in date_columns:
                         if col in df.columns:
+                            df[col] = pd.to_datetime(df[col])
                             df.set_index(col, inplace=True)
                             break
                 except:
+                    pass
+            
+            # Try REDLINE format (ticker, timestamp, open, high, low, close, vol)
+            if df is None:
+                try:
+                    df = pd.read_csv(csv_file)
+                    if 'timestamp' in df.columns:
+                        # Rename columns first
+                        column_mapping = {
+                            'open': 'Open',
+                            'high': 'High', 
+                            'low': 'Low',
+                            'close': 'Close',
+                            'vol': 'Volume'
+                        }
+                        df = df.rename(columns=column_mapping)
+                        # Convert timestamp to datetime with UTC handling
+                        df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True)
+                        # Set timestamp as index
+                        df.set_index('timestamp', inplace=True)
+                        # Keep only OHLCV columns
+                        keep_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+                        df = df[[col for col in keep_columns if col in df.columns]]
+                except Exception as e:
+                    self.logger.warning(f"Could not parse REDLINE format: {e}")
                     pass
             
             if df is None:
@@ -114,13 +140,19 @@ class CSVDownloader(BaseDownloader):
             df = self._standardize_columns(df)
             
             # Filter by date range if provided
-            if start_date:
-                start_dt = pd.to_datetime(start_date)
-                df = df[df.index >= start_dt]
+            if start_date and not df.empty and hasattr(df.index, 'dtype'):
+                try:
+                    start_dt = pd.to_datetime(start_date)
+                    df = df[df.index >= start_dt]
+                except Exception as e:
+                    self.logger.warning(f"Could not filter by start date: {e}")
             
-            if end_date:
-                end_dt = pd.to_datetime(end_date)
-                df = df[df.index <= end_dt]
+            if end_date and not df.empty and hasattr(df.index, 'dtype'):
+                try:
+                    end_dt = pd.to_datetime(end_date)
+                    df = df[df.index <= end_dt]
+                except Exception as e:
+                    self.logger.warning(f"Could not filter by end date: {e}")
             
             return df
             
