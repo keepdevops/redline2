@@ -93,17 +93,20 @@ RUN python3.11 --version && \
 RUN python3.11 -m venv /opt/redline/venv
 ENV PATH="/opt/redline/venv/bin:$PATH"
 
+# Verify virtual environment uses Python 3.11
+RUN /opt/redline/venv/bin/python --version
+
 # Upgrade pip and install essential tools for Python 3.11
-RUN python3.11 -m pip install --upgrade pip setuptools wheel importlib-metadata
+RUN /opt/redline/venv/bin/python -m pip install --upgrade pip setuptools wheel importlib-metadata
 
 # Copy requirements first for better caching
 COPY requirements.txt /opt/redline/
 
-# Install Python dependencies using Python 3.11
+# Install Python dependencies using Python 3.11 virtual environment
 # Install yfinance separately first (it has complex dependencies)
-RUN python3.11 -m pip install --upgrade pip setuptools wheel && \
-    python3.11 -m pip install yfinance --no-cache-dir && \
-    python3.11 -m pip install -r requirements.txt --no-cache-dir
+RUN /opt/redline/venv/bin/python -m pip install --upgrade pip setuptools wheel && \
+    /opt/redline/venv/bin/python -m pip install yfinance --no-cache-dir && \
+    /opt/redline/venv/bin/python -m pip install -r requirements.txt --no-cache-dir
 
 # Copy application code
 COPY . /opt/redline/
