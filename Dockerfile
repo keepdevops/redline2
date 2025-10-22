@@ -84,6 +84,11 @@ RUN apt-get update && apt-get install -y \
 # Create non-root user for security
 RUN groupadd -r redline && useradd -r -g redline -d /opt/redline -s /bin/bash redline
 
+# Verify Python 3.11 installation
+RUN python3.11 --version && \
+    python3 --version && \
+    ls -la /usr/bin/python3*
+
 # Set up Python 3.11 virtual environment
 RUN python3.11 -m venv /opt/redline/venv
 ENV PATH="/opt/redline/venv/bin:$PATH"
