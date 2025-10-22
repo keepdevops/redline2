@@ -1,5 +1,6 @@
 # Clean REDLINE Dockerfile for AMD64 Linux Ubuntu
 # Simple, reliable build without complex dependencies
+# Uses host networking for external API access
 
 FROM python:3.11-slim
 
