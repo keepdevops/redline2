@@ -16,6 +16,15 @@ WORKDIR /opt/redline
 
 # Install system dependencies and modern Ubuntu features
 RUN apt-get update && apt-get install -y \
+    # Add deadsnakes PPA for Python 3.11
+    software-properties-common \
+    curl \
+    wget \
+    git \
+    build-essential \
+    && add-apt-repository ppa:deadsnakes/ppa -y \
+    && apt-get update \
+    && apt-get install -y \
     # Python 3.11 support (explicit version for HP compatibility)
     python3.11 \
     python3.11-dev \
@@ -25,7 +34,6 @@ RUN apt-get update && apt-get install -y \
     python3-setuptools \
     python3-wheel \
     # Build tools
-    build-essential \
     gcc \
     g++ \
     make \
