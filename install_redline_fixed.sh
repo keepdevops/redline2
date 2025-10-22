@@ -232,9 +232,22 @@ check_dependencies() {
 install_python_deps() {
     print_header "Installing Python Dependencies"
     
-    if [ -f "requirements.txt" ]; then
+    if [ -f "requirements.docker.txt" ]; then
+        print_status "Installing from Docker-compatible requirements"
+        pip3 install -r requirements.docker.txt || {
+            print_warning "Docker requirements failed, trying main requirements"
+            pip3 install -r requirements.txt || {
+                print_warning "Main requirements failed, installing basic dependencies"
+                pip3 install pandas numpy matplotlib seaborn plotly flask requests duckdb pyarrow fastparquet
+            }
+        }
+        print_success "Python dependencies installed"
+    elif [ -f "requirements.txt" ]; then
         print_status "Installing from requirements.txt"
-        pip3 install -r requirements.txt
+        pip3 install -r requirements.txt || {
+            print_warning "Requirements.txt failed, installing basic dependencies"
+            pip3 install pandas numpy matplotlib seaborn plotly flask requests duckdb pyarrow fastparquet
+        }
         print_success "Python dependencies installed"
     else
         print_warning "requirements.txt not found, installing basic dependencies"
