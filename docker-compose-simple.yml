@@ -1,20 +1,20 @@
-# REDLINE Docker Compose Configuration (Fixed)
-# Simple web app + web GUI setup without dependency cycles
+# REDLINE Simple Docker Compose Configuration
+# No nginx-proxy, no dependencies, just the web app
+
+version: '3.8'
 
 services:
-  # REDLINE Web App + Web GUI (using working Option 1 approach)
-  redline-webgui:
+  redline-web:
     build:
       context: .
       dockerfile: Dockerfile
-    image: redline-webgui:latest
-    container_name: redline-web-app
+    image: redline-web:latest
+    container_name: redline-web-simple
     restart: unless-stopped
     
-    # Ports
+    # Ports - direct access, no proxy
     ports:
       - "8080:8080"    # Flask web app
-      - "6080:6080"    # noVNC web GUI
     
     # Environment variables
     environment:
@@ -22,10 +22,6 @@ services:
       - FLASK_ENV=production
       - HOST=0.0.0.0
       - PORT=8080
-      - VNC_PASSWORD=redline123
-      - DISPLAY=:1
-      - VNC_PORT=5901
-      - NO_VNC_PORT=6080
     
     # Volumes
     volumes:
@@ -43,16 +39,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-    
-    # Resource limits
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '1.0'
-        reservations:
-          memory: 256M
-          cpus: '0.25'
 
 # Networks
 networks:

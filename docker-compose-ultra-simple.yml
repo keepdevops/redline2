@@ -1,0 +1,36 @@
+# REDLINE Ultra-Simple Docker Compose
+# Bypasses complex Dockerfile with nginx/supervisor issues
+
+version: '3.8'
+
+services:
+  redline-simple:
+    build:
+      context: .
+      dockerfile: Dockerfile.simple
+    image: redline-simple:latest
+    container_name: redline-simple
+    restart: unless-stopped
+    
+    # Ports - direct Flask access
+    ports:
+      - "8080:8080"
+    
+    # Environment variables
+    environment:
+      - FLASK_APP=web_app.py
+      - FLASK_ENV=production
+      - HOST=0.0.0.0
+      - PORT=8080
+    
+    # Volumes
+    volumes:
+      - ./data:/opt/redline/data
+      - ./logs:/var/log/redline
+      - ./config:/opt/redline/config
+    
+    # Working directory
+    working_dir: /opt/redline
+    
+    # Simple command - no supervisor, no nginx
+    command: python3 web_app.py
