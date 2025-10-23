@@ -283,84 +283,41 @@ install_webgui() {
         return 1
     fi
     
-    # Use the universal Dockerfile (compatible with all Docker versions)
-    local dockerfile="Dockerfile.webgui.universal"
-    if [ ! -f "$dockerfile" ]; then
-        dockerfile="Dockerfile.webgui.buildx"
-    fi
-    if [ ! -f "$dockerfile" ]; then
-        dockerfile="Dockerfile.webgui.simple"
-    fi
-    if [ ! -f "$dockerfile" ]; then
-        dockerfile="Dockerfile.webgui.fixed"
-    fi
-    if [ ! -f "$dockerfile" ]; then
-        dockerfile="Dockerfile.webgui"
+    # Use the working Docker Compose configuration
+    local compose_file="docker-compose-working.yml"
+    if [ ! -f "$compose_file" ]; then
+        print_error "Working Docker Compose file not found: $compose_file"
+        print_status "Please ensure docker-compose-working.yml exists"
+        return 1
     fi
     
-    # Build web-based GUI image with version detection
-    print_status "Building web-based GUI Docker image"
+    # Build web-based GUI using working Docker Compose
+    print_status "Building web-based GUI using working Docker Compose configuration"
+    print_status "Using: $compose_file"
     
-    # Check Docker version and capabilities
-    local docker_version=$(docker --version | grep -oE '[0-9]+\.[0-9]+' | head -1)
-    local docker_major=$(echo $docker_version | cut -d. -f1)
-    local docker_minor=$(echo $docker_version | cut -d. -f2)
-    
-    print_status "Docker version: $docker_version"
-    
-    # Try Buildx if Docker version supports it (20.10+)
-    if [ "$docker_major" -gt 20 ] || ([ "$docker_major" -eq 20 ] && [ "$docker_minor" -ge 10 ]); then
-        print_status "Using Docker Buildx (modern Docker detected)"
-        
-        # Enable Buildx if not already enabled
-        docker buildx create --name redline-builder --use 2>/dev/null || docker buildx use redline-builder 2>/dev/null || true
-        
-        # Build with Buildx (without --platform for compatibility)
-        docker buildx build \
-            --file "$dockerfile" \
-            --tag redline-webgui:latest \
-            --load \
-            . || {
-            print_warning "Buildx failed, falling back to regular docker build"
-            docker build -f "$dockerfile" -t redline-webgui:latest .
-        }
-    else
-        print_status "Using regular docker build (older Docker detected)"
-        docker build -f "$dockerfile" -t redline-webgui:latest .
-    fi
+    # Build with no cache and progress output for better debugging
+    docker-compose -f "$compose_file" build --no-cache --progress=plain
     
     if [ $? -eq 0 ]; then
         print_success "Web-based GUI image built successfully"
         
-        # Create startup script
+        # Create startup script using working Docker Compose
         cat > start_webgui.sh << 'EOF'
 #!/bin/bash
 echo "Starting REDLINE Web-Based GUI..."
-docker run -d \
-    --name redline-webgui \
-    --network host \
-    -p 6080:6080 \
-    -p 5901:5901 \
-    -e DISPLAY=:1 \
-    -e VNC_PORT=5901 \
-    -e NO_VNC_PORT=6080 \
-    -e VNC_RESOLUTION=1920x1080 \
-    -e VNC_COL_DEPTH=24 \
-    -v "$(pwd)/data:/app/data" \
-    -v "$(pwd)/logs:/app/logs" \
-    -v "$(pwd)/config:/app/config" \
-    --restart unless-stopped \
-    redline-webgui:latest
+
+# Use the working Docker Compose configuration
+docker-compose -f docker-compose-working.yml up -d
 
 echo "Web-based GUI started!"
-echo "Access at: http://localhost:6080"
-echo "VNC password: redline123"
+echo "Access at: http://localhost:8080"
+echo "Complete REDLINE web application ready!"
 EOF
         chmod +x start_webgui.sh
         
         print_success "Web-based GUI installation complete"
         print_status "Run: ./start_webgui.sh"
-        print_status "Access: http://localhost:6080"
+        print_status "Access: http://localhost:8080"
     else
         print_error "Failed to build web-based GUI image"
         return 1
@@ -553,78 +510,22 @@ install_docker_compose() {
         return 1
     fi
     
-    # Use the working webgui installation approach (from Option 1)
-    print_status "Installing web-based GUI (using working Option 1 approach)..."
-    install_webgui
+    # Use the working Docker Compose configuration
+    print_status "Using working Docker Compose configuration..."
     
-    # Create Docker Compose files using the working approach
-    print_status "Creating Docker Compose configuration..."
-    if [ ! -f "docker-compose.yml" ]; then
-        cat > docker-compose.yml << 'EOF'
-# REDLINE Docker Compose Configuration (Hybrid Approach)
-# Combines working webgui with Docker Compose orchestration
-
-version: '3.8'
-
-services:
-  # REDLINE Web App + Web GUI (using working Option 1 approach)
-  redline-webgui:
-    build:
-      context: .
-      dockerfile: Dockerfile.webgui.universal
-    image: redline-webgui:latest
-    container_name: redline-web-app
-    restart: unless-stopped
-    
-    # Ports
-    ports:
-      - "8080:8080"    # Flask web app
-      - "6080:6080"    # noVNC web GUI
-    
-    # Environment variables
-    environment:
-      - FLASK_APP=web_app.py
-      - FLASK_ENV=production
-      - HOST=0.0.0.0
-      - PORT=8080
-      - VNC_PASSWORD=redline123
-      - DISPLAY=:1
-      - VNC_PORT=5901
-      - NO_VNC_PORT=6080
-    
-    # Volumes
-    volumes:
-      - ./data:/opt/redline/data
-      - ./logs:/var/log/redline
-      - ./config:/opt/redline/config
-    
-    # Working directory
-    working_dir: /opt/redline
-    
-    # Health check
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    
-    # Resource limits
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '1.0'
-        reservations:
-          memory: 256M
-          cpus: '0.25'
-
-# Networks
-networks:
-  default:
-    driver: bridge
-EOF
+    # Check if working Docker Compose file exists
+    if [ ! -f "docker-compose-working.yml" ]; then
+        print_error "Working Docker Compose file not found: docker-compose-working.yml"
+        print_status "Please ensure docker-compose-working.yml exists"
+        return 1
     fi
+    
+    # Build using working Docker Compose
+    print_status "Building REDLINE using working Docker Compose configuration"
+    docker-compose -f docker-compose-working.yml build --no-cache --progress=plain
+    
+    # Create startup script using working Docker Compose
+    print_status "Creating startup script for working Docker Compose..."
     
     # Create startup script using the working approach
     cat > start_compose.sh << 'EOF'
@@ -683,10 +584,10 @@ if [ ! -f "docker-compose.yml" ]; then
     exit 1
 fi
 
-print_status "Starting REDLINE services (using working webgui approach)..."
+print_status "Starting REDLINE services (using working Docker Compose configuration)..."
 
-# Start services
-docker-compose up -d
+# Start services using working Docker Compose
+docker-compose -f docker-compose-working.yml up -d
 
 # Check if services started successfully
 if [ $? -eq 0 ]; then
@@ -694,20 +595,19 @@ if [ $? -eq 0 ]; then
     echo ""
     print_status "Service URLs:"
     echo "  🌐 Web App:     http://localhost:8080"
-    echo "  🖥️  Web GUI:     http://localhost:6080"
-    echo "  🔑 VNC Password: redline123"
+    echo "  📊 Complete REDLINE: All features available"
     echo ""
-    print_status "To view logs: docker-compose logs -f"
-    print_status "To stop:      docker-compose down"
+    print_status "To view logs: docker-compose -f docker-compose-working.yml logs -f"
+    print_status "To stop:      docker-compose -f docker-compose-working.yml down"
     echo ""
     
     # Wait a moment and check service status
     sleep 5
     print_status "Checking service status..."
-    docker-compose ps
+    docker-compose -f docker-compose-working.yml ps
 else
     print_error "Failed to start services!"
-    print_status "Check logs: docker-compose logs"
+    print_status "Check logs: docker-compose -f docker-compose-working.yml logs"
     exit 1
 fi
 EOF
