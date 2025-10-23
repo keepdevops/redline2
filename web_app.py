@@ -46,7 +46,21 @@ def create_app():
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     
     # Initialize SocketIO for real-time updates
-    socketio = SocketIO(app, cors_allowed_origins="*")
+    # For PyInstaller compatibility, use threading mode explicitly
+    try:
+        socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+        logger.info("SocketIO initialized with threading async_mode")
+    except Exception as e:
+        logger.warning(f"Failed to initialize SocketIO: {e}")
+        # Fallback: create a mock SocketIO object
+        class MockSocketIO:
+            def __init__(self, app, **kwargs):
+                self.app = app
+            def run(self, app, host=None, port=None, debug=None, **kwargs):
+                # Just run the Flask app directly
+                self.app.run(host=host, port=port, debug=debug, **kwargs)
+        socketio = MockSocketIO(app)
+        logger.info("Using mock SocketIO for compatibility")
     
     # Initialize compression if available
     if COMPRESS_AVAILABLE:

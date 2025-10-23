@@ -1,13 +1,14 @@
-# REDLINE - Financial Data Analyzer & Management Tool
+# REDLINE - Professional Financial Data Analysis Platform
 
 <div align="center">
 
 ![REDLINE Logo](https://img.shields.io/badge/REDLINE-Financial%20Data%20Analyzer-blue?style=for-the-badge&logo=chart-line)
 
-**Professional-grade financial data analysis with modern GUI and powerful processing capabilities**
+**Professional-grade financial data analysis with modern GUI, web interface, and multi-platform distribution**
 
 [![Python](https://img.shields.io/badge/Python-3.11+-green?logo=python)](https://python.org)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)](https://docker.com)
+[![PyPI](https://img.shields.io/badge/PyPI-Package-orange?logo=pypi)](https://pypi.org/project/redline-financial/)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)](README.md)
 
@@ -17,7 +18,7 @@
 
 ## 🌟 **What is REDLINE?**
 
-REDLINE is a comprehensive **financial data analysis application** that provides data downloading, viewing, filtering, and analysis capabilities with a modern GUI interface. It supports multiple data sources and formats for professional financial data analysis.
+REDLINE is a comprehensive **financial data analysis platform** that provides data downloading, viewing, filtering, and analysis capabilities with both modern GUI and web interfaces. It supports multiple data sources, formats, and deployment methods for professional financial data analysis.
 
 **Perfect for:**
 - 📊 **Financial Analysts** - Professional data analysis tools
@@ -26,202 +27,118 @@ REDLINE is a comprehensive **financial data analysis application** that provides
 - 💻 **Developers** - Extensible platform for custom solutions
 - 📈 **Traders** - Market data analysis and visualization
 
-## 🎯 **Core Purpose**
-REDLINE is a complete financial data analysis platform that enables users to:
-- **Download** financial data from multiple sources (Yahoo Finance, Stooq, etc.)
-- **View** and explore large datasets with virtual scrolling
-- **Filter** data using advanced filtering capabilities
-- **Analyze** data with statistical and trend analysis tools
-- **Convert** between different data formats
-- **Manage** financial data workflows efficiently
+## 🚀 **Quick Start - Multiple Installation Methods**
 
-The application provides both GUI and command-line interfaces for processing large datasets efficiently.
-
-## 🚀 **Quick Start**
-
-### **Universal Installer (Recommended)**
+### **Method 1: PyPI Package (Recommended)**
 ```bash
-# Clone the repository
-git clone https://github.com/your-repo/redline.git
-cd redline
+# Install from PyPI
+pip install redline-financial
 
-# Run the universal installer
-./install_options_redline.sh
-```
-
-The installer provides 6 installation options:
-1. **Web-based GUI** (Docker buildx) - Modern web interface
-2. **Tkinter GUI** (X11) - Traditional desktop interface  
-3. **Hybrid GUI** - Both web and desktop options
-4. **Docker Compose** - Containerized deployment
-5. **Native Installation** - Direct Python installation
-6. **Dependency Check** - Verify system requirements
-
-### **Manual Installation**
-```bash
-# Install dependencies
-pip install -r requirements.txt
+# Start GUI application
+redline-gui
 
 # Start web application
-python3 web_app.py
-# Access: http://localhost:8080
+redline-web
 
-# Or start GUI application
-python3 main.py
+# Use CLI
+redline --help
 ```
 
-### **Docker Installation**
+### **Method 2: Docker (Easiest)**
 ```bash
-# Build and run with Docker Compose
-docker-compose up -d
+# Run with Docker
+docker run -p 8080:8080 redline-financial:latest
 
 # Access web interface
 open http://localhost:8080
 ```
 
-### **Docker Compose Management**
-
-For Option 4 (Docker Compose) installations, use the comprehensive management script:
-
+### **Method 3: Standalone Executables**
 ```bash
-# Quick start
-cp docker-compose-option4.yml docker-compose.yml
-./manage_compose.sh start
+# Download for your platform:
+# Windows: redline-gui-windows-x64.exe
+# macOS: redline-gui-macos-arm64
+# Linux: redline-gui-linux-x64
 
-# Management commands
-./manage_compose.sh start      # Start services
-./manage_compose.sh stop       # Stop services
-./manage_compose.sh restart    # Restart services
-./manage_compose.sh status     # Show status
-./manage_compose.sh logs       # Show logs
-./manage_compose.sh rebuild    # Rebuild services
-./manage_compose.sh cleanup    # Remove everything
-./manage_compose.sh help       # Show help
+# Run directly (no Python installation required)
+./redline-gui-macos-arm64
 ```
 
-**Service URLs:**
-- **Web App**: http://localhost:8080
-- **Web GUI**: http://localhost:6080
-- **VNC Password**: redline123
-# Option A: Use existing stock environment (recommended)
-conda activate stock
-python main.py
+### **Method 4: Universal Installer**
+```bash
+# Clone and run installer
+git clone https://github.com/keepdevops/redline2.git
+cd redline2
+./install_options_redline.sh
+```
 
-# Option B: Create new conda environment
-conda env create -f environment.yml
-conda activate redline
-python main.py
+### **Method 5: Source Installation**
+```bash
+# Clone repository
+git clone https://github.com/keepdevops/redline2.git
+cd redline2
 
-# Option C: Using pip
+# Install dependencies
 pip install -r requirements.txt
-python main.py
+
+# Start applications
+python main.py      # GUI
+python web_app.py   # Web interface
 ```
 
-### **Option 3: Web GUI (Flask)**
-```bash
-# Install Flask dependencies
-pip install flask flask-socketio gunicorn
+## 🎯 **Core Features**
 
-# Start web interface
-python web_app.py
+### **📊 Data Management**
+- **Multi-format Support**: CSV, JSON, Parquet, Feather, DuckDB, TXT
+- **Virtual Scrolling**: Handle 10M+ rows efficiently
+- **Real-time Filtering**: Advanced filtering with SQL-like queries
+- **Batch Processing**: Process multiple files simultaneously
 
-# Access at: http://localhost:8080
-```
+### **📥 Data Sources**
+- **Yahoo Finance**: Free, reliable financial data
+- **Stooq.com**: High-quality historical data
+- **Multi-source**: Fallback mechanisms for data availability
+- **Custom APIs**: Extensible data source framework
 
-### **Option 4: Test Installation**
-```bash
-# Test if everything works
-./test_x11.bash  # For Docker GUI testing
-```
+### **📈 Analysis Tools**
+- **Statistical Analysis**: Mean, median, std dev, min/max
+- **Trend Analysis**: Price trends, volume analysis
+- **Correlation Analysis**: Asset relationships
+- **Quality Metrics**: Missing values, outliers detection
 
-### **First Steps**
-1. **Start REDLINE** using one of the methods above
-2. **Go to Download tab** and download some stock data (try AAPL)
-3. **Switch to Data tab** and load the downloaded data
-4. **Explore the Analysis tab** for statistical insights
-5. **Use Converter tab** to change data formats
+### **🔄 Format Conversion**
+- **Batch Conversion**: Convert multiple files at once
+- **Data Cleaning**: Remove duplicates, fill missing values
+- **Schema Validation**: Automatic data structure validation
+- **Performance Optimization**: 10x smaller file sizes with Parquet
 
-> 💡 **Pro Tip**: Start with Yahoo Finance downloads - they're free and reliable!
+## 🖥️ **Interface Options**
 
-## 📁 **Supported File Formats**
-
-| Format | Extension | Read | Write | Best For |
-|--------|-----------|------|-------|----------|
-| **CSV** | .csv | ✅ | ✅ | Compatibility, Excel import |
-| **JSON** | .json | ✅ | ✅ | Web APIs, human-readable |
-| **DuckDB** | .duckdb | ✅ | ✅ | Analysis, queries, large datasets |
-| **Parquet** | .parquet | ✅ | ✅ | Large datasets, compression |
-| **Feather** | .feather | ✅ | ✅ | Fast binary, Python/R |
-| **TXT** | .txt | ✅ | ❌ | Stooq format (read-only) |
-
-### **Format Recommendations**
-- 🥇 **CSV**: Best for compatibility and Excel integration
-- 🥈 **Parquet**: Best for large datasets (10x smaller than CSV)
-- 🥉 **DuckDB**: Best for analysis and complex queries
-- ⚡ **Feather**: Best for speed and Python workflows
-
-### **Future Format Support**
-- **Keras/TensorFlow**: Coming in future releases for ML workflows
-- **Excel**: .xlsx support planned
-- **SQLite**: Database format support planned
-
-## 🖥️ **GUI Interface Features**
-
-### **🎨 Modern Interface**
-- **Responsive Design**: 1200x800 minimum, scales to any size
+### **Desktop GUI (Tkinter)**
+- **Modern Interface**: Responsive design, dark/light themes
 - **Tabbed Workflow**: Organized into logical sections
 - **Performance Monitor**: Real-time memory and CPU usage
-- **Dark/Light Themes**: Customizable appearance
+- **Keyboard Shortcuts**: Efficient navigation
 
-### **📊 Data Tab - Data Management**
-| Feature | Description | Use Case |
-|---------|-------------|----------|
-| **File Loading** | Browse, select, and load multiple file formats | Import your data |
-| **Virtual Scrolling** | Handle 10M+ rows efficiently | Large dataset viewing |
-| **Auto-Format Detection** | Automatically detect file types | No manual configuration |
-| **Real-time Preview** | See data before loading | Verify data structure |
+### **Web Interface (Flask)**
+- **Modern Web UI**: Responsive design, mobile-friendly
+- **Real-time Updates**: WebSocket-based live updates
+- **Multi-user Support**: Concurrent user sessions
+- **REST API**: Programmatic access to functionality
 
-### **🔍 Advanced Filtering**
-- **Date Range**: Filter by time periods (1Y, 2Y, 5Y, Custom)
-- **Numeric Filters**: Min/max ranges for prices, volumes
-- **Text Search**: Find specific tickers or values
-- **SQL-like Queries**: Complex filtering expressions
-- **Real-time Preview**: See results before applying
+### **Command Line Interface**
+- **Batch Operations**: Script-friendly commands
+- **Automation**: Integration with other tools
+- **Headless Mode**: Server deployment without GUI
 
-### **📥 Download Tab - Data Acquisition**
-| Source | Status | Best For |
-|--------|--------|----------|
-| **Yahoo Finance** | ✅ Free | General use, most reliable |
-| **Stooq.com** | ⚠️ Manual | High-quality data, requires login |
-| **Multi-Source** | ✅ Fallback | Ensures data availability |
+## 📦 **Distribution Formats**
 
-**Download Features:**
-- **Batch Downloads**: Download multiple tickers at once
-- **Date Range Selection**: 1Y, 2Y, 5Y, or custom ranges
-- **Progress Tracking**: Real-time download progress
-- **Format Options**: Stooq format or standard format
-- **Results Management**: View, load, and manage downloaded files
-
-### **📈 Analysis Tab - Data Insights**
-| Analysis Type | Features | Use Case |
-|---------------|----------|----------|
-| **Statistical** | Mean, median, std dev, min/max | Basic data understanding |
-| **Trend** | Price trends, volume analysis | Market behavior analysis |
-| **Correlation** | Asset relationships | Portfolio analysis |
-| **Quality** | Missing values, outliers | Data validation |
-
-### **🔄 Converter Tab - Format Conversion**
-- **Batch Conversion**: Convert multiple files at once
-- **Format Support**: All supported input/output formats
-- **Data Cleaning**: Remove duplicates, fill missing values
-- **Progress Tracking**: Real-time conversion progress
-- **Output Management**: Organize converted files
-
-### **⚙️ Settings Tab - Configuration**
-- **Data Paths**: Configure default directories
-- **Performance**: Memory and processing settings
-- **Display**: Theme and appearance options
-- **Logging**: Debug and monitoring levels
+| Format | Platform | Installation | Best For |
+|--------|----------|--------------|----------|
+| **PyPI Package** | All | `pip install redline-financial` | Developers, Python users |
+| **Docker Image** | All | `docker run redline-financial` | Servers, cloud deployment |
+| **Executables** | Platform-specific | Download & run | End users, no Python required |
+| **Source Archives** | All | Extract & install | Customization, development |
 
 ## 🚀 **Performance Features**
 
@@ -233,120 +150,135 @@ python web_app.py
 - **Intelligent Caching**: Frequently accessed data caching
 
 ### **📊 Performance Benchmarks**
-| Dataset Size | Memory Usage | Load Time | Format |
-|--------------|--------------|-----------|---------|
+| Dataset Size | Memory Usage | Load Time | Recommended Format |
+|--------------|--------------|-----------|-------------------|
 | 100K rows | ~50MB | 2-3 seconds | Any format |
 | 1M rows | ~200MB | 5-10 seconds | Parquet/DuckDB |
 | 10M rows | ~1GB | 30-60 seconds | Parquet/DuckDB |
 
-### **🔧 Data Processing Capabilities**
+## 🔧 **System Requirements**
 
-| Feature | Description | Benefit |
-|---------|-------------|---------|
-| **Schema Validation** | Automatic data structure validation | Ensures data integrity |
-| **Format Detection** | Auto-detect file formats | No manual configuration |
-| **Data Cleaning** | Remove duplicates, fix missing values | Clean, reliable data |
-| **Type Conversion** | Automatic data type optimization | Better performance |
-| **Batch Processing** | Process multiple files simultaneously | Efficient workflows |
-
-## 📋 **Installation Guide**
-
-### **System Requirements**
-- **Python**: 3.11+ (recommended)
+### **Minimum Requirements**
+- **Python**: 3.11+ (for source/PyPI installation)
 - **Memory**: 4GB+ RAM (8GB+ recommended for large datasets)
 - **Storage**: 1GB+ free space
 - **OS**: Windows 10+, macOS 10.14+, Ubuntu 18.04+
 
-### **Local Environment Dependencies**
-- **Core**: pandas, numpy, pyarrow, polars, duckdb, yfinance
-- **GUI**: tkinter (built into Python)
-- **Web GUI**: flask, flask-socketio, gunicorn
-- **Optional**: scikit-learn, matplotlib, seaborn
-- **Development**: pytest, black, flake8
+### **Platform Support**
+- ✅ **Windows** (x64, ARM64)
+- ✅ **macOS** (Intel, Apple Silicon)
+- ✅ **Linux** (Ubuntu, CentOS, RHEL, x64, ARM64)
+- ✅ **Docker** (Multi-platform containers)
 
-### **Installation Methods**
+## 📋 **Installation Guide**
 
-#### **Method 1: Docker (Recommended)**
+### **PyPI Installation (Recommended)**
+```bash
+# Install latest version
+pip install redline-financial
+
+# Install specific version
+pip install redline-financial==1.0.0
+
+# Upgrade to latest
+pip install --upgrade redline-financial
+```
+
+### **Docker Installation**
+```bash
+# Pull latest image
+docker pull redline-financial:latest
+
+# Run web interface
+docker run -p 8080:8080 redline-financial:latest
+
+# Run with custom configuration
+docker run -p 8080:8080 -v /path/to/data:/app/data redline-financial:latest
+```
+
+### **Docker Compose Installation**
 ```bash
 # Clone repository
-git clone https://github.com/your-repo/redline.git
-cd redline
+git clone https://github.com/keepdevops/redline2.git
+cd redline2
 
-# Run with Docker (includes all dependencies)
-./run_gui.bash
+# Start with Docker Compose
+docker-compose -f docker-compose-working.yml up -d
+
+# Access web interface
+open http://localhost:8080
 ```
 
-#### **Method 2: Local Installation**
+### **Executable Installation**
 ```bash
-# Option A: Using conda environment (recommended)
-conda env create -f environment.yml
-conda activate redline
-python main.py
+# Download appropriate executable for your platform
+# Windows: redline-gui-windows-x64.exe
+# macOS Intel: redline-gui-macos-x64
+# macOS Apple Silicon: redline-gui-macos-arm64
+# Linux: redline-gui-linux-x64
 
-# Option B: Using pip
-pip install -r requirements.txt
-python main.py
+# Make executable (Linux/macOS)
+chmod +x redline-gui-*
 
-# Option C: Manual installation
-conda install pandas numpy pyarrow polars duckdb yfinance scikit-learn matplotlib -c conda-forge
-python main.py
-
-# Option D: Web GUI with Flask
-pip install flask flask-socketio gunicorn
-python web_app.py
+# Run directly
+./redline-gui-macos-arm64
 ```
 
-#### **Method 3: Development Setup**
+## 🔄 **Auto-Update System**
+
+### **Check for Updates**
 ```bash
-# Clone and setup development environment
-git clone https://github.com/your-repo/redline.git
-cd redline
+# Check for updates
+redline --check-updates
 
-# Install development dependencies
-pip install -r requirements.txt
-pip install pytest black flake8
-
-# Run tests
-python -m pytest redline/tests/
+# Auto-update
+redline --update
 ```
 
-## 🔧 **Troubleshooting**
+### **Update Methods**
+- **PyPI**: `pip install --upgrade redline-financial`
+- **Docker**: `docker pull redline-financial:latest`
+- **Executables**: Download and replace executable
+- **Source**: Pull latest changes and reinstall
 
-### **Common Issues & Solutions**
+## 🔒 **Commercial Licensing**
 
-| Issue | Solution | Prevention |
-|-------|----------|------------|
-| **GUI won't start** | Check X11 forwarding for Docker | Use `./test_x11.bash` |
-| **Memory errors** | Use Parquet/DuckDB formats | Monitor memory usage |
-| **Download failures** | Check internet connection | Use Yahoo Finance first |
-| **Format errors** | Verify file format support | Check format table above |
+### **License Types**
+- **Trial**: 30-day evaluation, basic features
+- **Standard**: 1-year license, 3 installations
+- **Professional**: 1-year license, 10 installations, API access
+- **Enterprise**: Unlimited installations, custom integrations
 
-### **Performance Optimization**
-- **Use Parquet/DuckDB** for large datasets
-- **Enable virtual scrolling** for 10M+ rows
-- **Close unused tabs** to free memory
-- **Monitor memory usage** in status bar
+### **License Management**
+```bash
+# Validate license
+redline --validate-license <license-key>
 
-### **Getting Help**
-- **Check logs**: `docker logs redline_gui`
-- **Test installation**: `./test_x11.bash`
-- **Verify formats**: Check format support table
-- **Report issues**: GitHub Issues with logs
+# Check license status
+redline --license-status
+
+# Register installation
+redline --register-install
+```
 
 ## 📚 **Usage Examples**
 
 ### **Example 1: Download and Analyze Stock Data**
 ```bash
-# 1. Start REDLINE
-./run_gui.bash
+# Start REDLINE
+redline-gui
 
-# 2. Download data
+# Or use web interface
+redline-web
+# Access: http://localhost:8080
+
+# Download data
 # - Go to Download tab
 # - Enter ticker: AAPL
 # - Select date range: 2Y
 # - Click Download
 
-# 3. Load and analyze
+# Load and analyze
 # - Go to Data tab
 # - Load the downloaded file
 # - Apply filters if needed
@@ -355,52 +287,54 @@ python -m pytest redline/tests/
 
 ### **Example 2: Batch Data Conversion**
 ```bash
-# 1. Convert multiple files
+# Convert multiple files
 # - Go to Converter tab
 # - Select multiple CSV files
 # - Choose output format: Parquet
 # - Enable batch conversion
 # - Monitor progress
 
-# 2. Benefits
+# Benefits
 # - 10x smaller file sizes
 # - 5x faster loading times
 # - Better compression
 ```
 
-### **Example 3: Large Dataset Analysis**
+### **Example 3: CLI Usage**
 ```bash
-# 1. Prepare large dataset
-# - Use Parquet format for storage
-# - Enable virtual scrolling
-# - Monitor memory usage
+# Download data
+redline download AAPL --start 2023-01-01 --end 2024-01-01
 
-# 2. Analysis workflow
-# - Load 10M+ rows efficiently
-# - Apply filters in real-time
-# - Export results quickly
-# - Share analysis with team
+# Convert format
+redline convert data.csv --output data.parquet
+
+# Analyze data
+redline analyze data.parquet --stats
 ```
 
-## 📊 **Data Analysis Features**
+## 🔧 **Troubleshooting**
 
-| Feature | Description | Use Case |
-|---------|-------------|----------|
-| **Statistical Analysis** | Mean, median, std dev, min/max | Basic data understanding |
-| **Trend Analysis** | Price trends, volume analysis | Market behavior analysis |
-| **Correlation Analysis** | Asset relationships | Portfolio analysis |
-| **Quality Metrics** | Missing values, outliers | Data validation |
-| **Performance Metrics** | Returns, volatility, Sharpe ratio | Investment analysis |
+### **Common Issues & Solutions**
 
-## 🎯 **Getting Started Checklist**
+| Issue | Solution | Prevention |
+|-------|----------|------------|
+| **GUI won't start** | Check Python version (3.11+) | Use `redline --version` |
+| **Memory errors** | Use Parquet/DuckDB formats | Monitor memory usage |
+| **Download failures** | Check internet connection | Use Yahoo Finance first |
+| **Format errors** | Verify file format support | Check format table above |
+| **Docker issues** | Check Docker daemon | Use `docker --version` |
 
-- [ ] **Install REDLINE** using Docker or local installation
-- [ ] **Test installation** with `./test_x11.bash`
-- [ ] **Download sample data** (try AAPL from Yahoo Finance)
-- [ ] **Load data** in the Data tab
-- [ ] **Explore analysis** features
-- [ ] **Try format conversion** (CSV to Parquet)
-- [ ] **Check performance** with large datasets
+### **Performance Optimization**
+- **Use Parquet/DuckDB** for large datasets
+- **Enable virtual scrolling** for 10M+ rows
+- **Close unused tabs** to free memory
+- **Monitor memory usage** in status bar
+
+### **Getting Help**
+- **Check logs**: Application logs in console
+- **Test installation**: `redline --test`
+- **Verify formats**: Check format support table
+- **Report issues**: GitHub Issues with logs
 
 ## 🤝 **Contributing**
 
@@ -409,18 +343,32 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 ### **Development Setup**
 ```bash
 # Clone repository
-git clone https://github.com/your-repo/redline.git
-cd redline
+git clone https://github.com/keepdevops/redline2.git
+cd redline2
 
 # Install development dependencies
-pip install -r requirements-dev.txt
+pip install -r requirements.txt
+pip install pytest black flake8
 
 # Run tests
-python -m pytest
+python -m pytest redline/tests/
 
 # Run linting
 black redline/
 flake8 redline/
+```
+
+### **Build System**
+```bash
+# Build all distributions
+bash build/scripts/build_all.sh
+
+# Build specific components
+bash build/scripts/build_executables.sh
+bash build/scripts/create_release.sh
+
+# Clean build
+bash build/scripts/build_all.sh --clean
 ```
 
 ## 📄 **License**
@@ -433,6 +381,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Stooq.com** for high-quality historical data
 - **DuckDB** for fast analytical processing
 - **Pandas** for data manipulation capabilities
+- **Flask** for web interface framework
+- **PyInstaller** for executable creation
 
 ---
 
@@ -440,117 +390,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Made with ❤️ for the financial data community**
 
-[![GitHub stars](https://img.shields.io/github/stars/your-repo/redline?style=social)](https://github.com/your-repo/redline)
-[![GitHub forks](https://img.shields.io/github/forks/your-repo/redline?style=social)](https://github.com/your-repo/redline)
-[![GitHub issues](https://img.shields.io/github/issues/your-repo/redline)](https://github.com/your-repo/redline/issues)
+[![GitHub stars](https://img.shields.io/github/stars/keepdevops/redline2?style=social)](https://github.com/keepdevops/redline2)
+[![GitHub forks](https://img.shields.io/github/forks/keepdevops/redline2?style=social)](https://github.com/keepdevops/redline2)
+[![GitHub issues](https://img.shields.io/github/issues/keepdevops/redline2)](https://github.com/keepdevops/redline2/issues)
 
 </div>
-- **DuckDB** as primary storage engine
-- **SQL query support** for data retrieval
-- **Table management** and optimization
-- **Connection pooling** for performance
-
-### **Machine Learning Integration**
-- **TensorFlow/Keras** model support
-- **Data preprocessing** for ML pipelines
-- **Format conversion** for ML frameworks
-- **Batch processing** for training data
-
-### **External Data Sources** (Planned/Partially Implemented)
-- **YFinance** - Yahoo Finance data download
-- **Tiingo** - Financial data API integration
-- **Enhanced Stooq** - Improved Stooq format support
-
-## 🎨 **User Experience Features**
-
-### **Keyboard Shortcuts**
-- **Search focus** (Ctrl+F)
-- **Select all** (Ctrl+A)
-- **Copy selection** (Ctrl+C)
-- **Refresh data** (F5)
-
-### **Visual Feedback**
-- **Progress indicators** for long operations
-- **Status messages** for user actions
-- **Color-coded** file status indicators
-- **Responsive UI** with loading states
-
-### **Accessibility**
-- **High contrast** text and backgrounds
-- **Keyboard navigation** support
-- **Screen reader** friendly interface
-- **Adjustable** window sizes
-
-## 🔒 **Data Security and Integrity**
-
-### **Data Validation**
-- **Input validation** for all user inputs
-- **File integrity** checks
-- **Data type** verification
-- **Schema compliance** validation
-
-### **Safe Operations**
-- **File backup** before processing
-- **Atomic operations** for data safety
-- **Error recovery** mechanisms
-- **Data preservation** during conversion
-
-## 🔧 **Installation**
-
-### **Universal Installer (Recommended)**
-```bash
-# Clone the repository
-git clone https://github.com/your-repo/redline.git
-cd redline
-
-# Run the universal installer
-./install_options_redline.sh
-```
-
-### **Manual Installation**
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Start web application
-python3 web_app.py
-# Access: http://localhost:8080
-
-# Or start GUI application
-python3 main.py
-```
-
-### **Dependencies**
-```bash
-pip install pandas numpy duckdb pyarrow polars tensorflow tkinter
-```
-
-### **Optional Dependencies**
-```bash
-pip install yfinance tiingo psutil
-```
-
-## 📖 **Documentation**
-
-- **GUI_TROUBLESHOOTING.md** - Troubleshooting guide for GUI issues
-- **PERFORMANCE_IMPROVEMENTS.md** - Performance optimization details
-- **REDLINE_SOFTWARE_DESIGN.md** - Software architecture and design
-
-## 🤝 **Contributing**
-
-REDLINE is designed with a modular architecture that makes it easy to extend:
-- Add new file format support
-- Implement new data sources
-- Enhance preprocessing capabilities
-- Improve performance features
-
-## 📄 **License**
-
-This project is designed for financial data processing and machine learning workflows.
-
----
-
-This comprehensive feature set makes REDLINE a powerful tool for financial data processing, conversion, and analysis, suitable for both individual users and machine learning workflows.
-# redline2
-# redline2
-# redline2
