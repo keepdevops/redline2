@@ -44,35 +44,42 @@ REDLINE is a comprehensive financial data analysis application that allows you t
 ### **Quick Start (5 Minutes)**
 
 #### **Step 1: Choose Your Installation Method**
-| Method | Best For | Time Required |
-|--------|----------|---------------|
-| **Docker** | Beginners, consistent environment | 2 minutes |
-| **Local Python** | Developers, customization | 5 minutes |
-| **Test Installation** | Troubleshooting | 1 minute |
+| Method | Best For | Time Required | Access |
+|--------|----------|---------------|---------|
+| **Web-based GUI** | Modern interface, cross-platform | 2 minutes | http://localhost:6080 |
+| **Tkinter GUI** | Desktop users, X11 support | 3 minutes | Desktop application |
+| **Hybrid GUI** | Both web and desktop options | 4 minutes | Both interfaces |
+| **Docker Compose** | Containerized deployment | 5 minutes | http://localhost:8080 |
+| **Native Python** | Developers, customization | 5 minutes | http://localhost:8080 |
 
 #### **Step 2: Start REDLINE**
 
-**Option A: Docker (Recommended)**
+**Option A: Universal Installer (Recommended)**
 ```bash
 # Clone and run
 git clone https://github.com/your-repo/redline.git
 cd redline
-./run_gui.bash
+./install_options_redline.sh
 ```
 
-**Option B: Local Installation**
+**Option B: Manual Installation**
 ```bash
 # Install dependencies
-pip install pandas yfinance duckdb pyarrow polars tkinter
+pip install -r requirements.txt
 
-# Run the application
-python main.py
+# Start web application
+python3 web_app.py
+# Access: http://localhost:8080
+
+# Or start GUI application
+python3 main.py
 ```
 
-**Option C: Test First**
+**Option C: Test Installation**
 ```bash
 # Test if everything works
-./test_x11.bash
+./install_options_redline.sh
+# Choose option 6 (Dependency Check)
 ```
 
 #### **Step 3: First Data Download**

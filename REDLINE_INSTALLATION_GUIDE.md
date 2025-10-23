@@ -14,14 +14,21 @@ Get REDLINE running in minutes with our streamlined installation process.
 
 #### **Method 1: Universal Installer (Recommended)**
 ```bash
-# Download and run the universal installer
-curl -fsSL https://raw.githubusercontent.com/your-repo/redline/main/universal_install.sh | bash
+# Clone the repository
+git clone https://github.com/your-repo/redline.git
+cd redline
 
-# Or download and run manually
-wget https://raw.githubusercontent.com/your-repo/redline/main/universal_install.sh
-chmod +x universal_install.sh
-./universal_install.sh
+# Run the universal installer
+./install_options_redline.sh
 ```
+
+The installer provides 6 installation options:
+1. **Web-based GUI** (Docker buildx) - Modern web interface
+2. **Tkinter GUI** (X11) - Traditional desktop interface  
+3. **Hybrid GUI** - Both web and desktop options
+4. **Docker Compose** - Containerized deployment
+5. **Native Installation** - Direct Python installation
+6. **Dependency Check** - Verify system requirements
 
 #### **Method 2: Manual Installation**
 ```bash
@@ -32,8 +39,11 @@ cd redline
 # Install dependencies
 pip install -r requirements.txt
 
-# Verify installation
-python -c "import redline; print('REDLINE installed successfully!')"
+# Start web application
+python3 web_app.py
+
+# Or start GUI application
+python3 main.py
 ```
 
 #### **Method 3: Docker Installation**

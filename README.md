@@ -39,48 +39,45 @@ The application provides both GUI and command-line interfaces for processing lar
 
 ## 🚀 **Quick Start**
 
-### **Option 1: Docker (Recommended)**
-
-#### Quick Start with Docker
+### **Universal Installer (Recommended)**
 ```bash
 # Clone the repository
 git clone https://github.com/your-repo/redline.git
 cd redline
 
-# Test your Docker setup
-./test_docker_setup.sh
-
-# VNC Mode (Remote GUI access)
-./scripts/run_docker_vnc.sh
-
-# X11 Mode (Local GUI)
-./scripts/run_docker_x11.sh
-
-# Headless Mode (CLI only)
-./scripts/run_docker_headless.sh
+# Run the universal installer
+./install_options_redline.sh
 ```
 
-#### Docker Compose (Alternative)
+The installer provides 6 installation options:
+1. **Web-based GUI** (Docker buildx) - Modern web interface
+2. **Tkinter GUI** (X11) - Traditional desktop interface  
+3. **Hybrid GUI** - Both web and desktop options
+4. **Docker Compose** - Containerized deployment
+5. **Native Installation** - Direct Python installation
+6. **Dependency Check** - Verify system requirements
+
+### **Manual Installation**
 ```bash
-# VNC Mode - Remote GUI access via VNC
-docker-compose --profile vnc up
+# Install dependencies
+pip install -r requirements.txt
 
-# X11 Mode - Local GUI with X11 forwarding  
-docker-compose --profile x11 up
+# Start web application
+python3 web_app.py
+# Access: http://localhost:8080
 
-# Headless Mode - CLI operations
-docker-compose --profile headless up
+# Or start GUI application
+python3 main.py
 ```
 
-**Docker Features:**
-- 🐳 **Multi-mode support**: X11, VNC, headless, and web modes
-- 🔒 **Secure deployment**: Non-root user, isolated containers
-- 🌐 **Remote access**: VNC server for remote GUI access
-- ⚡ **Optimized performance**: Multi-stage builds, resource limits
-- 📚 **Complete documentation**: [DOCKER_DEPLOYMENT_GUIDE.md](DOCKER_DEPLOYMENT_GUIDE.md)
-
-### **Option 2: Local Installation (Recommended)**
+### **Docker Installation**
 ```bash
+# Build and run with Docker Compose
+docker-compose up -d
+
+# Access web interface
+open http://localhost:8080
+```
 # Option A: Use existing stock environment (recommended)
 conda activate stock
 python main.py
@@ -473,51 +470,30 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Error recovery** mechanisms
 - **Data preservation** during conversion
 
-## 🚀 **Quick Start**
+## 🔧 **Installation**
 
-### **Prerequisites**
-1. **XQuartz**: Required for GUI on macOS
-   - Download from: https://www.xquartz.org/
-   - Or check if installed: `ls /Applications/Utilities/XQuartz.app`
+### **Universal Installer (Recommended)**
+```bash
+# Clone the repository
+git clone https://github.com/your-repo/redline.git
+cd redline
 
-2. **Docker**: Make sure Docker Desktop is running
-
-### **Running the GUI**
-1. **Simple method** (recommended):
-   ```bash
-   ./run_gui.bash
-   ```
-
-2. **Test X11 forwarding first** (if you encounter issues):
-   ```bash
-   ./test_x11.bash
-   ```
-
-3. **Alternative method** (if the simple method fails):
-   ```bash
-   # Install socat first
-   brew install socat
-   # Then run
-   ./run_gui_socat.bash
-   ```
-
-### **Command-Line Usage**
-You can run Redline in different modes using the `--task` argument:
-
-- `gui` — Launches the graphical user interface (default)
-- `load` — Loads data files into the DuckDB database
-- `convert` — Converts data files between supported formats
-- `preprocess` — Preprocesses data for machine learning or reinforcement learning
-
-**Examples:**
-```sh
-python3 -m data_module --task=gui
-python3 -m data_module --task=load
-python3 -m data_module --task=convert
-python3 -m data_module --task=preprocess
+# Run the universal installer
+./install_options_redline.sh
 ```
 
-## 🔧 **Installation**
+### **Manual Installation**
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Start web application
+python3 web_app.py
+# Access: http://localhost:8080
+
+# Or start GUI application
+python3 main.py
+```
 
 ### **Dependencies**
 ```bash
