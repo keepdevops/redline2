@@ -78,6 +78,31 @@ docker-compose up -d
 # Access web interface
 open http://localhost:8080
 ```
+
+### **Docker Compose Management**
+
+For Option 4 (Docker Compose) installations, use the comprehensive management script:
+
+```bash
+# Quick start
+cp docker-compose-option4.yml docker-compose.yml
+./manage_compose.sh start
+
+# Management commands
+./manage_compose.sh start      # Start services
+./manage_compose.sh stop       # Stop services
+./manage_compose.sh restart    # Restart services
+./manage_compose.sh status     # Show status
+./manage_compose.sh logs       # Show logs
+./manage_compose.sh rebuild    # Rebuild services
+./manage_compose.sh cleanup    # Remove everything
+./manage_compose.sh help       # Show help
+```
+
+**Service URLs:**
+- **Web App**: http://localhost:8080
+- **Web GUI**: http://localhost:6080
+- **VNC Password**: redline123
 # Option A: Use existing stock environment (recommended)
 conda activate stock
 python main.py

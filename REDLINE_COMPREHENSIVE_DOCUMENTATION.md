@@ -404,6 +404,29 @@ docker-compose logs -f
 
 REDLINE is released under an open source license, allowing free use, modification, and distribution. See LICENSE file for details.
 
+## 🐳 **Docker Compose Management**
+
+For Option 4 (Docker Compose) installations, comprehensive management is available:
+
+```bash
+# Management Commands
+./manage_compose.sh start      # Start services
+./manage_compose.sh stop       # Stop services
+./manage_compose.sh restart    # Restart services
+./manage_compose.sh status     # Show status
+./manage_compose.sh logs       # Show logs
+./manage_compose.sh rebuild    # Rebuild services
+./manage_compose.sh cleanup    # Remove everything
+./manage_compose.sh help       # Show help
+```
+
+**Service URLs:**
+- **Web App**: http://localhost:8080
+- **Web GUI**: http://localhost:6080
+- **VNC Password**: redline123
+
+For detailed Docker Compose management, see: [REDLINE_DOCKER_COMPOSE_MANAGEMENT_GUIDE.md](REDLINE_DOCKER_COMPOSE_MANAGEMENT_GUIDE.md)
+
 ## 🏆 **Conclusion**
 
 REDLINE represents a significant achievement in financial data analysis software, providing enterprise-grade capabilities at zero cost. With its modern architecture, excellent performance, and comprehensive feature set, it successfully competes with and often outperforms commercial platforms costing thousands of dollars per year.
