@@ -1,0 +1,34 @@
+# Working Docker Compose based on Option 1 insights
+version: '3.8'
+
+services:
+  redline-working:
+    build:
+      context: .
+      dockerfile: Dockerfile.working-insights
+    image: redline-working:latest
+    container_name: redline-working
+    restart: unless-stopped
+    
+    # Ports - direct Flask access
+    ports:
+      - "8080:8080"
+    
+    # Environment variables
+    environment:
+      - FLASK_APP=web_app.py
+      - FLASK_ENV=production
+      - HOST=0.0.0.0
+      - PORT=8080
+    
+    # Volumes
+    volumes:
+      - ./data:/opt/redline/data
+      - ./logs:/var/log/redline
+      - ./config:/opt/redline/config
+    
+    # Working directory
+    working_dir: /opt/redline
+    
+    # Simple command - just run Flask directly
+    command: python3 web_app.py
