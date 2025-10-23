@@ -1,0 +1,28 @@
+# Debug Docker Compose for pip issues
+version: '3.8'
+
+services:
+  redline-debug:
+    build:
+      context: .
+      dockerfile: Dockerfile.debug-pip
+    image: redline-debug:latest
+    container_name: redline-debug
+    restart: unless-stopped
+    
+    # Ports - direct Flask access
+    ports:
+      - "8080:8080"
+    
+    # Environment variables
+    environment:
+      - FLASK_APP=web_app.py
+      - FLASK_ENV=production
+      - HOST=0.0.0.0
+      - PORT=8080
+    
+    # Working directory
+    working_dir: /opt/redline
+    
+    # Simple command - just run Flask directly
+    command: python3 web_app.py
