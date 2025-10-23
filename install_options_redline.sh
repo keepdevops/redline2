@@ -837,8 +837,48 @@ EOF
 install_native() {
     print_header "Installing Native Setup"
     
-    # Install Python dependencies
-    install_python_deps
+    # Install Python dependencies using individual packages (like working Docker approach)
+    print_status "Installing Python dependencies individually..."
+    
+    # Core data processing
+    pip3 install pandas || print_warning "pandas installation failed"
+    pip3 install numpy || print_warning "numpy installation failed"
+    pip3 install duckdb || print_warning "duckdb installation failed"
+    pip3 install pyarrow || print_warning "pyarrow installation failed"
+    
+    # Financial data
+    pip3 install yfinance || print_warning "yfinance installation failed"
+    
+    # Web framework
+    pip3 install flask || print_warning "flask installation failed"
+    pip3 install flask-socketio || print_warning "flask-socketio installation failed"
+    pip3 install flask-compress || print_warning "flask-compress installation failed"
+    pip3 install werkzeug || print_warning "werkzeug installation failed"
+    
+    # Background tasks
+    pip3 install celery || print_warning "celery installation failed"
+    pip3 install redis || print_warning "redis installation failed"
+    pip3 install gunicorn || print_warning "gunicorn installation failed"
+    
+    # Data visualization
+    pip3 install matplotlib || print_warning "matplotlib installation failed"
+    pip3 install seaborn || print_warning "seaborn installation failed"
+    
+    # Machine learning
+    pip3 install scikit-learn || print_warning "scikit-learn installation failed"
+    
+    # HTTP requests
+    pip3 install requests || print_warning "requests installation failed"
+    pip3 install urllib3 || print_warning "urllib3 installation failed"
+    
+    # Configuration
+    pip3 install configparser || print_warning "configparser installation failed"
+    
+    # Excel support
+    pip3 install openpyxl || print_warning "openpyxl installation failed"
+    pip3 install xlsxwriter || print_warning "xlsxwriter installation failed"
+    
+    print_success "Python dependencies installation completed"
     
     # Setup directories
     setup_directories
