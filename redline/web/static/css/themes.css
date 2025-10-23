@@ -271,6 +271,7 @@
     
     /* Border Color Variables */
     --border-color: #e2e8f0;
+}
 
 /* Apply theme to body - Use CSS variables for consistency */
 body.theme-default { 

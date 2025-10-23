@@ -93,6 +93,20 @@ class ColorCustomizer {
                 'text-link': '#374151',
                 'text-link-hover': '#1f2937'
             },
+            'grayscale': {
+                'text-primary': '#2d3748',
+                'text-secondary': '#4a5568',
+                'text-muted': '#718096',
+                'text-light': '#a0aec0',
+                'text-dark': '#1a202c',
+                'text-white': '#ffffff',
+                'text-success': '#38a169',
+                'text-warning': '#d69e2e',
+                'text-danger': '#e53e3e',
+                'text-info': '#3182ce',
+                'text-link': '#4a5568',
+                'text-link-hover': '#2d3748'
+            },
             'dark': {
                 'text-primary': '#f9fafb',
                 'text-secondary': '#d1d5db',
@@ -236,6 +250,9 @@ class ColorCustomizer {
                     </div>
                     <div class="preset-color" data-preset="monochrome" style="background: linear-gradient(45deg, #111827 0%, #374151 50%, #6b7280 100%)" title="Monochrome">
                         <span class="preset-color-label">Monochrome</span>
+                    </div>
+                    <div class="preset-color" data-preset="grayscale" style="background: linear-gradient(45deg, #2d3748 0%, #4a5568 50%, #718096 100%)" title="Grayscale">
+                        <span class="preset-color-label">Grayscale</span>
                     </div>
                     <div class="preset-color" data-preset="dark" style="background: linear-gradient(45deg, #f9fafb 0%, #d1d5db 50%, #9ca3af 100%)" title="Dark">
                         <span class="preset-color-label">Dark</span>
