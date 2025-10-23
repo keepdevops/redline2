@@ -1,76 +1,44 @@
-# REDLINE Web GUI Docker Compose Configuration
-# Multi-platform Ubuntu 24.04 LTS with Python 3.11+ and modern features
-
-version: '3.8'
+# REDLINE Docker Compose Configuration (Fixed)
+# Simple web app + web GUI setup without dependency cycles
 
 services:
-  # Main REDLINE Web GUI Application
-  redline-web:
+  # REDLINE Web App + Web GUI (using working Option 1 approach)
+  redline-webgui:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        - BUILDKIT_INLINE_CACHE=1
-    image: redline-web:latest
-    container_name: redline-web-container
-    hostname: redline-web
+      dockerfile: Dockerfile.webgui.universal
+    image: redline-webgui:latest
+    container_name: redline-web-app
     restart: unless-stopped
     
     # Ports
     ports:
-      - "8080:8080"    # Flask application
-      - "80:80"        # Nginx proxy
+      - "8080:8080"    # Flask web app
+      - "6080:6080"    # noVNC web GUI
     
     # Environment variables
     environment:
-      # Application settings
       - FLASK_APP=web_app.py
       - FLASK_ENV=production
-      - FLASK_DEBUG=false
       - HOST=0.0.0.0
       - PORT=8080
-      - WEB_PORT=8080
-      
-      # Security
-      - SECRET_KEY=${SECRET_KEY:-redline-secret-key-$(date +%s)}
-      
-      # Database
-      - DB_PATH=/opt/redline/data/redline_data.duckdb
-      
-      # Logging
-      - LOG_LEVEL=INFO
-      - LOG_FILE=/var/log/redline/app.log
-      
-      # Performance
-      - WORKERS=4
-      - WORKER_CONNECTIONS=1000
-      - MAX_REQUESTS=1000
-      - TIMEOUT=30
-      
-      # Timezone
-      - TZ=UTC
-      
-      # Python
-      - PYTHONPATH=/opt/redline
-      - PYTHONUNBUFFERED=1
-      - PYTHONDONTWRITEBYTECODE=1
+      - VNC_PASSWORD=redline123
+      - DISPLAY=:1
+      - VNC_PORT=5901
+      - NO_VNC_PORT=6080
     
     # Volumes
     volumes:
-      # Application data
       - ./data:/opt/redline/data
       - ./logs:/var/log/redline
       - ./config:/opt/redline/config
-      
-      # Temporary files
-      - redline-temp:/tmp/redline
-      
-      # System logs
-      - /var/log/redline:/var/log/redline
+    
+    # Working directory
+    working_dir: /opt/redline
     
     # Health check
     healthcheck:
-      test: ["CMD", "/opt/redline/scripts/healthcheck.sh"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -80,200 +48,13 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G
-          cpus: '2.0'
-        reservations:
-          memory: 512M
-          cpus: '0.5'
-    
-    # Security options
-    security_opt:
-      - no-new-privileges:true
-    
-    # User
-    user: "1000:1000"
-    
-    # Working directory
-    working_dir: /opt/redline
-    
-    # Command
-    command: ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
-    
-    # Dependencies
-    depends_on:
-      - redis
-      - nginx-proxy
-    
-    # Networks
-    networks:
-      - redline-network
-
-  # Redis for caching and session storage
-  redis:
-    image: redis:7-alpine
-    container_name: redline-redis
-    hostname: redline-redis
-    restart: unless-stopped
-    
-    # Ports
-    ports:
-      - "6379:6379"
-    
-    # Environment
-    environment:
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-redline-redis-password}
-    
-    # Volumes
-    volumes:
-      - redis-data:/data
-      - ./config/redis.conf:/usr/local/etc/redis/redis.conf
-    
-    # Command
-    command: redis-server /usr/local/etc/redis/redis.conf
-    
-    # Health check
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    
-    # Resource limits
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.5'
-        reservations:
-          memory: 64M
-          cpus: '0.1'
-    
-    # Networks
-    networks:
-      - redline-network
-
-  # Nginx reverse proxy
-  nginx-proxy:
-    image: nginx:alpine
-    container_name: redline-nginx
-    hostname: redline-nginx
-    restart: unless-stopped
-    
-    # Ports
-    ports:
-      - "443:443"    # HTTPS
-      - "8081:80"    # HTTP (alternative port)
-    
-    # Volumes
-    volumes:
-      - ./config/nginx.conf:/etc/nginx/nginx.conf
-      - ./config/nginx-site.conf:/etc/nginx/conf.d/default.conf
-      - ./ssl:/etc/nginx/ssl
-      - ./logs/nginx:/var/log/nginx
-    
-    # Dependencies
-    depends_on:
-      - redline-web
-    
-    # Health check
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    
-    # Resource limits
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-          cpus: '0.5'
-        reservations:
-          memory: 32M
-          cpus: '0.1'
-    
-    # Networks
-    networks:
-      - redline-network
-
-  # Monitoring with Prometheus
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: redline-prometheus
-    hostname: redline-prometheus
-    restart: unless-stopped
-    
-    # Ports
-    ports:
-      - "9090:9090"
-    
-    # Volumes
-    volumes:
-      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus-data:/prometheus
-    
-    # Command
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
-      - '--web.enable-lifecycle'
-    
-    # Resource limits
-    deploy:
-      resources:
-        limits:
-          memory: 512M
+          memory: 1G
           cpus: '1.0'
         reservations:
-          memory: 128M
-          cpus: '0.2'
-    
-    # Networks
-    networks:
-      - redline-network
-
-  # Log aggregation with Fluentd
-  fluentd:
-    image: fluent/fluentd:v1.16-debian-1
-    container_name: redline-fluentd
-    hostname: redline-fluentd
-    restart: unless-stopped
-    
-    # Volumes
-    volumes:
-      - ./config/fluentd.conf:/fluentd/etc/fluent.conf
-      - ./logs:/var/log/redline
-    
-    # Resource limits
-    deploy:
-      resources:
-        limits:
           memory: 256M
-          cpus: '0.5'
-        reservations:
-          memory: 64M
-          cpus: '0.1'
-    
-    # Networks
-    networks:
-      - redline-network
-
-# Named volumes
-volumes:
-  redis-data:
-    driver: local
-  prometheus-data:
-    driver: local
-  redline-temp:
-    driver: local
+          cpus: '0.25'
 
 # Networks
 networks:
-  redline-network:
+  default:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16

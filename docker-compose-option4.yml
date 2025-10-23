@@ -1,7 +1,5 @@
-# REDLINE Docker Compose Configuration (Hybrid Approach)
-# Combines working webgui with Docker Compose orchestration
-
-version: '3.8'
+# REDLINE Docker Compose Configuration (Fixed)
+# Simple web app + web GUI setup without dependency cycles
 
 services:
   # REDLINE Web App + Web GUI (using working Option 1 approach)

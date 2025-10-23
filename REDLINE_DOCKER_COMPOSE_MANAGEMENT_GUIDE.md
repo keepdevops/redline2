@@ -11,10 +11,8 @@ This guide covers the complete Docker Compose management for REDLINE Option 4 in
 The Docker Compose configuration created by Option 4 provides a clean, single-service setup:
 
 ```yaml
-# REDLINE Docker Compose Configuration (Hybrid Approach)
-# Combines working webgui with Docker Compose orchestration
-
-version: '3.8'
+# REDLINE Docker Compose Configuration (Fixed)
+# Simple web app + web GUI setup without dependency cycles
 
 services:
   # REDLINE Web App + Web GUI (using working Option 1 approach)
@@ -234,6 +232,18 @@ docker-compose down -v --remove-orphans
    # Fix file permissions
    chmod +x manage_compose.sh
    chmod +x start_compose.sh
+   ```
+
+5. **Docker Compose version warning:**
+   ```bash
+   # The 'version' attribute is obsolete in newer Docker Compose versions
+   # The fixed configuration removes this attribute
+   ```
+
+6. **Dependency cycle detected:**
+   ```bash
+   # The fixed configuration removes complex dependencies
+   # Uses single service approach to avoid cycles
    ```
 
 ### Log Analysis
