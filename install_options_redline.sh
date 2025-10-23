@@ -665,7 +665,7 @@ echo ""
 # Check if Docker Compose is available
 if ! command -v docker-compose >/dev/null 2>&1; then
     print_error "Docker Compose not found!"
-    print_status "Please run: ./install_redline_fixed.sh and choose option 4"
+    print_status "Please run: ./install_options_redline.sh and choose option 4"
     exit 1
 fi
 
@@ -679,7 +679,7 @@ fi
 # Check if docker-compose.yml exists
 if [ ! -f "docker-compose.yml" ]; then
     print_error "docker-compose.yml not found!"
-    print_status "Please run: ./install_redline_fixed.sh and choose option 4"
+    print_status "Please run: ./install_options_redline.sh and choose option 4"
     exit 1
 fi
 
