@@ -22,7 +22,7 @@ services:
       - FLASK_ENV=production
       - HOST=0.0.0.0
       - PORT=8080
-      - VNC_PASSWORD=redline123
+      - VNC_PASSWORD=${VNC_PASSWORD:-$(openssl rand -base64 32)}
       - DISPLAY=:1
       - VNC_PORT=5901
       - NO_VNC_PORT=6080

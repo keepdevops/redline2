@@ -7,6 +7,7 @@ Flask-based web interface for REDLINE application
 import os
 import sys
 import logging
+import secrets
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO
 try:
@@ -38,7 +39,7 @@ def create_app():
                 static_folder='redline/web/static')
     
     # Configuration
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'redline-secret-key-2024')
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
     app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
     app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'data', 'uploads')
     
@@ -48,7 +49,8 @@ def create_app():
     # Initialize SocketIO for real-time updates
     # For PyInstaller compatibility, use threading mode explicitly
     try:
-        socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+        allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:8080,http://127.0.0.1:8080').split(',')
+        socketio = SocketIO(app, cors_allowed_origins=allowed_origins, async_mode='threading')
         logger.info("SocketIO initialized with threading async_mode")
     except Exception as e:
         logger.warning(f"Failed to initialize SocketIO: {e}")

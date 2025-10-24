@@ -24,7 +24,9 @@ class AlphaVantageDownloader(BaseDownloader):
         self.logger = logging.getLogger(__name__)
         
         # Alpha Vantage configuration
-        self.api_key = api_key or "demo"  # Use demo key if none provided
+        self.api_key = api_key or os.environ.get('ALPHA_VANTAGE_API_KEY')
+        if not self.api_key:
+            raise ValueError("Alpha Vantage API key is required. Set ALPHA_VANTAGE_API_KEY environment variable or pass api_key parameter.")
         self.base_url = "https://www.alphavantage.co/query"
         self.timeout = 30
         

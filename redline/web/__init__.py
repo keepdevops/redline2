@@ -4,6 +4,7 @@
 from flask import Flask
 from flask_socketio import SocketIO
 import os
+import secrets
 
 def create_app():
     """Create and configure the Flask application."""
@@ -12,7 +13,7 @@ def create_app():
                 static_folder='static')
     
     # Configuration
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'redline-secret-key-2024')
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
     app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
     app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'data', 'uploads')
     
@@ -20,7 +21,8 @@ def create_app():
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     
     # Initialize SocketIO for real-time updates
-    socketio = SocketIO(app, cors_allowed_origins="*")
+    allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:8080,http://127.0.0.1:8080').split(',')
+    socketio = SocketIO(app, cors_allowed_origins=allowed_origins)
     
     # Register blueprints
     from .routes.main import main_bp

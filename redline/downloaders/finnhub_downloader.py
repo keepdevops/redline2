@@ -24,7 +24,9 @@ class FinnhubDownloader(BaseDownloader):
         self.logger = logging.getLogger(__name__)
         
         # Finnhub configuration
-        self.api_key = api_key or "demo"  # Use demo key if none provided
+        self.api_key = api_key or os.environ.get('FINNHUB_API_KEY')
+        if not self.api_key:
+            raise ValueError("Finnhub API key is required. Set FINNHUB_API_KEY environment variable or pass api_key parameter.")
         self.base_url = "https://finnhub.io/api/v1"
         self.timeout = 30
         

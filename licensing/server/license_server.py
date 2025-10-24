@@ -9,6 +9,7 @@ import json
 import hashlib
 import hmac
 import time
+import secrets
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -17,7 +18,7 @@ app = Flask(__name__)
 CORS(app)
 
 # Configuration
-SECRET_KEY = os.environ.get('LICENSE_SECRET_KEY', 'redline-license-secret-2024')
+SECRET_KEY = os.environ.get('LICENSE_SECRET_KEY') or secrets.token_hex(32)
 LICENSE_DB_FILE = 'licenses.json'
 
 class LicenseManager:

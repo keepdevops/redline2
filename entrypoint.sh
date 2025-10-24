@@ -10,7 +10,7 @@ MODE=${MODE:-auto}
 VNC_PORT=${VNC_PORT:-5900}
 WEB_PORT=${WEB_PORT:-8080}
 DISPLAY=${DISPLAY:-:99}
-VNC_PASSWORD=${VNC_PASSWORD:-redline123}
+VNC_PASSWORD=${VNC_PASSWORD:-$(openssl rand -base64 32 2>/dev/null || echo "vnc-$(date +%s)")}
 
 # Colors for output
 RED='\033[0;31m'

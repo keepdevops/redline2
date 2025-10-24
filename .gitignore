@@ -66,14 +66,47 @@ celerybeat-schedule
 # SageMath parsed files
 *.sage.py
 
-# Environments
+# Environments and Secrets
 .env
+.env.*
+!.env.template
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+
+# API Keys and Secrets
+api_keys.json
+*_keys.json
+*secrets*
+*secret*
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+
+# Configuration files with potential secrets
+config.ini
+*config*.ini
+data_config.ini
+*.conf
+*.cfg
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+redline_data.duckdb
+temp_data.duckdb
+
+# Logs and temporary files
+*.log
+logs/
+temp/
+tmp/
 
 # Spyder project settings
 .spyderproject
