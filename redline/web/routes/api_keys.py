@@ -352,3 +352,5 @@ def _test_finnhub_key(api_key):
             'valid': False,
             'message': f'Connection error: {str(e)}'
         }
+
+

@@ -241,3 +241,5 @@ class AlphaVantageDownloader(BaseDownloader):
             self.logger.warning(f"Failed to download {len(failed_tickers)} tickers from Alpha Vantage: {', '.join(failed_tickers)}")
         
         return results
+
+

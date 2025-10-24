@@ -244,3 +244,5 @@ class FinnhubDownloader(BaseDownloader):
             self.logger.warning(f"Failed to download {len(failed_tickers)} tickers from Finnhub: {', '.join(failed_tickers)}")
         
         return results
+
+
