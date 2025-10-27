@@ -43,7 +43,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Create supervisor directories
-RUN mkdir -p /var/log/supervisor /var/run
+RUN mkdir -p /var/log/supervisor /var/run /etc/supervisor /etc/supervisor/conf.d
 
 # Install websockify via pip (more reliable)
 RUN pip3 install websockify || true
@@ -117,7 +117,7 @@ DESKTOP_EOF
 RUN chmod +x /start-desktop.sh
 
 # Create supervisor configuration
-RUN cat > /etc/supervisor/supervisord.conf << 'SUPER_EOF'
+RUN cat > /etc/supervisord.conf << 'SUPER_EOF'
 [unix_http_server]
 file=/var/run/supervisor.sock
 chmod=0700
@@ -182,4 +182,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:6080/ || exit 1
 
 # Start services
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
