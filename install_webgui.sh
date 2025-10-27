@@ -136,16 +136,16 @@ install_webgui() {
     fi
     
     # Determine which Dockerfile to use
-    # Try Dockerfile.webgui first (recently fixed VNC startup issues)
-    local dockerfile="Dockerfile.webgui"
+    # Try Dockerfile.webgui.simple first (no VNC - just Flask web app)
+    local dockerfile="Dockerfile.webgui.simple"
+    if [ ! -f "$dockerfile" ]; then
+        dockerfile="Dockerfile.webgui"
+    fi
     if [ ! -f "$dockerfile" ]; then
         dockerfile="Dockerfile.webgui.universal"
     fi
     if [ ! -f "$dockerfile" ]; then
         dockerfile="Dockerfile.webgui.buildx"
-    fi
-    if [ ! -f "$dockerfile" ]; then
-        dockerfile="Dockerfile.webgui.simple"
     fi
     if [ ! -f "$dockerfile" ]; then
         dockerfile="Dockerfile.webgui.fixed"
@@ -261,23 +261,11 @@ if docker ps -a --format "{{.Names}}" | grep -q "^redline-webgui$"; then
     docker rm redline-webgui >/dev/null 2>&1 || true
 fi
 
-# Generate VNC password if not set
-if [ -z "$VNC_PASSWORD" ]; then
-    VNC_PASSWORD=$(openssl rand -base64 12)
-fi
-
 print_status "Starting REDLINE Web-Based GUI..."
 docker run -d \
     --name redline-webgui \
     --network host \
-    -p 6080:6080 \
-    -p 5901:5901 \
-    -e DISPLAY=:1 \
-    -e VNC_PORT=5901 \
-    -e NO_VNC_PORT=6080 \
-    -e VNC_PASSWORD="$VNC_PASSWORD" \
-    -e VNC_RESOLUTION=1920x1080 \
-    -e VNC_COL_DEPTH=24 \
+    -p 8080:8080 \
     -v "$(pwd)/data:/app/data" \
     -v "$(pwd)/logs:/app/logs" \
     -v "$(pwd)/config:/app/config" \
@@ -289,10 +277,7 @@ if [ $? -eq 0 ]; then
     print_success "REDLINE Web-Based GUI started!"
     echo ""
     print_header "Access Information"
-    echo "  🌐 Web Interface: http://localhost:6080"
-    echo "  🔑 VNC Password:  $VNC_PASSWORD"
-    echo ""
-    print_status "Save the VNC password - you'll need it to access the interface"
+    echo "  🌐 Web Interface: http://localhost:8080"
     echo ""
     print_status "To view logs: docker logs -f redline-webgui"
     print_status "To stop:      docker stop redline-webgui"
@@ -315,7 +300,7 @@ EOF
         echo "  ./start_webgui.sh"
         echo ""
         print_status "Then access it at:"
-        echo "  http://localhost:6080"
+        echo "  http://localhost:8080"
         echo ""
     else
         print_error "Failed to build web-based GUI image"

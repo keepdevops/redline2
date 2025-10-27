@@ -1,127 +1,36 @@
-# REDLINE Web-Based GUI Dockerfile (Simplified)
-# Uses noVNC + TigerVNC for web-based GUI access without X11 forwarding
-# Simplified installation with better error handling
+# REDLINE Web-Based GUI - Simple Flask Approach
+# No VNC needed - just run the web app directly
 
 FROM ubuntu:22.04
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
-ENV DISPLAY=:1
-ENV VNC_PORT=5901
-ENV NO_VNC_PORT=6080
-ENV VNC_RESOLUTION=1920x1080
-ENV VNC_COL_DEPTH=24
+ENV FLASK_APP=web_app.py
+ENV FLASK_ENV=production
 
-# Install system dependencies with error handling
+# Install Python and basic dependencies
 RUN apt-get update && apt-get install -y \
-    # Basic utilities
-    wget \
-    curl \
-    unzip \
-    supervisor \
-    # Desktop environment
-    xfce4 \
-    xfce4-goodies \
-    # VNC server
-    tigervnc-standalone-server \
-    tigervnc-common \
-    # Python and GUI dependencies
     python3 \
     python3-pip \
-    python3-dev \
-    # Additional GUI libraries
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    libxext6 \
-    libxrender1 \
-    libxtst6 \
-    libxi6 \
-    # Web browser (optional)
-    firefox \
-    # Cleanup
+    curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python Tkinter separately to handle different package names
-# Try multiple package names and continue if they fail
-RUN apt-get update && \
-    (apt-get install -y python3-tk || \
-     apt-get install -y python-tk || \
-     apt-get install -y tkinter || \
-     echo "Tkinter package not found via apt") && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install Tkinter via pip as fallback (always try this)
-RUN pip3 install tk || echo "Tkinter not available via pip"
-
-# Install websockify via pip (more reliable than manual installation)
-RUN pip3 install websockify || echo "websockify installation failed"
-
-# Install noVNC (simplified approach)
-RUN mkdir -p /opt/noVNC \
-    && cd /opt/noVNC \
-    && wget -qO- https://github.com/novnc/noVNC/archive/v1.3.0.tar.gz | tar xz --strip 1 \
-    && echo "noVNC installed successfully"
-
-# Create VNC password
-RUN mkdir -p ~/.vnc \
-    && echo "redline123" | vncpasswd -f > ~/.vnc/passwd \
-    && chmod 600 ~/.vnc/passwd
-
-# Create VNC startup script (simplified)
-RUN echo '#!/bin/bash\n\
-# Start VNC server\n\
-vncserver :1 -geometry $VNC_RESOLUTION -depth $VNC_COL_DEPTH\n\
-\n\
-# Start noVNC using pip-installed websockify\n\
-cd /opt/noVNC\n\
-websockify --web /opt/noVNC $NO_VNC_PORT localhost:$VNC_PORT\n\
-\n\
-# Keep container running\n\
-tail -f /dev/null' > /start-vnc.sh \
-    && chmod +x /start-vnc.sh
-
-# Create desktop environment startup script
-RUN echo '#!/bin/bash\n\
-# Start desktop environment\n\
-startxfce4 &' > /start-desktop.sh \
-    && chmod +x /start-desktop.sh
-
-# Create supervisor configuration
-RUN echo '[supervisord]\n\
-nodaemon=true\n\
-user=root\n\
-\n\
-[program:vnc]\n\
-command=/start-vnc.sh\n\
-autorestart=true\n\
-\n\
-[program:desktop]\n\
-command=/start-desktop.sh\n\
-autorestart=true\n\
-environment=DISPLAY=":1"' > /etc/supervisor/conf.d/supervisord.conf
-
-# Copy REDLINE application
+# Copy application
 COPY . /app
 WORKDIR /app
 
-# Install Python dependencies with version compatibility
-RUN pip3 install -r requirements.docker.txt || pip3 install -r requirements.txt || pip3 install pandas numpy matplotlib seaborn plotly flask requests duckdb pyarrow fastparquet flask-socketio flask-compress gunicorn celery redis scikit-learn requests urllib3 configparser openpyxl xlsxwriter
+# Install Python dependencies
+RUN pip3 install --upgrade pip setuptools wheel
+RUN pip3 install flask flask-socketio werkzeug jinja2 requests || true
+RUN pip3 install numpy pandas duckdb pyarrow || true
 
-# Create startup script for REDLINE GUI
-RUN echo '#!/bin/bash\n\
-# Start REDLINE GUI\n\
-cd /app\n\
-python3 main.py &' > /start-redline.sh \
-    && chmod +x /start-redline.sh
-
-# Expose ports
-EXPOSE 6080 5901
+# Expose web port
+EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:6080/ || exit 1
+    CMD curl -f http://localhost:8080/health || exit 1
 
-# Start services
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+# Start the web application
+CMD ["python3", "web_app.py"]
