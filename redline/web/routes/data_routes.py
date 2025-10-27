@@ -118,8 +118,6 @@ def get_database_stats():
 @data_bp.route('/load-multiple', methods=['POST'])
 def load_multiple_files():
     """Load multiple files at once."""
-    from ..utils.file_loading import load_files_parallel
-    
     try:
         data = request.get_json()
         filenames = data.get('filenames', [])
@@ -127,32 +125,55 @@ def load_multiple_files():
         if not filenames:
             return jsonify({'error': 'No filenames provided'}), 400
         
-        # Build file paths
-        file_paths = []
+        results = {}
+        errors = {}
+        success_count = 0
+        error_count = 0
+        
         for filename in filenames:
-            data_dir = os.path.join(os.getcwd(), 'data')
-            root_path = os.path.join(data_dir, filename)
-            downloaded_path = os.path.join(data_dir, 'downloaded', filename)
-            
-            if os.path.exists(root_path):
-                file_paths.append(root_path)
-            elif os.path.exists(downloaded_path):
-                file_paths.append(downloaded_path)
-        
-        if not file_paths:
-            return jsonify({'error': 'No files found'}), 404
-        
-        # Load files
-        result = load_files_parallel(file_paths)
-        
-        if not result['success']:
-            return jsonify({'error': result.get('error', 'Failed to load files')}), 500
+            try:
+                # Build file paths
+                data_dir = os.path.join(os.getcwd(), 'data')
+                root_path = os.path.join(data_dir, filename)
+                downloaded_path = os.path.join(data_dir, 'downloaded', filename)
+                
+                file_path = None
+                if os.path.exists(root_path):
+                    file_path = root_path
+                elif os.path.exists(downloaded_path):
+                    file_path = downloaded_path
+                else:
+                    errors[filename] = f'File not found: {filename}'
+                    error_count += 1
+                    continue
+                
+                # Load the file
+                format_type = _detect_format_from_path(file_path)
+                df = _load_file_by_format(file_path, format_type)
+                
+                if df.empty:
+                    errors[filename] = f'No data found in file: {filename}'
+                    error_count += 1
+                    continue
+                
+                # Store results
+                results[filename] = {
+                    'columns': list(df.columns),
+                    'data': df.head(1000).to_dict('records'),
+                    'total_rows': len(df)
+                }
+                success_count += 1
+                
+            except Exception as e:
+                logger.error(f"Error loading file {filename}: {str(e)}")
+                errors[filename] = str(e)
+                error_count += 1
         
         return jsonify({
-            'data': result['data'].head(1000).to_dict('records'),
-            'columns': result['columns'],
-            'total_rows': result['total_rows'],
-            'files_loaded': result['files_loaded']
+            'success_count': success_count,
+            'error_count': error_count,
+            'results': results,
+            'errors': errors
         })
         
     except Exception as e:
