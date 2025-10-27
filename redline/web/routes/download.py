@@ -3,6 +3,7 @@ Download tab routes for REDLINE Web GUI
 Handles data downloading from various sources
 """
 
+import os
 from flask import Blueprint, render_template, request, jsonify
 import logging
 from datetime import datetime, timedelta
