@@ -106,8 +106,10 @@ COPY requirements.txt /opt/redline/
 
 # Install Python dependencies using Python 3.11
 # Install yfinance separately first (it has complex dependencies)
-RUN python3 -m pip install yfinance --no-cache-dir && \
-    python3 -m pip install -r requirements.txt --no-cache-dir
+# Install with security updates for latest vulnerability fixes
+RUN python3 -m pip install --upgrade pip setuptools wheel && \
+    python3 -m pip install yfinance --no-cache-dir && \
+    python3 -m pip install -r requirements.txt --no-cache-dir --upgrade
 
 # Copy application code
 COPY . /opt/redline/
@@ -193,6 +195,23 @@ EXPOSE 80 8080
 # Add health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD /opt/redline/scripts/healthcheck.sh
+
+# Create Celery worker startup script (before switching user)
+RUN echo '#!/bin/bash' > /opt/redline/scripts/start_celery_worker.sh && \
+    echo 'cd /opt/redline' >> /opt/redline/scripts/start_celery_worker.sh && \
+    echo 'celery -A redline worker --concurrency=2 --loglevel=info --queues=redline_tasks --time-limit=1800 --soft-time-limit=1500 --max-tasks-per-child=1000' >> /opt/redline/scripts/start_celery_worker.sh && \
+    chmod +x /opt/redline/scripts/start_celery_worker.sh
+
+# Update supervisor configuration to include Celery worker (before switching user)
+RUN echo '' >> /etc/supervisor/conf.d/redline.conf && \
+    echo '[program:celery]' >> /etc/supervisor/conf.d/redline.conf && \
+    echo 'command=/opt/redline/scripts/start_celery_worker.sh' >> /etc/supervisor/conf.d/redline.conf && \
+    echo 'directory=/opt/redline' >> /etc/supervisor/conf.d/redline.conf && \
+    echo 'user=redline' >> /etc/supervisor/conf.d/redline.conf && \
+    echo 'autostart=true' >> /etc/supervisor/conf.d/redline.conf && \
+    echo 'autorestart=true' >> /etc/supervisor/conf.d/redline.conf && \
+    echo 'stderr_logfile=/var/log/redline/celery_error.log' >> /etc/supervisor/conf.d/redline.conf && \
+    echo 'stdout_logfile=/var/log/redline/celery_access.log' >> /etc/supervisor/conf.d/redline.conf
 
 # Switch to non-root user
 USER redline

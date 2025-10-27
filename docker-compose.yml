@@ -2,6 +2,24 @@
 # Simple web app + web GUI setup without dependency cycles
 
 services:
+  # Redis service for Celery broker and rate limiting storage
+  redis:
+    image: redis:7-alpine
+    container_name: redline-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - redline-network
+  
   # REDLINE Web App + Web GUI (using working Option 1 approach)
   redline-webgui:
     build:
@@ -10,6 +28,9 @@ services:
     image: redline-webgui:latest
     container_name: redline-web-app
     restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
     
     # Ports
     ports:
@@ -22,6 +43,9 @@ services:
       - FLASK_ENV=production
       - HOST=0.0.0.0
       - PORT=8080
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - VNC_PASSWORD=${VNC_PASSWORD:-$(openssl rand -base64 32)}
       - DISPLAY=:1
       - VNC_PORT=5901
@@ -54,7 +78,15 @@ services:
           memory: 256M
           cpus: '0.25'
 
+# Volumes
+volumes:
+  redis_data:
+    driver: local
+
 # Networks
 networks:
+  redline-network:
+    driver: bridge
   default:
     driver: bridge
+    external: false

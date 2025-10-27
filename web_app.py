@@ -76,20 +76,66 @@ def create_app():
     if COMPRESS_AVAILABLE:
         Compress(app)
     
+    # Configure Jinja2 template caching for production
+    app.jinja_env.auto_reload = False
+    app.jinja_options = {
+        'cache_size': 400,
+        'auto_reload': False
+    }
+    
     # Initialize rate limiting if available
     limiter = None
     if LIMITER_AVAILABLE:
+        # Use Redis if available, otherwise memory
+        redis_url = os.environ.get('REDIS_URL')
+        if redis_url:
+            storage_uri = redis_url
+            logger.info("Rate limiting using Redis storage")
+        else:
+            storage_uri = "memory://"
+            logger.info("Rate limiting using in-memory storage")
+        
         limiter = Limiter(
             app=app,
             key_func=get_remote_address,
             default_limits=["200 per day", "50 per hour"],
-            storage_uri="memory://",  # Use in-memory storage for simplicity
+            storage_uri=storage_uri,
             headers_enabled=True
         )
         logger.info("Rate limiting enabled")
     
     # Store limiter for blueprint access
     app.config['limiter'] = limiter
+    
+    # Initialize TaskManager for background tasks
+    try:
+        from redline.background.task_manager import TaskManager
+        task_manager = TaskManager(app=app)
+        app.config['task_manager'] = task_manager
+        logger.info("TaskManager initialized successfully")
+    except Exception as e:
+        logger.warning(f"Failed to initialize TaskManager: {str(e)}")
+        app.config['task_manager'] = None
+    
+    # Add cache headers to static files
+    @app.after_request
+    def add_cache_headers(response):
+        """Add cache control headers to improve performance."""
+        if request.endpoint != 'static':
+            return response
+        
+        # Add cache headers for static files
+        if '.min.' in request.path:
+            # Minified files can be cached for 1 year
+            response.cache_control.max_age = 31536000  # 1 year
+            response.cache_control.public = True
+            response.cache_control.immutable = True
+        elif request.path.endswith(('.css', '.js', '.jpg', '.jpeg', '.png', '.gif', '.svg', '.ico')):
+            # Regular static files cached for 1 hour
+            response.cache_control.max_age = 3600  # 1 hour
+            response.cache_control.public = True
+        
+        return response
     
     # Register blueprints
     from redline.web.routes.main import main_bp
