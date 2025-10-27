@@ -1,0 +1,31 @@
+# Ignore large data directories
+data/
+logs/
+*.duckdb
+*.db
+
+# Ignore build artifacts
+dist/
+build/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Ignore git
+.git/
+.gitignore
+
+# Ignore development files
+venv/
+.env
+*.log
+.DS_Store
+
+# Ignore documentation
+*.md
+docs/
+
+# Ignore test files
+test_*.py
+*_test.py
+tests/
