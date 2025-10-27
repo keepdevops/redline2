@@ -197,7 +197,8 @@ def batch_download():
         
         # Create a single downloader instance to share rate limiting
         downloader = None
-        test_mode = data.get('test_mode', False)  # Allow test mode for demo purposes
+        # Use environment variable for test mode instead of request parameter
+        test_mode = os.environ.get('REDLINE_TEST_MODE', 'false').lower() == 'true'
         
         if test_mode:
             logger.info("Running in test mode - will create sample data")

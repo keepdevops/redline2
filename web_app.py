@@ -140,7 +140,7 @@ def create_app():
     # Register blueprints
     from redline.web.routes.main import main_bp
     from redline.web.routes.api import api_bp
-    from redline.web.routes.data import data_bp
+    from redline.web.routes.data_routes import data_bp
     from redline.web.routes.analysis import analysis_bp
     from redline.web.routes.download import download_bp
     from redline.web.routes.converter import converter_bp

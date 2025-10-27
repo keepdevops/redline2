@@ -354,7 +354,9 @@ docker run -d \
 
 echo "Web-based GUI started!"
 echo "Access at: http://localhost:6080"
-echo "VNC password: redline123"
+VNC_PASSWORD=${VNC_PASSWORD:-$(openssl rand -base64 16)}
+echo "VNC password: $VNC_PASSWORD"
+echo "⚠️  Save this password! It will be needed to access the VNC interface."
 EOF
         chmod +x start_webgui.sh
         
@@ -557,24 +559,45 @@ install_docker_compose() {
     print_status "Installing web-based GUI (using working Option 1 approach)..."
     install_webgui
     
-    # Create Docker Compose files using the working approach
-    print_status "Creating Docker Compose configuration..."
-    if [ ! -f "docker-compose.yml" ]; then
+    # Check if docker-compose.yml already exists with Redis/Celery
+    print_status "Checking for existing docker-compose.yml..."
+    if [ -f "docker-compose.yml" ] && grep -q "redis:" docker-compose.yml; then
+        print_success "Using existing docker-compose.yml with Redis/Celery"
+    else
+        print_status "Creating docker-compose.yml with Redis/Celery support..."
         cat > docker-compose.yml << 'EOF'
-# REDLINE Docker Compose Configuration (Hybrid Approach)
-# Combines working webgui with Docker Compose orchestration
-
-version: '3.8'
+# REDLINE Docker Compose Configuration with Redis & Celery
 
 services:
-  # REDLINE Web App + Web GUI (using working Option 1 approach)
+  # Redis service for Celery broker and rate limiting storage
+  redis:
+    image: redis:7-alpine
+    container_name: redline-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - redline-network
+  
+  # REDLINE Web App + Web GUI
   redline-webgui:
     build:
       context: .
-      dockerfile: Dockerfile.webgui.universal
+      dockerfile: Dockerfile
     image: redline-webgui:latest
     container_name: redline-web-app
     restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
     
     # Ports
     ports:
@@ -587,7 +610,10 @@ services:
       - FLASK_ENV=production
       - HOST=0.0.0.0
       - PORT=8080
-      - VNC_PASSWORD=redline123
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - VNC_PASSWORD=${VNC_PASSWORD:-$(openssl rand -base64 16)}
       - DISPLAY=:1
       - VNC_PORT=5901
       - NO_VNC_PORT=6080
@@ -618,12 +644,20 @@ services:
         reservations:
           memory: 256M
           cpus: '0.25'
+    networks:
+      - redline-network
+
+# Volumes
+volumes:
+  redis_data:
+    driver: local
 
 # Networks
 networks:
-  default:
+  redline-network:
     driver: bridge
 EOF
+        print_success "docker-compose.yml created with Redis/Celery support"
     fi
     
     # Create startup script using the working approach
@@ -695,7 +729,7 @@ if [ $? -eq 0 ]; then
     print_status "Service URLs:"
     echo "  🌐 Web App:     http://localhost:8080"
     echo "  🖥️  Web GUI:     http://localhost:6080"
-    echo "  🔑 VNC Password: redline123"
+    echo "  🔑 VNC Password: (check startup output or set VNC_PASSWORD env var)"
     echo ""
     print_status "To view logs: docker-compose logs -f"
     print_status "To stop:      docker-compose down"

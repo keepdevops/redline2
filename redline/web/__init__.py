@@ -27,7 +27,7 @@ def create_app():
     # Register blueprints
     from .routes.main import main_bp
     from .routes.api import api_bp
-    from .routes.data import data_bp
+    from .routes.data_routes import data_bp
     from .routes.analysis import analysis_bp
     from .routes.download import download_bp
     from .routes.converter import converter_bp
