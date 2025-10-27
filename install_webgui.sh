@@ -93,13 +93,13 @@ check_prerequisites() {
     fi
     print_success "Docker daemon is running"
     
-    # Check for required files
+    # Check for required files (in priority order)
     local dockerfiles=(
+        "Dockerfile.webgui"
         "Dockerfile.webgui.universal"
         "Dockerfile.webgui.buildx"
         "Dockerfile.webgui.simple"
         "Dockerfile.webgui.fixed"
-        "Dockerfile.webgui"
     )
     
     local found_dockerfile=""
@@ -130,7 +130,11 @@ install_webgui() {
     print_header "Installing Web-Based GUI"
     
     # Determine which Dockerfile to use
-    local dockerfile="Dockerfile.webgui.universal"
+    # Try Dockerfile.webgui first (recently fixed VNC startup issues)
+    local dockerfile="Dockerfile.webgui"
+    if [ ! -f "$dockerfile" ]; then
+        dockerfile="Dockerfile.webgui.universal"
+    fi
     if [ ! -f "$dockerfile" ]; then
         dockerfile="Dockerfile.webgui.buildx"
     fi
@@ -139,9 +143,6 @@ install_webgui() {
     fi
     if [ ! -f "$dockerfile" ]; then
         dockerfile="Dockerfile.webgui.fixed"
-    fi
-    if [ ! -f "$dockerfile" ]; then
-        dockerfile="Dockerfile.webgui"
     fi
     
     print_status "Using Dockerfile: $dockerfile"
