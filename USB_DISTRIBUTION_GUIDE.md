@@ -306,3 +306,4 @@ cp -r dist/usb-distribution/REDLINE-USB-1.0.0 /media/user/REDLINE-USB
 REDLINE is now ready for offline distribution via USB drives across all major platforms.
 
 
+

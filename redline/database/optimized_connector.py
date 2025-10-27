@@ -9,7 +9,7 @@ import pandas as pd
 import threading
 import time
 import hashlib
-from typing import Union, Dict, Any, Optional
+from typing import Union, Dict, Any, Optional, List
 from functools import lru_cache
 import queue
 
@@ -268,6 +268,142 @@ class OptimizedDatabaseConnector:
             self.logger.error(f"Failed to get table info for {table_name}: {str(e)}")
             return {}
     
+    def create_indexes(self, table_name: str = 'tickers_data') -> None:
+        """
+        Create indexes for common query patterns to improve performance.
+        
+        Args:
+            table_name: Name of the table to create indexes for
+        """
+        try:
+            conn = self.connection_pool.get_connection()
+            
+            try:
+                self.logger.info(f"Creating indexes for {table_name}...")
+                
+                # Create indexes for common query patterns
+                indexes = [
+                    f"CREATE INDEX IF NOT EXISTS idx_{table_name}_ticker ON {table_name}(ticker)",
+                    f"CREATE INDEX IF NOT EXISTS idx_{table_name}_timestamp ON {table_name}(timestamp)",
+                    f"CREATE INDEX IF NOT EXISTS idx_{table_name}_ticker_timestamp ON {table_name}(ticker, timestamp)",
+                    f"CREATE INDEX IF NOT EXISTS idx_{table_name}_close ON {table_name}(close)",
+                    f"CREATE INDEX IF NOT EXISTS idx_{table_name}_volume ON {table_name}(vol)"
+                ]
+                
+                for index_sql in indexes:
+                    try:
+                        conn.execute(index_sql)
+                        self.logger.debug(f"Created index: {index_sql[:50]}...")
+                    except Exception as e:
+                        self.logger.warning(f"Failed to create index: {str(e)}")
+                
+                # Commit indexes
+                conn.commit()
+                self.logger.info(f"Successfully created indexes for {table_name}")
+                
+            finally:
+                self.connection_pool.return_connection(conn)
+                
+        except Exception as e:
+            self.logger.error(f"Failed to create indexes for {table_name}: {str(e)}")
+    
+    def drop_indexes(self, table_name: str = 'tickers_data') -> None:
+        """
+        Drop indexes for a table (useful for performance testing or index recreation).
+        
+        Args:
+            table_name: Name of the table to drop indexes for
+        """
+        try:
+            conn = self.connection_pool.get_connection()
+            
+            try:
+                self.logger.info(f"Dropping indexes for {table_name}...")
+                
+                # Drop indexes for the table
+                indexes = [
+                    f"DROP INDEX IF EXISTS idx_{table_name}_ticker",
+                    f"DROP INDEX IF EXISTS idx_{table_name}_timestamp",
+                    f"DROP INDEX IF EXISTS idx_{table_name}_ticker_timestamp",
+                    f"DROP INDEX IF EXISTS idx_{table_name}_close",
+                    f"DROP INDEX IF EXISTS idx_{table_name}_volume"
+                ]
+                
+                for index_sql in indexes:
+                    try:
+                        conn.execute(index_sql)
+                        self.logger.debug(f"Dropped index: {index_sql}")
+                    except Exception as e:
+                        self.logger.warning(f"Failed to drop index: {str(e)}")
+                
+                # Commit changes
+                conn.commit()
+                self.logger.info(f"Successfully dropped indexes for {table_name}")
+                
+            finally:
+                self.connection_pool.return_connection(conn)
+                
+        except Exception as e:
+            self.logger.error(f"Failed to drop indexes for {table_name}: {str(e)}")
+    
+    def get_index_info(self, table_name: str = 'tickers_data') -> List[Dict[str, Any]]:
+        """
+        Get information about indexes for a table.
+        
+        Args:
+            table_name: Name of the table to get index info for
+            
+        Returns:
+            List of index information dictionaries
+        """
+        try:
+            conn = self.connection_pool.get_connection()
+            
+            try:
+                # Get index information
+                result = conn.execute(
+                    "SELECT name, tbl_name, sql FROM sqlite_master WHERE type='index' AND tbl_name=?",
+                    [table_name]
+                ).fetchall()
+                
+                indexes = []
+                for row in result:
+                    indexes.append({
+                        'name': row[0],
+                        'table': row[1],
+                        'sql': row[2]
+                    })
+                
+                return indexes
+                
+            finally:
+                self.connection_pool.return_connection(conn)
+                
+        except Exception as e:
+            self.logger.error(f"Failed to get index info for {table_name}: {str(e)}")
+            return []
+    
+    def analyze_table(self, table_name: str = 'tickers_data') -> None:
+        """
+        Run ANALYZE on a table to update query planner statistics.
+        
+        Args:
+            table_name: Name of the table to analyze
+        """
+        try:
+            conn = self.connection_pool.get_connection()
+            
+            try:
+                self.logger.info(f"Running ANALYZE on {table_name}...")
+                conn.execute(f"ANALYZE {table_name}")
+                self.logger.info(f"Successfully analyzed {table_name}")
+                
+            finally:
+                self.connection_pool.return_connection(conn)
+                
+        except Exception as e:
+            self.logger.error(f"Failed to analyze {table_name}: {str(e)}")
+    
     def read_shared_data(self, table: str, format: str = 'pandas') -> Union[pd.DataFrame, 'pl.DataFrame', 'pa.Table']:
         """Read data from a shared table with connection pooling."""
         try:
@@ -353,6 +489,25 @@ class OptimizedDatabaseConnector:
                     conn.register('temp_df', db_data)
                     conn.execute(f"INSERT INTO {table} SELECT * FROM temp_df")
                     conn.unregister('temp_df')
+                
+                # Create indexes for better query performance
+                try:
+                    indexes = [
+                        f"CREATE INDEX IF NOT EXISTS idx_{table}_ticker ON {table}(ticker)",
+                        f"CREATE INDEX IF NOT EXISTS idx_{table}_timestamp ON {table}(timestamp)",
+                        f"CREATE INDEX IF NOT EXISTS idx_{table}_ticker_timestamp ON {table}(ticker, timestamp)",
+                        f"CREATE INDEX IF NOT EXISTS idx_{table}_close ON {table}(close)",
+                        f"CREATE INDEX IF NOT EXISTS idx_{table}_volume ON {table}(vol)"
+                    ]
+                    
+                    for index_sql in indexes:
+                        try:
+                            conn.execute(index_sql)
+                        except Exception as e:
+                            self.logger.debug(f"Index may already exist: {str(e)}")
+                            
+                except Exception as e:
+                    self.logger.warning(f"Failed to create indexes: {str(e)}")
                 
                 self.logger.info(f"Wrote data to {table} in format {format}")
                 
