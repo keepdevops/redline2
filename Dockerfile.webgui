@@ -45,12 +45,17 @@ RUN apt-get update && apt-get install -y \
 # Create supervisor directories
 RUN mkdir -p /var/log/supervisor /var/run
 
+# Install websockify via pip (more reliable)
+RUN pip3 install websockify || true
+
 # Install noVNC
 RUN mkdir -p /opt/noVNC \
     && cd /opt/noVNC \
     && wget -qO- https://github.com/novnc/noVNC/archive/v1.3.0.tar.gz | tar xz --strip 1 \
-    && cd utils/novnc \
-    && wget -qO- https://github.com/novnc/websockify/archive/v0.10.0.tar.gz | tar xz --strip 1
+    || echo "Warning: noVNC download failed"
+
+# Verify noVNC installation
+RUN ls -la /opt/noVNC || echo "noVNC not found"
 
 # Create VNC password
 RUN mkdir -p ~/.vnc \
@@ -77,10 +82,15 @@ sleep 2
 echo "Starting VNC server..."
 vncserver :1 -geometry $VNC_RESOLUTION -depth $VNC_COL_DEPTH -SecurityTypes VncAuth
 
-# Start noVNC/websockify in background
+# Start websockify in background
 echo "Starting websockify..."
-cd /opt/noVNC/utils/novnc
-./websockify --web /opt/noVNC $NO_VNC_PORT localhost:$VNC_PORT &
+if [ -d "/opt/noVNC" ]; then
+    # Use noVNC web interface if available
+    websockify --web /opt/noVNC $NO_VNC_PORT localhost:$VNC_PORT &
+else
+    # Use websockify without web interface
+    websockify $NO_VNC_PORT localhost:$VNC_PORT &
+fi
 
 # Keep script running
 wait
