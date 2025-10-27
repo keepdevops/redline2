@@ -42,6 +42,9 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Create supervisor directories
+RUN mkdir -p /var/log/supervisor /var/run
+
 # Install noVNC
 RUN mkdir -p /opt/noVNC \
     && cd /opt/noVNC \
@@ -55,37 +58,82 @@ RUN mkdir -p ~/.vnc \
     && chmod 600 ~/.vnc/passwd
 
 # Create VNC startup script
-RUN echo '#!/bin/bash\n\
-# Start VNC server\n\
-vncserver :1 -geometry $VNC_RESOLUTION -depth $VNC_COL_DEPTH\n\
-\n\
-# Start noVNC\n\
-cd /opt/noVNC/utils/novnc\n\
-./websockify --web /opt/noVNC $NO_VNC_PORT localhost:$VNC_PORT\n\
-\n\
-# Keep container running\n\
-tail -f /dev/null' > /start-vnc.sh \
-    && chmod +x /start-vnc.sh
+RUN cat > /start-vnc.sh << 'VNC_EOF'
+#!/bin/bash
+set -e
+
+# Create VNC password if not exists
+mkdir -p ~/.vnc
+if [ ! -f ~/.vnc/passwd ]; then
+    echo "redline123" | vncpasswd -f > ~/.vnc/passwd
+    chmod 600 ~/.vnc/passwd
+fi
+
+# Kill existing VNC server if any
+vncserver -kill :1 2>/dev/null || true
+sleep 2
+
+# Start VNC server
+echo "Starting VNC server..."
+vncserver :1 -geometry $VNC_RESOLUTION -depth $VNC_COL_DEPTH -SecurityTypes VncAuth
+
+# Start noVNC/websockify in background
+echo "Starting websockify..."
+cd /opt/noVNC/utils/novnc
+./websockify --web /opt/noVNC $NO_VNC_PORT localhost:$VNC_PORT &
+
+# Keep script running
+wait
+VNC_EOF
+chmod +x /start-vnc.sh
 
 # Create desktop environment startup script
-RUN echo '#!/bin/bash\n\
-# Start desktop environment\n\
-startxfce4 &' > /start-desktop.sh \
-    && chmod +x /start-desktop.sh
+RUN cat > /start-desktop.sh << 'DESKTOP_EOF'
+#!/bin/bash
+set -e
+
+# Wait for VNC server to be ready
+echo "Waiting for VNC server..."
+sleep 5
+
+# Start desktop environment
+echo "Starting XFCE desktop..."
+export DISPLAY=:1
+startxfce4 &
+
+# Keep script running
+wait
+DESKTOP_EOF
+chmod +x /start-desktop.sh
 
 # Create supervisor configuration
-RUN echo '[supervisord]\n\
-nodaemon=true\n\
-user=root\n\
-\n\
-[program:vnc]\n\
-command=/start-vnc.sh\n\
-autorestart=true\n\
-\n\
-[program:desktop]\n\
-command=/start-desktop.sh\n\
-autorestart=true\n\
-environment=DISPLAY=":1"' > /etc/supervisor/conf.d/supervisord.conf
+RUN cat > /etc/supervisor/conf.d/supervisord.conf << 'SUPER_EOF'
+[supervisord]
+nodaemon=true
+user=root
+logfile=/var/log/supervisor/supervisord.log
+pidfile=/var/run/supervisord.pid
+
+[program:vnc]
+command=/start-vnc.sh
+autorestart=true
+startretries=3
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+environment=DISPLAY=":1"
+
+[program:desktop]
+command=/start-desktop.sh
+autorestart=true
+startretries=3
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+environment=DISPLAY=":1"
+SUPER_EOF
 
 # Copy REDLINE application
 COPY . /app
