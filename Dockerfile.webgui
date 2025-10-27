@@ -85,7 +85,7 @@ cd /opt/noVNC/utils/novnc
 # Keep script running
 wait
 VNC_EOF
-chmod +x /start-vnc.sh
+RUN chmod +x /start-vnc.sh
 
 # Create desktop environment startup script
 RUN cat > /start-desktop.sh << 'DESKTOP_EOF'
@@ -104,7 +104,7 @@ startxfce4 &
 # Keep script running
 wait
 DESKTOP_EOF
-chmod +x /start-desktop.sh
+RUN chmod +x /start-desktop.sh
 
 # Create supervisor configuration
 RUN cat > /etc/supervisor/conf.d/supervisord.conf << 'SUPER_EOF'
