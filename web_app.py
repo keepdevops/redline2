@@ -17,6 +17,14 @@ except ImportError:
     COMPRESS_AVAILABLE = False
     print("Warning: flask-compress not available, compression disabled")
 
+try:
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+    LIMITER_AVAILABLE = True
+except ImportError:
+    LIMITER_AVAILABLE = False
+    print("Warning: flask-limiter not available, rate limiting disabled")
+
 # Add the project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -67,6 +75,21 @@ def create_app():
     # Initialize compression if available
     if COMPRESS_AVAILABLE:
         Compress(app)
+    
+    # Initialize rate limiting if available
+    limiter = None
+    if LIMITER_AVAILABLE:
+        limiter = Limiter(
+            app=app,
+            key_func=get_remote_address,
+            default_limits=["200 per day", "50 per hour"],
+            storage_uri="memory://",  # Use in-memory storage for simplicity
+            headers_enabled=True
+        )
+        logger.info("Rate limiting enabled")
+    
+    # Store limiter for blueprint access
+    app.config['limiter'] = limiter
     
     # Register blueprints
     from redline.web.routes.main import main_bp

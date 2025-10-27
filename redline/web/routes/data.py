@@ -4,7 +4,7 @@ Handles data viewing, filtering, and management
 Uses the same data loading logic as the tkinter GUI
 """
 
-from flask import Blueprint, render_template, request, jsonify, send_file
+from flask import Blueprint, render_template, request, jsonify, send_file, current_app
 import logging
 import os
 import pandas as pd
@@ -25,6 +25,20 @@ optimized_db = OptimizedDatabaseConnector(max_connections=8, cache_size=64, cach
 
 data_bp = Blueprint('data', __name__)
 logger = logging.getLogger(__name__)
+
+# Rate limiting decorator (if limiter is available)
+def rate_limit(limit_string):
+    """Decorator for rate limiting - gracefully handles missing limiter."""
+    def decorator(func):
+        try:
+            limiter = current_app.config.get('limiter') if current_app else None
+            if limiter:
+                from flask_limiter import Limiter
+                return limiter.limit(limit_string)(func)
+            return func
+        except:
+            return func
+    return decorator
 
 def _detect_format_from_path(file_path: str) -> str:
     """Detect format from file path - same as tkinter GUI."""
@@ -709,6 +723,7 @@ def get_columns(filename):
         return jsonify({'error': str(e)}), 500
 
 @data_bp.route('/load', methods=['POST'])
+@rate_limit("30 per minute")
 def load_file_data():
     """Load data from a file."""
     try:
@@ -768,6 +783,7 @@ def load_file_data():
         return jsonify({'error': str(e)}), 500
 
 @data_bp.route('/filter', methods=['POST'])
+@rate_limit("60 per minute")
 def filter_file_data():
     """Apply filters to loaded data."""
     try:

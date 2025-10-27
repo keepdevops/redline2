@@ -14,6 +14,17 @@ import json
 api_bp = Blueprint('api', __name__)
 logger = logging.getLogger(__name__)
 
+# Rate limiting decorator (if limiter is available)
+def rate_limit(limit_string):
+    """Decorator for rate limiting - gracefully handles missing limiter."""
+    def decorator(func):
+        limiter = current_app.config.get('limiter') if current_app else None
+        if limiter:
+            from flask_limiter import Limiter
+            return limiter.limit(limit_string)(func)
+        return func
+    return decorator
+
 @api_bp.route('/status')
 def get_status():
     """Get application status."""
@@ -182,6 +193,7 @@ def paginate_data(data, page=1, per_page=None):
     }
 
 @api_bp.route('/upload', methods=['POST'])
+@rate_limit("10 per minute")
 def upload_file():
     """Upload a file for processing."""
     try:
@@ -247,6 +259,7 @@ def get_supported_formats():
         return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/convert', methods=['POST'])
+@rate_limit("20 per hour")
 def convert_file():
     """Convert file between formats."""
     try:
@@ -299,6 +312,7 @@ def convert_file():
         return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/download/<ticker>', methods=['POST'])
+@rate_limit("30 per hour")
 def download_data(ticker):
     """Download financial data for a ticker."""
     try:
