@@ -27,6 +27,17 @@
         <link href="{{ url_for('static', filename='css/color-customizer.css') }}" rel="stylesheet">
         {% endif %}
     
+    <style>
+        /* Make filenames wrap properly in recent files panel */
+        #recent-files .list-group-item h6 {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-all;
+            white-space: normal;
+            max-width: 100%;
+        }
+    </style>
+    
     {% block extra_css %}{% endblock %}
 </head>
 <body class="theme-default">
