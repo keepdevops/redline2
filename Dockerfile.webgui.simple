@@ -22,10 +22,30 @@ WORKDIR /app
 
 # Install Python dependencies
 RUN pip3 install --upgrade pip setuptools wheel
-RUN pip3 install flask flask-socketio werkzeug jinja2 requests || true
-RUN pip3 install numpy pandas duckdb pyarrow yfinance || true
-RUN pip3 install flask-compress flask-limiter || true
+
+# Install Flask and core dependencies
+RUN pip3 install flask werkzeug jinja2 markupsafe click blinker itsdangerous || true
+
+# Install Flask extensions
+RUN pip3 install flask-socketio flask-compress flask-limiter || true
+
+# Install SocketIO async support (required for flask-socketio)
+RUN pip3 install python-socketio eventlet gevent gevent-websocket || true
+
+# Install data processing libraries
+RUN pip3 install numpy pandas duckdb pyarrow yfinance polars || true
+
+# Install background task processing
 RUN pip3 install celery redis || true
+
+# Install HTTP and network libraries
+RUN pip3 install requests urllib3 || true
+
+# Install optional but useful libraries
+RUN pip3 install scikit-learn matplotlib seaborn || true
+RUN pip3 install openpyxl xlsxwriter || true
+RUN pip3 install configparser || true
+RUN pip3 install gunicorn || true
 
 # Expose web port
 EXPOSE 8080
