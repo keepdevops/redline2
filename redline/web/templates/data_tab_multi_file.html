@@ -355,14 +355,18 @@ async function loadSelectedFiles() {
         const result = await response.json();
         
         // Handle successful loads
-        Object.entries(result.results).forEach(([filename, data]) => {
-            loadedDatasets.set(filename, data);
-        });
+        if (result.results && typeof result.results === 'object') {
+            Object.entries(result.results).forEach(([filename, data]) => {
+                loadedDatasets.set(filename, data);
+            });
+        }
         
-        // Handle errors
-        Object.entries(result.errors).forEach(([filename, error]) => {
-            showErrorState(filename, error);
-        });
+        // Handle errors  
+        if (result.errors && typeof result.errors === 'object') {
+            Object.entries(result.errors).forEach(([filename, error]) => {
+                showErrorState(filename, error);
+            });
+        }
         
         // Update display
         updateDataDisplay();
