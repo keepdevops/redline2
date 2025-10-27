@@ -14,11 +14,18 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-        <!-- Custom CSS -->
+        <!-- Custom CSS (use minified in production) -->
+        {% if config.get('ENV') == 'production' %}
+        <link href="{{ url_for('static', filename='css/main.min.css') }}" rel="stylesheet">
+        <link href="{{ url_for('static', filename='css/themes.min.css') }}" rel="stylesheet">
+        <link href="{{ url_for('static', filename='css/virtual-scroll.min.css') }}" rel="stylesheet">
+        <link href="{{ url_for('static', filename='css/color-customizer.min.css') }}" rel="stylesheet">
+        {% else %}
         <link href="{{ url_for('static', filename='css/main.css') }}" rel="stylesheet">
         <link href="{{ url_for('static', filename='css/themes.css') }}" rel="stylesheet">
         <link href="{{ url_for('static', filename='css/virtual-scroll.css') }}" rel="stylesheet">
         <link href="{{ url_for('static', filename='css/color-customizer.css') }}" rel="stylesheet">
+        {% endif %}
     
     {% block extra_css %}{% endblock %}
 </head>
