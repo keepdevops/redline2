@@ -23,7 +23,9 @@ WORKDIR /app
 # Install Python dependencies
 RUN pip3 install --upgrade pip setuptools wheel
 RUN pip3 install flask flask-socketio werkzeug jinja2 requests || true
-RUN pip3 install numpy pandas duckdb pyarrow || true
+RUN pip3 install numpy pandas duckdb pyarrow yfinance || true
+RUN pip3 install flask-compress flask-limiter || true
+RUN pip3 install celery redis || true
 
 # Expose web port
 EXPOSE 8080
