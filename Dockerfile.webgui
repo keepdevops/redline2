@@ -181,22 +181,5 @@ EXPOSE 6080 5901
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:6080/ || exit 1
 
-# Create a simple startup script that starts everything
-RUN cat > /start-all.sh << 'ALLSTART'
-#!/bin/bash
-# Start everything
-
-# Start VNC server and websockify in foreground
-/start-vnc.sh &
-
-# Start desktop in background  
-sleep 5
-/start-desktop.sh &
-
-# Keep container running
-tail -f /dev/null
-ALLSTART
-RUN chmod +x /start-all.sh && cat /start-all.sh
-
-# Start services
-CMD ["/bin/bash", "/start-all.sh"]
+# Start services directly (no intermediate scripts that might fail)
+CMD ["/bin/bash", "-c", "export DISPLAY=:1 && vncserver :1 -geometry ${VNC_RESOLUTION} -depth ${VNC_COL_DEPTH} && websockify $NO_VNC_PORT localhost:$VNC_PORT & sleep 5 && startxfce4 & tail -f /dev/null"]
