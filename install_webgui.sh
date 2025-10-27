@@ -129,6 +129,12 @@ check_prerequisites() {
 install_webgui() {
     print_header "Installing Web-Based GUI"
     
+    # Check if prune flag was passed (check all arguments)
+    local prune_flag=""
+    if [[ " $@ " =~ " --prune " ]]; then
+        prune_flag="--prune"
+    fi
+    
     # Determine which Dockerfile to use
     # Try Dockerfile.webgui first (recently fixed VNC startup issues)
     local dockerfile="Dockerfile.webgui"
@@ -146,6 +152,24 @@ install_webgui() {
     fi
     
     print_status "Using Dockerfile: $dockerfile"
+    
+    # Clean up old REDLINE container if it exists
+    if docker ps -a --filter "name=redline-webgui" --format "{{.Names}}" | grep -q "^redline-webgui$"; then
+        print_status "Removing old REDLINE container..."
+        docker stop redline-webgui 2>/dev/null || true
+        docker rm redline-webgui 2>/dev/null || true
+    fi
+    
+    # Prune build cache (keeps images but removes unused build cache)
+    print_status "Cleaning up Docker build cache..."
+    docker builder prune -f || true
+    
+    # Optionally prune unused images if --prune flag is used
+    if [[ "$prune_flag" == "--prune" ]]; then
+        print_status "Cleaning up unused Docker images (this may free up disk space)..."
+        docker image prune -f || true
+        print_success "Docker cleanup complete"
+    fi
     
     # Build web-based GUI image with version detection
     print_status "Building web-based GUI Docker image..."
@@ -338,6 +362,7 @@ It does not modify your operating system - everything runs in containers.
 
 Installation:
     ./install_webgui.sh
+    ./install_webgui.sh --prune   # Install with full Docker cleanup
 
 Start REDLINE:
     ./start_webgui.sh
@@ -385,9 +410,9 @@ main() {
     show_banner
     
     case "${1:-install}" in
-        install)
+        install|--prune)
             check_prerequisites
-            install_webgui
+            install_webgui "$@"
             ;;
         status)
             show_status
