@@ -181,24 +181,23 @@ EXPOSE 6080 5901
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:6080/ || exit 1
 
-# Create a simple startup script that starts VNC and desktop
-RUN cat > /start-all.sh << 'STARTEOF'
-#!/bin/bash
-set -e
-
-# Start VNC and websockify in background
-/start-vnc.sh &
-
-# Wait a bit for VNC to start
-sleep 3
-
-# Start desktop
-/start-desktop.sh &
-
-# Wait for processes
-wait
-STARTEOF
-RUN chmod +x /start-all.sh
+# Create a simple startup script that starts VNC and desktop  
+RUN echo '#!/bin/bash' > /start-all.sh && \
+    echo 'set -e' >> /start-all.sh && \
+    echo '' >> /start-all.sh && \
+    echo '# Start VNC and websockify in background' >> /start-all.sh && \
+    echo '/start-vnc.sh &' >> /start-all.sh && \
+    echo '' >> /start-all.sh && \
+    echo '# Wait a bit for VNC to start' >> /start-all.sh && \
+    echo 'sleep 3' >> /start-all.sh && \
+    echo '' >> /start-all.sh && \
+    echo '# Start desktop' >> /start-all.sh && \
+    echo '/start-desktop.sh &' >> /start-all.sh && \
+    echo '' >> /start-all.sh && \
+    echo '# Wait for processes' >> /start-all.sh && \
+    echo 'wait' >> /start-all.sh && \
+    chmod +x /start-all.sh && \
+    cat /start-all.sh
 
 # Start services
-CMD ["/start-all.sh"]
+CMD ["/bin/bash", "/start-all.sh"]
