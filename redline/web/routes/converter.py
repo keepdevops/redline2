@@ -174,6 +174,27 @@ def convert_file():
             logger.error(f"Missing required parameters: input_file={input_file}, output_format={output_format}, output_filename={output_filename}")
             return jsonify({'error': 'Missing required parameters', 'details': {'input_file': input_file, 'output_format': output_format, 'output_filename': output_filename}}), 400
         
+        # Ensure output filename has the correct extension for the output format
+        format_extensions = {
+            'csv': '.csv',
+            'json': '.json',
+            'parquet': '.parquet',
+            'feather': '.feather',
+            'duckdb': '.duckdb',
+            'txt': '.txt'
+        }
+        
+        # Get the expected extension for the output format
+        expected_ext = format_extensions.get(output_format, '')
+        
+        # Check if filename already has an extension
+        output_base, output_ext = os.path.splitext(output_filename)
+        
+        # If the extension doesn't match the expected format, add/change it
+        if output_ext != expected_ext and expected_ext:
+            output_filename = output_base + expected_ext
+            logger.info(f"Adjusted output filename to: {output_filename}")
+        
         # Check if output file exists and overwrite is not allowed
         output_path = os.path.join(os.getcwd(), 'data', 'converted', output_filename)
         
@@ -223,6 +244,19 @@ def convert_file():
         # Load data
         logger.info(f"Loading data from {input_file}")
         from redline.core.schema import EXT_TO_FORMAT
+        
+        # Validate output format
+        supported_formats = converter.get_supported_formats()
+        logger.info(f"Supported formats: {supported_formats}")
+        logger.info(f"Requested output format: {output_format}")
+        
+        if output_format not in supported_formats:
+            logger.error(f"Unsupported output format: {output_format}")
+            return jsonify({
+                'error': 'Unsupported output format',
+                'details': f'Format "{output_format}" is not supported. Supported formats: {", ".join(supported_formats)}',
+                'supported_formats': supported_formats
+            }), 400
         
         # Detect format from file extension
         ext = os.path.splitext(input_path)[1].lower()
