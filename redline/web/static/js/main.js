@@ -470,7 +470,7 @@ const themeSystem = {
     // Apply theme to body
     applyTheme: function(theme) {
         // Remove all theme classes
-        $('body').removeClass('theme-default theme-high-contrast theme-ocean theme-forest theme-sunset theme-monochrome theme-dark');
+        $('body').removeClass('theme-default theme-high-contrast theme-ocean theme-forest theme-sunset theme-monochrome theme-dark theme-grayscale');
         
         // Apply new theme
         $('body').addClass(theme);
@@ -483,7 +483,8 @@ const themeSystem = {
             'theme-forest': 'Forest',
             'theme-sunset': 'Sunset',
             'theme-monochrome': 'Monochrome',
-            'theme-dark': 'Dark'
+            'theme-dark': 'Dark',
+            'theme-grayscale': 'Grayscale'
         };
         
         $('#themeDropdown').html('<i class="fas fa-palette me-1"></i>' + themeNames[theme]);
