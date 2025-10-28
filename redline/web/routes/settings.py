@@ -331,7 +331,7 @@ def test_connection():
             
             downloader = YahooDownloader()
             # Try to download a small amount of data
-            result = downloader.download_data('AAPL', start_date='2024-01-01', end_date='2024-01-02')
+            result = downloader.download_single_ticker('AAPL', start_date='2024-01-01', end_date='2024-01-02')
             
             if result is not None and not result.empty:
                 return jsonify({
@@ -343,6 +343,25 @@ def test_connection():
                 return jsonify({
                     'success': False,
                     'message': 'Failed to download test data from Yahoo Finance'
+                })
+        
+        elif connection_type == 'stooq':
+            from redline.downloaders.stooq_downloader import StooqDownloader
+            
+            downloader = StooqDownloader()
+            # Try to download a small amount of data
+            result = downloader.download_single_ticker('AAPL.US', start_date='2024-01-01', end_date='2024-01-02')
+            
+            if result is not None and not result.empty:
+                return jsonify({
+                    'success': True,
+                    'message': 'Stooq connection successful',
+                    'test_data_rows': len(result)
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'Failed to download test data from Stooq'
                 })
         
         else:
