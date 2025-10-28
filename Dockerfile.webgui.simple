@@ -33,7 +33,7 @@ RUN pip3 install flask-socketio flask-compress flask-limiter || true
 RUN pip3 install python-socketio eventlet gevent gevent-websocket || true
 
 # Install data processing libraries
-RUN pip3 install numpy pandas duckdb pyarrow yfinance polars || true
+RUN pip3 install numpy pandas duckdb pyarrow fastparquet yfinance polars || true
 
 # Install background task processing
 RUN pip3 install celery redis || true

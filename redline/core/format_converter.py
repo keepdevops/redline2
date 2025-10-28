@@ -121,7 +121,23 @@ class FormatConverter:
                     
             elif format == 'parquet':
                 if isinstance(data, pd.DataFrame):
-                    data.to_parquet(file_path, index=False)
+                    try:
+                        # Try pyarrow first (faster, better compression)
+                        data.to_parquet(file_path, index=False, engine='pyarrow')
+                    except Exception as e:
+                        self.logger.warning(f"Error saving parquet with pyarrow engine: {str(e)}")
+                        # Fallback to fastparquet
+                        try:
+                            self.logger.info("Attempting fallback to fastparquet engine")
+                            data.to_parquet(file_path, index=False, engine='fastparquet')
+                        except Exception as e2:
+                            self.logger.error(f"Error saving parquet with fastparquet engine: {str(e2)}")
+                            # Try without specifying engine
+                            try:
+                                data.to_parquet(file_path, index=False)
+                            except Exception as e3:
+                                self.logger.error(f"Error saving parquet without engine: {str(e3)}")
+                                raise Exception(f"Failed to save parquet: {str(e3)}")
                 elif POLARS_AVAILABLE and isinstance(data, pl.DataFrame):
                     data.write_parquet(file_path)
                 elif PYARROW_AVAILABLE and isinstance(data, pa.Table):
