@@ -10,22 +10,69 @@ build/
 __pycache__/
 *.pyc
 *.egg-info/
+*.pyo
+*.pyc
+*.swp
+*.swo
 
 # Ignore git
 .git/
 .gitignore
+.gitattributes
 
 # Ignore development files
 venv/
+.venv/
 .env
 *.log
 .DS_Store
+.vscode/
+.idea/
 
 # Ignore documentation
 *.md
 docs/
+*.txt
+!requirements*.txt
 
 # Ignore test files
 test_*.py
 *_test.py
 tests/
+*_test.py
+
+# Ignore Docker files
+dockerfiles/
+docker-compose*.yml
+Dockerfile*
+!Dockerfile.webgui.simple
+.dockerignore
+
+# Ignore large files
+*.csv
+*.parquet
+*.json
+*.xlsx
+*.zip
+*.tar
+*.gz
+*.7z
+*.rar
+
+# Ignore scripts
+*.sh
+*.bash
+*.bat
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore compiled files
+*.so
+*.dylib
+*.dll
+
+# Ignore IDEs
+*.sublime-project
+*.sublime-workspace

@@ -1,30 +1,36 @@
-# REDLINE Web-Based GUI - Simple Flask Approach
-# No VNC needed - just run the web app directly
+# syntax=docker/dockerfile:1
+# REDLINE Web-Based GUI - Optimized with Gunicorn
+# Multi-stage build for smaller image size and faster builds
 
-FROM ubuntu:22.04
+# ============================================
+# Stage 1: Builder - Install dependencies
+# ============================================
+FROM python:3.11-slim as builder
 
 # Set environment variables
-ENV DEBIAN_FRONTEND=noninteractive
-ENV FLASK_APP=web_app.py
-ENV FLASK_ENV=production
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install Python and basic dependencies
-RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-pip \
+# Install build dependencies
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
     curl \
-    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Upgrade pip first
-RUN pip3 install --upgrade pip setuptools wheel
-
 # Copy requirements first for better caching
-COPY requirements.txt /app/
 WORKDIR /app
+COPY requirements.txt .
 
-# Install all Python dependencies in one layer (better for caching)
-RUN pip3 install --no-cache-dir \
+# Install Python dependencies with cache mount
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir \
     flask werkzeug jinja2 markupsafe click blinker itsdangerous \
     flask-socketio flask-compress flask-limiter \
     python-socketio eventlet gevent gevent-websocket \
@@ -33,17 +39,71 @@ RUN pip3 install --no-cache-dir \
     requests urllib3 \
     scikit-learn matplotlib seaborn \
     openpyxl xlsxwriter \
-    configparser gunicorn
+    configparser gunicorn psutil
 
-# Now copy the application code (changes less frequently than dependencies)
-COPY . /app
+# ============================================
+# Stage 2: Runtime - Minimal production image
+# ============================================
+FROM python:3.11-slim
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    FLASK_APP=web_app.py \
+    FLASK_ENV=production \
+    GUNICORN_WORKERS=2 \
+    GUNICORN_THREADS=4 \
+    GUNICORN_TIMEOUT=120
+
+# Install runtime dependencies only
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app user for security (don't run as root)
+RUN useradd -m -u 1000 -s /bin/bash appuser
+
+# Set working directory
+WORKDIR /app
+
+# Copy installed packages from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy application code
+COPY --chown=appuser:appuser . /app
+
+# Minify assets for production
+RUN python3 scripts/minify_assets_simple.py || echo "Minification skipped"
+
+# Pre-compile Python bytecode for faster startup
+RUN python -m compileall -b /app
+
+# Create necessary directories
+RUN mkdir -p /app/data /app/logs /app/config /app/data/uploads /app/data/user_files && \
+    chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
 
 # Expose web port
 EXPOSE 8080
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
-# Start the web application
-CMD ["python3", "web_app.py"]
+# Start the web application with Gunicorn
+CMD ["gunicorn", \
+     "--bind", "0.0.0.0:8080", \
+     "--workers", "2", \
+     "--threads", "4", \
+     "--timeout", "120", \
+     "--worker-class", "gthread", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-", \
+     "--log-level", "info", \
+     "web_app:create_app()"]

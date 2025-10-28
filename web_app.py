@@ -50,16 +50,20 @@ def create_app():
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
     app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
     app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'data', 'uploads')
+    app.config['ENV'] = os.environ.get('FLASK_ENV', 'production')  # Enable production mode for minified assets
     
     # Ensure upload directory exists
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     
     # Initialize SocketIO for real-time updates
-    # For PyInstaller compatibility, use threading mode explicitly
+    # For Gunicorn compatibility, use threading mode explicitly
     try:
         allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:8080,http://127.0.0.1:8080').split(',')
-        socketio = SocketIO(app, cors_allowed_origins=allowed_origins, async_mode='threading')
-        logger.info("SocketIO initialized with threading async_mode")
+        # Check if running under Gunicorn
+        worker_class = os.environ.get('SERVER_SOFTWARE', '').startswith('gunicorn')
+        async_mode = 'eventlet' if not worker_class else 'threading'
+        socketio = SocketIO(app, cors_allowed_origins=allowed_origins, async_mode=async_mode)
+        logger.info(f"SocketIO initialized with {async_mode} async_mode")
     except Exception as e:
         logger.warning(f"Failed to initialize SocketIO: {e}")
         # Fallback: create a mock SocketIO object
@@ -173,15 +177,21 @@ def create_app():
         return jsonify({'status': 'healthy', 'service': 'redline-web'})
     
     logger.info("REDLINE Web application created successfully")
-    return app, socketio
+    
+    # Store socketio for potential use
+    app.config['socketio'] = socketio
+    
+    # For Gunicorn, return only the app
+    return app
 
 def main():
-    """Main entry point for the web application."""
+    """Main entry point for the web application (development mode only)."""
     try:
         logger.info("Starting REDLINE Web Application...")
         
         # Create application
-        app, socketio = create_app()
+        app = create_app()
+        socketio = app.config.get('socketio')
         
         # Get configuration from environment
         host = os.environ.get('HOST', '0.0.0.0')
@@ -191,12 +201,16 @@ def main():
         logger.info(f"Starting server on {host}:{port}")
         logger.info(f"Debug mode: {debug}")
         
-        # Start the application
-        if not debug:
-            # Allow Werkzeug to run in non-debug mode
-            socketio.run(app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=True)
+        # Start the application (development mode with SocketIO)
+        if socketio and hasattr(socketio, 'run'):
+            if not debug:
+                # Allow Werkzeug to run in non-debug mode
+                socketio.run(app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=True)
+            else:
+                socketio.run(app, host=host, port=port, debug=debug)
         else:
-            socketio.run(app, host=host, port=port, debug=debug)
+            # Fallback to Flask dev server
+            app.run(host=host, port=port, debug=debug)
         
     except Exception as e:
         logger.error(f"Failed to start REDLINE Web Application: {str(e)}")

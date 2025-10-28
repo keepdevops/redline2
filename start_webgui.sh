@@ -98,15 +98,8 @@ print_header "Starting REDLINE Web-Based GUI"
 # Start the container
 docker run -d \
     --name redline-webgui \
-    --network host \
-    -p 6080:6080 \
-    -p 5901:5901 \
-    -e DISPLAY=:1 \
-    -e VNC_PORT=5901 \
-    -e NO_VNC_PORT=6080 \
+    -p 8080:8080 \
     -e VNC_PASSWORD="$VNC_PASSWORD" \
-    -e VNC_RESOLUTION=1920x1080 \
-    -e VNC_COL_DEPTH=24 \
     -v "$(pwd)/data:/app/data" \
     -v "$(pwd)/logs:/app/logs" \
     -v "$(pwd)/config:/app/config" \
@@ -117,8 +110,7 @@ if [ $? -eq 0 ]; then
     echo ""
     print_header "REDLINE Started Successfully!"
     echo ""
-    echo "  🌐 Web Interface: http://localhost:6080"
-    echo "  🔑 VNC Password:  $VNC_PASSWORD"
+    echo "  🌐 Web Interface: http://localhost:8080"
     echo ""
     print_status "Quick Commands:"
     echo "  View logs:   docker logs -f redline-webgui"
