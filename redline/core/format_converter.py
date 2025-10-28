@@ -274,6 +274,31 @@ class FormatConverter:
                         except Exception as close_error:
                             self.logger.warning(f"Error closing DuckDB connection: {close_error}")
                 
+            elif format == 'txt':
+                try:
+                    if isinstance(data, pd.DataFrame):
+                        self.logger.info(f"Saving {len(data)} rows to TXT: {file_path}")
+                        if data.empty:
+                            self.logger.warning("DataFrame is empty, creating empty TXT file")
+                        # Try CSV format first (common for .txt files)
+                        data.to_csv(file_path, index=False, sep='\t')
+                        self.logger.info(f"Successfully saved TXT file: {file_path}")
+                    elif POLARS_AVAILABLE and isinstance(data, pl.DataFrame):
+                        self.logger.info(f"Saving Polars DataFrame to TXT: {file_path}")
+                        if data.is_empty():
+                            self.logger.warning("Polars DataFrame is empty, creating empty TXT file")
+                        data.write_csv(file_path, separator='\t')
+                        self.logger.info(f"Successfully saved TXT file: {file_path}")
+                    else:
+                        raise ValueError(f"Cannot save {type(data)} to TXT format")
+                except Exception as e:
+                    self.logger.error(f"Error saving TXT file: {str(e)}")
+                    self.logger.error(f"File path: {file_path}")
+                    self.logger.error(f"Data type: {type(data)}")
+                    if hasattr(data, 'shape'):
+                        self.logger.error(f"Data shape: {data.shape}")
+                    raise Exception(f"Failed to save TXT file: {str(e)}")
+                
             else:
                 raise ValueError(f"Unsupported format: {format}")
                 
@@ -412,7 +437,7 @@ class FormatConverter:
     
     def get_supported_formats(self) -> List[str]:
         """Get list of supported file formats."""
-        return ['csv', 'parquet', 'feather', 'json', 'duckdb']
+        return ['csv', 'parquet', 'feather', 'json', 'duckdb', 'txt']
     
     def detect_format_from_extension(self, file_path: str) -> str:
         """
