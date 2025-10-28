@@ -269,7 +269,7 @@ def get_database_status():
         
         status = {
             'available': connector.is_available(),
-            'connection_string': str(connector.connection_string) if hasattr(connector, 'connection_string') else 'N/A',
+            'connection_string': f"duckdb://{connector.db_path}" if hasattr(connector, 'db_path') else 'N/A',
             'database_path': str(connector.db_path) if hasattr(connector, 'db_path') else 'N/A'
         }
         

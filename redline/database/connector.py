@@ -44,6 +44,44 @@ class DatabaseConnector:
         self.db_path = db_path
         self.logger = logging.getLogger(__name__)
     
+    def is_available(self) -> bool:
+        """
+        Check if database is available.
+        
+        Returns:
+            True if database can be connected, False otherwise
+        """
+        if not DUCKDB_AVAILABLE:
+            return False
+        
+        try:
+            conn = self.create_connection()
+            conn.close()
+            return True
+        except Exception as e:
+            self.logger.warning(f"Database not available: {str(e)}")
+            return False
+    
+    def get_tables(self) -> list:
+        """
+        Get list of all tables in the database.
+        
+        Returns:
+            List of table names
+        """
+        try:
+            conn = self.create_connection()
+            
+            # Query table names from DuckDB's system catalog
+            result = conn.execute("SHOW TABLES").fetchall()
+            tables = [row[0] for row in result] if result else []
+            
+            conn.close()
+            return tables
+        except Exception as e:
+            self.logger.error(f"Failed to get tables: {str(e)}")
+            return []
+    
     def create_connection(self, db_path: str = None):
         """
         Create a database connection.
