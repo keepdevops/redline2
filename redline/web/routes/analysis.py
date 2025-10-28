@@ -14,16 +14,58 @@ logger = logging.getLogger(__name__)
 
 def convert_numpy_types(obj):
     """Convert numpy types to native Python types for JSON serialization."""
+    import math
+    
+    # Handle None
+    if obj is None:
+        return None
+    
+    # Handle dicts
     if isinstance(obj, dict):
-        return {k: convert_numpy_types(v) for k, v in obj.items()}
-    elif isinstance(obj, (np.integer, np.int64)):
+        return {str(k): convert_numpy_types(v) for k, v in obj.items()}
+    
+    # Handle lists
+    if isinstance(obj, list):
+        return [convert_numpy_types(item) for item in obj]
+    
+    # Handle numpy integers
+    if isinstance(obj, (np.integer, np.int64, np.int32, np.int16, np.int8)):
         return int(obj)
-    elif isinstance(obj, (np.floating, np.float64)):
-        return float(obj)
-    elif isinstance(obj, np.ndarray):
-        return obj.tolist()
-    else:
+    
+    # Handle numpy floats
+    if isinstance(obj, (np.floating, np.float64, np.float32)):
+        val = float(obj)
+        # Replace NaN and infinity with None or 0
+        if math.isnan(val) or math.isinf(val):
+            return None
+        return val
+    
+    # Handle regular floats with NaN/inf
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
         return obj
+    
+    # Handle numpy arrays
+    if isinstance(obj, np.ndarray):
+        return [convert_numpy_types(item) for item in obj.tolist()]
+    
+    # Handle pandas objects
+    if isinstance(obj, pd.Series):
+        return [convert_numpy_types(v) for v in obj.tolist()]
+    
+    if isinstance(obj, pd.DataFrame):
+        return obj.to_dict(orient='records')
+    
+    # Handle basic types that are JSON serializable
+    if isinstance(obj, (str, int, bool)):
+        return obj
+    
+    # Fallback: convert to string for anything else
+    try:
+        return str(obj)
+    except:
+        return None
 
 @analysis_bp.route('/')
 def analysis_tab():
@@ -117,14 +159,20 @@ def analyze_data():
         else:
             return jsonify({'error': f'Unknown analysis type: {analysis_type}'}), 400
         
+        # Convert all numpy types in the result
+        cleaned_result = convert_numpy_types(analysis_result)
+        
         return jsonify({
             'filename': filename,
             'analysis_type': analysis_type,
-            'result': analysis_result,
+            'result': cleaned_result,
             'data_shape': df.shape,
             'columns': list(df.columns)
         })
         
+    except ValueError as ve:
+        logger.error(f"Value error in analysis: {str(ve)}")
+        return jsonify({'error': f'Value error: {str(ve)}'}), 500
     except Exception as e:
         logger.error(f"Error performing analysis: {str(e)}")
         return jsonify({'error': str(e)}), 500
