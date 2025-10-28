@@ -252,6 +252,12 @@ $(document).ready(function() {
     $('#clearLogsBtn').on('click', function() {
         clearLogs();
     });
+    
+    // Handle theme changes
+    $('#theme').on('change', function() {
+        const selectedTheme = $(this).val();
+        applyThemeSetting(selectedTheme);
+    });
 });
 
 function loadConfiguration() {
@@ -267,7 +273,10 @@ function loadConfiguration() {
             // Display settings
             $('#maxRows').val(config.display?.max_rows || '1000');
             $('#autoRefresh').prop('checked', config.display?.auto_refresh === 'true');
-            $('#theme').val(config.display?.theme || 'light');
+            const themePreference = config.display?.theme || 'light';
+            $('#theme').val(themePreference);
+            // Apply the theme immediately
+            applyThemeSetting(themePreference);
             
             // Performance settings
             $('#chunkSize').val(config.performance?.chunk_size || '10000');
@@ -473,6 +482,38 @@ function clearLogs() {
                 REDLINE.ui.showToast('Error clearing logs: ' + error.message, 'error');
             });
     });
+}
+
+function applyThemeSetting(theme) {
+    // Map simple theme names to actual theme classes
+    const themeMap = {
+        'light': 'theme-default',
+        'dark': 'theme-dark',
+        'auto': getAutoTheme()
+    };
+    
+    const actualTheme = themeMap[theme] || 'theme-default';
+    
+    // Apply the theme using the theme system if it exists
+    if (typeof themeSystem !== 'undefined' && themeSystem.setTheme) {
+        themeSystem.setTheme(actualTheme);
+    } else {
+        // Fallback: manually apply theme
+        $('body').removeClass('theme-default theme-dark theme-light');
+        $('body').addClass(actualTheme);
+    }
+    
+    // Also update local storage
+    localStorage.setItem('redline-theme', actualTheme);
+    localStorage.setItem('redline-theme-preference', theme);
+}
+
+function getAutoTheme() {
+    // Check if system prefers dark mode
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        return 'theme-dark';
+    }
+    return 'theme-default';
 }
 </script>
 {% endblock %}
