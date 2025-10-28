@@ -195,11 +195,42 @@ function refreshDashboard() {
         fetch('/api/files')
     ])
     .then(responses => Promise.all(responses.map(r => r.json())))
-    .then(([status, files]) => {
+    .then(async ([status, files]) => {
         // Update stats
-        $('#totalFiles').text(files.files ? files.files.length : 0);
-        $('#totalRecords').text('N/A'); // Would need to calculate from files
-        $('#totalTickers').text('N/A'); // Would need to calculate from files
+        const fileCount = files.files ? files.files.length : 0;
+        $('#totalFiles').text(fileCount);
+        
+        // Calculate total records from database if available
+        try {
+            const dbStatus = await fetch('/settings/database-status');
+            const dbInfo = await dbStatus.json();
+            if (dbInfo.available && dbInfo.table_count > 0) {
+                $('#totalRecords').text(dbInfo.table_count + ' tables');
+            } else {
+                $('#totalRecords').text('0');
+            }
+        } catch (e) {
+            $('#totalRecords').text('0');
+        }
+        
+        // Get unique tickers from files
+        try {
+            let uniqueTickers = new Set();
+            if (files.files) {
+                // Try to get ticker info from file names or load data
+                for (let file of files.files) {
+                    // Extract ticker from filename (common patterns: TICKER_date.csv, etc.)
+                    const match = file.name.match(/([A-Z]+)_/);
+                    if (match) {
+                        uniqueTickers.add(match[1]);
+                    }
+                }
+            }
+            $('#totalTickers').text(uniqueTickers.size || '0');
+        } catch (e) {
+            $('#totalTickers').text('0');
+        }
+        
         $('#lastUpdate').text(new Date().toLocaleTimeString());
         
         // Update system status
