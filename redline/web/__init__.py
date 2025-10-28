@@ -20,6 +20,10 @@ def create_app():
     # Ensure upload directory exists
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     
+    # Configure static file caching
+    # For development, use shorter cache times; for production, use longer times
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching during development
+    
     # Initialize SocketIO for real-time updates
     allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:8080,http://127.0.0.1:8080').split(',')
     socketio = SocketIO(app, cors_allowed_origins=allowed_origins)
