@@ -112,6 +112,13 @@ def get_formats():
                 'readable': True,
                 'writable': True
             },
+            'txt': {
+                'name': 'TXT',
+                'description': 'Text file (tab-separated or comma-separated)',
+                'extension': '.txt',
+                'readable': True,
+                'writable': True
+            },
             'json': {
                 'name': 'JSON',
                 'description': 'JavaScript Object Notation',
@@ -161,8 +168,11 @@ def convert_file():
         output_filename = data.get('output_filename')
         overwrite = data.get('overwrite', False)
         
+        logger.info(f"Convert request: input_file={input_file}, output_format={output_format}, output_filename={output_filename}, overwrite={overwrite}")
+        
         if not all([input_file, output_format, output_filename]):
-            return jsonify({'error': 'Missing required parameters'}), 400
+            logger.error(f"Missing required parameters: input_file={input_file}, output_format={output_format}, output_filename={output_filename}")
+            return jsonify({'error': 'Missing required parameters', 'details': {'input_file': input_file, 'output_format': output_format, 'output_filename': output_filename}}), 400
         
         # Check if output file exists and overwrite is not allowed
         output_path = os.path.join(os.getcwd(), 'data', 'converted', output_filename)
@@ -174,19 +184,35 @@ def convert_file():
                 'suggestion': 'Set overwrite to true or choose a different filename'
             }), 400
         
-        # Determine input file path - check both root data directory and downloaded subdirectory
+        # Determine input file path - handle both absolute paths and relative paths
         data_dir = os.path.join(os.getcwd(), 'data')
         input_path = None
         
-        # Check in root data directory first
-        root_path = os.path.join(data_dir, input_file)
-        if os.path.exists(root_path):
-            input_path = root_path
+        # Check if input_file is an absolute path (from file browser)
+        if os.path.isabs(input_file) and os.path.exists(input_file):
+            # Copy file to data/downloaded/ directory
+            downloaded_dir = os.path.join(data_dir, 'downloaded')
+            os.makedirs(downloaded_dir, exist_ok=True)
+            
+            dest_filename = os.path.basename(input_file)
+            dest_path = os.path.join(downloaded_dir, dest_filename)
+            
+            # Copy file (using shutil.copy2 to preserve metadata)
+            shutil.copy2(input_file, dest_path)
+            logger.info(f"Copied {input_file} to {dest_path}")
+            
+            input_path = dest_path
         else:
-            # Check in downloaded directory
-            downloaded_path = os.path.join(data_dir, 'downloaded', input_file)
-            if os.path.exists(downloaded_path):
-                input_path = downloaded_path
+            # Existing logic for relative paths
+            # Check in root data directory first
+            root_path = os.path.join(data_dir, input_file)
+            if os.path.exists(root_path):
+                input_path = root_path
+            else:
+                # Check in downloaded directory
+                downloaded_path = os.path.join(data_dir, 'downloaded', input_file)
+                if os.path.exists(downloaded_path):
+                    input_path = downloaded_path
         
         if not input_path or not os.path.exists(input_path):
             return jsonify({'error': 'Input file not found'}), 404
@@ -204,15 +230,26 @@ def convert_file():
         
         data_obj = converter.load_file_by_type(input_path, format_type)
         
-        if data_obj is None:
-            return jsonify({'error': 'Failed to load input file'}), 400
+        if data_obj is None or (hasattr(data_obj, 'empty') and data_obj.empty):
+            logger.error(f"Failed to load data from {input_path}")
+            return jsonify({
+                'error': 'Failed to load input file',
+                'details': f'Could not load data from {input_file} as {format_type} format'
+            }), 400
         
         # Ensure output directory exists
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         
         # Save in new format
         logger.info(f"Converting to {output_format} format")
-        converter.save_file_by_type(data_obj, output_path, output_format)
+        try:
+            converter.save_file_by_type(data_obj, output_path, output_format)
+        except Exception as save_error:
+            logger.error(f"Failed to save converted file: {str(save_error)}")
+            return jsonify({
+                'error': 'Failed to save converted file',
+                'details': str(save_error)
+            }), 400
         
         # Get file info
         file_stat = os.stat(output_path)
@@ -271,24 +308,45 @@ def batch_convert():
                     })
                     continue
                 
-                # Determine input file path - check both root data directory and downloaded subdirectory
+                # Determine input file path - handle both absolute paths and relative paths
                 data_dir = os.path.join(os.getcwd(), 'data')
                 input_path = None
                 
-                # Check in root data directory first
-                root_path = os.path.join(data_dir, input_file)
-                if os.path.exists(root_path):
-                    input_path = root_path
+                # Check if input_file is an absolute path (from file browser)
+                if os.path.isabs(input_file) and os.path.exists(input_file):
+                    # Copy file to data/downloaded/ directory
+                    downloaded_dir = os.path.join(data_dir, 'downloaded')
+                    os.makedirs(downloaded_dir, exist_ok=True)
+                    
+                    dest_filename = os.path.basename(input_file)
+                    dest_path = os.path.join(downloaded_dir, dest_filename)
+                    
+                    # Copy file (using shutil.copy2 to preserve metadata)
+                    shutil.copy2(input_file, dest_path)
+                    logger.info(f"Copied {input_file} to {dest_path}")
+                    
+                    input_path = dest_path
                 else:
-                    # Check in downloaded directory
-                    downloaded_path = os.path.join(data_dir, 'downloaded', input_file)
-                    if os.path.exists(downloaded_path):
-                        input_path = downloaded_path
+                    # Existing logic for relative paths
+                    # Check in root data directory first
+                    root_path = os.path.join(data_dir, input_file)
+                    if os.path.exists(root_path):
+                        input_path = root_path
+                    else:
+                        # Check in downloaded directory
+                        downloaded_path = os.path.join(data_dir, 'downloaded', input_file)
+                        if os.path.exists(downloaded_path):
+                            input_path = downloaded_path
+                
+                # Log debugging info
+                logger.debug(f"Input file search: {input_file}")
                 
                 if not input_path or not os.path.exists(input_path):
+                    error_msg = f'Input file not found: {input_file}'
+                    logger.warning(error_msg)
                     errors.append({
                         'input_file': input_file,
-                        'error': 'Input file not found'
+                        'error': error_msg
                     })
                     continue
                 
@@ -346,7 +404,7 @@ def list_available_files():
         # List files in main data directory
         if os.path.exists(data_dir):
             for filename in os.listdir(data_dir):
-                if filename.endswith(('.csv', '.json', '.parquet', '.feather', '.duckdb')):
+                if filename.endswith(('.csv', '.txt', '.json', '.parquet', '.feather', '.duckdb')):
                     file_path = os.path.join(data_dir, filename)
                     file_stat = os.stat(file_path)
                     files.append({
@@ -361,7 +419,7 @@ def list_available_files():
         downloaded_dir = os.path.join(data_dir, 'downloaded')
         if os.path.exists(downloaded_dir):
             for filename in os.listdir(downloaded_dir):
-                if filename.endswith(('.csv', '.json', '.parquet', '.feather', '.duckdb')):
+                if filename.endswith(('.csv', '.txt', '.json', '.parquet', '.feather', '.duckdb')):
                     file_path = os.path.join(downloaded_dir, filename)
                     file_stat = os.stat(file_path)
                     files.append({
@@ -390,7 +448,7 @@ def list_converted_files():
         
         if os.path.exists(converted_dir):
             for filename in os.listdir(converted_dir):
-                if filename.endswith(('.csv', '.json', '.parquet', '.feather', '.duckdb')):
+                if filename.endswith(('.csv', '.txt', '.json', '.parquet', '.feather', '.duckdb')):
                     file_path = os.path.join(converted_dir, filename)
                     file_stat = os.stat(file_path)
                     files.append({
@@ -408,6 +466,105 @@ def list_converted_files():
         
     except Exception as e:
         logger.error(f"Error listing converted files: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@converter_bp.route('/home')
+def get_home_directory():
+    """Get user home directory path."""
+    try:
+        home_dir = os.path.expanduser('~')
+        return jsonify({
+            'home': home_dir,
+            'downloads': os.path.join(home_dir, 'Downloads')
+        })
+    except Exception as e:
+        logger.error(f"Error getting home directory: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@converter_bp.route('/browse')
+def browse_filesystem():
+    """Browse file system - list directories and files for file selection."""
+    try:
+        path = request.args.get('path', os.path.expanduser('~'))
+        
+        # Log for debugging
+        logger.debug(f"Browsing path: {path}")
+        
+        # Security check - prevent directory traversal
+        if not os.path.exists(path):
+            logger.warning(f"Path does not exist: {path}")
+            return jsonify({'error': f'Path does not exist: {path}'}), 400
+            
+        if not os.path.isdir(path):
+            logger.warning(f"Path is not a directory: {path}")
+            return jsonify({'error': f'Path is not a directory: {path}'}), 400
+        
+        # Get absolute path to prevent traversal attacks
+        abs_path = os.path.abspath(path)
+        
+        items = []
+        
+        # Add parent directory if not at root
+        if abs_path != os.path.abspath(os.path.expanduser('~')) and abs_path != '/':
+            parent_path = os.path.dirname(abs_path)
+            items.append({
+                'name': '..',
+                'type': 'directory',
+                'path': parent_path,
+                'size': 0,
+                'modified': 0
+            })
+        
+        # List directory contents
+        try:
+            dir_contents = os.listdir(abs_path)
+            
+            # If directory is empty, return empty list
+            if not dir_contents:
+                return jsonify({
+                    'path': abs_path,
+                    'items': []
+                })
+                
+            for item_name in sorted(dir_contents):
+                item_path = os.path.join(abs_path, item_name)
+                
+                # Skip hidden files/folders
+                if item_name.startswith('.'):
+                    continue
+                
+                try:
+                    stat_info = os.stat(item_path)
+                    is_dir = os.path.isdir(item_path)
+                    
+                    items.append({
+                        'name': item_name,
+                        'type': 'directory' if is_dir else 'file',
+                        'path': item_path,
+                        'size': stat_info.st_size if not is_dir else 0,
+                        'modified': stat_info.st_mtime,
+                        'extension': os.path.splitext(item_name)[1].lower() if not is_dir else ''
+                    })
+                except (OSError, PermissionError) as e:
+                    # Log but continue with other items
+                    logger.debug(f"Cannot access {item_path}: {str(e)}")
+                    continue
+                    
+        except PermissionError as e:
+            logger.warning(f"Permission denied for directory {abs_path}: {str(e)}")
+            return jsonify({
+                'error': f'Permission denied: {str(e)}',
+                'path': abs_path,
+                'suggestion': 'Try a different directory or grant read permissions'
+            }), 403
+        
+        return jsonify({
+            'path': abs_path,
+            'items': items
+        })
+        
+    except Exception as e:
+        logger.error(f"Error browsing filesystem: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @converter_bp.route('/preview/<filename>')
