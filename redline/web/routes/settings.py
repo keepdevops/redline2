@@ -6,6 +6,7 @@ Handles application configuration and settings
 from flask import Blueprint, render_template, request, jsonify
 import logging
 import os
+import time
 import configparser
 
 settings_bp = Blueprint('settings', __name__)
@@ -168,7 +169,6 @@ def reset_config():
 def get_system_info():
     """Get system information."""
     try:
-        import psutil
         import platform
         
         system_info = {
@@ -183,23 +183,34 @@ def get_system_info():
                 'version': platform.python_version(),
                 'implementation': platform.python_implementation(),
                 'compiler': platform.python_compiler()
-            },
-            'memory': {
+            }
+        }
+        
+        # Try to get psutil metrics if available
+        try:
+            import psutil
+            system_info['memory'] = {
                 'total': psutil.virtual_memory().total,
                 'available': psutil.virtual_memory().available,
-                'percent': psutil.virtual_memory().percent
-            },
-            'disk': {
+                'percent': psutil.virtual_memory().percent,
+                'used': psutil.virtual_memory().used,
+                'free': psutil.virtual_memory().free
+            }
+            system_info['disk'] = {
                 'total': psutil.disk_usage('/').total,
                 'used': psutil.disk_usage('/').used,
                 'free': psutil.disk_usage('/').free,
                 'percent': psutil.disk_usage('/').percent
-            },
-            'cpu': {
+            }
+            system_info['cpu'] = {
                 'count': psutil.cpu_count(),
                 'percent': psutil.cpu_percent(interval=1)
             }
-        }
+        except ImportError:
+            # psutil not available, skip those metrics
+            system_info['memory'] = {'message': 'psutil not available'}
+            system_info['disk'] = {'message': 'psutil not available'}
+            system_info['cpu'] = {'message': 'psutil not available'}
         
         return jsonify(system_info)
         
@@ -211,29 +222,58 @@ def get_system_info():
 def get_logs():
     """Get application logs."""
     try:
-        log_file = os.path.join(os.getcwd(), 'redline.log')
+        # Check multiple possible log file locations
+        possible_log_files = [
+            os.path.join(os.getcwd(), 'redline.log'),
+            os.path.join(os.getcwd(), 'logs', 'redline.log'),
+            os.path.join(os.getcwd(), 'data', 'logs', 'redline.log'),
+            '/var/log/redline.log',
+            '/app/redline.log',
+            '/app/logs/redline.log'
+        ]
         
-        if not os.path.exists(log_file):
-            return jsonify({'logs': [], 'message': 'No log file found'})
+        log_file = None
+        for possible_file in possible_log_files:
+            if os.path.exists(possible_file):
+                log_file = possible_file
+                break
         
-        # Read last 100 lines of log file
-        with open(log_file, 'r') as f:
-            lines = f.readlines()
-            recent_lines = lines[-100:] if len(lines) > 100 else lines
-        
-        logs = []
-        for line in recent_lines:
-            logs.append({
-                'line': line.strip(),
-                'timestamp': line.split(' - ')[0] if ' - ' in line else '',
-                'level': line.split(' - ')[1].split(' ')[0] if ' - ' in line else 'INFO'
+        if not log_file:
+            # Return info about missing log file
+            return jsonify({
+                'logs': [],
+                'message': 'No log file found. Logs may be going to stdout/stderr in Docker.',
+                'hint': 'Use "docker logs redline-webgui" to view logs in Docker environment.',
+                'possible_locations': possible_log_files
             })
         
-        return jsonify({
-            'logs': logs,
-            'total_lines': len(lines),
-            'recent_lines': len(recent_lines)
-        })
+        # Read last 100 lines of log file
+        try:
+            with open(log_file, 'r') as f:
+                lines = f.readlines()
+                recent_lines = lines[-100:] if len(lines) > 100 else lines
+            
+            logs = []
+            for line in recent_lines:
+                logs.append({
+                    'line': line.strip(),
+                    'timestamp': line.split(' - ')[0] if ' - ' in line else '',
+                    'level': line.split(' - ')[1].split(' ')[0] if ' - ' in line else 'INFO'
+                })
+            
+            return jsonify({
+                'logs': logs,
+                'total_lines': len(lines),
+                'recent_lines': len(recent_lines),
+                'log_file': log_file
+            })
+        except Exception as read_error:
+            logger.error(f"Error reading log file: {str(read_error)}")
+            return jsonify({
+                'logs': [],
+                'error': f'Error reading log file: {str(read_error)}',
+                'log_file': log_file
+            })
         
     except Exception as e:
         logger.error(f"Error getting logs: {str(e)}")
