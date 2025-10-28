@@ -1,0 +1,58 @@
+# Deploy REDLINE to Ubuntu Test Machine
+
+## Files Pushed to GitHub
+✅ test_ubuntu_optimized.sh - Automated test script
+✅ UBUNTU_TEST_GUIDE.md - Comprehensive testing guide
+✅ DOCKER_OPTIMIZATION_COMPLETE.md - Optimization details
+
+## Quick Start on Ubuntu
+
+### 1. Clone Repository
+```bash
+cd /home/ubuntu
+git clone https://github.com/keepdevops/redline2.git
+cd redline2
+```
+
+### 2. Run Automated Test
+```bash
+chmod +x test_ubuntu_optimized.sh
+./test_ubuntu_optimized.sh
+```
+
+### 3. Or Manual Build
+```bash
+# Build optimized image
+DOCKER_BUILDKIT=1 docker build -f Dockerfile.webgui.simple -t redline-webgui:latest .
+
+# Start container
+docker run -d --name redline-webgui -p 8080:8080 \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/logs:/app/logs \
+  -v $(pwd)/config:/app/config \
+  --restart unless-stopped \
+  redline-webgui:latest
+```
+
+### 4. Access Application
+```
+http://your-ubuntu-ip:8080
+```
+
+## What to Test
+- ✅ Docker build completes successfully
+- ✅ Image size is ~200 MB (50% smaller)
+- ✅ Container starts with Gunicorn (2 workers)
+- ✅ Web interface loads
+- ✅ All features work (upload, download, analysis)
+- ✅ Performance metrics are good
+
+## Security Notes
+GitHub shows 26 vulnerabilities. After testing, we'll update packages.
+
+## Next Steps
+1. Test on Ubuntu using test_ubuntu_optimized.sh
+2. Record results and metrics
+3. If tests pass, deploy to production
+4. Update vulnerable packages (post-testing)
+

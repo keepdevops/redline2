@@ -8,6 +8,7 @@ import logging
 import tkinter as tk
 from tkinter import ttk
 from typing import Optional
+import pandas as pd
 
 from ..core.data_loader import DataLoader
 from ..database.connector import DatabaseConnector
@@ -173,6 +174,9 @@ class AnalysisTab:
             # Sort by timestamp
             sorted_data = current_data.sort_values(timestamp_col)
             
+            # Convert price column to numeric before calculating
+            sorted_data[close_col] = pd.to_numeric(sorted_data[close_col], errors='coerce')
+            
             # Calculate price changes
             price_changes = sorted_data[close_col].pct_change().dropna()
             
@@ -217,6 +221,9 @@ class AnalysisTab:
             if vol_col is None:
                 self.results_text.insert(tk.END, "Volume column (vol/<VOL>) not found.\n")
                 return
+            
+            # Convert volume column to numeric before calculating
+            current_data[vol_col] = pd.to_numeric(current_data[vol_col], errors='coerce')
             
             # Volume statistics
             volume_stats = {
