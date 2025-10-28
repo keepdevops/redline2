@@ -112,12 +112,28 @@ class FormatConverter:
                 os.makedirs(output_dir, exist_ok=True)
             
             if format == 'csv':
-                if isinstance(data, pd.DataFrame):
-                    data.to_csv(file_path, index=False)
-                elif POLARS_AVAILABLE and isinstance(data, pl.DataFrame):
-                    data.write_csv(file_path)
-                else:
-                    raise ValueError(f"Cannot save {type(data)} to CSV format")
+                try:
+                    if isinstance(data, pd.DataFrame):
+                        self.logger.info(f"Saving {len(data)} rows to CSV: {file_path}")
+                        if data.empty:
+                            self.logger.warning("DataFrame is empty, creating empty CSV file")
+                        data.to_csv(file_path, index=False)
+                        self.logger.info(f"Successfully saved CSV file: {file_path}")
+                    elif POLARS_AVAILABLE and isinstance(data, pl.DataFrame):
+                        self.logger.info(f"Saving Polars DataFrame to CSV: {file_path}")
+                        if data.is_empty():
+                            self.logger.warning("Polars DataFrame is empty, creating empty CSV file")
+                        data.write_csv(file_path)
+                        self.logger.info(f"Successfully saved CSV file: {file_path}")
+                    else:
+                        raise ValueError(f"Cannot save {type(data)} to CSV format")
+                except Exception as e:
+                    self.logger.error(f"Error saving CSV file: {str(e)}")
+                    self.logger.error(f"File path: {file_path}")
+                    self.logger.error(f"Data type: {type(data)}")
+                    if hasattr(data, 'shape'):
+                        self.logger.error(f"Data shape: {data.shape}")
+                    raise Exception(f"Failed to save CSV file: {str(e)}")
                     
             elif format == 'parquet':
                 if isinstance(data, pd.DataFrame):
@@ -146,21 +162,51 @@ class FormatConverter:
                     raise ValueError(f"Cannot save {type(data)} to Parquet format")
                     
             elif format == 'feather':
-                if isinstance(data, pd.DataFrame):
-                    data.to_feather(file_path)
-                elif POLARS_AVAILABLE and isinstance(data, pl.DataFrame):
-                    data.write_ipc(file_path)
-                else:
-                    raise ValueError(f"Cannot save {type(data)} to Feather format")
+                try:
+                    if isinstance(data, pd.DataFrame):
+                        self.logger.info(f"Saving {len(data)} rows to Feather: {file_path}")
+                        if data.empty:
+                            self.logger.warning("DataFrame is empty, creating empty Feather file")
+                        data.to_feather(file_path)
+                        self.logger.info(f"Successfully saved Feather file: {file_path}")
+                    elif POLARS_AVAILABLE and isinstance(data, pl.DataFrame):
+                        self.logger.info(f"Saving Polars DataFrame to Feather: {file_path}")
+                        if data.is_empty():
+                            self.logger.warning("Polars DataFrame is empty, creating empty Feather file")
+                        data.write_ipc(file_path)
+                        self.logger.info(f"Successfully saved Feather file: {file_path}")
+                    else:
+                        raise ValueError(f"Cannot save {type(data)} to Feather format")
+                except Exception as e:
+                    self.logger.error(f"Error saving Feather file: {str(e)}")
+                    self.logger.error(f"File path: {file_path}")
+                    self.logger.error(f"Data type: {type(data)}")
+                    if hasattr(data, 'shape'):
+                        self.logger.error(f"Data shape: {data.shape}")
+                    raise Exception(f"Failed to save Feather file: {str(e)}")
                     
             elif format == 'json':
-                if isinstance(data, dict):
-                    with open(file_path, 'w') as f:
-                        json.dump(data, f, indent=2, default=str)
-                elif isinstance(data, pd.DataFrame):
-                    data.to_json(file_path, orient='records', indent=2)
-                else:
-                    raise ValueError(f"Cannot save {type(data)} to JSON format")
+                try:
+                    if isinstance(data, dict):
+                        self.logger.info(f"Saving dictionary to JSON: {file_path}")
+                        with open(file_path, 'w') as f:
+                            json.dump(data, f, indent=2, default=str)
+                        self.logger.info(f"Successfully saved JSON file: {file_path}")
+                    elif isinstance(data, pd.DataFrame):
+                        self.logger.info(f"Saving {len(data)} rows to JSON: {file_path}")
+                        if data.empty:
+                            self.logger.warning("DataFrame is empty, creating empty JSON file")
+                        data.to_json(file_path, orient='records', indent=2)
+                        self.logger.info(f"Successfully saved JSON file: {file_path}")
+                    else:
+                        raise ValueError(f"Cannot save {type(data)} to JSON format")
+                except Exception as e:
+                    self.logger.error(f"Error saving JSON file: {str(e)}")
+                    self.logger.error(f"File path: {file_path}")
+                    self.logger.error(f"Data type: {type(data)}")
+                    if hasattr(data, 'shape'):
+                        self.logger.error(f"Data shape: {data.shape}")
+                    raise Exception(f"Failed to save JSON file: {str(e)}")
                     
             elif format == 'duckdb':
                 if not DUCKDB_AVAILABLE:
