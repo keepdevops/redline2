@@ -307,10 +307,18 @@ def test_connection():
                 # Try a simple query
                 result = connector.execute_query("SELECT 1 as test")
                 
+                # Convert DataFrame to JSON-serializable format
+                test_data = None
+                if result is not None:
+                    if hasattr(result, 'to_dict'):
+                        test_data = result.to_dict('records')
+                    else:
+                        test_data = str(result)
+                
                 return jsonify({
                     'success': True,
                     'message': 'Database connection successful',
-                    'test_result': result
+                    'test_result': test_data
                 })
             else:
                 return jsonify({
