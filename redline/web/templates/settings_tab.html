@@ -105,6 +105,8 @@
                                     <option value="json">JSON</option>
                                     <option value="parquet">Parquet</option>
                                     <option value="feather">Feather</option>
+                                    <option value="duckdb">DuckDB</option>
+                                    <option value="txt">TXT</option>
                                 </select>
                             </div>
                             <div class="mb-3">
@@ -114,14 +116,6 @@
                                         Include Metadata
                                     </label>
                                 </div>
-                            </div>
-                            <div class="mb-3">
-                                <label for="compression" class="form-label">Compression</label>
-                                <select class="form-select" id="compression">
-                                    <option value="none" selected>None</option>
-                                    <option value="gzip">Gzip</option>
-                                    <option value="bzip2">Bzip2</option>
-                                </select>
                             </div>
                         </div>
                     </div>
@@ -286,7 +280,6 @@ function loadConfiguration() {
             // Export settings
             $('#defaultFormat').val(config.export?.default_format || 'csv');
             $('#includeMetadata').prop('checked', config.export?.include_metadata === 'true');
-            $('#compression').val(config.export?.compression || 'none');
         })
         .catch(error => {
             REDLINE.ui.showToast('Error loading configuration: ' + error.message, 'error');
@@ -312,8 +305,7 @@ function saveConfiguration() {
         },
         export: {
             default_format: $('#defaultFormat').val(),
-            include_metadata: $('#includeMetadata').is(':checked').toString(),
-            compression: $('#compression').val()
+            include_metadata: $('#includeMetadata').is(':checked').toString()
         }
     };
     
