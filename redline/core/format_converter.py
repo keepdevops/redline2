@@ -164,21 +164,39 @@ class FormatConverter:
                     
             elif format == 'duckdb':
                 if not DUCKDB_AVAILABLE:
-                    raise ImportError("duckdb not available")
-                conn = duckdb.connect(file_path)
+                    raise ImportError("duckdb not available. Please install duckdb to use DuckDB format.")
+                
+                # Ensure directory exists
+                output_dir = os.path.dirname(file_path)
+                if output_dir:
+                    os.makedirs(output_dir, exist_ok=True)
+                
+                conn = None
                 try:
+                    conn = duckdb.connect(file_path)
+                    self.logger.info(f"Saving data to DuckDB database: {file_path}")
+                    
                     if isinstance(data, pd.DataFrame):
                         # Register the DataFrame with DuckDB and create table
+                        if data.empty:
+                            self.logger.warning("DataFrame is empty, creating empty table")
                         conn.register('temp_data', data)
                         conn.execute("DROP TABLE IF EXISTS tickers_data")
                         conn.execute("CREATE TABLE tickers_data AS SELECT * FROM temp_data")
+                        self.logger.info(f"Saved {len(data)} rows to DuckDB")
+                        
                     elif POLARS_AVAILABLE and isinstance(data, pl.DataFrame):
                         # Register the Polars DataFrame with DuckDB and create table
+                        if data.is_empty():
+                            self.logger.warning("Polars DataFrame is empty, creating empty table")
                         conn.register('temp_data', data)
                         conn.execute("DROP TABLE IF EXISTS tickers_data")
                         conn.execute("CREATE TABLE tickers_data AS SELECT * FROM temp_data")
+                        self.logger.info(f"Saved Polars DataFrame to DuckDB")
+                        
                     else:
                         # For other data types, convert to DataFrame first
+                        self.logger.info(f"Converting {type(data)} to pandas DataFrame")
                         if hasattr(data, 'to_pandas'):
                             df = data.to_pandas()
                         else:
@@ -186,19 +204,29 @@ class FormatConverter:
                         conn.register('temp_data', df)
                         conn.execute("DROP TABLE IF EXISTS tickers_data")
                         conn.execute("CREATE TABLE tickers_data AS SELECT * FROM temp_data")
+                        self.logger.info(f"Saved {len(df)} rows to DuckDB")
+                        
                 except Exception as e:
+                    self.logger.error(f"Error saving to DuckDB database: {str(e)}")
+                    self.logger.error(f"Data type: {type(data)}")
+                    if hasattr(data, 'shape'):
+                        self.logger.error(f"Data shape: {data.shape}")
                     # Ensure connection is closed even on error
-                    try:
-                        conn.close()
-                    except:
-                        pass
-                    raise e
+                    if conn:
+                        try:
+                            conn.close()
+                        except:
+                            pass
+                    raise Exception(f"Failed to save to DuckDB: {str(e)}")
+                    
                 finally:
                     # Always close the connection
-                    try:
-                        conn.close()
-                    except Exception as close_error:
-                        self.logger.warning(f"Error closing DuckDB connection: {close_error}")
+                    if conn:
+                        try:
+                            conn.close()
+                            self.logger.debug("Closed DuckDB connection")
+                        except Exception as close_error:
+                            self.logger.warning(f"Error closing DuckDB connection: {close_error}")
                 
             else:
                 raise ValueError(f"Unsupported format: {format}")
