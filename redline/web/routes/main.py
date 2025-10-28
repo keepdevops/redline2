@@ -32,7 +32,7 @@ def status():
             'status': 'running',
             'data_loader': 'available',
             'database': 'available',
-            'supported_formats': ['csv', 'parquet', 'feather', 'json', 'duckdb'],
+            'supported_formats': ['csv', 'txt', 'parquet', 'feather', 'json', 'duckdb'],
             'version': '1.0.0'
         }
         

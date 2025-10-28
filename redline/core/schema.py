@@ -21,11 +21,11 @@ EXT_TO_FORMAT = {
 # File dialog information mapping
 FORMAT_DIALOG_INFO = {
     'csv':     ('.csv',     'CSV Files', '*.csv'),
+    'txt':     ('.txt',     'TXT Files', '*.txt'),
     'json':    ('.json',    'JSON Files', '*.json'),
     'duckdb':  ('.duckdb',  'DuckDB Files', '*.duckdb'),
     'parquet': ('.parquet', 'Parquet Files', '*.parquet'),
     'feather': ('.feather', 'Feather Files', '*.feather')
-    # Removed: 'txt': ('.txt', 'TXT Files', '*.txt') - read-only (Stooq format)
     # Removed: 'keras': ('.h5', 'Keras Model', '*.h5') - not implemented
     # Removed: 'tensorflow': ('.npz', 'NumPy Zip', '*.npz') - not implemented
 }

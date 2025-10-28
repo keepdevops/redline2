@@ -138,7 +138,7 @@ def api_list_files():
         return jsonify({'error': str(e)}), 500
 
 # Allowed file extensions
-ALLOWED_EXTENSIONS = {'csv', 'json', 'parquet', 'feather', 'duckdb'}
+ALLOWED_EXTENSIONS = {'csv', 'txt', 'json', 'parquet', 'feather', 'duckdb'}
 
 # API Configuration
 DEFAULT_PAGE_SIZE = 100

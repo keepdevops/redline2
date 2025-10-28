@@ -18,6 +18,9 @@ from redline.core.format_converter import FormatConverter
 from redline.database.connector import DatabaseConnector
 from redline.gui.widgets.progress_tracker import ProgressTracker
 from redline.core.schema import EXT_TO_FORMAT, FORMAT_DIALOG_INFO
+from redline.gui.utils.conversion_ui import ConversionUIHelper
+from redline.gui.utils.conversion_logic import ConversionLogicHelper
+from redline.gui.utils.file_browser import FileBrowserHelper
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +36,11 @@ class ConverterTab:
 
         self.frame = ttk.Frame(parent)
         self.converter = FormatConverter()
+        
+        # Initialize helper modules
+        self.ui_helper = ConversionUIHelper(self)
+        self.logic_helper = ConversionLogicHelper(self)
+        self.browser_helper = FileBrowserHelper(self)
         
         # Conversion state
         self.conversion_thread: Optional[threading.Thread] = None
@@ -88,22 +96,22 @@ class ConverterTab:
         title_label.pack(pady=(10, 20))
         
         # Input section
-        self.create_input_section(scrollable_frame)
+        self.ui_helper.create_input_section(scrollable_frame)
         
         # Output section
-        self.create_output_section(scrollable_frame)
+        self.ui_helper.create_output_section(scrollable_frame)
         
         # Conversion options
-        self.create_conversion_options(scrollable_frame)
+        self.ui_helper.create_conversion_options(scrollable_frame)
         
         # Batch conversion
-        self.create_batch_section(scrollable_frame)
+        self.ui_helper.create_batch_section(scrollable_frame)
         
         # Progress section
-        self.create_progress_section(scrollable_frame)
+        self.ui_helper.create_progress_section(scrollable_frame)
         
         # Results section
-        self.create_results_section(scrollable_frame)
+        self.ui_helper.create_results_section(scrollable_frame)
         
         # Pack canvas and scrollbar
         canvas.pack(side="left", fill="both", expand=True)
@@ -365,7 +373,9 @@ class ConverterTab:
     def browse_input_files(self):
         """Browse for input files."""
         filetypes = [
+            ("All supported files", "*.csv;*.txt;*.json;*.parquet;*.feather;*.duckdb"),
             ("CSV files", "*.csv"),
+            ("TXT files", "*.txt"),
             ("JSON files", "*.json"),
             ("Parquet files", "*.parquet"),
             ("Feather files", "*.feather"),

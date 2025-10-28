@@ -106,4 +106,5 @@ CMD ["gunicorn", \
      "--access-logfile", "-", \
      "--error-logfile", "-", \
      "--log-level", "info", \
+     "--preload", \
      "web_app:create_app()"]
