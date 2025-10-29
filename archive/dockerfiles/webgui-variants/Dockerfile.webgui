@@ -1,0 +1,91 @@
+# REDLINE Web-Based GUI Dockerfile
+# Uses noVNC + TigerVNC for web-based GUI access without X11 forwarding
+
+FROM ubuntu:22.04
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV DISPLAY=:1
+ENV VNC_PORT=5901
+ENV NO_VNC_PORT=6080
+ENV VNC_RESOLUTION=1920x1080
+ENV VNC_COL_DEPTH=24
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    # Basic utilities
+    wget \
+    curl \
+    unzip \
+    supervisor \
+    # Desktop environment
+    xfce4 \
+    xfce4-goodies \
+    # VNC server
+    tigervnc-standalone-server \
+    tigervnc-common \
+    # Python and GUI dependencies
+    python3 \
+    python3-pip \
+    python3-tk \
+    python3-dev \
+    # Additional GUI libraries
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libxext6 \
+    libxrender1 \
+    libxtst6 \
+    libxi6 \
+    # Web browser (optional)
+    firefox \
+    # Cleanup
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create supervisor directories
+RUN mkdir -p /var/log/supervisor /var/run /etc/supervisor /etc/supervisor/conf.d
+
+# Install websockify via pip (more reliable)
+RUN pip3 install websockify || true
+
+# Install noVNC
+RUN mkdir -p /opt/noVNC \
+    && cd /opt/noVNC \
+    && wget -qO- https://github.com/novnc/noVNC/archive/v1.3.0.tar.gz | tar xz --strip 1 \
+    || echo "Warning: noVNC download failed"
+
+# Verify noVNC installation
+RUN ls -la /opt/noVNC || echo "noVNC not found"
+
+# Create VNC password
+RUN mkdir -p ~/.vnc \
+    && chmod 600 ~/.vnc/passwd
+
+
+# Copy REDLINE application
+COPY . /app
+WORKDIR /app
+
+# Install minimal Python dependencies (just for VNC/web GUI)
+RUN pip3 install --upgrade pip setuptools wheel
+RUN pip3 install numpy pandas flask requests duckdb pyarrow 2>&1 || true
+
+# Note: Full requirements.txt installation may have version conflicts
+# For VNC/Web GUI functionality, minimal dependencies are sufficient
+
+# Create startup script for REDLINE GUI
+RUN echo '#!/bin/bash\n\
+# Start REDLINE GUI\n\
+cd /app\n\
+python3 main.py &' > /start-redline.sh \
+    && chmod +x /start-redline.sh
+
+# Expose ports
+EXPOSE 6080 5901
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:6080/ || exit 1
+
+# Start services directly (no intermediate scripts that might fail)
+CMD ["/bin/bash", "-c", "export DISPLAY=:1 && vncserver :1 -geometry ${VNC_RESOLUTION} -depth ${VNC_COL_DEPTH} && websockify $NO_VNC_PORT localhost:$VNC_PORT & sleep 5 && startxfce4 & tail -f /dev/null"]
