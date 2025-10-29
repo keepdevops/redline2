@@ -14,6 +14,23 @@
 
 ---
 
+## 🆕 **What's New in Version 2.0**
+
+### **✨ Data Viewing Improvements**
+- **Automatic Column Header Cleaning**: Fixed "undefined" and "Unnamed: 0" issues across all data views
+- **Universal Format Support**: Works with Bloomberg, Alpha Vantage, Finnhub, and custom CSV formats
+- **Multi-File View**: View multiple data files simultaneously with clean headers
+- **Analysis Display Fix**: Proper display of column names with angle brackets in correlation analysis
+- **Cross-Platform Compatibility**: ARM64 (Apple Silicon) + AMD64 support
+
+### **📊 Enhanced Features**
+- **Smart Data Loading**: Automatically detects and fixes malformed CSV headers
+- **HTML-Escaped Columns**: Proper rendering of column names in analysis results
+- **Uncompiled Docker Mode**: Development-friendly container for easier debugging
+- **Production Ready**: Comprehensive testing across all financial data formats
+
+---
+
 ## 🌟 **Welcome to REDLINE**
 
 REDLINE is a comprehensive financial data analysis application that allows you to download, view, analyze, and manage financial market data from multiple sources. The application features a modern GUI with modular architecture for reliable performance.
@@ -359,6 +376,7 @@ tensorflow scikit-learn matplotlib
 <TICKER>,<DATE>,<TIME>,<OPEN>,<HIGH>,<LOW>,<CLOSE>,<VOL>
 AAPL,20241016,000000,230.53,231.04,228.78,230.71,34082200
 ```
+**Note:** REDLINE automatically handles malformed headers with leading commas.
 
 ### **Standard Format**
 ```csv
@@ -372,9 +390,22 @@ Date,Open,High,Low,Close,Adj Close,Volume
 2024-10-16,230.53,231.04,228.78,230.71,230.71,34082200
 ```
 
+### **Supported Formats**
+REDLINE supports multiple financial data formats with automatic column cleaning:
+- **Bloomberg**: `security, date, time, px_open, px_high, px_low, px_last, px_volume`
+- **Alpha Vantage**: `symbol, timestamp, open, high, low, close, volume`
+- **Finnhub**: Compact single-letter format (`c, h, l, o, t, v`)
+- **Custom formats**: Automatic detection and cleaning of malformed headers
+
 ## 🔧 **Troubleshooting**
 
 ### **Common Issues**
+
+#### **"Undefined" or "Unnamed: 0" in Column Headers**
+- **Cause**: Malformed CSV files with extra commas or index columns
+- **Solution**: REDLINE automatically cleans column headers (fixed in v2.0)
+- **Details**: The application removes unnamed index columns and fixes malformed headers
+- **No Action Required**: This is handled automatically by the data loading system
 
 #### **"DuckDB not available" Error**
 - **Cause**: Optional database dependency not installed
