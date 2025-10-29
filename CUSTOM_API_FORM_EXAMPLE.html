@@ -1,0 +1,202 @@
+<!-- Example: Custom API Input Form -->
+<!-- Add this to a new template or existing page -->
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-cogs me-2"></i>Custom Analysis API
+        </h5>
+    </div>
+    <div class="card-body">
+        <form id="customApiForm">
+            <!-- File Selection -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Data File</label>
+                    <select id="customFilename" class="form-select" required>
+                        <option value="">Select a file...</option>
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Output Format</label>
+                    <select id="customOutputFormat" class="form-select">
+                        <option value="json">JSON</option>
+                        <option value="csv">CSV</option>
+                        <option value="excel">Excel</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Custom Parameters -->
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">Analysis Type</label>
+                    <select id="customAnalysisType" class="form-select">
+                        <option value="basic">Basic Analysis</option>
+                        <option value="advanced">Advanced Analysis</option>
+                        <option value="custom">Custom Logic</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Window Size</label>
+                    <input type="number" id="customWindowSize" class="form-control" 
+                           value="20" min="1" max="100">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Confidence Level</label>
+                    <input type="number" id="customConfidence" class="form-control" 
+                           value="0.95" min="0.01" max="0.99" step="0.01">
+                </div>
+            </div>
+            
+            <!-- Filters -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Ticker Filter (Optional)</label>
+                    <input type="text" id="customTicker" class="form-control" 
+                           placeholder="e.g., AAPL">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Date Range</label>
+                    <div class="input-group">
+                        <input type="date" id="customStartDate" class="form-control">
+                        <span class="input-group-text">to</span>
+                        <input type="date" id="customEndDate" class="form-control">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Advanced Options (Collapsible) -->
+            <div class="accordion mb-3">
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" 
+                                data-bs-toggle="collapse" data-bs-target="#advancedOptions">
+                            Advanced Options
+                        </button>
+                    </h2>
+                    <div id="advancedOptions" class="accordion-collapse collapse">
+                        <div class="accordion-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">Custom Parameter 1</label>
+                                    <input type="text" id="customParam1" class="form-control">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Custom Parameter 2</label>
+                                    <input type="text" id="customParam2" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Submit Button -->
+            <div class="d-flex justify-content-between">
+                <button type="button" class="btn btn-secondary" onclick="resetCustomForm()">
+                    <i class="fas fa-undo me-1"></i>Reset
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-play me-1"></i>Run Custom Analysis
+                </button>
+            </div>
+        </form>
+        
+        <!-- Results Display -->
+        <div id="customResults" class="mt-4" style="display: none;">
+            <h6>Analysis Results:</h6>
+            <div class="bg-light p-3 rounded">
+                <pre id="customResultsContent"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// JavaScript for Custom API Form
+$(document).ready(function() {
+    loadCustomFiles();
+    
+    $('#customApiForm').on('submit', function(e) {
+        e.preventDefault();
+        runCustomAnalysis();
+    });
+});
+
+function loadCustomFiles() {
+    $.get('/api/files')
+        .done(function(response) {
+            const select = $('#customFilename');
+            select.empty().append('<option value="">Select a file...</option>');
+            
+            if (response.files) {
+                response.files.forEach(file => {
+                    select.append(`<option value="${file.name}">${file.name}</option>`);
+                });
+            }
+        })
+        .fail(function() {
+            console.error('Failed to load files');
+        });
+}
+
+function runCustomAnalysis() {
+    const formData = {
+        filename: $('#customFilename').val(),
+        output_format: $('#customOutputFormat').val(),
+        parameters: {
+            type: $('#customAnalysisType').val(),
+            window_size: parseInt($('#customWindowSize').val()),
+            confidence_level: parseFloat($('#customConfidence').val()),
+            custom_param1: $('#customParam1').val(),
+            custom_param2: $('#customParam2').val()
+        },
+        filters: {
+            ticker: $('#customTicker').val() || null,
+            date_range: {
+                start: $('#customStartDate').val() || null,
+                end: $('#customEndDate').val() || null
+            }
+        }
+    };
+    
+    // Show loading state
+    const submitBtn = $('#customApiForm button[type="submit"]');
+    const originalText = submitBtn.html();
+    submitBtn.html('<i class="fas fa-spinner fa-spin me-1"></i>Processing...').prop('disabled', true);
+    
+    $.ajax({
+        url: '/api/custom-analysis',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(formData),
+        success: function(response) {
+            $('#customResults').show();
+            $('#customResultsContent').text(JSON.stringify(response, null, 2));
+            
+            // Show success toast
+            if (window.REDLINE && REDLINE.ui) {
+                REDLINE.ui.showToast('Custom analysis completed successfully!', 'success');
+            }
+        },
+        error: function(xhr) {
+            const error = xhr.responseJSON?.error || 'Analysis failed';
+            alert('Error: ' + error);
+        },
+        complete: function() {
+            // Restore button
+            submitBtn.html(originalText).prop('disabled', false);
+        }
+    });
+}
+
+function resetCustomForm() {
+    $('#customApiForm')[0].reset();
+    $('#customResults').hide();
+    $('#customWindowSize').val(20);
+    $('#customConfidence').val(0.95);
+    $('#customOutputFormat').val('json');
+}
+</script>

@@ -1,0 +1,164 @@
+# Ultra-aggressive exclusions for micro-slim build
+
+# Documentation and non-essential files
+*.md
+README*
+CHANGELOG*
+LICENSE*
+docs/
+documentation/
+examples/
+samples/
+
+# Development files
+.git/
+.github/
+.gitignore
+.gitattributes
+.editorconfig
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing files
+tests/
+test/
+testing/
+__tests__/
+*.test.py
+*_test.py
+test_*.py
+*test*.py
+pytest.ini
+tox.ini
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Build and cache files
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Development dependencies
+Pipfile*
+poetry.lock
+pyproject.toml
+setup.py
+setup.cfg
+MANIFEST.in
+
+# IDE and editor files
+.DS_Store
+Thumbs.db
+*.sublime-*
+*.vim
+
+# Log files
+*.log
+logs/
+log/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.cache
+
+# Database files (keep only schema)
+*.db
+*.sqlite
+*.sqlite3
+
+# Configuration examples (keep only templates)
+config/examples/
+*.example
+*.sample
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# OS files
+.DS_Store
+desktop.ini
+Thumbs.db
+
+# Docker files (except the one we're using)
+Dockerfile*
+!Dockerfile.webgui.micro-slim
+docker-compose*
+.dockerignore*
+!.dockerignore-micro
+
+# Archive files
+*.tar
+*.tar.gz
+*.tar.bz2
+*.tgz
+*.zip
+*.rar
+*.7z
+
+# Large data files
+data/samples/
+data/test/
+data/examples/
+*.csv
+*.parquet
+*.feather
+*.json
+*.xlsx
+*.xls
+
+# Scripts not needed in container
+scripts/build/
+scripts/deploy/
+install/
+universal_installer/
+
+# Compiled binaries
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Node.js (if any)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Package manager files
+requirements-dev.txt
+requirements-test.txt
+dev-requirements.txt

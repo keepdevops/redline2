@@ -1,92 +1,53 @@
-# REDLINE Docker Compose Configuration (Fixed)
-# Simple web app + web GUI setup without dependency cycles
+version: '3.8'
 
 services:
-  # Redis service for Celery broker and rate limiting storage
-  redis:
-    image: redis:7-alpine
-    container_name: redline-redis
-    restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+  redline-web:
+    image: keepdevops/redline:latest
+    container_name: redline-web
     ports:
-      - "6379:6379"
+      - "8080:8080"
     volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-    networks:
-      - redline-network
-  
-  # REDLINE Web App + Web GUI (using working Option 1 approach)
-  redline-webgui:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: redline-webgui:latest
-    container_name: redline-web-app
-    restart: unless-stopped
-    depends_on:
-      redis:
-        condition: service_healthy
-    
-    # Ports
-    ports:
-      - "8080:8080"    # Flask web app
-      - "6080:6080"    # noVNC web GUI
-    
-    # Environment variables
+      # Persistent data storage for custom APIs and user files
+      - redline-data:/app/data
+      - redline-logs:/app/logs
+      - redline-config:/app/config
     environment:
-      - FLASK_APP=web_app.py
       - FLASK_ENV=production
-      - HOST=0.0.0.0
-      - PORT=8080
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - VNC_PASSWORD=${VNC_PASSWORD:-$(openssl rand -base64 32)}
-      - DISPLAY=:1
-      - VNC_PORT=5901
-      - NO_VNC_PORT=6080
-    
-    # Volumes
-    volumes:
-      - ./data:/opt/redline/data
-      - ./logs:/var/log/redline
-      - ./config:/opt/redline/config
-    
-    # Working directory
-    working_dir: /opt/redline
-    
-    # Health check
+      - REDLINE_ENV=production
+      - GUNICORN_WORKERS=2
+      - GUNICORN_THREADS=4
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
-    
-    # Resource limits
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '1.0'
-        reservations:
-          memory: 256M
-          cpus: '0.25'
+      start_period: 10s
 
-# Volumes
+  # Optional Redis for enhanced performance (if using Celery)
+  redis:
+    image: redis:7-alpine
+    container_name: redline-redis
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    profiles:
+      - full  # Only start with: docker-compose --profile full up
+
 volumes:
-  redis_data:
+  redline-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data
+  redline-logs:
+    driver: local
+  redline-config:
+    driver: local
+  redis-data:
     driver: local
 
-# Networks
 networks:
-  redline-network:
-    driver: bridge
   default:
-    driver: bridge
-    external: false
+    name: redline-network
