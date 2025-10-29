@@ -26,6 +26,36 @@ optimized_db = OptimizedDatabaseConnector(max_connections=8, cache_size=64, cach
 data_bp = Blueprint('data', __name__)
 logger = logging.getLogger(__name__)
 
+def clean_dataframe_columns(df):
+    """Clean up malformed CSV headers - remove unnamed/empty columns."""
+    columns_to_drop = []
+    cleaned_columns = []
+    
+    for i, col in enumerate(df.columns):
+        # Drop columns with empty names or typical pandas unnamed column patterns
+        if (col == '' or 
+            str(col).strip() == '' or 
+            str(col).startswith('Unnamed:') or
+            (str(col) == '0' and i == 0 and len(df.columns) > 1)):  # First column named '0' usually indicates index issue
+            columns_to_drop.append(col)
+        else:
+            # Clean column name
+            clean_col = str(col).strip()
+            # If still empty after cleaning, give it a meaningful name
+            if clean_col == '':
+                clean_col = f'Column_{i}'
+            cleaned_columns.append(clean_col)
+    
+    # Drop the problematic columns
+    if columns_to_drop:
+        df = df.drop(columns=columns_to_drop)
+        
+    # Rename columns to cleaned versions
+    if len(cleaned_columns) == len(df.columns):
+        df.columns = cleaned_columns
+        
+    return df
+
 # Rate limiting decorator (if limiter is available)
 def rate_limit(limit_string):
     """Decorator for rate limiting - gracefully handles missing limiter."""
@@ -486,6 +516,9 @@ def load_multiple_files():
                     errors[filename] = 'Invalid data format'
                     continue
                 
+                # Clean up malformed CSV headers
+                df = clean_dataframe_columns(df)
+                
                 # Convert to JSON-serializable format
                 results[filename] = {
                     'columns': list(df.columns),
@@ -590,6 +623,9 @@ def load_data():
         
         if not isinstance(df, pd.DataFrame):
             return jsonify({'error': 'Invalid data format'}), 400
+        
+        # Clean up malformed CSV headers - remove unnamed/empty columns
+        df = clean_dataframe_columns(df)
         
         # Convert to JSON-serializable format
         data_dict = {
@@ -766,6 +802,9 @@ def load_file_data():
         
         if df.empty:
             return jsonify({'error': 'No data found in file'}), 404
+        
+        # Clean up malformed CSV headers
+        df = clean_dataframe_columns(df)
         
         # Convert to JSON-serializable format
         data_dict = df.to_dict('records')
@@ -1076,6 +1115,9 @@ def load_data_from_path():
         
         if not isinstance(df, pd.DataFrame):
             return jsonify({'error': 'Invalid data format'}), 400
+        
+        # Clean up malformed CSV headers
+        df = clean_dataframe_columns(df)
         
         # Convert to JSON-serializable format
         data_dict = {

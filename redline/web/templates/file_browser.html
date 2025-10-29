@@ -183,7 +183,9 @@ function displayFileData(data) {
     
     // Add headers
     data.columns.forEach(column => {
-        tableHtml += `<th>${column}</th>`;
+        // Fix: Handle undefined/null column names
+        const displayColumn = (column !== null && column !== undefined && column !== '') ? column : 'Column';
+        tableHtml += `<th>${displayColumn}</th>`;
     });
     tableHtml += '</tr></thead><tbody>';
     

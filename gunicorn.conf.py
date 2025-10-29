@@ -30,9 +30,9 @@ proc_name = 'redline-web'
 
 # Server mechanics
 daemon = False
-pidfile = '/var/run/redline/gunicorn.pid'
-user = os.environ.get('GUNICORN_USER', 'redline')
-group = os.environ.get('GUNICORN_GROUP', 'redline')
+pidfile = '/tmp/gunicorn.pid'
+user = os.environ.get('GUNICORN_USER', 'appuser')
+group = os.environ.get('GUNICORN_GROUP', 'appuser')
 tmp_upload_dir = None
 
 # SSL (if enabled)

@@ -295,7 +295,9 @@ function displayDataTable(data) {
         // Headers - use actual column names
         html += '<thead class="table-dark"><tr>';
         data.columns.forEach(col => {
-            html += `<th scope="col">${col}</th>`;
+            // Fix: Handle undefined/null column names
+            const displayCol = (col !== null && col !== undefined && col !== '') ? col : 'Column';
+            html += `<th scope="col">${displayCol}</th>`;
         });
         html += '</tr></thead>';
         

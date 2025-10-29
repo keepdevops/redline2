@@ -123,7 +123,9 @@ function loadFileData(filename) {
                 // Add headers
                 if (response.columns) {
                     response.columns.forEach(function(col) {
-                        html += `<th>${col}</th>`;
+                        // Fix: Handle undefined/null column names
+                        const displayCol = (col !== null && col !== undefined && col !== '') ? col : 'Column';
+                        html += `<th>${displayCol}</th>`;
                     });
                 }
                 html += '</tr></thead><tbody>';

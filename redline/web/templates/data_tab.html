@@ -181,7 +181,9 @@ function displayDataInTable(data) {
     // Add headers from first row
     const headers = Object.keys(data[0]);
     headers.forEach(header => {
-        tableHtml += `<th>${header}</th>`;
+        // Fix: Handle undefined/null headers
+        const displayHeader = (header !== null && header !== undefined && header !== '') ? header : 'Column';
+        tableHtml += `<th>${displayHeader}</th>`;
     });
     tableHtml += '</tr></thead><tbody>';
     

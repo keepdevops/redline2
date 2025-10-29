@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
-# REDLINE Web-Based GUI - Optimized with Gunicorn
-# Multi-stage build for smaller image size and faster builds
+# REDLINE Web-Based GUI - Uncompiled Version
+# Multi-stage build for smaller image size, no bytecode compilation for debugging
 
 # ============================================
 # Stage 1: Builder - Install dependencies
@@ -10,7 +10,7 @@ FROM python:3.11-slim as builder
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONDONTWRITEBYTECODE=0 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
@@ -49,9 +49,9 @@ FROM python:3.11-slim
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONDONTWRITEBYTECODE=0 \
     FLASK_APP=web_app.py \
-    FLASK_ENV=production \
+    FLASK_ENV=development \
     GUNICORN_WORKERS=2 \
     GUNICORN_THREADS=4 \
     GUNICORN_TIMEOUT=120
@@ -73,14 +73,16 @@ WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy application code
+# Copy application code (keep source files uncompiled)
 COPY --chown=appuser:appuser . /app
 
-# Minify assets for production
-RUN python3 scripts/minify_assets_simple.py || echo "Minification skipped"
+# Skip asset minification for development/debugging
+RUN echo "Skipping asset minification for uncompiled version" && \
+    echo "Assets remain in original form for easier debugging"
 
-# Pre-compile Python bytecode for faster startup
-RUN python -m compileall -b /app
+# Skip Python bytecode compilation - keep source files for debugging
+RUN echo "Skipping Python bytecode compilation" && \
+    echo "Source files remain uncompiled for development and debugging"
 
 # Create necessary directories
 RUN mkdir -p /app/data /app/logs /app/config /app/data/uploads /app/data/user_files && \
@@ -93,18 +95,25 @@ USER appuser
 EXPOSE 8080
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
-# Start the web application with Gunicorn
+# Start the web application with Gunicorn (development-friendly settings)
 CMD ["gunicorn", \
      "--bind", "0.0.0.0:8080", \
-     "--workers", "2", \
-     "--threads", "4", \
+     "--workers", "1", \
+     "--threads", "2", \
      "--timeout", "120", \
      "--worker-class", "gthread", \
      "--access-logfile", "-", \
      "--error-logfile", "-", \
-     "--log-level", "info", \
-     "--preload", \
+     "--log-level", "debug", \
+     "--reload", \
      "web_app:create_app()"]
+
+# Labels for metadata
+LABEL maintainer="REDLINE Team" \
+      version="1.0.0-uncompiled" \
+      description="REDLINE Financial Analysis - Uncompiled Development Version" \
+      architecture="multi-platform" \
+      performance="unoptimized for debugging"

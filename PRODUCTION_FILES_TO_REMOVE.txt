@@ -1,0 +1,46 @@
+# Files to Remove from Production Branch
+
+=== SHELL SCRIPTS (Development Tools) ===
+test_docker_custom_api.sh
+fix_docker_push.sh
+copy-redline-from-usb.sh
+start_docker.sh
+start_gui.sh
+fix-all-build-scripts.sh
+build_compiled_optimized.sh
+run_ubuntu_x86.sh
+fix-usb-permissions.sh
+quick_start_web.sh
+build_multiplatform_efficient.sh
+build_multiplatform_local.sh
+build_multiplatform_optimized.sh
+build_ultra_slim.sh
+push_to_dockerhub.sh
+push_ultra_slim_dockerhub.sh
+fix_docker_push.sh
+
+=== TEST FILES ===
+test_*.py (all Python test files)
+test_*.sh (all shell test files)
+test_*.html (all test HTML files)
+test_*.bash
+test_results.json
+test_secret.txt
+
+=== ARCHIVE/COMPRESSED FILES ===
+*.tar
+*.tar.gz
+redline-gui-executable-arm64-v1.0.0.tar.gz
+redline-compiled-v1.0.0.tar.gz
+redline-source-v1.0.0.tar.gz
+redline-portable-v1.0.0.tar.gz
+redline-webgui.tar
+
+=== DIRECTORIES TO EXCLUDE ===
+redline-compiled-v1.0.0/
+redline-portable-v1.0.0/
+(These are extracted archive directories)
+
+=== MODIFIED FILES NEEDING REVIEW ===
+docker-compose.yml (check if production-ready)
+

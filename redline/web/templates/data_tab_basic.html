@@ -169,7 +169,9 @@ function displayFileData(data) {
         html += '<h6>Columns:</h6>';
         html += '<div class="mb-3">';
         data.columns.forEach(col => {
-            html += `<span class="badge bg-secondary me-1">${col}</span>`;
+            // Fix: Handle undefined/null column names
+            const displayCol = (col !== null && col !== undefined && col !== '') ? col : 'Column';
+            html += `<span class="badge bg-secondary me-1">${displayCol}</span>`;
         });
         html += '</div>';
     }
@@ -183,7 +185,9 @@ function displayFileData(data) {
         html += '<thead class="table-dark"><tr>';
         if (data.columns) {
             data.columns.forEach(col => {
-                html += `<th>${col}</th>`;
+                // Fix: Handle undefined/null column names
+                const displayCol = (col !== null && col !== undefined && col !== '') ? col : 'Column';
+                html += `<th>${displayCol}</th>`;
             });
         }
         html += '</tr></thead>';
