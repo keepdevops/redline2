@@ -8,7 +8,6 @@ import logging
 import os
 import pandas as pd
 from werkzeug.utils import secure_filename
-import gzip
 import json
 
 api_bp = Blueprint('api', __name__)
@@ -127,6 +126,26 @@ def api_list_files():
                         'path': file_path,
                         'location': 'downloaded'
                     })
+
+        # Get files from converted/export directory (recursively including subdirectories)
+        converted_dir = os.path.join(data_dir, 'converted')
+        if os.path.exists(converted_dir):
+            # Recursively search subdirectories in converted/ (duckdb/, parquet/, etc.)
+            for root, dirs, filenames in os.walk(converted_dir):
+                for filename in filenames:
+                    if not filename.startswith('.'):
+                        file_path = os.path.join(root, filename)
+                        if os.path.isfile(file_path):
+                            file_stat = os.stat(file_path)
+                            # Get relative path for location
+                            rel_path = os.path.relpath(file_path, data_dir)
+                            files.append({
+                                'name': filename,
+                                'size': file_stat.st_size,
+                                'modified': file_stat.st_mtime,
+                                'path': file_path,
+                                'location': rel_path
+                            })
         
         # Sort by modification time (newest first)
         files.sort(key=lambda x: x['modified'], reverse=True)
@@ -143,24 +162,14 @@ ALLOWED_EXTENSIONS = {'csv', 'txt', 'json', 'parquet', 'feather', 'duckdb'}
 # API Configuration
 DEFAULT_PAGE_SIZE = 100
 MAX_PAGE_SIZE = 1000
-COMPRESSION_THRESHOLD = 1024  # Compress responses > 1KB
+COMPRESSION_THRESHOLD = 1024  # Legacy threshold (no longer used)
 
 def allowed_file(filename):
     """Check if file extension is allowed."""
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def compress_response(response_data):
-    """Compress response data if it's large enough."""
-    try:
-        response_json = json.dumps(response_data)
-        if len(response_json) > COMPRESSION_THRESHOLD:
-            compressed = gzip.compress(response_json.encode('utf-8'))
-            return compressed, True
-        return response_json.encode('utf-8'), False
-    except Exception as e:
-        logger.error(f"Error compressing response: {str(e)}")
-        return json.dumps(response_data).encode('utf-8'), False
+# Manual gzip compression removed; rely on Flask-Compress
 
 def paginate_data(data, page=1, per_page=None):
     """Paginate data for API responses."""
@@ -299,6 +308,16 @@ def convert_file():
         # Load data
         data_obj = converter.load_file_by_type(input_path, format_type)
         
+        # Aggressive cleaning during conversion: clean column names, remove unnamed columns, etc.
+        if isinstance(data_obj, pd.DataFrame):
+            from redline.web.routes.data_routes import clean_dataframe_columns
+            try:
+                data_obj = clean_dataframe_columns(data_obj)
+                logger.info(f"Cleaned columns during API conversion")
+            except Exception as clean_error:
+                logger.warning(f"Error during column cleaning (non-fatal): {str(clean_error)}")
+                # Continue with conversion anyway
+        
         # Convert and save
         converter.save_file_by_type(data_obj, output_file, output_format)
         
@@ -340,6 +359,87 @@ def download_data(ticker):
         logger.error(f"Error downloading data for {ticker}: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@api_bp.route('/data/quick/<path:filename>', methods=['GET'])
+def get_file_quick_stats(filename: str):
+    """
+    Return quick stats (columns, row count, preview) for a file located under
+    data/, data/downloaded/, or data/converted/.
+    Supports CSV, TXT, JSON, Parquet, Feather, and DuckDB.
+    """
+    try:
+        from redline.core.schema import EXT_TO_FORMAT
+        base_dir = os.path.join(os.getcwd(), 'data')
+
+        candidates = [
+            os.path.join(base_dir, filename),
+            os.path.join(base_dir, 'downloaded', filename),
+            os.path.join(base_dir, 'converted', filename),
+        ]
+        file_path = next((p for p in candidates if os.path.exists(p)), None)
+        if not file_path:
+            return jsonify({'error': 'File not found', 'filename': filename, 'searched': candidates}), 404
+
+        ext = os.path.splitext(file_path)[1].lower()
+        format_type = EXT_TO_FORMAT.get(ext, 'csv')
+
+        # Load data with robust fallbacks
+        df = None
+        if format_type == 'csv':
+            df = pd.read_csv(file_path)
+        elif format_type == 'txt':
+            for sep in [',', '\t', ';', ' ', '|']:
+                try:
+                    tmp = pd.read_csv(file_path, sep=sep)
+                    if len(tmp.columns) > 1:
+                        df = tmp
+                        break
+                except Exception:
+                    continue
+            if df is None:
+                df = pd.read_fwf(file_path)
+        elif format_type == 'parquet':
+            df = pd.read_parquet(file_path)
+        elif format_type == 'feather':
+            df = pd.read_feather(file_path)
+        elif format_type == 'json':
+            try:
+                df = pd.read_json(file_path, lines=True)
+            except Exception:
+                df = pd.read_json(file_path)
+        elif format_type == 'duckdb':
+            import duckdb
+            conn = duckdb.connect(file_path)
+            try:
+                tables = conn.execute('SHOW TABLES').fetchall()
+                if not tables:
+                    return jsonify({'error': 'No tables found in DuckDB file'}), 404
+                table_name = tables[0][0]
+                df = conn.execute(f'SELECT * FROM {table_name} LIMIT 1000').fetchdf()
+            finally:
+                conn.close()
+        else:
+            return jsonify({'error': f'Unsupported format: {format_type}'}), 400
+
+        if df is None or not isinstance(df, pd.DataFrame):
+            return jsonify({'error': 'Invalid data'}), 400
+
+        # Minimal cleanup: drop Unnamed columns only
+        unnamed = [c for c in df.columns if str(c).startswith('Unnamed:')]
+        if unnamed:
+            df = df.drop(columns=unnamed)
+
+        return jsonify({
+            'filename': filename,
+            'file_path': file_path,
+            'format': format_type,
+            'columns': list(df.columns),
+            'total_rows': int(len(df)),
+            'preview': df.head(5).to_dict(orient='records')
+        })
+    except Exception as e:
+        logger.error(f"Quick stats failed for {filename}: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @api_bp.route('/data/<filename>', methods=['GET'])
 def get_data_preview(filename):
     """Get paginated preview of data file with compression."""
@@ -357,9 +457,23 @@ def get_data_preview(filename):
             downloaded_path = os.path.join(data_dir, 'downloaded', filename)
             if os.path.exists(downloaded_path):
                 data_path = downloaded_path
+            else:
+                # Check in converted directory (and subdirectories)
+                converted_dir = os.path.join(data_dir, 'converted')
+                # Try common direct path first
+                converted_path = os.path.join(converted_dir, filename)
+                if os.path.exists(converted_path):
+                    data_path = converted_path
+                else:
+                    # Walk converted/ recursively to find the file
+                    if os.path.exists(converted_dir):
+                        for root, dirs, files in os.walk(converted_dir):
+                            if filename in files:
+                                data_path = os.path.join(root, filename)
+                                break
         
         if not data_path or not os.path.exists(data_path):
-            return jsonify({'error': 'File not found'}), 404
+            return jsonify({'error': 'File not found', 'filename': filename}), 404
         
         # Get pagination parameters
         page = request.args.get('page', 1, type=int)
@@ -402,15 +516,8 @@ def get_data_preview(filename):
                 'pagination': {'page': 1, 'per_page': 1, 'total': 1, 'pages': 1, 'has_next': False, 'has_prev': False}
             }
         
-        # Compress response if large
-        compressed_data, is_compressed = compress_response(response_data)
-        
-        response = jsonify(response_data)
-        if is_compressed:
-            response.headers['Content-Encoding'] = 'gzip'
-            response.headers['Content-Length'] = str(len(compressed_data))
-        
-        return response
+        # Return normal JSON; Flask-Compress handles compression
+        return jsonify(response_data)
         
     except Exception as e:
         logger.error(f"Error getting data preview for {filename}: {str(e)}")
