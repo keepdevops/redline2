@@ -10,25 +10,15 @@ services:
       dockerfile: Dockerfile.webgui
     container_name: redline-webgui
     ports:
-      - "6080:6080"  # noVNC web interface
-      - "5901:5901"  # VNC server
+      # VNC/noVNC ports removed; use web app on 8080 in web mode
     environment:
       - DISPLAY=:1
-      - VNC_PORT=5901
-      - NO_VNC_PORT=6080
-      - VNC_RESOLUTION=1920x1080
-      - VNC_COL_DEPTH=24
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
       - ./config:/app/config
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6080/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+    # healthcheck removed for noVNC
     networks:
       - redline-network
 

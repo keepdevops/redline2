@@ -12,7 +12,8 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
-WHITE='\033[1;37m'
+# Use bold without forcing white, for better contrast on light/dark terminals
+WHITE='\033[1m'
 NC='\033[0m' # No Color
 
 # Configuration
@@ -185,16 +186,10 @@ install_webgui() {
         cat > start_webgui.sh << 'EOF'
 #!/bin/bash
 echo "Starting REDLINE Web-Based GUI..."
-docker run -d \
+    docker run -d \
     --name redline-webgui \
     --network host \
-    -p 6080:6080 \
-    -p 5901:5901 \
-    -e DISPLAY=:1 \
-    -e VNC_PORT=5901 \
-    -e NO_VNC_PORT=6080 \
-    -e VNC_RESOLUTION=1920x1080 \
-    -e VNC_COL_DEPTH=24 \
+    -e DISPLAY=:99 \
     -v "$(pwd)/data:/app/data" \
     -v "$(pwd)/logs:/app/logs" \
     -v "$(pwd)/config:/app/config" \
@@ -202,8 +197,7 @@ docker run -d \
     redline-webgui:latest
 
 echo "Web-based GUI started!"
-echo "Access at: http://localhost:6080"
-echo "VNC password: redline123"
+echo "Access at: http://localhost:8080"
 EOF
         chmod +x start_webgui.sh
         
@@ -411,7 +405,6 @@ docker-compose up -d
 echo "Services started!"
 echo "Web App: http://localhost:8080"
 echo "Web GUI: http://localhost:6080"
-echo "VNC password: redline123"
 EOF
     chmod +x start_compose.sh
     

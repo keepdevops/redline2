@@ -49,8 +49,8 @@ detect_mode() {
     
     # Check if we're in a container without X11
     if [ -f /.dockerenv ] || [ -n "$CONTAINER" ]; then
-        log "Container environment detected, using VNC mode"
-        echo "vnc"
+        log "Container environment detected, using headless mode"
+        echo "headless"
         return
     fi
     
@@ -245,13 +245,14 @@ main() {
             if setup_x11; then
                 log_success "X11 mode ready"
             else
-                log_warning "X11 setup failed, falling back to VNC mode"
-                MODE="vnc"
-                setup_vnc
+                log_warning "X11 setup failed, falling back to headless mode"
+                MODE="headless"
+                setup_headless
             fi
             ;;
         vnc)
-            setup_vnc
+            log_warning "VNC mode is disabled; using headless mode instead"
+            setup_headless
             ;;
         headless)
             setup_headless

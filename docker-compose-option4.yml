@@ -14,7 +14,6 @@ services:
     # Ports
     ports:
       - "8080:8080"    # Flask web app
-      - "6080:6080"    # noVNC web GUI
     
     # Environment variables
     environment:
@@ -22,10 +21,7 @@ services:
       - FLASK_ENV=production
       - HOST=0.0.0.0
       - PORT=8080
-      - VNC_PASSWORD=${VNC_PASSWORD:-$(openssl rand -base64 32)}
-      - DISPLAY=:1
-      - VNC_PORT=5901
-      - NO_VNC_PORT=6080
+      - DISPLAY=:99
     
     # Volumes
     volumes:

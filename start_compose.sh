@@ -64,8 +64,6 @@ if [ $? -eq 0 ]; then
     echo ""
     print_status "Service URLs:"
     echo "  🌐 Web App:     http://localhost:8080"
-    echo "  🖥️  Web GUI:     http://localhost:6080"
-    echo "  🔑 VNC Password: redline123"
     echo ""
     print_status "To view logs: docker-compose logs -f"
     print_status "To stop:      docker-compose down"
