@@ -159,7 +159,8 @@ function loadAvailableFiles() {
                     // Validate file name before adding to dropdown
                     if (file.name && typeof file.name === 'string') {
                         const fileSize = file.size ? REDLINE.utils.formatFileSize(file.size) : 'Unknown size';
-                        select.append(`<option value="${file.name}">${file.name} (${fileSize})</option>`);
+                        const safePath = file.path ? file.path : '';
+                        select.append(`<option value="${file.name}" data-path="${safePath}">${file.name} (${fileSize})</option>`);
                     }
                 });
             } else {
@@ -183,8 +184,12 @@ function loadQuickStats(filename) {
         return;
     }
     
-    // Try to get quick stats, but don't fail if endpoint is not available
-    REDLINE.api.get(`/api/data/${filename}`)
+    // Resolve file path from selected option if available
+    const opt = $('#analysisFile option:selected');
+    const filePath = opt.data('path') || null;
+
+    // Get quick stats via data loader to avoid missing legacy endpoints
+    REDLINE.api.post('/data/load', { filename: filename, file_path: filePath })
         .then(response => {
             const statsHtml = `
                 <div class="mb-2">
@@ -192,9 +197,6 @@ function loadQuickStats(filename) {
                 </div>
                 <div class="mb-2">
                     <strong>Columns:</strong> ${response.columns ? response.columns.length : 'N/A'}
-                </div>
-                <div class="mb-2">
-                    <strong>File Size:</strong> ${REDLINE.utils.formatFileSize(response.file_size || 0)}
                 </div>
                 <div class="mb-2">
                     <strong>Columns:</strong>
@@ -229,8 +231,12 @@ function runAnalysis() {
     
     REDLINE.ui.showLoading('Running analysis...');
     
+    // Include file_path hint to support converted files in subdirectories
+    const opt = $('#analysisFile option:selected');
+    const filePath = opt.data('path') || null;
     const analysisData = {
         filename: filename,
+        file_path: filePath,
         analysis_type: analysisType
     };
     
