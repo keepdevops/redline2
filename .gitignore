@@ -158,3 +158,14 @@ temp/
 .Trashes
 ehthumbs.db
 Thumbs.db 
+
+# Archives and large images (Docker images, tarballs)
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+redline-webgui-*.tar
+redline-webgui*.tar
+redline-*-v*.tar.gz
+redline-*.tar.gz
+redline-bytecode-only.tar.gz
