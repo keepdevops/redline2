@@ -47,10 +47,10 @@ docker-compose -f docker-compose.webgui.yml build
 ### **3. Access GUI**
 ```bash
 # Open in browser
-open http://localhost:6080
+open http://localhost:8080
 
 # Or visit directly
-# http://localhost:6080
+# http://localhost:8080
 ```
 
 ## 🔧 **Technical Details**
@@ -58,26 +58,24 @@ open http://localhost:6080
 ### **Architecture**
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Web Browser   │────│   noVNC Server  │────│  TigerVNC Server│
-│                 │    │   (Port 6080)   │    │   (Port 5901)   │
+│   Web Browser   │────│   Flask/Gunicorn │────│  REDLINE App    │
+│                 │    │   (Port 8080)    │    │                 │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
                                 │
                                 ▼
                        ┌─────────────────┐
-                       │  XFCE Desktop   │
-                       │  + REDLINE GUI  │
+                       │  Web Interface  │
+                       │  + RESTful API  │
                        └─────────────────┘
 ```
 
 ### **Components**
-- **TigerVNC**: High-performance VNC server
-- **noVNC**: HTML5 VNC client for web browsers
-- **XFCE**: Lightweight desktop environment
-- **WebSocket**: Real-time communication protocol
+- **Flask**: Web framework for Python
+- **Gunicorn**: Production WSGI server
+- **WebSocket**: Real-time communication protocol (via Flask-SocketIO)
 
 ### **Ports**
-- **6080**: Web interface (noVNC)
-- **5901**: VNC server (TigerVNC)
+- **8080**: Web interface (Flask/Gunicorn)
 
 ## 📋 **Usage Examples**
 
@@ -88,7 +86,7 @@ open http://localhost:6080
 ./run_webgui_docker.sh run
 
 # Access GUI
-open http://localhost:6080
+open http://localhost:8080
 ```
 
 ### **Docker Compose**
@@ -134,17 +132,17 @@ open http://localhost:6080
 docker logs redline-webgui
 
 # Check port conflicts
-netstat -an | grep 6080
-netstat -an | grep 5901
+netstat -an | grep 8080
 ```
 
 #### **Performance Issues**
 ```bash
-# Increase VNC resolution
-export VNC_RESOLUTION=1280x720
+# Configure Gunicorn workers for better performance
+export GUNICORN_WORKERS=2
+export GUNICORN_THREADS=4
 
-# Decrease color depth
-export VNC_COL_DEPTH=16
+# Enable bytecode optimization
+export PYTHONOPTIMIZE=2
 ```
 
 ### **Debug Mode**
@@ -160,58 +158,40 @@ docker stats redline-webgui
 
 ### **1. Web Browser (Recommended)**
 ```
-URL: http://localhost:6080
-Password: redline123
+URL: http://localhost:8080
 ```
 
-### **2. VNC Client (Alternative)**
-```
-Host: localhost
-Port: 5901
-Password: redline123
-```
-
-### **3. Remote Access**
+### **2. Remote Access**
 ```
 # For remote access, use your server IP
-URL: http://YOUR_SERVER_IP:6080
+URL: http://YOUR_SERVER_IP:8080
 ```
 
 ## 🔒 **Security Considerations**
 
 ### **Default Configuration**
-- **VNC Password**: `redline123` (change in production)
-- **No encryption**: VNC traffic is not encrypted
-- **Open ports**: 6080 and 5901 are exposed
+- **Web Interface**: http://localhost:8080 (production-ready)
+- **No VNC**: VNC support has been removed for security
+- **Standard HTTP**: Use reverse proxy with SSL for production
 
 ### **Production Security**
 ```bash
-# Change VNC password
-docker exec -it redline-webgui vncpasswd
-
 # Use reverse proxy with SSL
 # Add authentication layer
 # Restrict network access
+# Configure firewall rules
 ```
 
 ## 📊 **Performance Optimization**
 
-### **Resolution Settings**
+### **Performance Settings**
 ```bash
-# Lower resolution for better performance
-export VNC_RESOLUTION=1280x720
+# Configure Gunicorn workers
+export GUNICORN_WORKERS=2
+export GUNICORN_THREADS=4
 
-# Higher resolution for better quality
-export VNC_RESOLUTION=1920x1080
-```
-
-### **Color Depth**
-```bash
-# Lower color depth for better performance
-export VNC_COL_DEPTH=16
-
-# Higher color depth for better quality
-export VNC_COL_DEPTH=24
+# Memory optimization
+export PYTHONOPTIMIZE=2
 ```
 
 ### **Network Optimization**
@@ -225,17 +205,17 @@ export VNC_COL_DEPTH=24
 
 ### **Custom Configuration**
 ```bash
-# Custom VNC settings
-docker run -e VNC_RESOLUTION=2560x1440 \
-           -e VNC_COL_DEPTH=24 \
+# Custom web port
+docker run -e PORT=8080 \
+           -p 8080:8080 \
            redline-webgui:latest
 ```
 
-### **Multiple Users**
+### **Multiple Instances**
 ```bash
-# Run multiple instances
-docker run -p 6081:6080 -p 5902:5901 redline-webgui:latest
-docker run -p 6082:6080 -p 5903:5901 redline-webgui:latest
+# Run multiple instances on different ports
+docker run -p 8081:8080 redline-webgui:latest
+docker run -p 8082:8080 redline-webgui:latest
 ```
 
 ### **Cloud Deployment**
@@ -248,25 +228,26 @@ docker run -p 6082:6080 -p 5903:5901 redline-webgui:latest
 
 ## 🎯 **Comparison with X11**
 
-| Feature | X11 Forwarding | Web-Based GUI |
+| Feature | X11 Forwarding | Web Interface |
 |---------|----------------|---------------|
 | **Setup Complexity** | High | Low |
 | **Platform Support** | Limited | Universal |
 | **Network Requirements** | SSH tunnel | HTTP/WebSocket |
-| **Performance** | Good | Good |
+| **Performance** | Good | Excellent |
 | **Security** | SSH encrypted | HTTP (add SSL) |
 | **Accessibility** | Desktop only | Any device |
 | **Scalability** | Single user | Multiple users |
 
 ## 🏆 **Conclusion**
 
-**Web-based GUI is the recommended approach** for running REDLINE GUI applications without X11 forwarding because:
+**Web interface is the recommended approach** for running REDLINE applications because:
 
 - ✅ **Universal access**: Works on any device with a web browser
-- ✅ **Easy setup**: No X11 configuration required
-- ✅ **Good performance**: Optimized for web delivery
+- ✅ **Easy setup**: No X11 or VNC configuration required
+- ✅ **Excellent performance**: Optimized with Gunicorn and bytecode compilation
 - ✅ **Scalable**: Multiple users can access simultaneously
 - ✅ **Cloud ready**: Can run on remote servers
-- ✅ **Modern**: Uses HTML5 and WebSocket technology
+- ✅ **Modern**: Uses HTML5, RESTful APIs, and WebSocket technology
+- ✅ **Production-ready**: Gunicorn WSGI server with proper security
 
-**Your REDLINE GUI can now run anywhere, on any device, through a simple web browser!** 🌐
+**Your REDLINE application can now run anywhere, on any device, through a simple web browser!** 🌐

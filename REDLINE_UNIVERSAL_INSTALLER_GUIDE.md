@@ -9,7 +9,7 @@ The `install_redline.sh` script provides a unified installation experience for a
 ### **1. 🌐 Web-Based GUI (Recommended)**
 **Best for**: Universal access, easy setup
 **Requirements**: Docker
-**Access**: Web browser at `http://localhost:6080`
+**Access**: Web browser at `http://localhost:8080`
 
 **Features**:
 - ✅ No X11 required
@@ -161,14 +161,14 @@ Each option installs:
 
 ## 🌐 **Access URLs**
 
-### **Web-Based GUI**
-- **URL**: `http://localhost:6080`
-- **Password**: `redline123`
-- **VNC**: `localhost:5901`
-
-### **Web Application**
+### **Web Interface (Production Ready)**
 - **URL**: `http://localhost:8080`
-- **No password required**
+- **Features**: Dashboard, Tasks, API Keys, RESTful API
+
+### **Desktop GUI (Tkinter with X11)**
+- **Access**: Native desktop application via X11 forwarding
+- **Setup**: Requires X11 server and proper DISPLAY configuration
+- **See**: GUI setup guide for X11 configuration
 
 ### **Tkinter GUI**
 - **Access**: Native desktop application
@@ -207,7 +207,6 @@ pip3 install pandas numpy matplotlib seaborn plotly flask requests duckdb pyarro
 #### **Port Conflicts**
 ```bash
 # Check port usage
-netstat -an | grep 6080
 netstat -an | grep 8080
 
 # Stop conflicting services

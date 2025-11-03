@@ -83,19 +83,20 @@ chmod +x run_gui_socat.bash
 
 ## Alternative Solutions
 
-### Option 1: VNC Server (if X11 forwarding fails completely)
-If X11 forwarding continues to fail, you can run a VNC server in the container:
+### Option 1: Web Interface (Recommended if X11 forwarding fails)
+If X11 forwarding continues to fail, use the web interface instead:
 
 ```bash
-# Install VNC in the Docker container
-sudo apt-get update && sudo apt-get install -y x11vnc xvfb
+# Use web interface (production-ready, recommended)
+docker-compose up -d
+# Access at http://localhost:8080
 
-# Start virtual display and VNC server
-Xvfb :99 -screen 0 1024x768x24 &
-export DISPLAY=:99
-x11vnc -display :99 -bg -forever -nopw -quiet
-
-# Connect with VNC viewer from macOS
+# Or use the production Docker image
+docker run -d --name redline \
+  -p 8080:8080 \
+  -v $(pwd)/data:/app/data \
+  keepdevops/redline:20251101
+# Access at http://localhost:8080
 ```
 
 ### Option 2: Web-based Interface

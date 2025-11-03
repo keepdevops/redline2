@@ -24,11 +24,12 @@ This guide provides comprehensive instructions for deploying REDLINE on Ubuntu u
 git clone <repository-url>
 cd redline
 
-# X11 Mode (requires X11 server)
-docker-compose --profile x11 up
+# Web Interface (Recommended - Production Ready)
+docker-compose up -d
+# Access at http://localhost:8080
 
-# VNC Mode (remote access)
-docker-compose --profile vnc up
+# X11 Mode (For Desktop GUI)
+docker-compose --profile x11 up
 
 # Headless Mode (CLI only)
 docker-compose --profile headless up
@@ -43,11 +44,13 @@ docker-compose --profile dev up
 # Make scripts executable
 chmod +x scripts/*.sh
 
-# X11 Mode
-./scripts/run_docker_x11.sh
+# Web Interface (Production)
+docker run -d --name redline -p 8080:8080 \
+  -v $(pwd)/data:/app/data \
+  keepdevops/redline:20251101
 
-# VNC Mode
-./scripts/run_docker_vnc.sh
+# X11 Mode (Desktop GUI)
+./scripts/run_docker_x11.sh
 
 # Headless Mode
 ./scripts/run_docker_headless.sh
@@ -87,8 +90,7 @@ xhost +local:docker
 # Set DISPLAY environment variable
 export DISPLAY=:0
 
-# Install VNC client (optional, for VNC mode)
-sudo apt-get install tigervnc-viewer
+# No additional clients needed for web interface
 ```
 
 ## 🖥️ Deployment Modes
@@ -121,38 +123,34 @@ docker run -it --rm \
 - Best performance
 - Requires X11 server on host
 
-### 2. VNC Mode (Remote Access)
+### 2. Web Interface (Production Ready)
 
-**Best for**: Remote servers, cloud deployments, headless systems
+**Best for**: Production deployments, remote access, cloud deployments
 
 ```bash
 # Using Docker Compose
-VNC_PORT=5900 VNC_PASSWORD=mypass docker-compose --profile vnc up
+docker-compose up -d
 
-# Using script
-./scripts/run_docker_vnc.sh --port 5900 --password mypass
-
-# Manual Docker command
-docker run -it --rm \
-  --name redline-vnc \
-  --env VNC_PORT=5900 \
-  --env VNC_PASSWORD=mypass \
-  --volume $(pwd)/data:/app/data \
-  --publish 5900:5900 \
-  redline:latest \
-  --mode=vnc --task=gui
+# Using production image
+docker run -d --name redline \
+  -p 8080:8080 \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/logs:/app/logs \
+  --restart unless-stopped \
+  keepdevops/redline:20251101
 ```
 
 **Features**:
-- Remote desktop access
-- Cross-platform VNC clients
-- No X11 server required on host
-- Secure password authentication
+- Modern web interface
+- RESTful API access
+- Multi-user support
+- Production-ready Gunicorn server
+- No additional clients required
 
-**VNC Connection**:
-- Server: `localhost:5900`
-- Password: `redline123` (default)
-- Client: `vncviewer localhost:5900`
+**Access**:
+- URL: http://localhost:8080
+- Swagger API Docs: http://localhost:8080/docs
+- Dashboard: http://localhost:8080/dashboard
 
 ### 3. Headless Mode (CLI Only)
 
@@ -235,9 +233,7 @@ Create a `.env` file for configuration:
 
 ```bash
 # .env file
-DISPLAY=:0
-VNC_PORT=5900
-VNC_PASSWORD=redline123
+DISPLAY=:0  # For X11 mode only
 WEB_PORT=8080
 ```
 
@@ -248,23 +244,19 @@ WEB_PORT=8080
 docker-compose config --profiles
 
 # Run specific profile
-docker-compose --profile x11 up
-docker-compose --profile vnc up
-docker-compose --profile headless up
-docker-compose --profile web up
-docker-compose --profile dev up
-
-# Run multiple profiles
-docker-compose --profile vnc --profile headless up
+docker-compose up -d  # Web interface (default, recommended)
+docker-compose --profile x11 up  # Desktop GUI with X11
+docker-compose --profile headless up  # CLI mode
+docker-compose --profile dev up  # Development mode
 
 # Run in background
-docker-compose --profile vnc up -d
+docker-compose up -d
 
 # View logs
-docker-compose --profile vnc logs -f
+docker-compose logs -f
 
 # Stop services
-docker-compose --profile vnc down
+docker-compose down
 ```
 
 ### Custom Configuration
@@ -274,14 +266,14 @@ docker-compose --profile vnc down
 version: '3.8'
 
 services:
-  redline-vnc:
+  redline-web:
     environment:
-      - VNC_PASSWORD=mysecurepassword
+      - PORT=8080
     volumes:
       - ./custom-data:/app/data
       - ./config:/app/config
     ports:
-      - "5901:5900"  # Custom port mapping
+      - "8080:8080"  # Web interface port
 ```
 
 ## 🔨 Manual Docker Commands
@@ -310,12 +302,12 @@ docker run -it --rm \
   --volume $(pwd)/data:/app/data \
   redline:latest
 
-# With custom environment
-docker run -it --rm \
-  --env VNC_PORT=5901 \
-  --env VNC_PASSWORD=mypass \
-  --publish 5901:5901 \
-  redline:latest --mode=vnc
+# With custom environment (Web interface)
+docker run -d --name redline \
+  --env PORT=8080 \
+  --publish 8080:8080 \
+  -v $(pwd)/data:/app/data \
+  keepdevops/redline:20251101
 
 # Interactive shell
 docker run -it --rm redline:latest /bin/bash
@@ -331,20 +323,20 @@ docker ps
 docker ps -a
 
 # Stop container
-docker stop redline-vnc
+docker stop redline
 
 # Remove container
-docker rm redline-vnc
+docker rm redline
 
 # View container logs
-docker logs redline-vnc
+docker logs redline
 
 # Execute command in running container
-docker exec -it redline-vnc /bin/bash
+docker exec -it redline /bin/bash
 
 # Copy files to/from container
-docker cp redline-vnc:/app/data ./local-data
-docker cp ./local-file redline-vnc:/app/
+docker cp redline:/app/data ./local-data
+docker cp ./local-file redline:/app/
 ```
 
 ## 🔧 Troubleshooting
@@ -366,28 +358,28 @@ xhost +local:docker
 # Test X11 connection
 xset q
 
-# Alternative: Use VNC mode instead
-./scripts/run_docker_vnc.sh
+# Alternative: Use web interface instead
+docker-compose up -d
+# Access at http://localhost:8080
 ```
 
-#### 2. VNC Connection Issues
+#### 2. Web Interface Connection Issues
 
-**Problem**: Cannot connect to VNC server
+**Problem**: Cannot access web interface
 
 **Solutions**:
 ```bash
-# Check if VNC port is accessible
-telnet localhost 5900
+# Check if web port is accessible
+curl http://localhost:8080/health
 
 # Check container logs
-docker logs redline-vnc
+docker logs redline
 
-# Verify VNC password
-# Default password: redline123
+# Verify container is running
+docker ps | grep redline
 
-# Try different VNC client
-sudo apt-get install tigervnc-viewer
-vncviewer localhost:5900
+# Test web interface
+curl http://localhost:8080
 ```
 
 #### 3. Permission Issues
@@ -503,8 +495,8 @@ docker build --cache-from registry/redline:latest -t redline:latest .
 docker network create redline-network
 docker run -it --rm \
   --network redline-network \
-  --publish 5900:5900 \
-  redline:latest --mode=vnc
+  --publish 8080:8080 \
+  keepdevops/redline:20251101
 ```
 
 ### Volume Security
@@ -528,11 +520,12 @@ docker run -it --rm \
 ### Environment Security
 
 ```bash
-# Use secrets for passwords
-docker run -it --rm \
-  --env VNC_PASSWORD_FILE=/run/secrets/vnc_password \
-  --secret vnc_password \
-  redline:latest
+# Use secrets for sensitive configuration
+docker run -d \
+  --env SECRET_KEY_FILE=/run/secrets/secret_key \
+  --secret secret_key \
+  -p 8080:8080 \
+  keepdevops/redline:20251101
 ```
 
 ## 📊 Monitoring and Logging
@@ -576,8 +569,8 @@ git pull
 docker build -t redline:latest .
 
 # Update running containers
-docker-compose --profile vnc down
-docker-compose --profile vnc up
+docker-compose down
+docker-compose up -d
 ```
 
 ### Backup and Restore
@@ -610,7 +603,7 @@ docker system prune -a
 
 - [Docker Documentation](https://docs.docker.com/)
 - [Docker Compose Documentation](https://docs.docker.com/compose/)
-- [VNC Documentation](https://www.realvnc.com/docs/)
+- [Gunicorn Documentation](https://docs.gunicorn.org/)
 - [X11 Forwarding Guide](https://help.ubuntu.com/community/SSH/OpenSSH/PortForwarding)
 
 ## 🆘 Support

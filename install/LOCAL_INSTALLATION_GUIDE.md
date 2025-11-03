@@ -161,7 +161,7 @@ python3 -c "import flask; print('Flask works!')"
 ## 📊 **Access Information**
 
 - **Web Interface**: http://localhost:8080
-- **VNC Access**: localhost:5900 (password: redline123)
+- **Tkinter GUI**: Use X11 forwarding (see GUI setup guide)
 - **Logs**: `~/redline/logs/`
 - **Data**: `~/redline/data/`
 - **Configuration**: `~/redline/redline.conf`
@@ -179,8 +179,6 @@ port = 8080  # Change to your preferred port
 Edit `~/redline/docker.env`:
 ```bash
 WEB_PORT=8080
-VNC_PORT=5900
-VNC_PASSWORD=redline123
 ```
 
 ## 📚 **Additional Resources**
@@ -195,7 +193,7 @@ VNC_PASSWORD=redline123
 2. **Current User**: Installs for the current user, no additional users created
 3. **Home Directory**: All files are installed in `~/redline/`
 4. **Docker Optional**: Docker installation can be skipped if not needed
-5. **Firewall**: Web ports (8080, 5900) are automatically configured
+5. **Firewall**: Web port (8080) is automatically configured
 
 ## 🤝 **Support**
 

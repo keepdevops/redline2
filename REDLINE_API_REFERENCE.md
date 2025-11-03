@@ -7,7 +7,7 @@ REDLINE provides a comprehensive RESTful API for all data operations, analysis, 
 ## 📊 **Base URL**
 
 ```
-http://localhost:8082/api
+http://localhost:8080/api
 ```
 
 ## 🔐 **Authentication**
@@ -36,7 +36,7 @@ Get system status and configuration.
 ```json
 {
     "status": "running",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "database": "available",
     "data_loader": "available",
     "supported_formats": ["csv", "parquet", "feather", "json", "duckdb"],
@@ -582,10 +582,10 @@ const results = await client.getAnalysisResults(analysis.analysis_id);
 ## 🔄 **Version History**
 
 - **v1.0.0**: Initial API release
-- **v1.1.0**: Added batch operations
-- **v1.2.0**: Enhanced analysis capabilities
-- **v1.3.0**: Added theme management
-- **v1.4.0**: Improved error handling
+- **v1.1.0** (Current): Added batch operations, background tasks, API key management, dashboard, and enhanced analysis capabilities
+- **v1.2.0**: Enhanced analysis capabilities (planned)
+- **v1.3.0**: Added theme management (planned)
+- **v1.4.0**: Improved error handling (planned)
 
 ---
 

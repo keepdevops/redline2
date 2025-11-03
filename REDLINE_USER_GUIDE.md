@@ -63,7 +63,7 @@ REDLINE is a comprehensive financial data analysis application that allows you t
 #### **Step 1: Choose Your Installation Method**
 | Method | Best For | Time Required | Access |
 |--------|----------|---------------|---------|
-| **Web-based GUI** | Modern interface, cross-platform | 2 minutes | http://localhost:6080 |
+| **Web-based GUI** | Modern interface, cross-platform | 2 minutes | http://localhost:8080 |
 | **Tkinter GUI** | Desktop users, X11 support | 3 minutes | Desktop application |
 | **Hybrid GUI** | Both web and desktop options | 4 minutes | Both interfaces |
 | **Docker Compose** | Containerized deployment | 5 minutes | http://localhost:8080 |

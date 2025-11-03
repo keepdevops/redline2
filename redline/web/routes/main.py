@@ -33,7 +33,7 @@ def status():
             'data_loader': 'available',
             'database': 'available',
             'supported_formats': ['csv', 'txt', 'parquet', 'feather', 'json', 'duckdb'],
-            'version': '1.0.0'
+            'version': '1.1.0'
         }
         
         return jsonify(status_data)

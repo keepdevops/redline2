@@ -2,18 +2,22 @@
 
 ## Quick Deployment Options
 
-### 1. VNC Mode (Recommended for Remote Access)
+### 1. Web Interface (Recommended - Production Ready)
 
 ```bash
-# Start REDLINE with VNC server
-./scripts/run_docker_vnc.sh
+# Start REDLINE web interface
+docker-compose up -d
 
-# Connect with VNC client
-vncviewer localhost:5900
-# Password: redline123
+# Or use the production image
+docker run -d --name redline \
+  -p 8080:8080 \
+  -v $(pwd)/data:/app/data \
+  keepdevops/redline:20251101
+
+# Access at http://localhost:8080
 ```
 
-### 2. X11 Mode (For Local Development)
+### 2. X11 Mode (For Desktop GUI with X11)
 
 ```bash
 # Allow X11 connections
@@ -36,10 +40,11 @@ xhost +local:docker
 ### 4. Docker Compose (All Modes)
 
 ```bash
-# VNC Mode
-docker-compose --profile vnc up
+# Web Interface (Recommended)
+docker-compose up -d
+# Access at http://localhost:8080
 
-# X11 Mode
+# X11 Mode (For Desktop GUI)
 docker-compose --profile x11 up
 
 # Headless Mode
@@ -68,15 +73,15 @@ See [DOCKER_DEPLOYMENT_GUIDE.md](DOCKER_DEPLOYMENT_GUIDE.md) for comprehensive d
 
 ## Troubleshooting
 
-### VNC Connection Issues
-- Check if port 5900 is available: `netstat -tuln | grep 5900`
-- Try different VNC client: `sudo apt-get install tigervnc-viewer`
-- Check container logs: `docker logs redline-vnc`
+### Web Interface Issues
+- Check if port 8080 is available: `netstat -tuln | grep 8080`
+- Check container logs: `docker logs redline`
+- Verify container is running: `docker ps`
 
 ### X11 Issues
 - Set DISPLAY: `export DISPLAY=:0`
 - Allow X11: `xhost +local:docker`
-- Use VNC mode instead if X11 doesn't work
+- Use web interface instead if X11 doesn't work
 
 ### Permission Issues
 - Fix data permissions: `sudo chown -R $USER:$USER ./data`

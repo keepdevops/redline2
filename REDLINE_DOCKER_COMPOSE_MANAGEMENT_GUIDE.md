@@ -26,8 +26,7 @@ services:
     
     # Ports
     ports:
-      - "8080:8080"    # Flask web app
-      - "6080:6080"    # noVNC web GUI
+      - "8080:8080"    # Flask web app (Gunicorn)
     
     # Environment variables
     environment:
@@ -35,10 +34,6 @@ services:
       - FLASK_ENV=production
       - HOST=0.0.0.0
       - PORT=8080
-      - VNC_PASSWORD=redline123
-      - DISPLAY=:1
-      - VNC_PORT=5901
-      - NO_VNC_PORT=6080
     
     # Volumes
     volumes:
@@ -85,8 +80,7 @@ networks:
 
 | Port | Service | Description |
 |------|---------|-------------|
-| 8080 | Flask Web App | Main web application |
-| 6080 | noVNC Web GUI | Web-based GUI interface |
+| 8080 | Flask Web App | Main web application (Gunicorn WSGI server) |
 
 ### Environment Variables
 
@@ -96,10 +90,6 @@ networks:
 | `FLASK_ENV` | `production` | Flask environment |
 | `HOST` | `0.0.0.0` | Bind to all interfaces |
 | `PORT` | `8080` | Flask application port |
-| `VNC_PASSWORD` | `redline123` | VNC access password |
-| `DISPLAY` | `:1` | X11 display |
-| `VNC_PORT` | `5901` | VNC server port |
-| `NO_VNC_PORT` | `6080` | noVNC web port |
 
 ### Volumes
 
@@ -132,8 +122,6 @@ networks:
 
 3. **Access the application:**
    - **Web App**: http://localhost:8080
-   - **Web GUI**: http://localhost:6080
-   - **VNC Password**: redline123
 
 ### Complete Management Commands
 
@@ -222,9 +210,8 @@ docker-compose down -v --remove-orphans
 
 3. **Port conflicts:**
    ```bash
-   # Check what's using the ports
+   # Check what's using the port
    lsof -i :8080
-   lsof -i :6080
    ```
 
 4. **Permission issues:**
@@ -277,11 +264,11 @@ docker inspect redline-web-app | grep -A 10 Health
 
 ## Security Considerations
 
-### VNC Password
+### Web Interface Security
 
-- **Default Password**: `redline123`
-- **Change Password**: Modify `VNC_PASSWORD` environment variable
-- **Security**: Use strong passwords in production
+- **Production Ready**: Gunicorn WSGI server with proper security
+- **SSL/HTTPS**: Use reverse proxy with SSL for production deployments
+- **Authentication**: Consider adding authentication layer for production use
 
 ### Network Security
 
@@ -305,7 +292,6 @@ For production deployment, consider setting:
 # Production environment
 export FLASK_ENV=production
 export SECRET_KEY=your-secret-key-here
-export VNC_PASSWORD=your-secure-password
 ```
 
 ### Resource Scaling
