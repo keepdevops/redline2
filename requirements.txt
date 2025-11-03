@@ -50,6 +50,9 @@ flake8>=6.0.0
 # Network and HTTP
 requests>=2.32.0
 urllib3>=2.2.3
+h2>=4.3.0  # Fixes CVE-2025-57804 (HTTP/2 request splitting)
+# Note: brotli CVE-2025-6176 - fix (1.2.0+) not yet available on PyPI (latest: 1.1.0)
+# Monitor: https://pypi.org/project/brotli/ for security update
 
 # Configuration and Logging
 configparser>=5.3.0
@@ -63,3 +66,6 @@ importlib-metadata>=7.0.0  # For Flask version detection
 setuptools>=75.0.0  # For proper package management
 wheel>=0.45.0  # For wheel support
 platformdirs>=4.0.0  # For cross-platform directory handling
+
+# Security: Update pip to fix CVE-2025-8869 (install with: pip install --upgrade pip>=25.3)
+# Note: pip is not in requirements.txt as it's a system package, but ensure pip>=25.3
