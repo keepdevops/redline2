@@ -110,8 +110,7 @@ cp docker-compose-option4.yml docker-compose.yml
 
 **Service URLs:**
 - **Web App**: http://localhost:8080
-- **Web GUI**: http://localhost:6080
-- **VNC Password**: redline123
+- **Tkinter GUI**: Use X11 forwarding (see GUI setup guide)
 
 For detailed Docker Compose management, see: [REDLINE_DOCKER_COMPOSE_MANAGEMENT_GUIDE.md](REDLINE_DOCKER_COMPOSE_MANAGEMENT_GUIDE.md)
 

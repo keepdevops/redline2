@@ -1,0 +1,64 @@
+# Vercel ignore file
+# Exclude files that shouldn't be deployed to Vercel
+
+# Python files (backend runs elsewhere)
+*.py
+*.pyc
+__pycache__/
+*.egg-info/
+*.egg
+*.so
+*.pyd
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Data and logs
+data/
+logs/
+*.db
+*.duckdb
+*.log
+
+# Build artifacts
+build/
+dist/
+*.tar.gz
+*.zip
+
+# Documentation
+*.md
+!README.md
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+*.env
+
+# Tests
+tests/
+test_*.py
+
+# Archives
+archive/
+
+# Scripts (not needed for Vercel)
+*.sh
+*.bat
+
+# Config files for other platforms
+railway.json
+render.yaml
+

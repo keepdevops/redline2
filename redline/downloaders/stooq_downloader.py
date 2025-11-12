@@ -17,10 +17,22 @@ logger = logging.getLogger(__name__)
 class StooqDownloader(BaseDownloader):
     """Stooq.com data downloader with multiple access methods."""
     
-    def __init__(self, output_dir: str = "data"):
+    def __init__(self, output_dir: str = None):
         """Initialize Stooq downloader."""
         super().__init__("Stooq", "https://stooq.com")
-        self.output_dir = output_dir
+        # Use REDLINE data directory if not specified
+        if output_dir is None:
+            import os
+            # Check for data directory in common locations
+            base_dir = os.getcwd()
+            data_dir = os.path.join(base_dir, 'data')
+            self.output_dir = os.path.join(data_dir, 'stooq')
+        else:
+            self.output_dir = output_dir
+        
+        # Ensure output directory exists
+        import os
+        os.makedirs(self.output_dir, exist_ok=True)
         self.logger = logging.getLogger(__name__)
         
         # Stooq-specific configuration

@@ -1,0 +1,23 @@
+# Ngrok Configuration File
+# Place your ngrok auth token here (get from https://dashboard.ngrok.com/get-started/your-authtoken)
+
+version: "2"
+authtoken: YOUR_NGROK_AUTH_TOKEN  # Replace with your token from ngrok.com
+
+# Tunnel configuration
+tunnels:
+  redline:
+    addr: redline:8080  # Use service name when running in Docker Compose
+    proto: http
+    bind_tls: true      # Force HTTPS
+    inspect: true       # Enable web interface
+    # hostname: your-custom-domain.ngrok.io  # Uncomment for custom domain (paid plan)
+
+# For local ngrok (not Docker)
+# tunnels:
+#   redline:
+#     addr: 8080
+#     proto: http
+#     bind_tls: true
+#     inspect: true
+

@@ -451,9 +451,10 @@ def load_data_from_path():
 
 @data_bp.route('/upload', methods=['POST'])
 def upload_file():
-    """Upload a file to the data directory."""
+    """Upload a file to the data directory. Handles ZIP extraction for Stooq files."""
     try:
         from flask import request
+        import zipfile
         
         if 'file' not in request.files:
             return jsonify({'error': 'No file provided'}), 400
@@ -462,19 +463,64 @@ def upload_file():
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
         
-        # Create uploads directory if it doesn't exist
+        # Save uploaded file temporarily
         upload_dir = os.path.join(os.getcwd(), 'data', 'uploads')
         os.makedirs(upload_dir, exist_ok=True)
         
-        # Save file
-        file_path = os.path.join(upload_dir, file.filename)
-        file.save(file_path)
+        temp_path = os.path.join(upload_dir, file.filename)
+        file.save(temp_path)
         
-        return jsonify({
-            'message': 'File uploaded successfully',
-            'filename': file.filename,
-            'path': file_path
-        })
+        # Check if it's a ZIP file (common for Stooq downloads)
+        extracted_files = []
+        final_path = temp_path
+        
+        if zipfile.is_zipfile(temp_path):
+            logger.info(f"Detected ZIP file: {file.filename}, extracting...")
+            try:
+                from redline.utils.stooq_file_handler import extract_zip_file
+                
+                # Extract to data/stooq directory
+                extracted = extract_zip_file(temp_path)
+                extracted_files = extracted if isinstance(extracted, list) else [extracted]
+                
+                # Remove the ZIP file after extraction
+                os.remove(temp_path)
+                
+                if extracted_files:
+                    final_path = extracted_files[0] if len(extracted_files) == 1 else extracted_files
+                    message = f'ZIP file extracted successfully. {len(extracted_files)} file(s) extracted to data/stooq directory.'
+                else:
+                    return jsonify({'error': 'ZIP file extraction failed or contained no files'}), 400
+                    
+            except Exception as e:
+                logger.error(f"Error extracting ZIP file: {str(e)}")
+                return jsonify({'error': f'Failed to extract ZIP file: {str(e)}'}), 500
+        else:
+            # For non-ZIP files, check if it's a Stooq file and move to data/stooq
+            try:
+                from redline.utils.stooq_file_handler import is_stooq_file, move_file_to_stooq_dir
+                
+                if is_stooq_file(file.filename):
+                    final_path = move_file_to_stooq_dir(temp_path, file.filename)
+                    message = f'File uploaded and moved to data/stooq directory.'
+                else:
+                    message = f'File uploaded successfully.'
+            except Exception as e:
+                logger.warning(f"Could not check/move file: {str(e)}")
+                message = f'File uploaded successfully.'
+        
+        response_data = {
+            'message': message,
+            'filename': os.path.basename(final_path) if isinstance(final_path, str) else file.filename,
+            'path': final_path,
+            'is_zip': zipfile.is_zipfile(temp_path) if os.path.exists(temp_path) else False
+        }
+        
+        if extracted_files:
+            response_data['extracted_files'] = [os.path.basename(f) for f in extracted_files]
+            response_data['extracted_count'] = len(extracted_files)
+        
+        return jsonify(response_data)
         
     except Exception as e:
         logger.error(f"Error uploading file: {str(e)}")

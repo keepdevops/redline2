@@ -46,7 +46,7 @@ class LicenseManager:
         signature = hmac.new(SECRET_KEY.encode(), data.encode(), hashlib.sha256).hexdigest()
         return f"RL-{signature[:8].upper()}-{signature[8:16].upper()}-{signature[16:24].upper()}"
     
-    def create_license(self, customer_info, license_type='standard', duration_days=365):
+    def create_license(self, customer_info, license_type='standard', duration_days=365, hours=None):
         """Create a new license"""
         license_key = self.generate_license_key(customer_info)
         
@@ -59,7 +59,12 @@ class LicenseManager:
             'status': 'active',
             'features': self.get_features_for_type(license_type),
             'max_installs': self.get_max_installs_for_type(license_type),
-            'installs': []
+            'installs': [],
+            # Hours-based access fields
+            'hours_remaining': hours if hours is not None else 0.0,
+            'purchased_hours': hours if hours is not None else 0.0,
+            'used_hours': 0.0,
+            'last_usage_check': None
         }
         
         self.licenses[license_key] = license_data
@@ -103,6 +108,12 @@ class LicenseManager:
         if license_data['status'] != 'active':
             return {'valid': False, 'error': 'License inactive'}
         
+        # Check hours-based access (if hours_remaining field exists)
+        if 'hours_remaining' in license_data:
+            hours_remaining = license_data.get('hours_remaining', 0.0)
+            if hours_remaining <= 0:
+                return {'valid': False, 'error': 'No hours remaining'}
+        
         # Check install limits
         if machine_id:
             max_installs = license_data['max_installs']
@@ -110,7 +121,7 @@ class LicenseManager:
                 if machine_id not in [install['machine_id'] for install in license_data['installs']]:
                     return {'valid': False, 'error': 'Maximum installs exceeded'}
         
-        return {
+        result = {
             'valid': True,
             'license': {
                 'key': license_key,
@@ -120,6 +131,14 @@ class LicenseManager:
                 'customer': license_data['customer']
             }
         }
+        
+        # Include hours information if available
+        if 'hours_remaining' in license_data:
+            result['license']['hours_remaining'] = license_data.get('hours_remaining', 0.0)
+            result['license']['purchased_hours'] = license_data.get('purchased_hours', 0.0)
+            result['license']['used_hours'] = license_data.get('used_hours', 0.0)
+        
+        return result
     
     def register_install(self, license_key, machine_id, system_info):
         """Register a new installation"""
@@ -148,6 +167,78 @@ class LicenseManager:
         self.save_licenses()
         
         return {'success': True, 'message': 'Installation registered'}
+    
+    def add_hours(self, license_key, hours):
+        """Add hours to a license (for purchasing time)"""
+        if license_key not in self.licenses:
+            return {'success': False, 'error': 'Invalid license key'}
+        
+        license_data = self.licenses[license_key]
+        
+        # Initialize hours fields if they don't exist
+        if 'hours_remaining' not in license_data:
+            license_data['hours_remaining'] = 0.0
+            license_data['purchased_hours'] = 0.0
+            license_data['used_hours'] = 0.0
+        
+        # Add hours
+        license_data['hours_remaining'] = license_data.get('hours_remaining', 0.0) + hours
+        license_data['purchased_hours'] = license_data.get('purchased_hours', 0.0) + hours
+        
+        self.save_licenses()
+        
+        return {
+            'success': True,
+            'hours_added': hours,
+            'hours_remaining': license_data['hours_remaining'],
+            'purchased_hours': license_data['purchased_hours']
+        }
+    
+    def deduct_hours(self, license_key, hours):
+        """Deduct hours from a license (for usage tracking)"""
+        if license_key not in self.licenses:
+            return {'success': False, 'error': 'Invalid license key'}
+        
+        license_data = self.licenses[license_key]
+        
+        # Initialize hours fields if they don't exist
+        if 'hours_remaining' not in license_data:
+            license_data['hours_remaining'] = 0.0
+            license_data['purchased_hours'] = 0.0
+            license_data['used_hours'] = 0.0
+        
+        current_hours = license_data.get('hours_remaining', 0.0)
+        
+        if current_hours < hours:
+            return {'success': False, 'error': 'Insufficient hours remaining'}
+        
+        # Deduct hours
+        license_data['hours_remaining'] = current_hours - hours
+        license_data['used_hours'] = license_data.get('used_hours', 0.0) + hours
+        license_data['last_usage_check'] = datetime.now().isoformat()
+        
+        self.save_licenses()
+        
+        return {
+            'success': True,
+            'hours_deducted': hours,
+            'hours_remaining': license_data['hours_remaining'],
+            'used_hours': license_data['used_hours']
+        }
+    
+    def get_hours_remaining(self, license_key):
+        """Get remaining hours for a license"""
+        if license_key not in self.licenses:
+            return {'success': False, 'error': 'Invalid license key'}
+        
+        license_data = self.licenses[license_key]
+        
+        return {
+            'success': True,
+            'hours_remaining': license_data.get('hours_remaining', 0.0),
+            'purchased_hours': license_data.get('purchased_hours', 0.0),
+            'used_hours': license_data.get('used_hours', 0.0)
+        }
 
 # Initialize license manager
 license_manager = LicenseManager()
@@ -237,7 +328,59 @@ def get_license_info(license_key):
             'install_count': len(license_data['installs'])
         }
         
+        # Include hours information if available
+        if 'hours_remaining' in license_data:
+            safe_data['hours_remaining'] = license_data.get('hours_remaining', 0.0)
+            safe_data['purchased_hours'] = license_data.get('purchased_hours', 0.0)
+            safe_data['used_hours'] = license_data.get('used_hours', 0.0)
+        
         return jsonify({'license': safe_data}), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/licenses/<license_key>/hours', methods=['GET', 'POST'])
+def manage_hours(license_key):
+    """Get or add hours to a license"""
+    try:
+        if request.method == 'GET':
+            result = license_manager.get_hours_remaining(license_key)
+            if result['success']:
+                return jsonify(result), 200
+            else:
+                return jsonify(result), 400
+        
+        elif request.method == 'POST':
+            data = request.get_json() or {}
+            hours = data.get('hours', 0)
+            
+            if hours <= 0:
+                return jsonify({'error': 'Hours must be greater than 0'}), 400
+            
+            result = license_manager.add_hours(license_key, hours)
+            if result['success']:
+                return jsonify(result), 200
+            else:
+                return jsonify(result), 400
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/licenses/<license_key>/usage', methods=['POST'])
+def track_usage(license_key):
+    """Track usage and deduct hours"""
+    try:
+        data = request.get_json() or {}
+        hours = data.get('hours', 0)
+        
+        if hours <= 0:
+            return jsonify({'error': 'Hours must be greater than 0'}), 400
+        
+        result = license_manager.deduct_hours(license_key, hours)
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

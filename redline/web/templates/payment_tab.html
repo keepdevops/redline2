@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Payment & Access - REDLINE{% endblock %}
+
+{% block page_title %}Payment & Access Time{% endblock %}
+{% block page_subtitle %}Purchase access hours and manage your subscription{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Balance Display -->
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-clock me-2"></i>Your Balance
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="balanceInfo" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Purchase Hours -->
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-shopping-cart me-2"></i>Purchase Access Hours
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- License Key Input -->
+                <div class="mb-3">
+                    <label for="licenseKey" class="form-label">License Key</label>
+                    <input type="text" class="form-control" id="licenseKey" placeholder="Enter your license key">
+                    <small class="form-text text-muted">Your license key is required to purchase hours</small>
+                </div>
+                
+                <!-- Hour Packages -->
+                <div id="packagesContainer" class="row">
+                    <div class="col-12 text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading packages...</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Custom Hours Input -->
+                <div class="mt-4">
+                    <h6>Or Purchase Custom Hours</h6>
+                    <div class="input-group mb-3">
+                        <input type="number" class="form-control" id="customHours" placeholder="Enter hours" min="1" step="0.5">
+                        <span class="input-group-text">hours</span>
+                        <button class="btn btn-primary" type="button" id="purchaseCustomBtn">
+                            <i class="fas fa-credit-card me-2"></i>Purchase
+                        </button>
+                    </div>
+                    <div id="customPrice" class="text-muted"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Usage History -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-history me-2"></i>Usage History
+                </h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="loadHistory()">
+                    <i class="fas fa-sync me-1"></i>Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="usageHistory" class="text-muted">
+                    <p>Enter your license key above to view usage and payment history</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Status Messages -->
+<div id="paymentMessages" class="mt-3"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/payments.js') }}"></script>
+{% endblock %}
+

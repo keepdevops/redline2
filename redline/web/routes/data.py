@@ -563,19 +563,25 @@ def load_data():
         if not filename:
             return jsonify({'error': 'No filename provided'}), 400
         
-        # Determine file path - check both root data directory and downloaded subdirectory
+        # Determine file path - check multiple locations in order
         data_dir = os.path.join(os.getcwd(), 'data')
         data_path = None
         
-        # Check in root data directory first
-        root_path = os.path.join(data_dir, filename)
-        if os.path.exists(root_path):
-            data_path = root_path
-        else:
-            # Check in downloaded directory
-            downloaded_path = os.path.join(data_dir, 'downloaded', filename)
-            if os.path.exists(downloaded_path):
-                data_path = downloaded_path
+        # Check locations in order of priority:
+        # 1. Root data directory
+        # 2. data/stooq directory (for Stooq downloads)
+        # 3. data/downloaded directory (for other downloads)
+        search_paths = [
+            os.path.join(data_dir, filename),
+            os.path.join(data_dir, 'stooq', filename),
+            os.path.join(data_dir, 'downloaded', filename),
+            os.path.join(data_dir, 'uploads', filename)
+        ]
+        
+        for path in search_paths:
+            if os.path.exists(path):
+                data_path = path
+                break
         
         if not data_path or not os.path.exists(data_path):
             return jsonify({'error': 'File not found'}), 404
@@ -731,7 +737,23 @@ def get_columns(filename):
                         'name': filename,
                         'size': file_stat.st_size,
                         'modified': file_stat.st_mtime,
-                        'path': file_path
+                        'path': file_path,
+                        'location': 'data'
+                    })
+        
+        # Get files from stooq directory
+        stooq_dir = os.path.join(data_dir, 'stooq')
+        if os.path.exists(stooq_dir):
+            for filename in os.listdir(stooq_dir):
+                file_path = os.path.join(stooq_dir, filename)
+                if os.path.isfile(file_path) and not filename.startswith('.'):
+                    file_stat = os.stat(file_path)
+                    files.append({
+                        'name': filename,
+                        'size': file_stat.st_size,
+                        'modified': file_stat.st_mtime,
+                        'path': file_path,
+                        'location': 'stooq'
                     })
         
         # Get files from downloaded directory
@@ -769,19 +791,26 @@ def load_file_data():
         if not filename:
             return jsonify({'error': 'Filename is required'}), 400
         
-        # Determine file path - check both root data directory and downloaded subdirectory
+        # Determine file path - check multiple locations
         data_dir = os.path.join(os.getcwd(), 'data')
         file_path = None
         
-        # Check in root data directory first
-        root_path = os.path.join(data_dir, filename)
-        if os.path.exists(root_path):
-            file_path = root_path
-        else:
-            # Check in downloaded directory
-            downloaded_path = os.path.join(data_dir, 'downloaded', filename)
-            if os.path.exists(downloaded_path):
-                file_path = downloaded_path
+        # Check locations in order of priority:
+        # 1. Root data directory
+        # 2. data/stooq directory (for Stooq downloads)
+        # 3. data/downloaded directory (for other downloads)
+        # 4. data/uploads directory (for uploaded files)
+        search_paths = [
+            os.path.join(data_dir, filename),
+            os.path.join(data_dir, 'stooq', filename),
+            os.path.join(data_dir, 'downloaded', filename),
+            os.path.join(data_dir, 'uploads', filename)
+        ]
+        
+        for path in search_paths:
+            if os.path.exists(path):
+                file_path = path
+                break
         
         if not file_path or not os.path.exists(file_path):
             return jsonify({'error': 'File not found'}), 404
@@ -1202,12 +1231,11 @@ def download_stooq_data():
         if csv_data is None:
             return jsonify({'error': f'Failed to download data for {symbol}'}), 404
         
-        # Save to data directory
+        # Save to REDLINE data directory
+        from redline.utils.stooq_file_handler import get_stooq_data_dir
+        stooq_data_dir = get_stooq_data_dir()
         filename = f"{symbol}_stooq_{start_date}_to_{end_date}.csv"
-        file_path = os.path.join(os.getcwd(), 'data', 'stooq', filename)
-        
-        # Create stooq directory if it doesn't exist
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        file_path = os.path.join(stooq_data_dir, filename)
         
         # Save CSV file
         csv_data.to_csv(file_path, index=False)

@@ -32,6 +32,10 @@
                                     <option value="yahoo">Yahoo Finance</option>
                                     <option value="stooq">Stooq</option>
                                 </select>
+                                <div class="form-text" id="stooqBrowserHelp" style="display: none;">
+                                    <i class="fas fa-external-link-alt me-1"></i>
+                                    <a href="https://stooq.com/db/h/" target="_blank" class="text-decoration-none">Open Stooq Database Browser</a> to browse and download data manually
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -71,6 +75,40 @@
                         </div>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- Stooq Browser Helper -->
+        <div class="card mb-4" id="stooqBrowserCard" style="display: none;">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-globe me-2"></i>Stooq Database Browser
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">Browse Stooq's database to find and download historical data manually.</p>
+                <div class="d-grid gap-2">
+                    <a href="https://stooq.com/db/h/" target="_blank" class="btn btn-primary">
+                        <i class="fas fa-external-link-alt me-2"></i>Open Stooq Database Browser
+                    </a>
+                    <button type="button" class="btn btn-outline-secondary" onclick="showStooqInstructions()">
+                        <i class="fas fa-question-circle me-2"></i>How to Load Data After Downloading
+                    </button>
+                </div>
+                <div id="stooqInstructions" class="mt-3" style="display: none;">
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>Loading Data from Stooq:</h6>
+                        <ol class="mb-0">
+                            <li>Open the Stooq Database Browser link above</li>
+                            <li>Search for your ticker symbol and select the data you want</li>
+                            <li>Download the file to your computer (files from Stooq have a <code>.txt</code> extension)</li>
+                            <li>Go to the <strong>Data</strong> tab in REDLINE</li>
+                            <li>Click <strong>Upload File</strong> or use <strong>File Browser</strong> to load the downloaded <code>.txt</code> file</li>
+                            <li>REDLINE will automatically detect and load the Stooq data format</li>
+                            <li><strong>Note:</strong> Stooq files are text-based CSV format, so they load just like CSV files</li>
+                        </ol>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -184,7 +222,30 @@ $(document).ready(function() {
         const ticker = $(this).data('ticker');
         $('#ticker').val(ticker);
     });
+    
+    // Show/hide Stooq browser helper based on source selection
+    $('#source').on('change', function() {
+        const source = $(this).val();
+        if (source === 'stooq') {
+            $('#stooqBrowserCard').show();
+            $('#stooqBrowserHelp').show();
+        } else {
+            $('#stooqBrowserCard').hide();
+            $('#stooqBrowserHelp').hide();
+            $('#stooqInstructions').hide();
+        }
+    });
+    
+    // Trigger on page load if Stooq is already selected
+    if ($('#source').val() === 'stooq') {
+        $('#stooqBrowserCard').show();
+        $('#stooqBrowserHelp').show();
+    }
 });
+
+function showStooqInstructions() {
+    $('#stooqInstructions').slideToggle();
+}
 
 function downloadData() {
     const ticker = $('#ticker').val().trim().toUpperCase();

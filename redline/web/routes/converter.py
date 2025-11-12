@@ -288,6 +288,41 @@ def convert_file():
         # Get file info
         file_stat = os.stat(output_path)
         
+        # Save to user storage if license key provided
+        license_key = (
+            request.headers.get('X-License-Key') or
+            request.args.get('license_key') or
+            data.get('license_key')
+        )
+        
+        user_file_id = None
+        if license_key:
+            try:
+                from redline.storage.user_storage import user_storage, STORAGE_AVAILABLE
+                if STORAGE_AVAILABLE and user_storage:
+                    # Read converted file
+                    with open(output_path, 'rb') as f:
+                        file_data = f.read()
+                    
+                    # Save to user storage
+                    file_info = user_storage.save_file(
+                        license_key=license_key,
+                        file_data=file_data,
+                        filename=output_filename,
+                        file_type=output_format,
+                        metadata={
+                            'converted_from': input_file,
+                            'original_format': format_type,
+                            'converted_via': 'web_converter',
+                            'records': len(data_obj) if isinstance(data_obj, pd.DataFrame) else 0
+                        }
+                    )
+                    user_file_id = file_info.get('file_id')
+                    logger.info(f"Saved converted file to user storage for license {license_key[:8]}...")
+            except Exception as e:
+                logger.warning(f"Failed to save to user storage: {str(e)}")
+                # Don't fail the conversion if storage fails
+        
         result = {
             'message': 'File converted successfully',
             'input_file': input_file,
@@ -295,7 +330,8 @@ def convert_file():
             'output_format': output_format,
             'output_path': output_path,
             'file_size': file_stat.st_size,
-            'records': len(data_obj) if isinstance(data_obj, pd.DataFrame) else 0
+            'records': len(data_obj) if isinstance(data_obj, pd.DataFrame) else 0,
+            'user_file_id': user_file_id  # ID in user storage if saved
         }
         
         return jsonify(result)

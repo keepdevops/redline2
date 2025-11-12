@@ -1,0 +1,1206 @@
+{
+  "RL-05666B51-BB9CEF8B-59C9CC32": {
+    "key": "RL-05666B51-BB9CEF8B-59C9CC32",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T12:56:06.005929",
+    "expires": "2025-11-10T14:02:09.247134",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-F44B8987-DF830C5C-CB4316C9": {
+    "key": "RL-F44B8987-DF830C5C-CB4316C9",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T12:56:08.220660",
+    "expires": "2026-11-12T12:56:08.220682",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-4566FB22-489CD63D-C8AFF689": {
+    "key": "RL-4566FB22-489CD63D-C8AFF689",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T12:56:11.671731",
+    "expires": "2026-11-12T12:56:11.671749",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-455416A3-C4A15160-E1FBB9F2": {
+    "key": "RL-455416A3-C4A15160-E1FBB9F2",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T12:58:15.550280",
+    "expires": "2026-11-12T12:58:15.550291",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-3379EB69-03FC0E4A-F76ABEE8": {
+    "key": "RL-3379EB69-03FC0E4A-F76ABEE8",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T12:58:20.523421",
+    "expires": "2026-11-12T12:58:20.523431",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 50.0,
+    "purchased_hours": 50.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-44D5D164-C72AC261-D3183729": {
+    "key": "RL-44D5D164-C72AC261-D3183729",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T13:07:49.648073",
+    "expires": "2026-11-12T13:07:49.648088",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-74B97173-68309B71-F453CEF0": {
+    "key": "RL-74B97173-68309B71-F453CEF0",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T13:07:50.876526",
+    "expires": "2026-11-12T13:07:50.876541",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-BA8C5076-5AD1A38A-D9C32ECC": {
+    "key": "RL-BA8C5076-5AD1A38A-D9C32ECC",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T13:07:51.696973",
+    "expires": "2026-11-12T13:07:51.696990",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-30A82544-021A3880-D40B4915": {
+    "key": "RL-30A82544-021A3880-D40B4915",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T13:07:52.922173",
+    "expires": "2026-11-12T13:07:52.922191",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-09D885BE-B81AC612-CF697E17": {
+    "key": "RL-09D885BE-B81AC612-CF697E17",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T13:43:22.850488",
+    "expires": "2026-11-12T13:43:22.850493",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-1389E338-697CFB30-C85308D5": {
+    "key": "RL-1389E338-697CFB30-C85308D5",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T13:43:23.955112",
+    "expires": "2026-11-12T13:43:23.955121",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-171F5C1C-17D3A713-5EC93A5D": {
+    "key": "RL-171F5C1C-17D3A713-5EC93A5D",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 10
+    },
+    "type": "trial",
+    "created": "2025-11-12T13:53:02.270551",
+    "expires": "2026-11-12T13:53:02.270567",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-ADB884D1-273BC16B-9928CA82": {
+    "key": "RL-ADB884D1-273BC16B-9928CA82",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T13:53:10.798689",
+    "expires": "2026-11-12T13:53:10.798713",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-21417AEC-5D69E6B5-6BF0C46A": {
+    "key": "RL-21417AEC-5D69E6B5-6BF0C46A",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 10
+    },
+    "type": "trial",
+    "created": "2025-11-12T13:58:02.342271",
+    "expires": "2026-11-12T13:58:02.342273",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-469C0A74-31CAD59C-0E83B379": {
+    "key": "RL-469C0A74-31CAD59C-0E83B379",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T13:59:00.269439",
+    "expires": "2026-11-12T13:59:00.269446",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-842B232C-FFBA3363-864795C1": {
+    "key": "RL-842B232C-FFBA3363-864795C1",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 10
+    },
+    "type": "trial",
+    "created": "2025-11-12T13:59:02.216235",
+    "expires": "2026-11-12T13:59:02.216242",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-041873C0-3A83A74B-CA4807A6": {
+    "key": "RL-041873C0-3A83A74B-CA4807A6",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 10
+    },
+    "type": "trial",
+    "created": "2025-11-12T13:59:17.625409",
+    "expires": "2026-11-12T13:59:17.625414",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-62469329-26F1AB5A-B669302B": {
+    "key": "RL-62469329-26F1AB5A-B669302B",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 10
+    },
+    "type": "trial",
+    "created": "2025-11-12T13:59:18.656857",
+    "expires": "2026-11-12T13:59:18.656864",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-A310EFD9-6A565500-A96B3CAE": {
+    "key": "RL-A310EFD9-6A565500-A96B3CAE",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 10
+    },
+    "type": "trial",
+    "created": "2025-11-12T13:59:19.498625",
+    "expires": "2026-11-12T13:59:19.498629",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-9D900FD8-4A98EE74-0F115CFA": {
+    "key": "RL-9D900FD8-4A98EE74-0F115CFA",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:01:05.533818",
+    "expires": "2026-11-12T14:01:05.533824",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-866AE9B8-E14B12D9-535050A0": {
+    "key": "RL-866AE9B8-E14B12D9-535050A0",
+    "customer": {
+      "name": "Test User 2",
+      "email": "test2@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 5
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:01:05.539595",
+    "expires": "2026-11-12T14:01:05.539603",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-0FB07A1F-CE946A39-F4137713": {
+    "key": "RL-0FB07A1F-CE946A39-F4137713",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:01:33.590274",
+    "expires": "2026-11-12T14:01:33.590286",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-C21E4931-66A9FBBE-9E3567B8": {
+    "key": "RL-C21E4931-66A9FBBE-9E3567B8",
+    "customer": {
+      "name": "Test User 2",
+      "email": "test2@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 5
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:01:33.596594",
+    "expires": "2026-11-12T14:01:33.596598",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-E79FA2FA-26A871CE-7401A9F0": {
+    "key": "RL-E79FA2FA-26A871CE-7401A9F0",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:01:37.251198",
+    "expires": "2026-11-12T14:01:37.251203",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-C4E78F04-CDC527F7-F7A59C06": {
+    "key": "RL-C4E78F04-CDC527F7-F7A59C06",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:01:38.786613",
+    "expires": "2026-11-12T14:01:38.786619",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-91AD684F-FE9E5A7F-0E9BBC33": {
+    "key": "RL-91AD684F-FE9E5A7F-0E9BBC33",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 5
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:01:44.308100",
+    "expires": "2026-11-12T14:01:44.308105",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-2E20AA44-65C4539A-30250A33": {
+    "key": "RL-2E20AA44-65C4539A-30250A33",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 5
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:01:45.168662",
+    "expires": "2025-11-11T14:01:45.201031",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 5.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-9921C479-C83C6E69-6A862863": {
+    "key": "RL-9921C479-C83C6E69-6A862863",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 5
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:02:00.731229",
+    "expires": "2025-11-11T14:02:00.763192",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 5.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-8DC311D8-38E122E8-5778EE5E": {
+    "key": "RL-8DC311D8-38E122E8-5778EE5E",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:02:51.928065",
+    "expires": "2026-11-12T14:02:51.928071",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-E48F891C-71ED3A95-76DA8124": {
+    "key": "RL-E48F891C-71ED3A95-76DA8124",
+    "customer": {
+      "name": "Test User 2",
+      "email": "test2@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 5
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:02:51.934675",
+    "expires": "2026-11-12T14:02:51.934680",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-DF75CB18-00EB37D4-7EBDD1D9": {
+    "key": "RL-DF75CB18-00EB37D4-7EBDD1D9",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 10
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:04:52.593045",
+    "expires": "2026-11-12T14:04:52.593054",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-EA98E051-4815DFA4-E8741783": {
+    "key": "RL-EA98E051-4815DFA4-E8741783",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 10
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:04:59.595590",
+    "expires": "2025-11-11T14:04:59.704117",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-74E71B07-C3857E76-189ABF2F": {
+    "key": "RL-74E71B07-C3857E76-189ABF2F",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 10
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:06:08.085544",
+    "expires": "2025-11-11T14:06:08.201894",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-BAD5F2D3-86562FE8-E2B744CF": {
+    "key": "RL-BAD5F2D3-86562FE8-E2B744CF",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:14:37.751143",
+    "expires": "2026-11-12T14:14:37.751159",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-61A0D221-C6E4119A-ED3647B8": {
+    "key": "RL-61A0D221-C6E4119A-ED3647B8",
+    "customer": {
+      "name": "Browser Test User",
+      "email": "browser@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:15:21.396201",
+    "expires": "2026-11-12T14:15:21.396223",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-E2672265-934C10CC-F7B63C90": {
+    "key": "RL-E2672265-934C10CC-F7B63C90",
+    "customer": {
+      "name": "Manual Test",
+      "email": "manual@test.com",
+      "company": "Test Co",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:15:26.884672",
+    "expires": "2026-11-12T14:15:26.884681",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-3C533928-5C2B8118-539318ED": {
+    "key": "RL-3C533928-5C2B8118-539318ED",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Co",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:18:34.595500",
+    "expires": "2026-11-12T14:18:34.595517",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-7B4747C1-26BDD067-7F46C3A3": {
+    "key": "RL-7B4747C1-26BDD067-7F46C3A3",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Co",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:18:40.235741",
+    "expires": "2026-11-12T14:18:40.235758",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-A0495A70-DE5EDA74-716898A8": {
+    "key": "RL-A0495A70-DE5EDA74-716898A8",
+    "customer": {
+      "name": "Display Test",
+      "email": "display@test.com",
+      "company": "Test Co",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:19:06.040779",
+    "expires": "2026-11-12T14:19:06.040796",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-C6E2418F-79EB15A6-F41BDE4D": {
+    "key": "RL-C6E2418F-79EB15A6-F41BDE4D",
+    "customer": {
+      "name": "Test",
+      "email": "test@test.com",
+      "company": "Test Co",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:22:39.873950",
+    "expires": "2026-11-12T14:22:39.873965",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-500FF4A3-E4BA6C98-A2A65FDB": {
+    "key": "RL-500FF4A3-E4BA6C98-A2A65FDB",
+    "customer": {
+      "name": "Button Test",
+      "email": "button@test.com",
+      "company": "Test Co",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:23:06.922890",
+    "expires": "2026-11-12T14:23:06.922906",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-CAC809E5-AB43F2D4-4136B4FD": {
+    "key": "RL-CAC809E5-AB43F2D4-4136B4FD",
+    "customer": {
+      "name": "Full Test",
+      "email": "fulltest@example.com",
+      "company": "Test Co",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:25:37.591151",
+    "expires": "2026-11-12T14:25:37.591168",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-8578982A-82236012-67430BF4": {
+    "key": "RL-8578982A-82236012-67430BF4",
+    "customer": {
+      "name": "test test",
+      "email": "cloudbaseaws@gmail.com",
+      "company": "gentry",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:25:57.860528",
+    "expires": "2026-11-12T14:25:57.860544",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-D7E632FE-EE0C58D8-4CD73D23": {
+    "key": "RL-D7E632FE-EE0C58D8-4CD73D23",
+    "customer": {
+      "name": "test test",
+      "email": "cloudbaseaws@gmail.com",
+      "company": "gentry",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:30:15.005248",
+    "expires": "2026-11-12T14:30:15.005262",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 70.0,
+    "purchased_hours": 70.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-0CE5AAB4-AE76BD8F-BEAF3C4F": {
+    "key": "RL-0CE5AAB4-AE76BD8F-BEAF3C4F",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:33:03.273022",
+    "expires": "2026-11-12T14:33:03.273038",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-C172C94D-3D9AA6E0-AF33BD2C": {
+    "key": "RL-C172C94D-3D9AA6E0-AF33BD2C",
+    "customer": {
+      "name": "test test",
+      "email": "test@example.com",
+      "company": "test",
+      "type": "professional",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "professional",
+    "created": "2025-11-12T14:35:24.967946",
+    "expires": "2026-11-12T14:35:24.967958",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import",
+      "advanced_analysis",
+      "export",
+      "api_access",
+      "priority_support"
+    ],
+    "max_installs": 10,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-4B2F8AB3-B23EA8DB-A206616C": {
+    "key": "RL-4B2F8AB3-B23EA8DB-A206616C",
+    "customer": {
+      "name": "Access Test",
+      "email": "access@test.com",
+      "company": "Test Co",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:38:56.001373",
+    "expires": "2026-11-12T14:38:56.001388",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-CABF09A4-7E4905F2-F15E760C": {
+    "key": "RL-CABF09A4-7E4905F2-F15E760C",
+    "customer": {
+      "name": "Flow Test",
+      "email": "flow@test.com",
+      "company": "Test Co",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:39:02.677299",
+    "expires": "2026-11-12T14:39:02.677316",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 10.0,
+    "purchased_hours": 10.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  }
+}

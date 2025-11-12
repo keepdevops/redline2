@@ -1,0 +1,43 @@
+# Docker Compose configuration for REDLINE with ngrok
+# Usage: docker-compose -f docker-compose.ngrok.yml up -d
+
+version: '3.8'
+
+services:
+  redline:
+    image: keepdevops/redline:latest
+    container_name: redline-ngrok
+    ports:
+      - "8080:8080"
+    environment:
+      - FLASK_ENV=production
+      - FLASK_APP=web_app.py
+      - PORT=8080
+      - HOST=0.0.0.0
+      - CORS_ORIGINS=https://*.ngrok-free.app,https://*.ngrok.io
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # Optional: Use ngrok Docker image (requires ngrok.yml config)
+  # Uncomment if you want to run ngrok in Docker
+  # ngrok:
+  #   image: ngrok/ngrok:latest
+  #   container_name: redline-ngrok-tunnel
+  #   command: start --all --config /etc/ngrok.yml
+  #   volumes:
+  #     - ./ngrok.yml:/etc/ngrok.yml:ro
+  #   depends_on:
+  #     - redline
+  #   ports:
+  #     - "4040:4040"  # Ngrok web interface
+  #   restart: unless-stopped
+
+networks:
+  default:
+    name: redline-ngrok-network
+

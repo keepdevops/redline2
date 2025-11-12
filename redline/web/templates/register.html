@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block title %}Register - REDLINE{% endblock %}
+
+{% block page_title %}Get Your License Key{% endblock %}
+{% block page_subtitle %}Create a new account to start using REDLINE{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-user-plus me-2"></i>Create Account
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="registerForm">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email Address <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                        <small class="form-text text-muted">We'll use this to send your license key</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="company" class="form-label">Company/Organization <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="company" name="company" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="licenseType" class="form-label">License Type</label>
+                        <select class="form-select" id="licenseType" name="type">
+                            <option value="trial" selected>Trial (1 install, basic features)</option>
+                            <option value="standard">Standard (3 installs, standard features)</option>
+                            <option value="professional">Professional (10 installs, all features + API)</option>
+                        </select>
+                        <small class="form-text text-muted">You can upgrade later by purchasing hours</small>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Note:</strong> Your license will start with 0 hours. After registration, you can purchase hours on the Payment tab.
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-key me-2"></i>Create License Key
+                    </button>
+                </form>
+                
+                <div id="registerResult" class="mt-3"></div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-body">
+                <h6>Already have a license key?</h6>
+                <p class="mb-0">
+                    <a href="{{ url_for('payments.payment_tab') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-credit-card me-2"></i>Go to Payment Tab
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Registration page loaded');
+    
+    const form = document.getElementById('registerForm');
+    const resultDiv = document.getElementById('registerResult');
+    
+    if (!form) {
+        console.error('Form not found!');
+        return;
+    }
+    
+    if (!resultDiv) {
+        console.error('Result div not found!');
+        return;
+    }
+    
+    console.log('Form and result div found');
+    
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        console.log('Form submitted');
+        
+        // Validate form
+        const nameInput = document.getElementById('name');
+        const emailInput = document.getElementById('email');
+        const companyInput = document.getElementById('company');
+        const typeInput = document.getElementById('licenseType');
+        
+        if (!nameInput || !emailInput || !companyInput || !typeInput) {
+            console.error('Form inputs not found!');
+            resultDiv.innerHTML = '<div class="alert alert-danger">Form error: Missing form fields</div>';
+            return;
+        }
+        
+        // Get form values
+        const name = nameInput.value.trim();
+        const email = emailInput.value.trim();
+        const company = companyInput.value.trim();
+        const type = typeInput.value;
+        
+        // Validate required fields
+        if (!name || !email || !company) {
+            resultDiv.innerHTML = '<div class="alert alert-danger">Please fill in all required fields</div>';
+            return;
+        }
+        
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            resultDiv.innerHTML = '<div class="alert alert-danger">Please enter a valid email address</div>';
+            return;
+        }
+        
+        const formData = {
+            name: name,
+            email: email,
+            company: company,
+            type: type,
+            duration_days: 365,
+            hours: 0
+        };
+        
+        console.log('Form data:', formData);
+        
+        // Disable form
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Creating License...';
+        }
+        resultDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin me-2"></i>Creating license...</div>';
+        
+        try {
+            console.log('Sending request to /api/register');
+            
+            // Call web app proxy endpoint (avoids CORS issues)
+            const response = await fetch('/api/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            console.log('Response status:', response.status);
+            
+            let data;
+            try {
+                data = await response.json();
+                console.log('Registration response:', data);
+            } catch (jsonError) {
+                console.error('Failed to parse JSON response:', jsonError);
+                const text = await response.text();
+                console.error('Response text:', text);
+                throw new Error('Invalid response from server');
+            }
+            
+            if (response.ok && (data.success || data.license)) {
+                const license = data.license || data;
+                const licenseKey = license.key || license.license_key || data.license_key;
+                
+                if (!licenseKey) {
+                    console.error('License key not found in response:', data);
+                    throw new Error('License key not found in response');
+                }
+                
+                console.log('License key generated:', licenseKey);
+                
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <h5><i class="fas fa-check-circle me-2"></i>License Created Successfully!</h5>
+                        <hr>
+                        <p><strong>Your License Key:</strong></p>
+                        <div class="alert alert-light border">
+                            <code id="licenseKeyDisplay" style="font-size: 1.3em; font-weight: bold; color: #0d6efd; word-break: break-all;">${licenseKey}</code>
+                        </div>
+                        <p><strong>Important:</strong> Save this license key! You'll need it to access REDLINE.</p>
+                        <p class="text-muted"><small>An email with your license key has been sent to: ${email}</small></p>
+                        <hr>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary" onclick="copyLicenseKey('${licenseKey}')" id="copyBtn">
+                                <i class="fas fa-copy me-2"></i>Copy License Key
+                            </button>
+                            <a href="/payments/?license_key=${encodeURIComponent(licenseKey)}" class="btn btn-success">
+                                <i class="fas fa-credit-card me-2"></i>Purchase Hours Now
+                            </a>
+                        </div>
+                    </div>
+                `;
+                
+                // Scroll to result
+                resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+                const errorMsg = data.error || data.message || 'Unknown error occurred';
+                console.error('Registration failed:', errorMsg);
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5><i class="fas fa-exclamation-circle me-2"></i>Registration Failed</h5>
+                        <p>${errorMsg}</p>
+                        <p><small>Status: ${response.status}</small></p>
+                    </div>
+                `;
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-key me-2"></i>Create License Key';
+                }
+            }
+        } catch (error) {
+            console.error('Registration error:', error);
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <h5><i class="fas fa-exclamation-circle me-2"></i>Connection Error</h5>
+                    <p>Could not connect to server. Please try again.</p>
+                    <p><small>Error: ${error.message}</small></p>
+                    <p><small>Check browser console (F12) for more details</small></p>
+                </div>
+            `;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-key me-2"></i>Create License Key';
+            }
+        }
+    });
+    
+    console.log('Form event listener attached');
+});
+
+function copyLicenseKey(key) {
+    // Try modern clipboard API first
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(key).then(function() {
+            // Show success feedback
+            const btn = document.getElementById('copyBtn');
+            if (btn) {
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check me-2"></i>Copied!';
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-success');
+                setTimeout(function() {
+                    btn.innerHTML = originalText;
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-primary');
+                }, 2000);
+            } else {
+                alert('License key copied to clipboard!');
+            }
+        }, function(err) {
+            console.error('Failed to copy: ', err);
+            fallbackCopy(key);
+        });
+    } else {
+        // Fallback for older browsers
+        fallbackCopy(key);
+    }
+}
+
+function fallbackCopy(key) {
+    // Create temporary textarea
+    const textarea = document.createElement('textarea');
+    textarea.value = key;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+        document.execCommand('copy');
+        alert('License key copied to clipboard!');
+    } catch (err) {
+        console.error('Failed to copy: ', err);
+        alert('Failed to copy. Please manually select and copy the license key.');
+    }
+    document.body.removeChild(textarea);
+}
+</script>
+{% endblock %}
+

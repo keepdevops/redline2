@@ -204,8 +204,11 @@ def paginate_data(data, page=1, per_page=None):
 @api_bp.route('/upload', methods=['POST'])
 @rate_limit("10 per minute")
 def upload_file():
-    """Upload a file for processing."""
+    """Upload a file for processing. Handles ZIP extraction for Stooq files."""
     try:
+        import zipfile
+        from werkzeug.utils import secure_filename
+        
         if 'file' not in request.files:
             return jsonify({'error': 'No file provided'}), 400
         
@@ -218,11 +221,44 @@ def upload_file():
             upload_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
             file.save(upload_path)
             
-            return jsonify({
+            # Check if it's a ZIP file and extract to data/stooq
+            extracted_files = []
+            final_path = upload_path
+            
+            if zipfile.is_zipfile(upload_path):
+                logger.info(f"Detected ZIP file: {filename}, extracting to data/stooq...")
+                try:
+                    from redline.utils.stooq_file_handler import extract_zip_file
+                    extracted = extract_zip_file(upload_path)
+                    extracted_files = extracted if isinstance(extracted, list) else [extracted]
+                    os.remove(upload_path)  # Remove ZIP after extraction
+                    
+                    if extracted_files:
+                        final_path = extracted_files[0] if len(extracted_files) == 1 else extracted_files
+                except Exception as e:
+                    logger.error(f"Error extracting ZIP: {str(e)}")
+            else:
+                # Check if it's a Stooq file and move to data/stooq
+                try:
+                    from redline.utils.stooq_file_handler import is_stooq_file, move_file_to_stooq_dir
+                    if is_stooq_file(filename):
+                        final_path = move_file_to_stooq_dir(upload_path, filename)
+                        logger.info(f"Moved Stooq file {filename} to data/stooq directory")
+                except Exception as e:
+                    logger.warning(f"Could not check/move to stooq directory: {str(e)}")
+            
+            response = {
                 'message': 'File uploaded successfully',
-                'filename': filename,
-                'path': upload_path
-            })
+                'filename': os.path.basename(final_path) if isinstance(final_path, str) else filename,
+                'path': final_path
+            }
+            
+            if extracted_files:
+                response['extracted_files'] = [os.path.basename(f) for f in extracted_files]
+                response['extracted_count'] = len(extracted_files)
+                response['message'] = f'ZIP file extracted. {len(extracted_files)} file(s) in data/stooq.'
+            
+            return jsonify(response)
         else:
             return jsonify({'error': 'Invalid file type'}), 400
             

@@ -8,7 +8,7 @@ import os
 import sys
 import logging
 import secrets
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, g
 from flask_socketio import SocketIO
 try:
     from flask_compress import Compress
@@ -27,6 +27,28 @@ except ImportError:
 
 # Add the project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Load .env file if it exists (before logging config to avoid issues)
+try:
+    from dotenv import load_dotenv
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+    if os.path.exists(env_path):
+        load_dotenv(env_path)
+except ImportError:
+    # python-dotenv not installed, try manual loading
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+    if os.path.exists(env_path):
+        with open(env_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    # Remove inline comments (everything after #)
+                    if '#' in value:
+                        value = value.split('#')[0].strip()
+                    os.environ[key.strip()] = value.strip()
+except Exception:
+    pass  # Ignore errors loading .env
 
 # Configure logging
 logging.basicConfig(
@@ -71,8 +93,11 @@ def create_app():
             def __init__(self, app, **kwargs):
                 self.app = app
             def run(self, app, host=None, port=None, debug=None, **kwargs):
+                # Filter out unsupported parameters for Flask's app.run()
+                flask_kwargs = {k: v for k, v in kwargs.items() 
+                               if k not in ['allow_unsafe_werkzeug']}
                 # Just run the Flask app directly
-                self.app.run(host=host, port=port, debug=debug, **kwargs)
+                self.app.run(host=host, port=port, debug=debug, **flask_kwargs)
         socketio = MockSocketIO(app)
         logger.info("Using mock SocketIO for compatibility")
     
@@ -121,23 +146,135 @@ def create_app():
         logger.warning(f"Failed to initialize TaskManager: {str(e)}")
         app.config['task_manager'] = None
     
-    # Add cache headers to static files
+    # Initialize Usage Tracker for time-based access
+    try:
+        from redline.auth.usage_tracker import usage_tracker
+        app.config['usage_tracker'] = usage_tracker
+        logger.info("Usage tracker initialized successfully")
+    except Exception as e:
+        logger.warning(f"Failed to initialize Usage Tracker: {str(e)}")
+        app.config['usage_tracker'] = None
+    
+    # Access control middleware - check license and hours BEFORE processing request
+    @app.before_request
+    def check_access():
+        """Check if user has valid license and sufficient hours"""
+        # Skip access control for public endpoints
+        public_endpoints = ('static', 'health', 'register', 'payments.payment_tab', 
+                          'payments.packages', 'payments.create_checkout', 
+                          'payments.success', 'payments.webhook', 'main.index',
+                          'main.create_license_proxy')
+        
+        # Public API paths (don't require license)
+        public_api_paths = ['/api/register', '/api/status', '/health']
+        
+        if request.endpoint in public_endpoints or request.path.startswith('/static') or request.path in public_api_paths:
+            return
+        
+        # Get license key from request
+        license_key = (
+            request.headers.get('X-License-Key') or
+            request.args.get('license_key') or
+            (request.json.get('license_key') if request.is_json else None)
+        )
+        
+        # For API endpoints, require license key
+        if request.path.startswith('/api/') or request.path.startswith('/data/') or \
+           request.path.startswith('/analysis/') or request.path.startswith('/download/'):
+            if not license_key:
+                from flask import jsonify
+                return jsonify({
+                    'error': 'License key is required',
+                    'message': 'Please provide a license key in X-License-Key header, license_key query parameter, or JSON body'
+                }), 401
+            
+            # Validate access
+            try:
+                from redline.auth.access_control import access_controller
+                is_valid, error_msg, license_info = access_controller.validate_access(license_key)
+                
+                if not is_valid:
+                    from flask import jsonify
+                    return jsonify({
+                        'error': error_msg or 'Access denied',
+                        'code': 'INSUFFICIENT_HOURS' if 'hours' in (error_msg or '').lower() else 'INVALID_LICENSE'
+                    }), 403
+                
+                # Store license info in g for use in request
+                g.license_key = license_key
+                g.license_info = license_info
+            except ImportError:
+                logger.warning("Access controller not available, skipping access check")
+    
+    # Usage tracking middleware (Gunicorn-compatible Flask decorator)
+    @app.before_request
+    def track_usage():
+        """Track usage time for API requests"""
+        # Skip tracking for static files and health checks
+        if request.endpoint in ('static', 'health') or request.path.startswith('/static'):
+            return
+        
+        # Get license key from request (header, session, or query param)
+        license_key = (
+            request.headers.get('X-License-Key') or
+            request.args.get('license_key') or
+            (request.json.get('license_key') if request.is_json else None) or
+            getattr(g, 'license_key', None)  # Use from access control if available
+        )
+        
+        if not license_key:
+            return  # No license key, skip tracking
+        
+        # Get or create session
+        usage_tracker = app.config.get('usage_tracker')
+        if not usage_tracker:
+            return
+        
+        # Get session ID from request or create new one
+        session_id = request.headers.get('X-Session-ID')
+        if not session_id:
+            # Create new session (stored in response header)
+            session_id = usage_tracker.start_session(license_key)
+            # Store in g object for after_request
+            g.session_id = session_id
+        else:
+            # Update existing session
+            usage_tracker.update_session(session_id)
+        
+        # Log access to persistent storage
+        try:
+            from redline.database.usage_storage import usage_storage, STORAGE_AVAILABLE
+            if STORAGE_AVAILABLE and usage_storage:
+                usage_storage.log_access(
+                    license_key=license_key,
+                    endpoint=request.endpoint or request.path,
+                    method=request.method,
+                    session_id=session_id,
+                    ip_address=request.remote_addr,
+                    user_agent=request.headers.get('User-Agent')
+                )
+        except Exception as e:
+            logger.debug(f"Failed to log access: {str(e)}")
+    
+    # Add cache headers to static files and session headers
     @app.after_request
-    def add_cache_headers(response):
-        """Add cache control headers to improve performance."""
-        if request.endpoint != 'static':
-            return response
+    def add_response_headers(response):
+        """Add cache control headers and session ID to responses."""
+        # Add session ID header
+        if hasattr(g, 'session_id'):
+            response.headers['X-Session-ID'] = g.session_id
         
         # Add cache headers for static files
-        if '.min.' in request.path:
-            # Minified files can be cached for 1 year
-            response.cache_control.max_age = 31536000  # 1 year
-            response.cache_control.public = True
-            response.cache_control.immutable = True
-        elif request.path.endswith(('.css', '.js', '.jpg', '.jpeg', '.png', '.gif', '.svg', '.ico')):
-            # Regular static files cached for 1 hour
-            response.cache_control.max_age = 3600  # 1 hour
-            response.cache_control.public = True
+        if request.endpoint == 'static':
+            if '.min.' in request.path:
+                # Minified files can be cached for 1 year
+                response.cache_control.max_age = 31536000  # 1 year
+                response.cache_control.public = True
+                response.cache_control.immutable = True
+            elif request.path.endswith(('.css', '.js', '.jpg', '.jpeg', '.png', '.gif', '.svg', '.ico')):
+                # Regular static files cached for 1 hour
+                response.cache_control.max_age = 3600  # 1 hour
+                response.cache_control.public = True
         
         return response
     
@@ -151,6 +288,8 @@ def create_app():
     from redline.web.routes.settings import settings_bp
     from redline.web.routes.tasks import tasks_bp
     from redline.web.routes.api_keys import api_keys_bp
+    from redline.web.routes.payments import payments_bp
+    from redline.web.routes.user_data import user_data_bp
     
     app.register_blueprint(main_bp)
     app.register_blueprint(api_bp, url_prefix='/api')
@@ -161,6 +300,8 @@ def create_app():
     app.register_blueprint(settings_bp, url_prefix='/settings')
     app.register_blueprint(tasks_bp, url_prefix='/tasks')
     app.register_blueprint(api_keys_bp, url_prefix='/api-keys')
+    app.register_blueprint(payments_bp, url_prefix='/payments')
+    app.register_blueprint(user_data_bp, url_prefix='/user-data')
     
     # Error handlers
     @app.errorhandler(404)
@@ -203,11 +344,22 @@ def main():
         
         # Start the application (development mode with SocketIO)
         if socketio and hasattr(socketio, 'run'):
-            if not debug:
-                # Allow Werkzeug to run in non-debug mode
-                socketio.run(app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=True)
+            # Check if it's MockSocketIO (which handles allow_unsafe_werkzeug internally)
+            is_mock = type(socketio).__name__ == 'MockSocketIO'
+            
+            if is_mock:
+                # MockSocketIO filters out unsupported params
+                socketio.run(app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=(not debug))
             else:
-                socketio.run(app, host=host, port=port, debug=debug)
+                # Real SocketIO - try with allow_unsafe_werkzeug for non-debug
+                try:
+                    if not debug:
+                        socketio.run(app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=True)
+                    else:
+                        socketio.run(app, host=host, port=port, debug=debug)
+                except TypeError:
+                    # If allow_unsafe_werkzeug not supported, run without it
+                    socketio.run(app, host=host, port=port, debug=debug)
         else:
             # Fallback to Flask dev server
             app.run(host=host, port=port, debug=debug)

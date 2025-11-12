@@ -17,6 +17,7 @@ flask>=3.1.2
 flask-socketio>=5.5.0
 flask-compress>=1.20
 flask-limiter>=3.8.0
+flask-cors>=3.0.0
 gunicorn>=23.0.0
 
 # Flask Core Dependencies (CRITICAL - Flask won't work without these)
@@ -69,3 +70,9 @@ platformdirs>=4.0.0  # For cross-platform directory handling
 
 # Security: Update pip to fix CVE-2025-8869 (install with: pip install --upgrade pip>=25.3)
 # Note: pip is not in requirements.txt as it's a system package, but ensure pip>=25.3
+
+# Payment Processing
+stripe>=7.0.0
+
+# Cloud Storage (optional)
+boto3>=1.28.0  # For S3 storage support

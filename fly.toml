@@ -1,0 +1,42 @@
+# Fly.io Configuration for REDLINE
+# Deploy with: flyctl launch --image keepdevops/redline:latest
+
+app = "redline"
+primary_region = "iad"  # Change to your preferred region
+
+[build]
+  image = "keepdevops/redline:latest"
+
+[env]
+  FLASK_ENV = "production"
+  FLASK_APP = "web_app.py"
+  PORT = "8080"
+  HOST = "0.0.0.0"
+
+[[services]]
+  internal_port = 8080
+  protocol = "tcp"
+  
+  [services.concurrency]
+    type = "requests"
+    hard_limit = 25
+    soft_limit = 20
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [[services.http_checks]]
+    interval = "10s"
+    timeout = "2s"
+    grace_period = "5s"
+    method = "GET"
+    path = "/health"
+    protocol = "http"
+    tls_skip_verify = false
+

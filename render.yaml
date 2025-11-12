@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: redline-backend
+    env: docker
+    # Option 1: Use Dockerfile from repo
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # Option 2: Use Docker image directly (uncomment and comment above)
+    # image: keepdevops/redline:latest
+    dockerCommand: gunicorn -w 2 -b 0.0.0.0:$PORT web_app:app
+    plan: starter
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_APP
+        value: web_app.py
+      - key: PORT
+        value: 8080
+      - key: HOST
+        value: 0.0.0.0
+    healthCheckPath: /health
+    healthCheckTimeout: 100
+

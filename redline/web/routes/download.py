@@ -110,7 +110,10 @@ def download_data():
             )
         elif source == 'stooq':
             from redline.downloaders.stooq_downloader import StooqDownloader
-            downloader = StooqDownloader()
+            # Use REDLINE data directory for Stooq downloads
+            data_dir = os.path.join(os.getcwd(), 'data', 'stooq')
+            os.makedirs(data_dir, exist_ok=True)
+            downloader = StooqDownloader(output_dir=data_dir)
             result = downloader.download_single_ticker(
                 ticker=ticker,
                 start_date=start_date,
@@ -147,7 +150,13 @@ def download_data():
             # Save the downloaded data
             import os
             filename = f"{ticker}_{source}_{start_date}_to_{end_date}.csv"
-            downloaded_dir = "data/downloaded"
+            
+            # Use stooq directory for Stooq downloads, otherwise use downloaded directory
+            if source == 'stooq':
+                from redline.utils.stooq_file_handler import get_stooq_data_dir
+                downloaded_dir = get_stooq_data_dir()
+            else:
+                downloaded_dir = "data/downloaded"
             
             # Ensure downloaded directory exists
             os.makedirs(downloaded_dir, exist_ok=True)
@@ -208,7 +217,10 @@ def batch_download():
             downloader = YahooDownloader()
         elif source == 'stooq':
             from redline.downloaders.stooq_downloader import StooqDownloader
-            downloader = StooqDownloader()
+            # Use REDLINE data directory for Stooq downloads
+            data_dir = os.path.join(os.getcwd(), 'data', 'stooq')
+            os.makedirs(data_dir, exist_ok=True)
+            downloader = StooqDownloader(output_dir=data_dir)
         elif source == 'alpha_vantage':
             from redline.downloaders.alpha_vantage_downloader import AlphaVantageDownloader
             downloader = AlphaVantageDownloader()
@@ -268,7 +280,13 @@ def batch_download():
                 
                 if result is not None and not result.empty:
                     filename = f"{ticker}_{source}_{start_date}_to_{end_date}.csv"
-                    downloaded_dir = "data/downloaded"
+                    
+                    # Use stooq directory for Stooq downloads, otherwise use downloaded directory
+                    if source == 'stooq':
+                        from redline.utils.stooq_file_handler import get_stooq_data_dir
+                        downloaded_dir = get_stooq_data_dir()
+                    else:
+                        downloaded_dir = "data/downloaded"
                     
                     # Ensure downloaded directory exists
                     os.makedirs(downloaded_dir, exist_ok=True)
