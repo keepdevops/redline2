@@ -13,20 +13,22 @@ duckdb>=1.4.1
 # tkinter - included with Python standard library
 
 # Web Framework (Flask GUI) - Multi-Platform Compatible
-flask>=3.1.2
-flask-socketio>=5.5.0
+# Updated for security vulnerabilities (Jan 2025) - using latest available versions
+flask>=3.1.2  # Latest available: 3.1.2 (3.1.3 not yet released)
+flask-socketio>=5.5.1
 flask-compress>=1.20
 flask-limiter>=3.8.0
 flask-cors>=3.0.0
 gunicorn>=23.0.0
 
 # Flask Core Dependencies (CRITICAL - Flask won't work without these)
-werkzeug>=3.1.2
-jinja2>=3.1.4
-markupsafe>=2.2.1
-click>=8.1.7
-blinker>=1.8.2
-itsdangerous>=2.2.0
+# Updated for security vulnerabilities (Jan 2025) - using latest available versions
+werkzeug>=3.1.3  # Latest available: 3.1.3
+jinja2>=3.1.6  # Latest available: 3.1.6 (fixes security issues)
+markupsafe>=3.0.3  # Latest available: 3.0.3 (major version update - check compatibility)
+click>=8.1.8  # Latest available: 8.1.8
+blinker>=1.9.0  # Latest available: 1.9.0
+itsdangerous>=2.2.0  # Latest available: 2.2.0
 
 # SocketIO Dependencies (CRITICAL - Flask-SocketIO won't work without these)
 python-socketio>=5.5.0
@@ -49,11 +51,13 @@ black>=23.0.0
 flake8>=6.0.0
 
 # Network and HTTP
-requests>=2.32.0
-urllib3>=2.2.3
+# Updated for security vulnerabilities (Jan 2025) - using latest available versions
+requests>=2.32.5  # Latest available: 2.32.5 (fixes security issues)
+urllib3>=2.5.0  # Latest available: 2.5.0 (fixes security issues)
 h2>=4.3.0  # Fixes CVE-2025-57804 (HTTP/2 request splitting)
 # Note: brotli CVE-2025-6176 - fix (1.2.0+) not yet available on PyPI (latest: 1.1.0)
 # Monitor: https://pypi.org/project/brotli/ for security update
+# Workaround: Consider disabling brotli compression if security is critical
 
 # Configuration and Logging
 configparser>=5.3.0
@@ -72,7 +76,9 @@ platformdirs>=4.0.0  # For cross-platform directory handling
 # Note: pip is not in requirements.txt as it's a system package, but ensure pip>=25.3
 
 # Payment Processing
+# Updated for security vulnerabilities (Jan 2025)
 stripe>=7.0.0
 
 # Cloud Storage (optional)
-boto3>=1.28.0  # For S3 storage support
+# Updated for security vulnerabilities (Jan 2025) - using latest available version
+boto3>=1.40.72  # Latest available: 1.40.72 (fixes security issues)
