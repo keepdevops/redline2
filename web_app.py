@@ -163,13 +163,21 @@ def create_app():
         public_endpoints = ('static', 'health', 'register', 'payments.payment_tab', 
                           'payments.packages', 'payments.create_checkout', 
                           'payments.success', 'payments.webhook', 'main.index',
-                          'main.create_license_proxy')
+                          'main.dashboard', 'main.help', 'main.create_license_proxy')
         
         # Public API paths (don't require license)
         public_api_paths = ['/api/register', '/api/status', '/health']
         
+        # Web pages (HTML) don't require license key - only API endpoints do
+        # Allow access to web pages, but API endpoints still require license
         if request.endpoint in public_endpoints or request.path.startswith('/static') or request.path in public_api_paths:
             return
+        
+        # Skip license check for web pages (HTML responses) - only enforce for API endpoints
+        if not (request.path.startswith('/api/') or request.path.startswith('/data/') or 
+                request.path.startswith('/analysis/') or request.path.startswith('/download/') or
+                request.path.startswith('/user-data/') or request.path.startswith('/converter/')):
+            return  # Allow web pages without license key
         
         # Get license key from request
         license_key = (
@@ -180,7 +188,8 @@ def create_app():
         
         # For API endpoints, require license key
         if request.path.startswith('/api/') or request.path.startswith('/data/') or \
-           request.path.startswith('/analysis/') or request.path.startswith('/download/'):
+           request.path.startswith('/analysis/') or request.path.startswith('/download/') or \
+           request.path.startswith('/user-data/') or request.path.startswith('/converter/'):
             if not license_key:
                 from flask import jsonify
                 return jsonify({

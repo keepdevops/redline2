@@ -24,6 +24,7 @@ def get_license_key() -> Optional[str]:
     return (
         request.headers.get('X-License-Key') or
         request.args.get('license_key') or
+        request.form.get('license_key') or  # For form data (file uploads)
         (request.json.get('license_key') if request.is_json else None)
     )
 

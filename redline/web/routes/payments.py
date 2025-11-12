@@ -4,7 +4,7 @@ Payment routes for REDLINE Web GUI
 Handles Stripe payment processing, checkout, and webhooks
 """
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, render_template, redirect, url_for, session as flask_session
 import logging
 import os
 import requests
@@ -133,17 +133,29 @@ def create_checkout():
 
 @payments_bp.route('/success', methods=['GET'])
 def payment_success():
-    """Handle successful payment"""
+    """Handle successful payment and redirect to dashboard"""
     try:
         session_id = request.args.get('session_id')
         license_key = request.args.get('license_key')
         
         if not session_id or not STRIPE_AVAILABLE:
-            return jsonify({'error': 'Invalid session'}), 400
+            return render_template('payment_success.html', 
+                                 success=False, 
+                                 error='Invalid session',
+                                 license_key=license_key), 400
         
         # Retrieve checkout session
         try:
-            session = stripe.checkout.Session.retrieve(session_id)
+            try:
+                session = stripe.checkout.Session.retrieve(session_id)
+            except Exception as stripe_err:
+                # Handle Stripe API errors (invalid session, network issues, etc.)
+                error_msg = str(stripe_err) if str(stripe_err) else 'Invalid payment session'
+                logger.error(f"Stripe API error: {error_msg}")
+                return render_template('payment_success.html',
+                                     success=False,
+                                     error=f'Payment verification error: {error_msg}',
+                                     license_key=license_key or ''), 400
             
             if session.payment_status == 'paid':
                 # Get hours from metadata
@@ -159,6 +171,7 @@ def payment_success():
                 
                 if response.status_code == 200:
                     result = response.json()
+                    hours_remaining = result.get('hours_remaining', 0)
                     
                     # Log payment to persistent storage
                     try:
@@ -176,38 +189,48 @@ def payment_success():
                     except Exception as e:
                         logger.warning(f"Failed to log payment to storage: {str(e)}")
                     
-                    return jsonify({
-                        'success': True,
-                        'message': f'Successfully purchased {hours} hours',
-                        'hours_added': hours,
-                        'hours_remaining': result.get('hours_remaining', 0),
-                        'access_granted': True,
-                        'next_steps': {
-                            'message': 'You now have access to REDLINE!',
-                            'instructions': [
-                                'Your license key is ready to use',
-                                'Access protected endpoints with your license key',
-                                'Hours will be deducted as you use the application',
-                                'Check your balance anytime on the Payment tab'
-                            ]
-                        }
-                    }), 200
+                    # Store license key in session for dashboard access
+                    flask_session['license_key'] = license_key
+                    flask_session['hours_remaining'] = hours_remaining
+                    flask_session.permanent = True
+                    
+                    # Render success page that auto-redirects to dashboard
+                    return render_template('payment_success.html',
+                                         success=True,
+                                         hours_added=hours,
+                                         hours_remaining=hours_remaining,
+                                         license_key=license_key)
                 else:
                     logger.error(f"Failed to add hours to license: {response.text}")
-                    return jsonify({
-                        'success': False,
-                        'error': 'Payment successful but failed to add hours. Please contact support.'
-                    }), 500
+                    return render_template('payment_success.html',
+                                         success=False,
+                                         error='Payment successful but failed to add hours. Please contact support.',
+                                         license_key=license_key), 500
             else:
-                return jsonify({'error': 'Payment not completed'}), 400
+                return render_template('payment_success.html',
+                                     success=False,
+                                     error='Payment not completed',
+                                     license_key=license_key), 400
                 
-        except stripe.error.StripeError as e:
-            logger.error(f"Stripe error: {str(e)}")
-            return jsonify({'error': f'Payment verification error: {str(e)}'}), 500
+        except Exception as e:
+            error_msg = str(e) if str(e) else 'Unknown error occurred'
+            logger.error(f"Error processing payment success: {error_msg}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return render_template('payment_success.html',
+                                 success=False,
+                                 error=error_msg,
+                                 license_key=license_key or ''), 500
         
     except Exception as e:
-        logger.error(f"Error processing payment success: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        error_msg = str(e) if str(e) else 'Unknown error occurred'
+        logger.error(f"Error in payment_success: {error_msg}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return render_template('payment_success.html',
+                             success=False,
+                             error=error_msg,
+                             license_key=request.args.get('license_key', '')), 500
 
 @payments_bp.route('/webhook', methods=['POST'])
 def stripe_webhook():

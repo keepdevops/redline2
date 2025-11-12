@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Payment Success - REDLINE{% endblock %}
+
+{% block page_title %}Payment Successful!{% endblock %}
+{% block page_subtitle %}Your payment has been processed successfully{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        {% if success %}
+        <div class="card border-success">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-check-circle me-2"></i>Payment Successful!
+                </h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-4">
+                    <i class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
+                </div>
+                <h4>Thank you for your purchase!</h4>
+                <p class="lead">Your payment has been processed and hours have been added to your account.</p>
+                
+                <div class="alert alert-info">
+                    <strong>Hours Added:</strong> {{ hours_added }}<br>
+                    <strong>Hours Remaining:</strong> {{ hours_remaining }}
+                </div>
+                
+                <p>You now have access to REDLINE!</p>
+                
+                <div class="d-grid gap-2 mt-4">
+                    <a href="{{ url_for('main.dashboard') }}?license_key={{ license_key }}" class="btn btn-primary btn-lg" id="dashboardBtn">
+                        <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
+                    </a>
+                    <a href="{{ url_for('payments.payment_tab') }}?license_key={{ license_key }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-credit-card me-2"></i>View Payment History
+                    </a>
+                </div>
+                
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Redirecting to dashboard in <span id="countdown">3</span> seconds...
+                    </small>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-exclamation-circle me-2"></i>Payment Error
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger">
+                    <strong>Error:</strong> {{ error }}
+                </div>
+                <p>If you were charged, please contact support with your payment details.</p>
+                <div class="d-grid gap-2 mt-4">
+                    <a href="{{ url_for('payments.payment_tab') }}" class="btn btn-primary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Payment
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-redirect to dashboard after 3 seconds if successful
+{% if success %}
+(function() {
+    let countdown = 3;
+    const countdownEl = document.getElementById('countdown');
+    const dashboardBtn = document.getElementById('dashboardBtn');
+    
+    // Update countdown every second
+    const interval = setInterval(function() {
+        countdown--;
+        if (countdownEl) {
+            countdownEl.textContent = countdown;
+        }
+        
+        if (countdown <= 0) {
+            clearInterval(interval);
+            // Redirect to dashboard
+            if (dashboardBtn) {
+                dashboardBtn.click();
+            } else {
+                window.location.href = "{{ url_for('main.dashboard') }}?license_key={{ license_key }}";
+            }
+        }
+    }, 1000);
+})();
+{% endif %}
+</script>
+{% endblock %}
+
