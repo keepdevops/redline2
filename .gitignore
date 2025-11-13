@@ -106,8 +106,12 @@ data_config.ini.backup
 redline_data.duckdb
 temp_data.duckdb
 
+# License files (may contain sensitive data)
+licenses.json
+
 # Logs and temporary files
 *.log
+*.log.backup.*
 logs/
 temp/
 tmp/
@@ -148,8 +152,11 @@ package.json
 
 # Test files and outputs
 test_*.py
+test_*.html
+test_*.sh
 test_indexing.py
 test_rate_limiting.py
+debug_*.html
 /opt/
 tmp/
 temp/
