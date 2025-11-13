@@ -77,7 +77,7 @@ platformdirs>=4.0.0  # For cross-platform directory handling
 
 # Payment Processing
 # Updated for security vulnerabilities (Jan 2025)
-stripe>=7.0.0
+stripe>=13.2.0
 
 # Cloud Storage (optional)
 # Updated for security vulnerabilities (Jan 2025) - using latest available version
