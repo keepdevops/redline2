@@ -62,8 +62,8 @@ body:not([class*="theme-"]) {
 
 /* Sidebar */
 .sidebar {
-    background-color: var(--light-color, #ffffff);
-    border-right: 1px solid #dee2e6;
+    background-color: var(--light-color);
+    border-right: 1px solid var(--border-color);
     min-height: calc(100vh - var(--header-height));
     padding: 0;
     box-shadow: 2px 0 4px rgba(0,0,0,0.1);
@@ -95,7 +95,7 @@ body:not([class*="theme-"]) {
 
 .sidebar .list-group-item:hover {
     background-color: var(--primary-color);
-    color: white;
+    color: var(--text-white);
     transform: translateX(5px);
 }
 
@@ -139,10 +139,11 @@ body:not([class*="theme-"]) {
 }
 
 .card-header {
-    background-color: var(--light-color, #ffffff);
-    border-bottom: 1px solid #e9ecef;
+    background-color: var(--light-color);
+    border-bottom: 1px solid var(--border-color);
     border-radius: 12px 12px 0 0 !important;
     padding: 1.25rem 1.5rem;
+    color: var(--text-primary);
 }
 
 .card-body {
@@ -175,46 +176,76 @@ body:not([class*="theme-"]) {
 
 /* Tables */
 .table {
-    background-color: var(--light-color, #ffffff);
+    background-color: var(--light-color);
+    color: var(--text-primary);
     border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+/* Theme-aware table-dark replacement */
+.table-dark,
+.table thead.table-dark,
+thead.table-dark {
+    background-color: var(--dark-color) !important;
+    color: var(--text-white) !important;
+}
+
+.table-dark th,
+.table thead.table-dark th,
+thead.table-dark th {
+    background-color: #1e293b !important;
+    color: #ffffff !important;
+    border-color: #dee2e6 !important;
+    display: table-cell !important;
+    visibility: visible !important;
+}
+
 .table thead th {
-    background-color: var(--light-color, #f8fafc);
-    border-bottom: 2px solid #dee2e6;
+    background-color: #1e293b !important;
+    border-bottom: 2px solid #dee2e6 !important;
     font-weight: 600;
-    color: var(--text-primary, var(--dark-color));
+    color: #ffffff !important;
     padding: 1rem;
+    display: table-cell !important;
+    visibility: visible !important;
 }
 
 .table tbody td {
     padding: 0.75rem 1rem;
     vertical-align: middle;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--light-color);
+    color: var(--text-primary);
 }
 
 .table tbody tr:hover {
-    background-color: var(--light-color, #f8f9fa);
+    background-color: var(--secondary-color);
+    color: var(--text-white);
 }
 
 /* Forms */
 .form-control {
     border-radius: 8px;
-    border: 1px solid #ced4da;
+    border: 1px solid var(--border-color);
+    background-color: var(--light-color);
+    color: var(--text-primary);
     padding: 0.75rem 1rem;
     transition: all 0.3s ease;
 }
 
 .form-control:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    background-color: var(--light-color);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
 }
 
 .form-select {
     border-radius: 8px;
-    border: 1px solid #ced4da;
+    border: 1px solid var(--border-color);
+    background-color: var(--light-color);
+    color: var(--text-primary);
     padding: 0.75rem 1rem;
 }
 
@@ -239,7 +270,8 @@ body:not([class*="theme-"]) {
 }
 
 .loading-spinner {
-    background-color: #ffffff;
+    background-color: var(--light-color);
+    color: var(--text-primary);
     padding: 2rem;
     border-radius: 12px;
     text-align: center;
@@ -258,19 +290,21 @@ body:not([class*="theme-"]) {
 }
 
 .toast-header {
-    background-color: var(--light-color, #ffffff);
-    border-bottom: 1px solid #e9ecef;
+    background-color: var(--light-color);
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .toast-body {
-    background-color: var(--light-color, #ffffff);
+    background-color: var(--light-color);
+    color: var(--text-primary);
 }
 
 /* Progress Bars */
 .progress {
     height: 8px;
     border-radius: 4px;
-    background-color: #e9ecef;
+    background-color: var(--border-color);
 }
 
 .progress-bar {
@@ -287,27 +321,27 @@ body:not([class*="theme-"]) {
 }
 
 .alert-success {
-    background-color: #d1fae5;
-    color: #065f46;
-    border-left: 4px solid #059669;
+    background-color: var(--success-color);
+    color: var(--text-white);
+    border-left: 4px solid var(--success-color);
 }
 
 .alert-danger {
-    background-color: #fee2e2;
-    color: #991b1b;
-    border-left: 4px solid #dc2626;
+    background-color: var(--danger-color);
+    color: var(--text-white);
+    border-left: 4px solid var(--danger-color);
 }
 
 .alert-warning {
-    background-color: #fef3c7;
-    color: #92400e;
-    border-left: 4px solid #d97706;
+    background-color: var(--warning-color);
+    color: var(--text-white);
+    border-left: 4px solid var(--warning-color);
 }
 
 .alert-info {
-    background-color: #e0f2fe;
-    color: #0e7490;
-    border-left: 4px solid #0891b2;
+    background-color: var(--info-color);
+    color: var(--text-white);
+    border-left: 4px solid var(--info-color);
 }
 
 /* Data Tables */
@@ -342,7 +376,8 @@ body:not([class*="theme-"]) {
 
 /* Filters */
 .filter-section {
-    background-color: var(--light-color, #ffffff);
+    background-color: var(--light-color);
+    color: var(--text-primary);
     border-radius: 12px;
     padding: 1.5rem;
     margin-bottom: 2rem;
@@ -364,7 +399,8 @@ body:not([class*="theme-"]) {
 
 /* Charts */
 .chart-container {
-    background-color: var(--light-color, #ffffff);
+    background-color: var(--light-color);
+    color: var(--text-primary);
     border-radius: 12px;
     padding: 1.5rem;
     margin-bottom: 2rem;
@@ -379,8 +415,8 @@ body:not([class*="theme-"]) {
 
 /* Stats Cards */
 .stats-card {
-    background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
-    color: white;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--dark-color) 100%);
+    color: var(--text-white);
     border-radius: 12px;
     padding: 1.5rem;
     margin-bottom: 2rem;
@@ -401,23 +437,24 @@ body:not([class*="theme-"]) {
 
 /* File Upload */
 .file-upload-area {
-    border: 2px dashed #ced4da;
+    border: 2px dashed var(--border-color);
     border-radius: 12px;
     padding: 3rem 2rem;
     text-align: center;
-    background-color: #f8f9fa;
+    background-color: var(--light-color);
+    color: var(--text-primary);
     transition: all 0.3s ease;
     cursor: pointer;
 }
 
 .file-upload-area:hover {
     border-color: var(--primary-color);
-    background-color: #e3f2fd;
+    background-color: var(--light-color);
 }
 
 .file-upload-area.dragover {
     border-color: var(--primary-color);
-    background-color: #e3f2fd;
+    background-color: var(--light-color);
 }
 
 /* Responsive Design */
@@ -463,54 +500,8 @@ body:not([class*="theme-"]) {
     }
 }
 
-/* Dark Mode Support */
-@media (prefers-color-scheme: dark) {
-    :root {
-        --light-color: #343a40;
-        --dark-color: #ffffff;
-    }
-    
-    body {
-        background-color: #1a1a1a;
-        color: #ffffff;
-    }
-    
-    .sidebar {
-        background-color: #2d3748;
-        border-right-color: #4a5568;
-    }
-    
-    .card {
-        background-color: #2d3748;
-        color: #ffffff;
-    }
-    
-    .table {
-        background-color: #2d3748;
-        color: #ffffff;
-    }
-    
-    .table thead th {
-        background-color: #4a5568;
-        color: #ffffff;
-    }
-    
-    .table tbody tr:hover {
-        background-color: #4a5568;
-    }
-    
-    .form-control {
-        background-color: #4a5568;
-        border-color: #718096;
-        color: #ffffff;
-    }
-    
-    .form-control:focus {
-        background-color: #4a5568;
-        border-color: var(--primary-color);
-        color: #ffffff;
-    }
-}
+/* Dark Mode Support - Now handled by theme classes */
+/* Removed hardcoded dark mode colors - use theme-dark class instead */
 
 /* Animation Classes */
 .fade-in {
@@ -539,89 +530,94 @@ body:not([class*="theme-"]) {
 }
 
 .bg-success {
-    background-color: #059669 !important;
-    color: white !important;
+    background-color: var(--success-color) !important;
+    color: var(--text-white) !important;
 }
 
 .bg-danger {
-    background-color: #dc2626 !important;
-    color: white !important;
+    background-color: var(--danger-color) !important;
+    color: var(--text-white) !important;
 }
 
 .bg-warning {
-    background-color: #d97706 !important;
-    color: white !important;
+    background-color: var(--warning-color) !important;
+    color: var(--text-white) !important;
 }
 
 .bg-info {
-    background-color: #0891b2 !important;
-    color: white !important;
+    background-color: var(--info-color) !important;
+    color: var(--text-white) !important;
 }
 
 .bg-primary {
-    background-color: #2563eb !important;
-    color: white !important;
+    background-color: var(--primary-color) !important;
+    color: var(--text-white) !important;
 }
 
 .bg-secondary {
-    background-color: #64748b !important;
-    color: white !important;
+    background-color: var(--secondary-color) !important;
+    color: var(--text-white) !important;
 }
 
 /* Color-blind friendly overrides for Bootstrap classes */
 .btn-primary {
     background-color: var(--primary-color) !important;
     border-color: var(--primary-color) !important;
-    color: white !important;
+    color: var(--text-white) !important;
 }
 
 .btn-primary:hover {
-    background-color: #1d4ed8 !important;
-    border-color: #1d4ed8 !important;
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    opacity: 0.9;
 }
 
 .btn-success {
     background-color: var(--success-color) !important;
     border-color: var(--success-color) !important;
-    color: white !important;
+    color: var(--text-white) !important;
 }
 
 .btn-success:hover {
-    background-color: #047857 !important;
-    border-color: #047857 !important;
+    background-color: var(--success-color) !important;
+    border-color: var(--success-color) !important;
+    opacity: 0.9;
 }
 
 .btn-warning {
     background-color: var(--warning-color) !important;
     border-color: var(--warning-color) !important;
-    color: white !important;
+    color: var(--text-white) !important;
 }
 
 .btn-warning:hover {
-    background-color: #b45309 !important;
-    border-color: #b45309 !important;
+    background-color: var(--warning-color) !important;
+    border-color: var(--warning-color) !important;
+    opacity: 0.9;
 }
 
 .btn-danger {
     background-color: var(--danger-color) !important;
     border-color: var(--danger-color) !important;
-    color: white !important;
+    color: var(--text-white) !important;
 }
 
 .btn-danger:hover {
-    background-color: #b91c1c !important;
-    border-color: #b91c1c !important;
+    background-color: var(--danger-color) !important;
+    border-color: var(--danger-color) !important;
+    opacity: 0.9;
 }
 
 .btn-info {
     background-color: var(--info-color) !important;
     border-color: var(--info-color) !important;
-    color: white !important;
+    color: var(--text-white) !important;
 }
 
 .btn-info:hover {
-    background-color: #0e7490 !important;
-    border-color: #0e7490 !important;
+    background-color: var(--info-color) !important;
+    border-color: var(--info-color) !important;
+    opacity: 0.9;
 }
 
 /* Text color overrides */
@@ -665,27 +661,27 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 p, span, div {
-    color: var(--text-primary, #000000);
+    color: var(--text-primary);
 }
 
 .text-muted {
-    color: var(--text-muted, #666666) !important;
+    color: var(--text-muted) !important;
 }
 
 .text-secondary {
-    color: var(--text-secondary, #333333) !important;
+    color: var(--text-secondary) !important;
 }
 
 .text-light {
-    color: var(--text-light, #999999) !important;
+    color: var(--text-light) !important;
 }
 
 .text-dark {
-    color: var(--text-dark, #000000) !important;
+    color: var(--text-dark) !important;
 }
 
 .text-white {
-    color: var(--text-white, #ffffff) !important;
+    color: var(--text-white) !important;
 }
 
 /* Utility Classes */
@@ -730,6 +726,6 @@ p, span, div {
     
     .card {
         box-shadow: none;
-        border: 1px solid #dee2e6;
+        border: 1px solid var(--border-color);
     }
 }

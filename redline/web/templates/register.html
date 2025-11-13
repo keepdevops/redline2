@@ -5,6 +5,48 @@
 {% block page_title %}Get Your License Key{% endblock %}
 {% block page_subtitle %}Create a new account to start using REDLINE{% endblock %}
 
+{% block extra_css %}
+<style>
+    .card-header.bg-primary {
+        background-color: var(--primary-color) !important;
+        color: var(--text-white) !important;
+    }
+    .card {
+        background-color: var(--light-color);
+        color: var(--text-primary);
+        border-color: var(--border-color);
+    }
+    .card-body {
+        background-color: var(--light-color);
+        color: var(--text-primary);
+    }
+    .form-label {
+        color: var(--text-primary);
+    }
+    .form-control, .form-select {
+        background-color: var(--light-color);
+        color: var(--text-primary);
+        border-color: var(--border-color);
+    }
+    .form-control:focus, .form-select:focus {
+        background-color: var(--light-color);
+        color: var(--text-primary);
+        border-color: var(--primary-color);
+    }
+    .text-muted {
+        color: var(--text-muted) !important;
+    }
+    .text-danger {
+        color: var(--danger-color) !important;
+    }
+    .alert-info {
+        background-color: var(--info-color);
+        color: var(--text-white);
+        border-color: var(--info-color);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-8 col-lg-6">

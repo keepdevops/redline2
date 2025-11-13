@@ -5,6 +5,86 @@
 {% block page_title %}Payment & Access Time{% endblock %}
 {% block page_subtitle %}Purchase access hours and manage your subscription{% endblock %}
 
+{% block extra_css %}
+<style>
+    .card-header.bg-primary {
+        background-color: var(--primary-color) !important;
+        color: var(--text-white) !important;
+    }
+    .card {
+        background-color: var(--light-color);
+        color: var(--text-primary);
+        border-color: var(--border-color);
+    }
+    .card-body {
+        background-color: var(--light-color);
+        color: var(--text-primary);
+    }
+    .card-header {
+        background-color: var(--light-color);
+        color: var(--text-primary);
+        border-bottom-color: var(--border-color);
+    }
+    .form-label {
+        color: var(--text-primary);
+    }
+    .form-control, .form-select {
+        background-color: var(--light-color);
+        color: var(--text-primary);
+        border-color: var(--border-color);
+    }
+    .form-control:focus, .form-select:focus {
+        background-color: var(--light-color);
+        color: var(--text-primary);
+        border-color: var(--primary-color);
+    }
+    .text-muted {
+        color: var(--text-muted) !important;
+    }
+    .text-danger {
+        color: var(--danger-color) !important;
+    }
+    .text-success {
+        color: var(--success-color) !important;
+    }
+    .text-warning {
+        color: var(--warning-color) !important;
+    }
+    .alert {
+        background-color: var(--light-color);
+        color: var(--text-primary);
+        border-color: var(--border-color);
+    }
+    .alert-info {
+        background-color: var(--info-color);
+        color: var(--text-white);
+        border-color: var(--info-color);
+    }
+    .alert-warning {
+        background-color: var(--warning-color);
+        color: var(--text-white);
+        border-color: var(--warning-color);
+    }
+    .alert-success {
+        background-color: var(--success-color);
+        color: var(--text-white);
+        border-color: var(--success-color);
+    }
+    .table {
+        background-color: var(--light-color);
+        color: var(--text-primary);
+    }
+    .table th {
+        background-color: var(--dark-color);
+        color: var(--text-white);
+    }
+    .table td {
+        background-color: var(--light-color);
+        color: var(--text-primary);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row">
     <!-- Balance Display -->

@@ -64,8 +64,8 @@
             color: var(--text-primary);
         }
         .data-info {
-            background-color: var(--light-color);
-            color: var(--text-primary);
+            background-color: var(--light-color) !important;
+            color: var(--text-primary) !important;
             padding: 15px;
             border-radius: 4px;
             margin-bottom: 15px;
@@ -77,12 +77,23 @@
             height: 3rem;
         }
         .table th {
-            background-color: var(--dark-color) !important;
-            color: var(--text-white) !important;
+            background-color: #1e293b !important;
+            color: #ffffff !important;
             font-weight: bold;
             position: sticky;
             top: 0;
             z-index: 10;
+            display: table-cell !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        thead {
+            display: table-header-group !important;
+            visibility: visible !important;
+        }
+        thead.table-dark {
+            display: table-header-group !important;
+            visibility: visible !important;
         }
         .table td {
             vertical-align: middle;
@@ -120,28 +131,10 @@
             border-bottom-color: var(--border-color);
         }
         
-        /* Dark mode support */
-        body.theme-dark .card,
-        body.theme-dark .card-body,
-        body.theme-dark .card-header {
-            background-color: var(--light-color);
-            color: var(--text-primary);
-        }
-        
-        body.theme-dark .table td {
-            background-color: var(--light-color);
-            color: var(--text-primary);
-        }
-        
-        body.theme-dark .file-list-item {
-            background-color: var(--light-color);
-            color: var(--text-primary);
-            border-color: var(--border-color);
-        }
-        
-        body.theme-dark .data-info {
-            background-color: var(--dark-color);
-            color: var(--text-white);
+        /* Data info should use light background, not dark */
+        .data-info {
+            background-color: var(--light-color) !important;
+            color: var(--text-primary) !important;
         }
         
         /* Fix for any floating elements */
@@ -477,14 +470,26 @@ function loadFileData(filename) {
                 data.data = [];
             }
             
-            // Safe logging - all checks done above
-            console.log('Data loaded successfully:', {
-                filename: data.filename,
-                total_rows: data.total_rows,
-                column_count: (data.columns && Array.isArray(data.columns)) ? data.columns.length : 0,
-                columns: data.columns || [],
-                data_rows: (data.data && Array.isArray(data.data)) ? data.data.length : 0
-            });
+                // Safe logging - all checks done above
+                console.log('Data loaded successfully:', {
+                    filename: data.filename,
+                    total_rows: data.total_rows,
+                    column_count: (data.columns && Array.isArray(data.columns)) ? data.columns.length : 0,
+                    columns: data.columns || [],
+                    data_rows: (data.data && Array.isArray(data.data)) ? data.data.length : 0
+                });
+                
+                // Debug: Log the actual columns array
+                console.log('Columns array:', data.columns);
+                console.log('Columns array type:', typeof data.columns, 'Is array:', Array.isArray(data.columns));
+                console.log('Columns array length:', data.columns ? data.columns.length : 0);
+                console.log('First row keys:', data.data && data.data.length > 0 ? Object.keys(data.data[0]) : 'No data');
+                console.log('Calling displayDataTable with data:', {
+                    hasColumns: !!data.columns,
+                    columnsLength: data.columns ? data.columns.length : 0,
+                    hasData: !!data.data,
+                    dataLength: data.data ? data.data.length : 0
+                });
             
                 window.currentFile = filename;
                 window.currentData = data.data;
@@ -553,26 +558,37 @@ function loadFileData(filename) {
 
 // Display data table (like tkinter data_tree)
 function displayDataTable(data) {
+    console.log('displayDataTable called with:', data);
+    console.log('displayDataTable - data.columns:', data.columns);
+    console.log('displayDataTable - data.data:', data.data ? data.data.length : 0, 'rows');
+    
     const dataDisplay = document.getElementById('dataDisplay');
     if (!dataDisplay) {
         console.error('Data display container not found');
         return;
     }
-    
+
     // Validate data structure
     if (!data) {
+        console.error('displayDataTable: No data received');
         dataDisplay.innerHTML = '<div class="text-center text-danger">No data received</div>';
         return;
     }
     
     // Ensure columns array exists
+    console.log('displayDataTable: Checking columns. data.columns:', data.columns, 'Type:', typeof data.columns, 'Is array:', Array.isArray(data.columns));
     if (!data.columns || !Array.isArray(data.columns)) {
+        console.log('displayDataTable: Columns missing or not array, attempting extraction');
         if (data.data && Array.isArray(data.data) && data.data.length > 0) {
             // Extract columns from first row
             data.columns = Object.keys(data.data[0]);
+            console.log('displayDataTable: Extracted columns from first row:', data.columns);
         } else {
             data.columns = [];
+            console.warn('displayDataTable: No data to extract columns from');
         }
+    } else {
+        console.log('displayDataTable: Using existing columns array:', data.columns);
     }
     
     // Ensure total_rows exists
@@ -581,6 +597,7 @@ function displayDataTable(data) {
     
     // Ensure columns is always an array before accessing length
     const columnCount = (data.columns && Array.isArray(data.columns)) ? data.columns.length : 0;
+    console.log('displayDataTable: Final columnCount:', columnCount, 'columns:', data.columns);
     
     // Data info
     let html = `
@@ -592,23 +609,59 @@ function displayDataTable(data) {
     
     if (data.data && data.data.length > 0 && columnCount > 0) {
         // Create table with proper Bootstrap styling
-        html += '<div class="table-responsive">';
-        html += '<table class="table table-striped table-hover table-sm">';
+        html += '<div class="table-responsive" style="overflow-x: auto;">';
+        html += '<table class="table table-striped table-hover table-sm" style="border-collapse: collapse; width: 100%;">';
         
         // Headers - use actual column names
-        html += '<thead class="table-dark"><tr>';
-        data.columns.forEach(col => {
-            // Fix: Handle undefined/null column names
-            const displayCol = (col !== null && col !== undefined && col !== '') ? col : 'Column';
-            html += `<th scope="col">${displayCol}</th>`;
-        });
+        console.log('Creating table headers. Columns:', data.columns, 'Column count:', columnCount);
+        
+        // Determine columns to use
+        let columnsToUse = [];
+        if (data.columns && Array.isArray(data.columns) && data.columns.length > 0) {
+            columnsToUse = data.columns;
+            console.log('Using columns from data.columns:', columnsToUse);
+        } else if (data.data && data.data.length > 0) {
+            // Fallback: extract columns from first row
+            columnsToUse = Object.keys(data.data[0]);
+            console.log('Extracted columns from first row:', columnsToUse);
+        } else {
+            console.warn('No columns found and no data to extract from');
+        }
+        
+        // Use hardcoded colors to ensure visibility - dark background with white text
+        const darkColor = '#1e293b';  // Dark blue-gray
+        const whiteColor = '#ffffff';  // Pure white
+        console.log('Using hardcoded colors - dark:', darkColor, 'white:', whiteColor);
+        
+        // HTML escape function to prevent < > from being interpreted as HTML tags
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        html += `<thead class="table-dark" style="display: table-header-group !important; visibility: visible !important; opacity: 1 !important; height: auto !important; min-height: 40px !important; background-color: ${darkColor} !important;"><tr style="display: table-row !important;">`;
+        if (columnsToUse.length > 0) {
+            columnsToUse.forEach((col, index) => {
+                // Fix: Handle undefined/null column names and HTML escape them
+                const displayCol = (col !== null && col !== undefined && col !== '') ? String(col) : `Column_${index + 1}`;
+                const escapedCol = escapeHtml(displayCol);  // Escape HTML to prevent < > from being interpreted as tags
+                console.log(`Adding header ${index}: "${displayCol}" (escaped: "${escapedCol}") with background: ${darkColor}, color: ${whiteColor}`);
+                html += `<th scope="col" style="background-color: ${darkColor} !important; color: ${whiteColor} !important; padding: 0.75rem !important; font-weight: 600 !important; display: table-cell !important; visibility: visible !important; opacity: 1 !important; border: 1px solid rgba(255,255,255,0.2) !important; min-height: 40px !important; height: auto !important; text-align: left !important; white-space: nowrap !important;">${escapedCol}</th>`;
+            });
+        } else {
+            console.error('No columns available to display!');
+            html += `<th scope="col" style="background-color: ${darkColor} !important; color: ${whiteColor} !important; display: table-cell !important; visibility: visible !important;">No Columns</th>`;
+        }
         html += '</tr></thead>';
         
         // Data rows - display actual values
         html += '<tbody>';
+        // Use the same columns array for data rows
+        const columnsForRows = columnsToUse.length > 0 ? columnsToUse : (data.columns || []);
         data.data.slice(0, 100).forEach((row, index) => { // Limit to 100 rows like tkinter
             html += '<tr>';
-            data.columns.forEach(col => {
+            columnsForRows.forEach(col => {
                 const value = row[col];
                 // Format numeric values properly
                 let displayValue = '';
