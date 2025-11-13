@@ -242,9 +242,15 @@
         }
         
         fetch(`${API_BASE}/balance?license_key=${encodeURIComponent(licenseKey)}`)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
             .then(data => {
-                if (data.success) {
+                if (data.success || (data.hours_remaining !== undefined)) {
+                    // Accept both {success: true, ...} and {hours_remaining: ...} formats
                     currentBalance = data;
                     // Always update timestamp when fetching from server
                     updateBalanceDisplay(data, true);
@@ -255,7 +261,13 @@
                     }));
                 } else {
                     if (!silent) {
-                        console.error('Failed to load balance:', data.error);
+                        console.error('Failed to load balance:', data.error || data);
+                    }
+                    // Show error in display
+                    const balanceHoursEl = document.getElementById('balanceHours');
+                    if (balanceHoursEl) {
+                        balanceHoursEl.textContent = 'Error';
+                        balanceHoursEl.className = 'balance-hours text-danger';
                     }
                 }
             })
@@ -263,6 +275,12 @@
                 console.error('Error loading balance:', error);
                 if (!silent) {
                     console.error('Failed to load balance:', error);
+                }
+                // Show error in display
+                const balanceHoursEl = document.getElementById('balanceHours');
+                if (balanceHoursEl) {
+                    balanceHoursEl.textContent = 'Error';
+                    balanceHoursEl.className = 'balance-hours text-danger';
                 }
             });
     }
@@ -344,9 +362,12 @@
         // Load balance from cache first (for instant display)
         const cacheLoaded = loadBalanceFromCache();
         
-        // Start balance refresh (skip initial load if cache was used)
-        // But if no cache, we need to load immediately
-        startBalanceRefresh(!cacheLoaded);
+        // Always load balance immediately, even if cache was loaded
+        // This ensures fresh data and updates the display
+        loadBalance(false); // false = not silent, show errors
+        
+        // Start balance refresh (skip initial load since we just loaded)
+        startBalanceRefresh(true); // true = skip initial load
         
         // Ensure display is visible - create placeholder if needed
         let balanceDisplay = document.getElementById('globalBalanceDisplay');
