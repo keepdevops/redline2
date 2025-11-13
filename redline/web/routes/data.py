@@ -560,17 +560,28 @@ def load_data():
         data = request.get_json()
         filename = data.get('filename')
         
+        # Force logging to stderr for debugging
+        import sys
+        print(f"[DEBUG] load_data() called with filename: {filename}", file=sys.stderr, flush=True)
+        logger.info(f"load_data() called with filename: {filename}")
+        
         if not filename:
             return jsonify({'error': 'No filename provided'}), 400
         
         # Determine file path - check multiple locations in order
+        # Use current working directory (Gunicorn sets this correctly)
         data_dir = os.path.join(os.getcwd(), 'data')
+        
+        print(f"[DEBUG] load_data() - filename: {filename}, data_dir: {data_dir}, cwd: {os.getcwd()}, data_dir_exists: {os.path.exists(data_dir)}", file=sys.stderr, flush=True)
+        logger.info(f"load_data() - filename: {filename}, data_dir: {data_dir}, cwd: {os.getcwd()}, data_dir_exists: {os.path.exists(data_dir)}")
         data_path = None
         
         # Check locations in order of priority:
         # 1. Root data directory
         # 2. data/stooq directory (for Stooq downloads)
         # 3. data/downloaded directory (for other downloads)
+        # 4. data/uploads directory (for uploaded files)
+        # 5. data/converted directory (recursively - for converted files)
         search_paths = [
             os.path.join(data_dir, filename),
             os.path.join(data_dir, 'stooq', filename),
@@ -578,13 +589,58 @@ def load_data():
             os.path.join(data_dir, 'uploads', filename)
         ]
         
+        # Also search in converted directory recursively
+        converted_dir = os.path.join(data_dir, 'converted')
+        converted_path = None
+        logger.info(f"Checking converted_dir: {converted_dir}, exists: {os.path.exists(converted_dir)}")
+        if os.path.exists(converted_dir):
+            # First try direct path (most common case)
+            direct_converted_path = os.path.join(converted_dir, filename)
+            logger.info(f"Checking converted direct path: {direct_converted_path}, exists: {os.path.exists(direct_converted_path)}")
+            if os.path.exists(direct_converted_path) and os.path.isfile(direct_converted_path):
+                converted_path = direct_converted_path
+                logger.info(f"✅ Found file in converted directory: {converted_path}")
+            else:
+                # If not found, search recursively
+                logger.info(f"File not in converted root, searching recursively...")
+                for root, dirs, files in os.walk(converted_dir):
+                    if filename in files:
+                        potential_path = os.path.join(root, filename)
+                        if os.path.exists(potential_path) and os.path.isfile(potential_path):
+                            converted_path = potential_path
+                            logger.info(f"✅ Found file in converted subdirectory: {converted_path}")
+                            break
+        
+        # Add converted path to search paths if found
+        if converted_path:
+            search_paths.append(converted_path)
+            logger.info(f"Added converted path to search: {converted_path}")
+        
+        # Try all search paths
+        logger.info(f"Searching {len(search_paths)} paths for {filename}")
         for path in search_paths:
-            if os.path.exists(path):
+            exists = os.path.exists(path)
+            isfile = os.path.isfile(path) if exists else False
+            logger.info(f"  Checking: {path} - exists: {exists}, isfile: {isfile}")
+            if exists and isfile:
                 data_path = path
+                logger.info(f"✅ Found file at: {data_path}")
                 break
         
         if not data_path or not os.path.exists(data_path):
-            return jsonify({'error': 'File not found'}), 404
+            # Provide helpful error message with searched paths
+            import sys
+            print(f"[DEBUG] ❌ File not found: {filename}. Searched in: {', '.join(search_paths)}", file=sys.stderr, flush=True)
+            print(f"[DEBUG]    data_dir: {data_dir}, cwd: {os.getcwd()}", file=sys.stderr, flush=True)
+            logger.warning(f"❌ File not found: {filename}. Searched in: {', '.join(search_paths)}")
+            logger.warning(f"   data_dir: {data_dir}, cwd: {os.getcwd()}")
+            return jsonify({
+                'error': 'File not found',
+                'message': f'File "{filename}" not found in data directories',
+                'searched_paths': search_paths[:4],  # Don't include all converted paths
+                'data_dir': data_dir,
+                'cwd': os.getcwd()
+            }), 404
         
         # Use EXACT same data loading pipeline as Tkinter GUI
         # Detect format from file extension (same as Tkinter _detect_format_from_path)
@@ -633,12 +689,15 @@ def load_data():
         # Clean up malformed CSV headers - remove unnamed/empty columns
         df = clean_dataframe_columns(df)
         
+        # Ensure columns exist (even for empty DataFrames)
+        columns = list(df.columns) if len(df.columns) > 0 else []
+        
         # Convert to JSON-serializable format
         data_dict = {
-            'columns': list(df.columns),
-            'data': df.head(1000).to_dict('records'),  # Limit to 1000 rows for web display
+            'columns': columns,
+            'data': df.head(1000).to_dict('records') if len(df) > 0 else [],  # Limit to 1000 rows for web display
             'total_rows': len(df),
-            'dtypes': df.dtypes.astype(str).to_dict(),
+            'dtypes': df.dtypes.astype(str).to_dict() if len(df.columns) > 0 else {},
             'filename': filename
         }
         
@@ -778,76 +837,6 @@ def get_columns(filename):
         
     except Exception as e:
         logger.error(f"Error listing files: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-@data_bp.route('/load', methods=['POST'])
-@rate_limit("30 per minute")
-def load_file_data():
-    """Load data from a file."""
-    try:
-        data = request.get_json()
-        filename = data.get('filename')
-        
-        if not filename:
-            return jsonify({'error': 'Filename is required'}), 400
-        
-        # Determine file path - check multiple locations
-        data_dir = os.path.join(os.getcwd(), 'data')
-        file_path = None
-        
-        # Check locations in order of priority:
-        # 1. Root data directory
-        # 2. data/stooq directory (for Stooq downloads)
-        # 3. data/downloaded directory (for other downloads)
-        # 4. data/uploads directory (for uploaded files)
-        search_paths = [
-            os.path.join(data_dir, filename),
-            os.path.join(data_dir, 'stooq', filename),
-            os.path.join(data_dir, 'downloaded', filename),
-            os.path.join(data_dir, 'uploads', filename)
-        ]
-        
-        for path in search_paths:
-            if os.path.exists(path):
-                file_path = path
-                break
-        
-        if not file_path or not os.path.exists(file_path):
-            return jsonify({'error': 'File not found'}), 404
-        
-        # Detect file format
-        format_type = _detect_format_from_path(file_path)
-        if not format_type:
-            return jsonify({'error': 'Unsupported file format'}), 400
-        
-        # Load data
-        file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
-        is_large_file = file_size_mb > 50  # 50MB threshold
-        
-        if is_large_file and format_type in ['csv', 'txt']:
-            df = _load_large_file_chunked(file_path, format_type)
-        else:
-            df = _load_file_by_format(file_path, format_type)
-        
-        if df.empty:
-            return jsonify({'error': 'No data found in file'}), 404
-        
-        # Clean up malformed CSV headers
-        df = clean_dataframe_columns(df)
-        
-        # Convert to JSON-serializable format
-        data_dict = df.to_dict('records')
-        
-        return jsonify({
-            'data': data_dict,
-            'columns': list(df.columns),
-            'total_rows': len(df),
-            'file_size': os.path.getsize(file_path),
-            'filename': filename
-        })
-        
-    except Exception as e:
-        logger.error(f"Error loading data: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @data_bp.route('/filter', methods=['POST'])

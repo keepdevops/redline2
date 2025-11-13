@@ -128,14 +128,30 @@ class UsageStorage:
         """Log the start of a usage session"""
         try:
             conn = duckdb.connect(self.db_path)
-            conn.execute("""
-                INSERT INTO usage_sessions (session_id, license_key, user_id, start_time, status)
-                VALUES (?, ?, ?, ?, 'active')
-            """, [session_id, license_key, user_id, datetime.now()])
+            # Check if session exists first (DuckDB doesn't support ON CONFLICT reliably)
+            existing = conn.execute("""
+                SELECT session_id FROM usage_sessions WHERE session_id = ?
+            """, [session_id]).fetchone()
+            
+            if existing:
+                # Update existing session (duplicate detected, update instead)
+                conn.execute("""
+                    UPDATE usage_sessions
+                    SET start_time = ?, status = 'active', license_key = ?, user_id = ?
+                    WHERE session_id = ?
+                """, [datetime.now(), license_key, user_id, session_id])
+                logger.debug(f"Updated existing session: {session_id}")
+            else:
+                # Insert new session
+                conn.execute("""
+                    INSERT INTO usage_sessions (session_id, license_key, user_id, start_time, status)
+                    VALUES (?, ?, ?, ?, 'active')
+                """, [session_id, license_key, user_id, datetime.now()])
+                logger.debug(f"Logged session start: {session_id}")
             conn.close()
-            logger.debug(f"Logged session start: {session_id}")
         except Exception as e:
             logger.error(f"Error logging session start: {str(e)}")
+            # Don't raise - allow session to continue even if logging fails
     
     def log_session_end(self, session_id: str, total_hours: float, total_seconds: float):
         """Log the end of a usage session"""

@@ -36,9 +36,22 @@
             <div class="card-body">
                 <!-- License Key Input -->
                 <div class="mb-3">
-                    <label for="licenseKey" class="form-label">License Key</label>
-                    <input type="text" class="form-control" id="licenseKey" placeholder="Enter your license key">
-                    <small class="form-text text-muted">Your license key is required to purchase hours</small>
+                    <label for="licenseKey" class="form-label">
+                        <i class="fas fa-key me-1"></i>License Key
+                        <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="licenseKey" placeholder="Enter your license key (e.g., RL-XXXX-XXXX-XXXX)" autocomplete="off">
+                        <button class="btn btn-outline-secondary" type="button" id="saveLicenseKeyBtn" title="Save license key">
+                            <i class="fas fa-save"></i> Save
+                        </button>
+                    </div>
+                    <small class="form-text text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Your license key is required to purchase hours and access REDLINE features.
+                        <a href="{{ url_for('main.register') }}" class="text-decoration-none">Don't have one? Register here.</a>
+                    </small>
+                    <div id="licenseKeyStatus" class="mt-2"></div>
                 </div>
                 
                 <!-- Hour Packages -->

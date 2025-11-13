@@ -185,7 +185,7 @@ def create_app():
             return  # Allow HTML pages without license key
         
         # Exclude health/status endpoints (don't require license)
-        if request.path in ['/health', '/tasks/health', '/api/status']:
+        if request.path in ['/health', '/tasks/health', '/api/status', '/status']:
             return
         
         # Check if this is an API endpoint that requires license key
@@ -315,16 +315,40 @@ def create_app():
         if not usage_tracker:
             return
         
-        # Get session ID from request or create new one
-        session_id = request.headers.get('X-Session-ID')
-        if not session_id:
-            # Create new session (stored in response header)
+        # Track usage per license key (session-independent)
+        # This ensures hours are deducted even if sessions don't persist
+        from datetime import datetime
+        now = datetime.now()
+        last_deduction = usage_tracker.last_deduction_time.get(license_key)
+        
+        if last_deduction is None:
+            # First time tracking this license, initialize
+            usage_tracker.last_deduction_time[license_key] = now
+            # Create session for logging purposes
             session_id = usage_tracker.start_session(license_key)
-            # Store in g object for after_request
             g.session_id = session_id
         else:
-            # Update existing session
-            usage_tracker.update_session(session_id)
+            # Check if enough time has passed since last deduction
+            time_since_deduction = (now - last_deduction).total_seconds()
+            
+            if time_since_deduction >= usage_tracker.check_interval:
+                # Enough time has passed, deduct hours
+                hours_used = time_since_deduction / 3600.0
+                usage_tracker._deduct_hours(license_key, hours_used, None)
+                # Update last deduction time
+                usage_tracker.last_deduction_time[license_key] = now
+            
+            # Get or create session ID for logging
+            session_id = request.headers.get('X-Session-ID')
+            if not session_id:
+                session_id = usage_tracker.start_session(license_key)
+            else:
+                # Try to update existing session
+                updated = usage_tracker.update_session(session_id)
+                if not updated:
+                    # Session doesn't exist, create new one
+                    session_id = usage_tracker.start_session(license_key)
+            g.session_id = session_id
         
         # Log access to persistent storage
         try:

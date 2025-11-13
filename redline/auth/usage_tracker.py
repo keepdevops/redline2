@@ -28,11 +28,18 @@ class UsageTracker:
         self.active_sessions: Dict[str, Dict] = {}
         self.session_lock = Lock()
         self.license_server_url = os.environ.get('LICENSE_SERVER_URL', 'http://localhost:5001')
-        self.check_interval = float(os.environ.get('USAGE_CHECK_INTERVAL', '300'))  # 5 minutes default
+        self.check_interval = float(os.environ.get('USAGE_CHECK_INTERVAL', '30'))  # 30 seconds default
+        # Track last deduction time per license key (for session-independent tracking)
+        self.last_deduction_time: Dict[str, datetime] = {}
         
     def start_session(self, license_key: str, user_id: Optional[str] = None) -> str:
         """Start a new usage session"""
-        session_id = f"{license_key}_{int(time.time())}"
+        # Use microseconds and a small random component to ensure uniqueness
+        import secrets
+        timestamp = time.time()
+        microsecond_component = int((timestamp - int(timestamp)) * 1000000)
+        random_component = secrets.token_hex(2)  # 4 hex characters for uniqueness
+        session_id = f"{license_key}_{int(timestamp)}_{microsecond_component}_{random_component}"
         
         with self.session_lock:
             self.active_sessions[session_id] = {
@@ -57,24 +64,29 @@ class UsageTracker:
         """Update session and check if hours need to be deducted"""
         with self.session_lock:
             if session_id not in self.active_sessions:
+                # Session doesn't exist - might be from a previous server restart
+                # Return None to indicate session not found
                 return None
             
             session = self.active_sessions[session_id]
             now = datetime.now()
             time_since_check = (now - session['last_check']).total_seconds()
             
-            # Only check if enough time has passed
+            # Always update last_check to current time
+            session['last_check'] = now
+            
+            # Only deduct if enough time has passed since last check
             if time_since_check < self.check_interval:
+                # Not enough time has passed, just update timestamp
                 return session
             
             # Calculate hours used since last check
             hours_used = time_since_check / 3600.0  # Convert seconds to hours
             session['total_seconds'] += time_since_check
-            session['last_check'] = now
             
-            # Deduct hours if significant time has passed (at least 1 minute)
-            if hours_used >= (1.0 / 60.0):  # At least 1 minute
-                self._deduct_hours(session['license_key'], hours_used, session_id)
+            # Deduct hours (no minimum threshold - deduct every check interval)
+            # Since check_interval is 30 seconds, this will deduct every 30 seconds
+            self._deduct_hours(session['license_key'], hours_used, session_id)
             
             return session
     

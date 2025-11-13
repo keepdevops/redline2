@@ -17,7 +17,7 @@ duckdb>=1.4.2  # Updated for security patches
 flask>=3.1.2
 flask-socketio>=5.5.1
 flask-compress>=1.23  # Updated for security patches
-flask-limiter>=3.8.0  # Note: Latest is 4.0.0 but major version change - test compatibility
+flask-limiter>=4.0.0  # Updated to latest major version - test compatibility
 flask-cors>=6.0.1  # Updated for security patches
 gunicorn>=23.0.0
 
@@ -38,7 +38,7 @@ gevent-websocket>=0.10.1
 
 # Background Task Processing
 celery>=5.5.3  # Updated for security patches
-redis>=5.0.0  # Note: Latest is 7.0.1 but major version change - test compatibility before upgrading
+redis>=7.0.1  # Updated to latest major version - test compatibility before deploying
 
 # Optional Dependencies for Enhanced Features
 scikit-learn>=1.7.2  # Updated for security patches

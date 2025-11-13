@@ -140,6 +140,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <span id="dashboardLoadingIndicator" class="navbar-text" style="display: none;">
+                            <i class="fas fa-spinner fa-spin me-1"></i><span id="dashboardLoadingText">Loading...</span>
+                        </span>
+                    </li>
+                    <li class="nav-item">
                         <span class="navbar-text">
                             <i class="fas fa-circle text-success me-1"></i>Online
                         </span>
@@ -336,14 +341,19 @@
                                     console.log('✅ Added license key to headers for:', url);
                                 }
                                 
-                                // Also add to beforeSend if it exists
+                                // Also add to beforeSend if it exists (as backup)
                                 const originalBeforeSend = opts.beforeSend;
                                 opts.beforeSend = function(xhr) {
                                     const key = getLicenseKey();
-                                    if (key && !xhr.getRequestHeader('X-License-Key')) {
-                                        xhr.setRequestHeader('X-License-Key', key);
-                                        console.log('✅ Added license key via beforeSend for:', url);
+                                    if (key) {
+                                        // Set header (jqXHR has setRequestHeader method)
+                                        try {
+                                            xhr.setRequestHeader('X-License-Key', key);
+                                        } catch (e) {
+                                            // Header might already be set, ignore
+                                        }
                                     }
+                                    // Call original beforeSend if it exists
                                     if (originalBeforeSend) {
                                         return originalBeforeSend.apply(this, arguments);
                                     }
@@ -504,6 +514,9 @@
             <script src="{{ url_for('static', filename='js/main.js') }}"></script>
             <script src="{{ url_for('static', filename='js/virtual-scroll.js') }}"></script>
             <script src="{{ url_for('static', filename='js/color-customizer.js') }}"></script>
+            
+            <!-- Global Balance Tracker (loads after license key script) -->
+            <script src="{{ url_for('static', filename='js/balance_tracker.js') }}"></script>
     
     {% block extra_js %}{% endblock %}
     
@@ -555,19 +568,38 @@
         
         // Load system status
         function loadSystemStatus() {
-            $.get('/status')
+            // Get license key - use global function if available, otherwise fallback
+            const licenseKey = (typeof window.getLicenseKey === 'function') 
+                ? window.getLicenseKey() 
+                : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+            
+            // Status endpoint doesn't require license key, but include it if available
+            const url = '/status';
+            const options = {
+                url: url,
+                method: 'GET',
+                headers: licenseKey ? { 'X-License-Key': licenseKey } : {},
+                timeout: 5000  // 5 second timeout
+            };
+            
+            $.ajax(options)
                 .done(function(data) {
                     const container = $('#system-status');
+                    if (!container.length) {
+                        console.warn('System status container not found');
+                        return;
+                    }
+                    
                     const statusIcon = data.status === 'running' ? 'fas fa-circle text-success' : 'fas fa-circle text-danger';
                     
                     container.html(`
                         <div class="d-flex align-items-center mb-2">
                             <i class="${statusIcon} me-2"></i>
-                            <span>${data.status}</span>
+                            <span>${data.status || 'unknown'}</span>
                         </div>
                         <div class="d-flex align-items-center mb-2">
                             <i class="fas fa-database me-2"></i>
-                            <span>DB: ${data.database}</span>
+                            <span>DB: ${data.database || 'unknown'}</span>
                         </div>
                         <div class="d-flex align-items-center">
                             <i class="fas fa-file-alt me-2"></i>
@@ -575,8 +607,18 @@
                         </div>
                     `);
                 })
-                .fail(function() {
-                    $('#system-status').html('<small class="text-danger">Status unavailable</small>');
+                .fail(function(xhr, status, error) {
+                    const container = $('#system-status');
+                    if (container.length) {
+                        console.error('Failed to load system status:', status, error);
+                        container.html(`
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-circle text-warning me-2"></i>
+                                <span>Status unavailable</span>
+                            </div>
+                            <small class="text-muted">Unable to connect</small>
+                        `);
+                    }
                 });
         }
         

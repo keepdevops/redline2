@@ -223,12 +223,19 @@ def get_logs():
     """Get application logs."""
     try:
         # Check multiple possible log file locations
+        # Note: web_app.py uses 'redline_web.log' as the log file name
         possible_log_files = [
-            os.path.join(os.getcwd(), 'redline.log'),
+            os.path.join(os.getcwd(), 'redline_web.log'),  # Primary log file (from web_app.py)
+            os.path.join(os.getcwd(), 'redline.log'),  # Fallback
+            os.path.join(os.getcwd(), 'logs', 'redline_web.log'),
             os.path.join(os.getcwd(), 'logs', 'redline.log'),
+            os.path.join(os.getcwd(), 'data', 'logs', 'redline_web.log'),
             os.path.join(os.getcwd(), 'data', 'logs', 'redline.log'),
+            '/var/log/redline_web.log',
             '/var/log/redline.log',
+            '/app/redline_web.log',
             '/app/redline.log',
+            '/app/logs/redline_web.log',
             '/app/logs/redline.log'
         ]
         

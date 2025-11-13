@@ -186,6 +186,10 @@
 {% block extra_js %}
 <script>
 function refreshDashboard() {
+    // Show loading indicator in navbar
+    $('#dashboardLoadingIndicator').show();
+    $('#dashboardLoadingText').text('Loading...');
+    
     // Show loading state
     $('#activityTable').html('<tr><td colspan="4" class="text-center text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</td></tr>');
     
@@ -196,35 +200,57 @@ function refreshDashboard() {
     
     // Load dashboard data
     Promise.all([
-        fetch('/api/status'),
+        fetch('/status').catch(() => fetch('/api/status')), // Try /status first, fallback to /api/status
         fetch('/api/files', {
             method: 'GET',
             headers: licenseKey ? { 'X-License-Key': licenseKey } : {}
-        })
+        }).catch(() => ({ json: () => Promise.resolve({ files: [] }) })) // Fallback for files
     ])
-    .then(responses => Promise.all(responses.map(r => r.json())))
+    .then(responses => Promise.all(responses.map(r => {
+        if (r && typeof r.json === 'function') {
+            return r.json().catch(e => {
+                console.error('Error parsing JSON:', e);
+                return { error: 'Failed to parse response' };
+            });
+        }
+        return r;
+    })))
     .then(async ([status, files]) => {
+        // Handle status response (might be from /status or /api/status)
+        if (status.error) {
+            console.error('Status endpoint error:', status.error);
+            // Set default status
+            status = { status: 'unknown', database: 'unknown', version: '1.0.0' };
+        }
+        
         // Update stats
-        const fileCount = files.files ? files.files.length : 0;
+        const fileCount = files && files.files ? files.files.length : 0;
         $('#totalFiles').text(fileCount);
         
         // Calculate total records from database if available
         try {
-            const dbStatus = await fetch('/settings/database-status');
-            const dbInfo = await dbStatus.json();
-            if (dbInfo.available && dbInfo.table_count > 0) {
-                $('#totalRecords').text(dbInfo.table_count + ' tables');
+            const dbStatus = await fetch('/settings/database-status', {
+                headers: licenseKey ? { 'X-License-Key': licenseKey } : {}
+            }).catch(() => null);
+            if (dbStatus && dbStatus.ok) {
+                const dbInfo = await dbStatus.json();
+                if (dbInfo.available && dbInfo.table_count > 0) {
+                    $('#totalRecords').text(dbInfo.table_count + ' tables');
+                } else {
+                    $('#totalRecords').text('0');
+                }
             } else {
                 $('#totalRecords').text('0');
             }
         } catch (e) {
+            console.warn('Database status check failed:', e);
             $('#totalRecords').text('0');
         }
         
         // Get unique tickers from files
         try {
             let uniqueTickers = new Set();
-            if (files.files) {
+            if (files && files.files) {
                 // Try to get ticker info from file names or load data
                 for (let file of files.files) {
                     // Extract ticker from filename (common patterns: TICKER_date.csv, etc.)
@@ -236,19 +262,25 @@ function refreshDashboard() {
             }
             $('#totalTickers').text(uniqueTickers.size || '0');
         } catch (e) {
+            console.warn('Ticker extraction failed:', e);
             $('#totalTickers').text('0');
         }
         
         $('#lastUpdate').text(new Date().toLocaleTimeString());
         
         // Update system status
-        if (status.status === 'running') {
-            $('#dbStatus').text('Online').removeClass('bg-danger').addClass('bg-success');
-            $('#loaderStatus').text('Available').removeClass('bg-danger').addClass('bg-success');
-            $('#apiStatus').text('Running').removeClass('bg-danger').addClass('bg-success');
+        if (status && status.status === 'running') {
+            $('#dbStatus').text(status.database || 'Online').removeClass('bg-danger bg-warning').addClass('bg-success');
+            $('#loaderStatus').text(status.data_loader || 'Available').removeClass('bg-danger bg-warning').addClass('bg-success');
+            $('#apiStatus').text('Running').removeClass('bg-danger bg-warning').addClass('bg-success');
+        } else {
+            // Show warning if status is not running
+            $('#dbStatus').text(status?.database || 'Unknown').removeClass('bg-success').addClass('bg-warning');
+            $('#loaderStatus').text(status?.data_loader || 'Unknown').removeClass('bg-success').addClass('bg-warning');
+            $('#apiStatus').text(status?.status || 'Unknown').removeClass('bg-success').addClass('bg-warning');
         }
         
-        $('#appVersion').text(status.version || '1.0.0');
+        $('#appVersion').text(status?.version || '1.0.0');
         
         // Update activity table (placeholder)
         $('#activityTable').html(`
@@ -262,7 +294,15 @@ function refreshDashboard() {
     })
     .catch(error => {
         console.error('Error refreshing dashboard:', error);
-        $('#activityTable').html('<tr><td colspan="4" class="text-center text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Error loading data</td></tr>');
+        // Update system status with error state
+        $('#dbStatus').text('Error').removeClass('bg-success').addClass('bg-danger');
+        $('#loaderStatus').text('Error').removeClass('bg-success').addClass('bg-danger');
+        $('#apiStatus').text('Error').removeClass('bg-success').addClass('bg-danger');
+        $('#activityTable').html('<tr><td colspan="4" class="text-center text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Error loading data: ' + error.message + '</td></tr>');
+    })
+    .finally(() => {
+        // Hide loading indicator
+        $('#dashboardLoadingIndicator').hide();
     });
 }
 

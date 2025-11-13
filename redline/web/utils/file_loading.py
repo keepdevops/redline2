@@ -205,9 +205,50 @@ def load_file_by_format(file_path: str, format_type: str) -> pd.DataFrame:
         elif format_type == 'feather':
             return pd.read_feather(file_path)
         elif format_type == 'duckdb':
-            # For DuckDB, we'll need to use a different approach
-            # For now, return empty DataFrame
-            return pd.DataFrame()
+            import duckdb
+            conn = None
+            try:
+                conn = duckdb.connect(file_path, read_only=True)
+                # Try to find the table name - check common names first
+                tables = conn.execute("SHOW TABLES").fetchall()
+                if not tables:
+                    raise ValueError("No tables found in DuckDB file")
+                
+                # Try to find a table with data (skip empty tables)
+                df = pd.DataFrame()
+                table_name = None
+                for table_tuple in tables:
+                    candidate_table = table_tuple[0]
+                    # Check if table has data
+                    count = conn.execute(f"SELECT COUNT(*) FROM {candidate_table}").fetchone()[0]
+                    if count > 0:
+                        table_name = candidate_table
+                        logger.info(f"Loading data from DuckDB table: {table_name} ({count} rows)")
+                        df = conn.execute(f"SELECT * FROM {table_name}").fetchdf()
+                        break
+                
+                if df.empty:
+                    # If no table with data found, try the first table anyway
+                    table_name = tables[0][0]
+                    logger.warning(f"No tables with data found, trying first table: {table_name}")
+                    df = conn.execute(f"SELECT * FROM {table_name}").fetchdf()
+                    if df.empty:
+                        logger.warning(f"DuckDB table {table_name} is empty")
+                        return pd.DataFrame()
+                
+                logger.info(f"Successfully loaded {len(df)} rows from DuckDB table {table_name}")
+                return df
+            except Exception as e:
+                logger.error(f"Error loading DuckDB file {file_path}: {str(e)}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                raise
+            finally:
+                if conn:
+                    try:
+                        conn.close()
+                    except:
+                        pass
         else:
             return pd.DataFrame()
     except Exception as e:

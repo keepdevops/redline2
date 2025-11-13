@@ -36,9 +36,24 @@
     function initializePayments() {
         // Load saved license key
         const savedKey = localStorage.getItem(LICENSE_KEY_STORAGE);
-        if (savedKey) {
-            document.getElementById('licenseKey').value = savedKey;
+        const licenseKeyInput = document.getElementById('licenseKey');
+        
+        if (savedKey && licenseKeyInput) {
+            licenseKeyInput.value = savedKey;
             currentLicenseKey = savedKey;
+            window.REDLINE_LICENSE_KEY = savedKey; // Also set global
+            
+            // Show saved status
+            const licenseKeyStatus = document.getElementById('licenseKeyStatus');
+            if (licenseKeyStatus) {
+                licenseKeyStatus.innerHTML = '<small class="text-success"><i class="fas fa-check-circle me-1"></i>License key loaded from storage</small>';
+            }
+        } else if (licenseKeyInput) {
+            // Show prompt if no key found
+            const licenseKeyStatus = document.getElementById('licenseKeyStatus');
+            if (licenseKeyStatus) {
+                licenseKeyStatus.innerHTML = '<div class="alert alert-warning alert-sm py-2 mb-0"><i class="fas fa-exclamation-triangle me-1"></i><strong>No license key found.</strong> Please enter your license key above or <a href="/register" class="alert-link">register for a new one</a>.</div>';
+            }
         }
         
         // Load packages
@@ -48,6 +63,7 @@
         if (currentLicenseKey) {
             loadBalance();
             startBalanceRefresh();
+            loadHistory();
         }
         
         // Setup event listeners
@@ -89,17 +105,78 @@
     function setupEventListeners() {
         // License key input
         const licenseKeyInput = document.getElementById('licenseKey');
+        const saveLicenseKeyBtn = document.getElementById('saveLicenseKeyBtn');
+        const licenseKeyStatus = document.getElementById('licenseKeyStatus');
+        
         if (licenseKeyInput) {
+            // Save on change (blur)
             licenseKeyInput.addEventListener('change', function() {
-                currentLicenseKey = this.value.trim();
-                if (currentLicenseKey) {
-                    localStorage.setItem(LICENSE_KEY_STORAGE, currentLicenseKey);
-                    loadBalance();
-                    startBalanceRefresh();
-                } else {
-                    stopBalanceRefresh();
+                saveLicenseKey();
+            });
+            
+            // Save on Enter key
+            licenseKeyInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveLicenseKey();
                 }
             });
+            
+            // Save button click
+            if (saveLicenseKeyBtn) {
+                saveLicenseKeyBtn.addEventListener('click', function() {
+                    saveLicenseKey();
+                });
+            }
+            
+            // Show status when typing
+            licenseKeyInput.addEventListener('input', function() {
+                const key = this.value.trim();
+                if (key && key.length > 10) {
+                    if (licenseKeyStatus) {
+                        licenseKeyStatus.innerHTML = '<small class="text-success"><i class="fas fa-check-circle me-1"></i>Press Enter or click Save to store license key</small>';
+                    }
+                } else if (key.length > 0) {
+                    if (licenseKeyStatus) {
+                        licenseKeyStatus.innerHTML = '<small class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>License key seems too short</small>';
+                    }
+                } else {
+                    if (licenseKeyStatus) {
+                        licenseKeyStatus.innerHTML = '';
+                    }
+                }
+            });
+        }
+        
+        function saveLicenseKey() {
+            const key = licenseKeyInput.value.trim();
+            if (key) {
+                localStorage.setItem(LICENSE_KEY_STORAGE, key);
+                currentLicenseKey = key;
+                window.REDLINE_LICENSE_KEY = key; // Also set global
+                
+                // Dispatch event for other scripts
+                window.dispatchEvent(new CustomEvent('licenseKeyUpdated', { detail: { licenseKey: key } }));
+                
+                if (licenseKeyStatus) {
+                    licenseKeyStatus.innerHTML = '<small class="text-success"><i class="fas fa-check-circle me-1"></i>License key saved! Loading balance...</small>';
+                }
+                
+                loadBalance();
+                startBalanceRefresh();
+                loadHistory();
+                
+                // Clear status after 3 seconds
+                setTimeout(function() {
+                    if (licenseKeyStatus) {
+                        licenseKeyStatus.innerHTML = '<small class="text-muted"><i class="fas fa-check-circle me-1"></i>License key saved</small>';
+                    }
+                }, 3000);
+            } else {
+                if (licenseKeyStatus) {
+                    licenseKeyStatus.innerHTML = '<small class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Please enter a valid license key</small>';
+                }
+            }
         }
         
         // Custom hours purchase

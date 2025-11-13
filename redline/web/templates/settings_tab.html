@@ -432,30 +432,61 @@ function testConnection(type) {
 }
 
 function loadLogs() {
+    const container = $('#logsContainer');
+    container.html('<small class="text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Loading logs...</small>');
+    
     REDLINE.api.get('/settings/logs')
         .then(response => {
-            const container = $('#logsContainer');
             container.empty();
             
+            // Check for error or message
+            if (response.error) {
+                container.html(`<small class="text-danger">Error: ${response.error}</small>`);
+                return;
+            }
+            
+            if (response.message) {
+                container.html(`
+                    <small class="text-warning">${response.message}</small>
+                    ${response.hint ? `<br><small class="text-muted">${response.hint}</small>` : ''}
+                    ${response.log_file ? `<br><small class="text-muted">Looking for: ${response.log_file}</small>` : ''}
+                `);
+                return;
+            }
+            
             if (response.logs && response.logs.length > 0) {
+                // Show log file info if available
+                if (response.log_file) {
+                    container.append(`<small class="text-muted mb-2 d-block">Log file: ${response.log_file} (${response.total_lines || 0} total lines, showing last ${response.recent_lines || response.logs.length})</small>`);
+                }
+                
                 response.logs.forEach(log => {
-                    const logClass = log.level === 'ERROR' ? 'text-danger' : 
-                                   log.level === 'WARNING' ? 'text-warning' : 
-                                   log.level === 'INFO' ? 'text-info' : 'text-muted';
+                    // Handle both old format (log.line) and new format (log as string)
+                    const logLine = typeof log === 'string' ? log : (log.line || log);
+                    const logLevel = log.level || (logLine.match(/\b(ERROR|WARNING|INFO|DEBUG)\b/) ? logLine.match(/\b(ERROR|WARNING|INFO|DEBUG)\b/)[1] : 'INFO');
+                    const timestamp = log.timestamp || (logLine.match(/^\d{4}-\d{2}-\d{2}/) ? logLine.split(' - ')[0] : '');
+                    
+                    const logClass = logLevel === 'ERROR' ? 'text-danger' : 
+                                   logLevel === 'WARNING' ? 'text-warning' : 
+                                   logLevel === 'INFO' ? 'text-info' : 'text-muted';
                     
                     const item = $(`
-                        <div class="mb-1">
-                            <small class="${logClass}">[${log.timestamp}] ${log.level}: ${log.line}</small>
+                        <div class="mb-1 font-monospace" style="font-size: 0.85em;">
+                            <small class="${logClass}">${timestamp ? `[${timestamp}] ` : ''}${logLevel}: ${logLine}</small>
                         </div>
                     `);
                     container.append(item);
                 });
+                
+                // Scroll to bottom to show most recent logs
+                container.scrollTop(container[0].scrollHeight);
             } else {
-                container.html('<small class="text-muted">No logs available</small>');
+                container.html('<small class="text-muted">No logs available. Log file may be empty or not found.</small>');
             }
         })
         .catch(error => {
-            $('#logsContainer').html('<small class="text-danger">Error loading logs</small>');
+            console.error('Error loading logs:', error);
+            container.html(`<small class="text-danger">Error loading logs: ${error.message || 'Unknown error'}</small>`);
         });
 }
 

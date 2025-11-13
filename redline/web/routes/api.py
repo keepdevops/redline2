@@ -96,12 +96,26 @@ def manage_indexes():
 def api_list_files():
     """List available data files via API."""
     try:
+        # System files to exclude from user-facing file lists
+        SYSTEM_FILES = {
+            'usage_data.duckdb',
+            'redline_data.duckdb',
+            'api_keys.json',
+            'custom_apis.json',
+            'licenses.json',
+            'data_config.ini',
+            'config.ini'
+        }
+        
         data_dir = os.path.join(os.getcwd(), 'data')
         files = []
         
         # Get files from main data directory
         if os.path.exists(data_dir):
             for filename in os.listdir(data_dir):
+                # Skip system files
+                if filename in SYSTEM_FILES:
+                    continue
                 file_path = os.path.join(data_dir, filename)
                 if os.path.isfile(file_path) and not filename.startswith('.'):
                     file_stat = os.stat(file_path)
@@ -116,6 +130,9 @@ def api_list_files():
         downloaded_dir = os.path.join(data_dir, 'downloaded')
         if os.path.exists(downloaded_dir):
             for filename in os.listdir(downloaded_dir):
+                # Skip system files
+                if filename in SYSTEM_FILES:
+                    continue
                 file_path = os.path.join(downloaded_dir, filename)
                 if os.path.isfile(file_path) and not filename.startswith('.'):
                     file_stat = os.stat(file_path)
@@ -133,6 +150,9 @@ def api_list_files():
             # Recursively search subdirectories in converted/ (duckdb/, parquet/, etc.)
             for root, dirs, filenames in os.walk(converted_dir):
                 for filename in filenames:
+                    # Skip system files
+                    if filename in SYSTEM_FILES:
+                        continue
                     if not filename.startswith('.'):
                         file_path = os.path.join(root, filename)
                         if os.path.isfile(file_path):
@@ -154,6 +174,100 @@ def api_list_files():
         
     except Exception as e:
         logger.error(f"Error listing files: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/files/<path:filename>', methods=['DELETE'])
+@rate_limit("20 per minute")
+def delete_file(filename):
+    """Delete a data file."""
+    try:
+        import os
+        from werkzeug.utils import secure_filename
+        
+        # System files that should never be deleted
+        PROTECTED_FILES = {
+            'usage_data.duckdb',
+            'redline_data.duckdb',
+            'api_keys.json',
+            'custom_apis.json',
+            'licenses.json',
+            'data_config.ini',
+            'config.ini'
+        }
+        
+        # Secure the filename to prevent directory traversal
+        safe_filename = secure_filename(os.path.basename(filename))
+        
+        # Check if file is protected
+        if safe_filename in PROTECTED_FILES:
+            return jsonify({
+                'error': 'Cannot delete system file',
+                'message': f'File "{safe_filename}" is a protected system file and cannot be deleted'
+            }), 403
+        
+        # Search for the file in data directories
+        data_dir = os.path.join(os.getcwd(), 'data')
+        file_path = None
+        
+        # Check locations in order of priority
+        search_paths = [
+            os.path.join(data_dir, safe_filename),
+            os.path.join(data_dir, 'downloaded', safe_filename),
+            os.path.join(data_dir, 'stooq', safe_filename),
+            os.path.join(data_dir, 'uploads', safe_filename)
+        ]
+        
+        # Also search in converted directory recursively
+        converted_dir = os.path.join(data_dir, 'converted')
+        if os.path.exists(converted_dir):
+            # First try direct path
+            direct_path = os.path.join(converted_dir, safe_filename)
+            if os.path.exists(direct_path) and os.path.isfile(direct_path):
+                search_paths.append(direct_path)
+            else:
+                # Search recursively
+                for root, dirs, files in os.walk(converted_dir):
+                    if safe_filename in files:
+                        potential_path = os.path.join(root, safe_filename)
+                        if os.path.exists(potential_path) and os.path.isfile(potential_path):
+                            search_paths.append(potential_path)
+                            break
+        
+        # Find the file
+        for path in search_paths:
+            if os.path.exists(path) and os.path.isfile(path):
+                file_path = path
+                break
+        
+        if not file_path:
+            return jsonify({
+                'error': 'File not found',
+                'message': f'File "{safe_filename}" not found in data directories'
+            }), 404
+        
+        # Delete the file
+        try:
+            os.remove(file_path)
+            logger.info(f"Deleted file: {file_path}")
+            return jsonify({
+                'success': True,
+                'message': f'File "{safe_filename}" deleted successfully',
+                'filename': safe_filename
+            })
+        except PermissionError:
+            return jsonify({
+                'error': 'Permission denied',
+                'message': f'Cannot delete file "{safe_filename}": Permission denied'
+            }), 403
+        except Exception as e:
+            logger.error(f"Error deleting file {file_path}: {str(e)}")
+            return jsonify({
+                'error': 'Failed to delete file',
+                'message': str(e)
+            }), 500
+        
+    except Exception as e:
+        logger.error(f"Error in delete_file: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # Allowed file extensions

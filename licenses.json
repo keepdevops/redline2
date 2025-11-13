@@ -1094,8 +1094,8 @@
     ],
     "max_installs": 1,
     "installs": [],
-    "hours_remaining": 70.0,
-    "purchased_hours": 70.0,
+    "hours_remaining": 90.0,
+    "purchased_hours": 90.0,
     "used_hours": 0.0,
     "last_usage_check": null
   },
@@ -1202,5 +1202,590 @@
     "purchased_hours": 10.0,
     "used_hours": 0.0,
     "last_usage_check": null
+  },
+  "RL-C1C0689D-8F0C36EB-CDC64DD1": {
+    "key": "RL-C1C0689D-8F0C36EB-CDC64DD1",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:49:32.170391",
+    "expires": "2026-11-12T14:49:32.170407",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 10.0,
+    "purchased_hours": 10.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-B09BBDF6-0C0548D8-8DE3C09D": {
+    "key": "RL-B09BBDF6-0C0548D8-8DE3C09D",
+    "customer": {
+      "name": "test test",
+      "email": "cloudbaseaws@gmail.com",
+      "company": "gentry",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:52:56.545402",
+    "expires": "2026-11-12T14:52:56.545418",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-27181969-A5D7DFF3-C7D4F7D2": {
+    "key": "RL-27181969-A5D7DFF3-C7D4F7D2",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T14:56:41.840204",
+    "expires": "2026-11-12T14:56:41.840210",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 10.0,
+    "purchased_hours": 10.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-322CF8D9-748B6334-B943CDEF": {
+    "key": "RL-322CF8D9-748B6334-B943CDEF",
+    "customer": {
+      "name": "test test",
+      "email": "cloudlbaseaws@gmail.com",
+      "company": "gentry",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T15:00:07.798405",
+    "expires": "2026-11-12T15:00:07.798412",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-4BF09CFD-F1C1E4BA-F6F27F66": {
+    "key": "RL-4BF09CFD-F1C1E4BA-F6F27F66",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T15:07:56.042939",
+    "expires": "2026-11-12T15:07:56.042945",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 10.0,
+    "purchased_hours": 10.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-78B1E011-DE2F49EC-3D88A313": {
+    "key": "RL-78B1E011-DE2F49EC-3D88A313",
+    "customer": {
+      "name": "test test",
+      "email": "cloudbaseaws@gmail.com",
+      "company": "gentry",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T15:11:14.043243",
+    "expires": "2026-11-12T15:11:14.043248",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-0D804F6F-D7C83EFB-B6ABE7B3": {
+    "key": "RL-0D804F6F-D7C83EFB-B6ABE7B3",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 10
+    },
+    "type": "trial",
+    "created": "2025-11-12T15:15:12.587815",
+    "expires": "2026-11-12T15:15:12.587820",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 20.0,
+    "purchased_hours": 20.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-00C5EBEE-67BC4349-0DF71C19": {
+    "key": "RL-00C5EBEE-67BC4349-0DF71C19",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T15:27:09.544178",
+    "expires": "2026-11-12T15:27:09.544184",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 20.0,
+    "purchased_hours": 20.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-F428A3B5-0D63EC46-60FD79C3": {
+    "key": "RL-F428A3B5-0D63EC46-60FD79C3",
+    "customer": {
+      "name": "Persistence Test User",
+      "email": "persistence@test.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 10.0
+    },
+    "type": "trial",
+    "created": "2025-11-12T15:34:55.451267",
+    "expires": "2026-11-12T15:34:55.451272",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 5.0,
+    "purchased_hours": 5.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-FC833E23-ECC3E927-56B371BC": {
+    "key": "RL-FC833E23-ECC3E927-56B371BC",
+    "customer": {
+      "name": "Persistence Test User",
+      "email": "persistence@test.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 10.0
+    },
+    "type": "trial",
+    "created": "2025-11-12T15:35:03.585076",
+    "expires": "2026-11-12T15:35:03.585082",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 5.0,
+    "purchased_hours": 5.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-BB739067-3D00C181-4469E999": {
+    "key": "RL-BB739067-3D00C181-4469E999",
+    "customer": {
+      "name": "Test",
+      "email": "test@test.com",
+      "company": "Test",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 10
+    },
+    "type": "trial",
+    "created": "2025-11-12T15:35:05.166490",
+    "expires": "2026-11-12T15:35:05.166496",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 10.0,
+    "purchased_hours": 10.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-3B11F04D-7FE587C4-8EEEECEA": {
+    "key": "RL-3B11F04D-7FE587C4-8EEEECEA",
+    "customer": {
+      "name": "test test",
+      "email": "cloudbaseaws@gmail.com",
+      "company": "gentry",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T15:41:42.898291",
+    "expires": "2026-11-12T15:41:42.898296",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 2.0,
+    "purchased_hours": 2.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-6DF065AD-E9A10989-30A73967": {
+    "key": "RL-6DF065AD-E9A10989-30A73967",
+    "customer": {
+      "name": "test test",
+      "email": "cloudbaseaws@gmail.com",
+      "company": "gentry",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-12T16:48:25.746648",
+    "expires": "2026-11-12T16:48:25.746674",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 10.0,
+    "purchased_hours": 10.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-98519A90-A92F091D-91ADC0F0": {
+    "key": "RL-98519A90-A92F091D-91ADC0F0",
+    "customer": {
+      "name": "Jane",
+      "email": "jane@jane.com",
+      "company": "Jane co",
+      "type": "professional",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "professional",
+    "created": "2025-11-12T19:31:41.068361",
+    "expires": "2026-11-12T19:31:41.068366",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import",
+      "advanced_analysis",
+      "export",
+      "api_access",
+      "priority_support"
+    ],
+    "max_installs": 10,
+    "installs": [],
+    "hours_remaining": 10.0,
+    "purchased_hours": 10.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-BC8B26DC-DAE8294A-020F62F3": {
+    "key": "RL-BC8B26DC-DAE8294A-020F62F3",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 10
+    },
+    "type": "trial",
+    "created": "2025-11-12T19:40:56.994481",
+    "expires": "2025-11-11T19:40:57.031371",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-8229E0C1-C53A6F92-CDA52305": {
+    "key": "RL-8229E0C1-C53A6F92-CDA52305",
+    "customer": {
+      "name": "jack elope",
+      "email": "jack@gmail.com",
+      "company": "jack",
+      "type": "professional",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "professional",
+    "created": "2025-11-12T19:45:57.899706",
+    "expires": "2026-11-12T19:45:57.899712",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import",
+      "advanced_analysis",
+      "export",
+      "api_access",
+      "priority_support"
+    ],
+    "max_installs": 10,
+    "installs": [],
+    "hours_remaining": 1.499,
+    "purchased_hours": 1.5,
+    "used_hours": 0.001,
+    "last_usage_check": "2025-11-13T09:23:36.790660"
+  },
+  "RL-CE5CB36E-32BDD7B0-0ADF2BF4": {
+    "key": "RL-CE5CB36E-32BDD7B0-0ADF2BF4",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 20
+    },
+    "type": "trial",
+    "created": "2025-11-12T19:49:18.136174",
+    "expires": "2026-11-12T19:49:18.136178",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 20.0,
+    "purchased_hours": 20.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-46CDE71D-D01DA17F-73EF3737": {
+    "key": "RL-46CDE71D-D01DA17F-73EF3737",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 20
+    },
+    "type": "trial",
+    "created": "2025-11-12T19:49:22.229935",
+    "expires": "2026-11-12T19:49:22.229942",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-FDA85D64-51AC0BC1-ADF8625B": {
+    "key": "RL-FDA85D64-51AC0BC1-ADF8625B",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 20
+    },
+    "type": "trial",
+    "created": "2025-11-12T19:49:24.346829",
+    "expires": "2026-11-12T19:49:24.346835",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-7CE7D2BC-DD387A60-459CFDB7": {
+    "key": "RL-7CE7D2BC-DD387A60-459CFDB7",
+    "customer": {
+      "name": "Test test",
+      "email": "cloudbaseaws@gmail.com",
+      "company": "gentry",
+      "type": "professional",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "professional",
+    "created": "2025-11-13T09:57:43.802789",
+    "expires": "2026-11-13T09:57:43.802810",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import",
+      "advanced_analysis",
+      "export",
+      "api_access",
+      "priority_support"
+    ],
+    "max_installs": 10,
+    "installs": [],
+    "hours_remaining": 10.0,
+    "purchased_hours": 10.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-C009D385-2CFFB1B7-2CBD4DED": {
+    "key": "RL-C009D385-2CFFB1B7-2CBD4DED",
+    "customer": {
+      "name": "Test test",
+      "email": "cloudbaseaws@gmail.com",
+      "company": "gentry",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-13T09:58:49.569268",
+    "expires": "2026-11-13T09:58:49.569285",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 4.6221933236111115,
+    "purchased_hours": 5.0,
+    "used_hours": 0.37780667638888893,
+    "last_usage_check": "2025-11-13T10:50:38.428173"
+  },
+  "RL-E9F94860-A8EC8D1F-FDCBE3B7": {
+    "key": "RL-E9F94860-A8EC8D1F-FDCBE3B7",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company",
+      "type": "standard",
+      "duration_days": 365,
+      "hours": 10.0
+    },
+    "type": "standard",
+    "created": "2025-11-13T10:02:35.886483",
+    "expires": "2026-11-13T10:02:35.886488",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import",
+      "advanced_analysis",
+      "export"
+    ],
+    "max_installs": 3,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
+  },
+  "RL-7CE7D2BC-DD387A60": {
+    "key": "RL-7CE7D2BC-DD387A60",
+    "customer": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "company": "Test Company"
+    },
+    "type": "standard",
+    "status": "active",
+    "created": "2025-11-13T10:02:38.241073",
+    "expires": "2026-11-13T10:02:38.241078",
+    "features": [
+      "basic",
+      "standard"
+    ],
+    "max_installs": 3,
+    "installs": [],
+    "hours_remaining": 10.0,
+    "purchased_hours": 10.0,
+    "used_hours": 0.0
   }
 }
