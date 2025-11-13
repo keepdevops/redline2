@@ -95,6 +95,46 @@
             display: table-header-group !important;
             visibility: visible !important;
         }
+        .modal-content {
+            background-color: var(--light-color);
+            color: var(--text-primary);
+        }
+        .modal-header {
+            border-bottom-color: var(--border-color);
+        }
+        .modal-footer {
+            border-top-color: var(--border-color);
+        }
+        .form-select, .form-control {
+            background-color: var(--light-color) !important;
+            color: var(--text-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        .form-select:focus, .form-control:focus {
+            background-color: var(--light-color) !important;
+            color: var(--text-primary) !important;
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25) !important;
+        }
+        .form-check-input {
+            background-color: var(--light-color) !important;
+            border-color: var(--border-color) !important;
+            cursor: pointer !important;
+        }
+        .form-check-input:checked {
+            background-color: var(--primary-color) !important;
+            border-color: var(--primary-color) !important;
+        }
+        .form-check-input:not(:disabled):not([readonly]) {
+            cursor: pointer !important;
+        }
+        .form-select:not(:disabled):not([readonly]) {
+            cursor: pointer !important;
+        }
+        .form-label, .form-check-label {
+            cursor: pointer !important;
+            color: var(--text-primary) !important;
+        }
         .table td {
             vertical-align: middle;
             position: relative;
@@ -194,7 +234,7 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">📊 Data View</h5>
                     <div id="dataActions" style="display: none;">
-                        <button class="btn btn-sm btn-outline-primary" onclick="cleanData()" title="Clean data (remove duplicates, handle missing values)">
+                        <button class="btn btn-sm btn-outline-primary" onclick="showCleanDataModal()" title="Clean data with configurable options">
                             <i class="fas fa-broom"></i> Clean Data
                         </button>
                         <button class="btn btn-sm btn-outline-success" onclick="saveCleanedData()" title="Save cleaned data to file" style="display: none;" id="saveCleanedBtn">
@@ -210,6 +250,72 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Clean Data Modal -->
+<div class="modal fade" id="cleanDataModal" tabindex="-1" aria-labelledby="cleanDataModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background-color: var(--light-color); color: var(--text-primary);">
+                <h5 class="modal-title" id="cleanDataModalLabel">
+                    <i class="fas fa-broom me-2"></i>Clean Data Options
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="background-color: var(--light-color); color: var(--text-primary);">
+                <form id="cleanDataForm">
+                    <!-- Remove Duplicates -->
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="removeDuplicates" checked style="cursor: pointer;">
+                            <label class="form-check-label" for="removeDuplicates" style="cursor: pointer;">
+                                <strong>Remove Duplicate Rows</strong>
+                            </label>
+                        </div>
+                        <small class="form-text text-muted">
+                            Removes rows that are exact duplicates. If ticker and timestamp columns exist, duplicates are detected based on those columns.
+                        </small>
+                    </div>
+                    
+                    <!-- Handle Missing Values -->
+                    <div class="mb-3">
+                        <label for="handleMissing" class="form-label">
+                            <strong>Handle Missing Values</strong>
+                        </label>
+                        <select class="form-select" id="handleMissing" style="cursor: pointer; background-color: var(--light-color); color: var(--text-primary); border-color: var(--border-color);">
+                            <option value="drop" selected>Drop rows with missing values</option>
+                            <option value="forward_fill">Forward fill (use previous value)</option>
+                            <option value="backward_fill">Backward fill (use next value)</option>
+                            <option value="none">Don't handle missing values</option>
+                        </select>
+                        <small class="form-text text-muted">
+                            <strong>Drop:</strong> Removes rows with missing values in ticker, timestamp, or close columns<br>
+                            <strong>Forward Fill:</strong> Fills missing values with the previous row's value<br>
+                            <strong>Backward Fill:</strong> Fills missing values with the next row's value<br>
+                            <strong>None:</strong> Leaves missing values as-is
+                        </small>
+                    </div>
+                    
+                    <!-- Additional Options -->
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Additional Options</strong></label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="cleanColumnNames" checked style="cursor: pointer;">
+                            <label class="form-check-label" for="cleanColumnNames" style="cursor: pointer;">
+                                Clean column names (remove unnamed/empty columns)
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" style="background-color: var(--light-color); border-top-color: var(--border-color);">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="cleanDataWithOptions()">
+                    <i class="fas fa-broom me-2"></i>Clean Data
+                </button>
             </div>
         </div>
     </div>
@@ -693,7 +799,78 @@ function displayDataTable(data) {
 // Clean data (remove duplicates, handle missing values)
 var cleanedData = null;
 
-async function cleanData() {
+// Show clean data modal with options
+function showCleanDataModal() {
+    if (!window.currentData || !window.currentFile) {
+        alert('Please load a file first.');
+        return;
+    }
+    
+    // Get form controls and ensure they are enabled
+    const removeDuplicates = document.getElementById('removeDuplicates');
+    const handleMissing = document.getElementById('handleMissing');
+    const cleanColumnNames = document.getElementById('cleanColumnNames');
+    
+    if (removeDuplicates) {
+        removeDuplicates.disabled = false;
+        removeDuplicates.removeAttribute('readonly');
+        removeDuplicates.style.pointerEvents = 'auto';
+        removeDuplicates.style.opacity = '1';
+    }
+    if (handleMissing) {
+        handleMissing.disabled = false;
+        handleMissing.removeAttribute('readonly');
+        handleMissing.style.pointerEvents = 'auto';
+        handleMissing.style.opacity = '1';
+    }
+    if (cleanColumnNames) {
+        cleanColumnNames.disabled = false;
+        cleanColumnNames.removeAttribute('readonly');
+        cleanColumnNames.style.pointerEvents = 'auto';
+        cleanColumnNames.style.opacity = '1';
+    }
+    
+    // Show modal - try Bootstrap 5 first, then fallback to jQuery
+    const modalElement = document.getElementById('cleanDataModal');
+    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        const modal = new bootstrap.Modal(modalElement, {
+            backdrop: true,
+            keyboard: true,
+            focus: true
+        });
+        modal.show();
+        
+        // Ensure form controls are enabled after modal shows
+        modalElement.addEventListener('shown.bs.modal', function() {
+            if (removeDuplicates) removeDuplicates.disabled = false;
+            if (handleMissing) handleMissing.disabled = false;
+            if (cleanColumnNames) cleanColumnNames.disabled = false;
+        }, { once: true });
+    } else if (typeof $ !== 'undefined' && $.fn.modal) {
+        $(modalElement).modal({
+            backdrop: true,
+            keyboard: true,
+            show: true
+        });
+        $(modalElement).on('shown.bs.modal', function() {
+            if (removeDuplicates) removeDuplicates.disabled = false;
+            if (handleMissing) handleMissing.disabled = false;
+            if (cleanColumnNames) cleanColumnNames.disabled = false;
+        });
+    } else {
+        // Fallback: show modal manually
+        modalElement.style.display = 'block';
+        modalElement.classList.add('show');
+        document.body.classList.add('modal-open');
+        const backdrop = document.createElement('div');
+        backdrop.className = 'modal-backdrop fade show';
+        backdrop.id = 'cleanDataModalBackdrop';
+        document.body.appendChild(backdrop);
+    }
+}
+
+// Clean data with user-selected options
+async function cleanDataWithOptions() {
     if (!window.currentData || !window.currentFile) {
         alert('Please load a file first.');
         return;
@@ -709,6 +886,16 @@ async function cleanData() {
         return;
     }
     
+    // Get options from form
+    const removeDuplicates = document.getElementById('removeDuplicates').checked;
+    const handleMissing = document.getElementById('handleMissing').value;
+    
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('cleanDataModal'));
+    if (modal) {
+        modal.hide();
+    }
+    
     // Show loading
     const dataDisplay = document.getElementById('dataDisplay');
     const originalContent = dataDisplay.innerHTML;
@@ -718,6 +905,10 @@ async function cleanData() {
                 <span class="visually-hidden">Cleaning data...</span>
             </div>
             <p class="mt-2">Cleaning data...</p>
+            <small class="text-muted">
+                ${removeDuplicates ? 'Removing duplicates...' : ''} 
+                ${handleMissing !== 'none' ? `Handling missing values (${handleMissing})...` : ''}
+            </small>
         </div>
     `;
     
@@ -730,8 +921,8 @@ async function cleanData() {
             },
             body: JSON.stringify({
                 filename: window.currentFile,
-                remove_duplicates: true,
-                handle_missing: 'drop' // Options: 'drop', 'forward_fill', 'backward_fill'
+                remove_duplicates: removeDuplicates,
+                handle_missing: handleMissing // Options: 'drop', 'forward_fill', 'backward_fill', 'none'
             })
         });
         
@@ -758,19 +949,26 @@ async function cleanData() {
         // Show stats
         const stats = result.stats || {};
         let statsMsg = `Data cleaned successfully!\n\n`;
-        if (stats.duplicates_removed) {
+        statsMsg += `Original rows: ${result.original_rows || 'N/A'}\n`;
+        statsMsg += `Final rows: ${result.total_rows || cleanedData.length}\n`;
+        if (stats.duplicates_removed !== undefined && stats.duplicates_removed > 0) {
             statsMsg += `Duplicates removed: ${stats.duplicates_removed}\n`;
         }
-        if (stats.missing_handled) {
+        if (stats.missing_handled !== undefined && stats.missing_handled > 0) {
             statsMsg += `Missing values handled: ${stats.missing_handled}\n`;
         }
-        statsMsg += `Total rows: ${result.total_rows || cleanedData.length}`;
+        statsMsg += `\nOptions used:\n`;
+        statsMsg += `- Remove duplicates: ${removeDuplicates ? 'Yes' : 'No'}\n`;
+        statsMsg += `- Handle missing: ${handleMissing}`;
         
         if (typeof window.showToast === 'function') {
             window.showToast('Data cleaned successfully', 'success');
         } else {
             alert(statsMsg);
         }
+        
+        console.log('Cleaning stats:', stats);
+        console.log('Options used:', { remove_duplicates: removeDuplicates, handle_missing: handleMissing });
         
     } catch (error) {
         console.error('Error cleaning data:', error);
