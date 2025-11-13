@@ -80,6 +80,9 @@ venv.bak/
 # API Keys and Secrets
 api_keys.json
 *_keys.json
+custom_apis.json
+*api_keys*.json
+*api-keys*.json
 *secrets*
 *secret*
 *.key
