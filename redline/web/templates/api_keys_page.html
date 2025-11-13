@@ -290,6 +290,46 @@
         </div>
     </div>
     
+    <!-- Custom API Configuration Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-cog me-2"></i>Custom API Configuration
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Add your own financial API with custom rate limiting and parameters.</p>
+                    
+                    <div class="mb-3">
+                        <button class="btn btn-primary" id="addCustomApiBtn" onclick="showCustomApiForm()">
+                            <i class="fas fa-plus me-2"></i>Add Custom API
+                        </button>
+                        <button class="btn btn-outline-secondary ms-2" onclick="loadCustomApis()">
+                            <i class="fas fa-sync me-2"></i>Refresh List
+                        </button>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <strong>💡 Tip:</strong> Configure your custom financial API with:
+                        <ul class="mb-0 mt-2">
+                            <li>API endpoint URL and path</li>
+                            <li>API key for authentication</li>
+                            <li>Rate limiting (calls per minute)</li>
+                            <li>Parameter names (ticker, dates, etc.)</li>
+                            <li>Date format and response format</li>
+                        </ul>
+                    </div>
+                    
+                    <div id="customApisList" class="mt-3">
+                        <div class="text-muted text-center">No custom APIs configured. Click "Add Custom API" to get started.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <div id="apiSourcesContainer">
         <div class="text-center p-4">
             <div class="spinner-border text-primary" role="status">
@@ -317,6 +357,7 @@ let apiSources = {};
 document.addEventListener('DOMContentLoaded', function() {
     loadApiSources();
     loadSavedKeys();
+    loadCustomApis();
 });
 
 // Load API sources
@@ -454,15 +495,22 @@ async function testApiKey(source) {
     statusSpan.textContent = 'Testing...';
     statusSpan.className = 'api-key-status status-unknown';
     
+    // Get license key - use global function if available, otherwise fallback
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
     try {
         const response = await fetch('/api-keys/test', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                ...(licenseKey ? { 'X-License-Key': licenseKey } : {})
             },
             body: JSON.stringify({
                 source: source,
-                api_key: key
+                api_key: key,
+                ...(licenseKey ? { license_key: licenseKey } : {})
             })
         });
         
@@ -490,8 +538,16 @@ async function testApiKey(source) {
 
 // Load saved keys
 async function loadSavedKeys() {
+    // Get license key - use global function if available, otherwise fallback
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
     try {
-        const response = await fetch('/api-keys/load');
+        const response = await fetch('/api-keys/load', {
+            method: 'GET',
+            headers: licenseKey ? { 'X-License-Key': licenseKey } : {}
+        });
         const data = await response.json();
         
         if (data.api_keys) {
@@ -511,14 +567,21 @@ async function saveAllKeys() {
     saveBtn.disabled = true;
     saveBtn.textContent = 'Saving...';
     
+    // Get license key - use global function if available, otherwise fallback
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
     try {
         const response = await fetch('/api-keys/save', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                ...(licenseKey ? { 'X-License-Key': licenseKey } : {})
             },
             body: JSON.stringify({
-                api_keys: apiKeys
+                api_keys: apiKeys,
+                ...(licenseKey ? { license_key: licenseKey } : {})
             })
         });
         
@@ -561,5 +624,346 @@ function showError(message) {
 
 // Event listeners
 document.getElementById('saveAllKeysBtn').addEventListener('click', saveAllKeys);
+
+// Load custom APIs on page load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadCustomApis);
+} else {
+    loadCustomApis();
+}
+
+// Custom API Management
+let customApis = {};
+
+function loadCustomApis() {
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    fetch('/api-keys/load', {
+        method: 'GET',
+        headers: licenseKey ? { 'X-License-Key': licenseKey } : {}
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Loaded custom APIs:', data);
+        if (data.custom_apis) {
+            customApis = data.custom_apis;
+            displayCustomApis();
+        } else {
+            customApis = {};
+            displayCustomApis();
+        }
+    })
+    .catch(error => {
+        console.error('Error loading custom APIs:', error);
+        customApis = {};
+        displayCustomApis();
+    });
+}
+
+function displayCustomApis() {
+    const container = document.getElementById('customApisList');
+    if (!container) return;
+    
+    const apiIds = Object.keys(customApis);
+    if (apiIds.length === 0) {
+        container.innerHTML = '<div class="text-muted text-center">No custom APIs configured. Click "Add Custom API" to get started.</div>';
+        return;
+    }
+    
+    let html = '<div class="row">';
+    apiIds.forEach(apiId => {
+        const api = customApis[apiId];
+        html += `
+            <div class="col-md-6 mb-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6>${api.name || apiId}</h6>
+                        <p class="small text-muted mb-2">${api.base_url || ''}${api.endpoint || ''}</p>
+                        <div class="small">
+                            <div>Rate Limit: ${api.rate_limit_per_minute || 60} calls/min</div>
+                            <div>API Key: ${api.api_key ? api.api_key.substring(0, 8) + '...' : 'Not set'}</div>
+                        </div>
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-outline-primary" onclick="editCustomApi('${apiId}')">
+                                <i class="fas fa-edit me-1"></i>Edit
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger ms-2" onclick="deleteCustomApi('${apiId}')">
+                                <i class="fas fa-trash me-1"></i>Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function showCustomApiForm(apiId = null) {
+    const api = apiId ? customApis[apiId] : null;
+    
+    // Escape values for safe HTML insertion
+    const escapeHtml = (str) => {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    };
+    
+    const apiName = api ? escapeHtml(api.name) : '';
+    const baseUrl = api ? escapeHtml(api.base_url) : '';
+    const endpoint = api ? escapeHtml(api.endpoint) : '';
+    const apiKey = api ? escapeHtml(api.api_key) : '';
+    const rateLimit = api ? api.rate_limit_per_minute : 60;
+    const dateFormat = api ? api.date_format : 'YYYY-MM-DD';
+    const tickerParam = api ? escapeHtml(api.ticker_param) : 'symbol';
+    const apiKeyParam = api ? escapeHtml(api.api_key_param) : 'apikey';
+    const startDateParam = api ? escapeHtml(api.start_date_param) : 'from';
+    const endDateParam = api ? escapeHtml(api.end_date_param) : 'to';
+    const dataPath = api ? escapeHtml(api.data_path) : 'data';
+    const responseFormat = api ? api.response_format : 'json';
+    
+    // Remove existing modal if present
+    const existingModal = document.getElementById('customApiModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.id = 'customApiModal';
+    modal.setAttribute('tabindex', '-1');
+    modal.setAttribute('aria-labelledby', 'customApiModalLabel');
+    modal.setAttribute('aria-hidden', 'true');
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="customApiModalLabel">${apiId ? 'Edit' : 'Add'} Custom API</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="customApiForm">
+                        <div class="mb-3">
+                            <label for="apiName" class="form-label">API Name *</label>
+                            <input type="text" class="form-control" id="apiName" value="${apiName}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="baseUrl" class="form-label">Base URL *</label>
+                            <input type="url" class="form-control" id="baseUrl" value="${baseUrl}" placeholder="https://api.example.com" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="endpoint" class="form-label">Endpoint Path *</label>
+                            <input type="text" class="form-control" id="endpoint" value="${endpoint}" placeholder="/v1/stock/candle" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="apiKey" class="form-label">API Key *</label>
+                            <input type="text" class="form-control" id="apiKey" value="${apiKey}" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="rateLimit" class="form-label">Rate Limit (calls per minute) *</label>
+                                <input type="number" class="form-control" id="rateLimit" value="${rateLimit}" min="1" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="dateFormat" class="form-label">Date Format</label>
+                                <select class="form-select" id="dateFormat">
+                                    <option value="YYYY-MM-DD" ${dateFormat === 'YYYY-MM-DD' ? 'selected' : ''}>YYYY-MM-DD</option>
+                                    <option value="timestamp" ${dateFormat === 'timestamp' ? 'selected' : ''}>Unix Timestamp</option>
+                                    <option value="iso" ${dateFormat === 'iso' ? 'selected' : ''}>ISO Format</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="tickerParam" class="form-label">Ticker Parameter Name</label>
+                                <input type="text" class="form-control" id="tickerParam" value="${tickerParam}" placeholder="symbol">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="apiKeyParam" class="form-label">API Key Parameter Name</label>
+                                <input type="text" class="form-control" id="apiKeyParam" value="${apiKeyParam}" placeholder="apikey">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="startDateParam" class="form-label">Start Date Parameter</label>
+                                <input type="text" class="form-control" id="startDateParam" value="${startDateParam}" placeholder="from">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="endDateParam" class="form-label">End Date Parameter</label>
+                                <input type="text" class="form-control" id="endDateParam" value="${endDateParam}" placeholder="to">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="dataPath" class="form-label">Data Path (JSON path to data array)</label>
+                            <input type="text" class="form-control" id="dataPath" value="${dataPath}" placeholder="data or results.candles">
+                            <small class="form-text text-muted">Leave empty if data is at root level</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="responseFormat" class="form-label">Response Format</label>
+                            <select class="form-select" id="responseFormat">
+                                <option value="json" ${responseFormat === 'json' ? 'selected' : ''}>JSON</option>
+                                <option value="csv" ${responseFormat === 'csv' ? 'selected' : ''}>CSV</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveCustomApi('${apiId ? escapeHtml(apiId) : ''}')">Save API</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    // Initialize Bootstrap modal with delay to ensure DOM is ready
+    setTimeout(() => {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            const bsModal = new bootstrap.Modal(modal, {
+                backdrop: true,
+                keyboard: true,
+                focus: true
+            });
+            bsModal.show();
+            
+            // Ensure form is visible after modal shows
+            modal.addEventListener('shown.bs.modal', () => {
+                const form = document.getElementById('customApiForm');
+                if (form) {
+                    form.style.display = 'block';
+                    // Focus first input
+                    const firstInput = form.querySelector('input[required]');
+                    if (firstInput) {
+                        setTimeout(() => firstInput.focus(), 300);
+                    }
+                }
+            }, { once: true });
+        } else {
+            // Fallback if Bootstrap not loaded
+            modal.style.display = 'block';
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('modal-open');
+            const backdrop = document.createElement('div');
+            backdrop.className = 'modal-backdrop fade show';
+            document.body.appendChild(backdrop);
+        }
+        
+        modal.addEventListener('hidden.bs.modal', () => {
+            modal.remove();
+            document.body.classList.remove('modal-open');
+            const backdrop = document.querySelector('.modal-backdrop');
+            if (backdrop) backdrop.remove();
+        }, { once: true });
+    }, 100);
+}
+
+function saveCustomApi(apiId) {
+    const form = document.getElementById('customApiForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const apiConfig = {
+        name: document.getElementById('apiName').value.trim(),
+        base_url: document.getElementById('baseUrl').value.trim(),
+        endpoint: document.getElementById('endpoint').value.trim(),
+        api_key: document.getElementById('apiKey').value.trim(),
+        rate_limit_per_minute: parseInt(document.getElementById('rateLimit').value) || 60,
+        date_format: document.getElementById('dateFormat').value || 'YYYY-MM-DD',
+        ticker_param: document.getElementById('tickerParam').value.trim() || 'symbol',
+        api_key_param: document.getElementById('apiKeyParam').value.trim() || 'apikey',
+        start_date_param: document.getElementById('startDateParam').value.trim() || 'from',
+        end_date_param: document.getElementById('endDateParam').value.trim() || 'to',
+        data_path: document.getElementById('dataPath').value.trim() || 'data',
+        response_format: document.getElementById('responseFormat').value || 'json',
+        description: `Custom API: ${document.getElementById('apiName').value.trim()}`,
+        supported_tickers: 'Varies by API',
+        data_types: ['OHLCV'],
+        delay: 'Varies'
+    };
+    
+    const finalApiId = apiId || apiConfig.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    
+    if (!customApis) customApis = {};
+    customApis[finalApiId] = apiConfig;
+    
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    fetch('/api-keys/save', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(licenseKey ? { 'X-License-Key': licenseKey } : {})
+        },
+        body: JSON.stringify({
+            api_keys: apiKeys,
+            custom_apis: customApis
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.message) {
+            showSuccess(data.message);
+            bootstrap.Modal.getInstance(document.getElementById('customApiModal')).hide();
+            loadCustomApis();
+        } else {
+            showError('Failed to save custom API');
+        }
+    })
+    .catch(error => {
+        showError('Error saving custom API: ' + error.message);
+    });
+}
+
+function editCustomApi(apiId) {
+    showCustomApiForm(apiId);
+}
+
+function deleteCustomApi(apiId) {
+    if (!confirm(`Are you sure you want to delete "${customApis[apiId].name}"?`)) {
+        return;
+    }
+    
+    delete customApis[apiId];
+    
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    fetch('/api-keys/save', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(licenseKey ? { 'X-License-Key': licenseKey } : {})
+        },
+        body: JSON.stringify({
+            api_keys: apiKeys,
+            custom_apis: customApis
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.message) {
+            showSuccess('Custom API deleted successfully');
+            loadCustomApis();
+        } else {
+            showError('Failed to delete custom API');
+        }
+    })
+    .catch(error => {
+        showError('Error deleting custom API: ' + error.message);
+    });
+}
 </script>
 {% endblock %}

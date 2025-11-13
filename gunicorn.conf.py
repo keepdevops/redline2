@@ -31,8 +31,10 @@ proc_name = 'redline-web'
 # Server mechanics
 daemon = False
 pidfile = '/tmp/gunicorn.pid'
-user = os.environ.get('GUNICORN_USER', 'appuser')
-group = os.environ.get('GUNICORN_GROUP', 'appuser')
+# Only set user/group if explicitly provided (for Docker/production)
+# On macOS/local dev, leave as None to use current user
+user = os.environ.get('GUNICORN_USER', None)
+group = os.environ.get('GUNICORN_GROUP', None)
 tmp_upload_dir = None
 
 # SSL (if enabled)
@@ -40,7 +42,12 @@ keyfile = os.environ.get('SSL_KEYFILE', None)
 certfile = os.environ.get('SSL_CERTFILE', None)
 
 # Performance tuning
-worker_tmp_dir = '/dev/shm'  # Use shared memory for worker temp files
+# Use /dev/shm on Linux, /tmp on macOS/other systems
+import platform
+if platform.system() == 'Linux' and os.path.exists('/dev/shm'):
+    worker_tmp_dir = '/dev/shm'  # Use shared memory for worker temp files on Linux
+else:
+    worker_tmp_dir = None  # Use default temp directory on macOS/other systems
 
 # Preload application for better memory sharing
 preload_app = False  # Set to True if app is thread-safe, False for gevent

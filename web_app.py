@@ -174,17 +174,73 @@ def create_app():
             return
         
         # Skip license check for web pages (HTML responses) - only enforce for API endpoints
-        if not (request.path.startswith('/api/') or request.path.startswith('/data/') or 
-                request.path.startswith('/analysis/') or request.path.startswith('/download/') or
-                request.path.startswith('/user-data/') or request.path.startswith('/converter/')):
-            return  # Allow web pages without license key
+        # Allow base routes (like /data/, /analysis/, /download/) but require license for API endpoints
+        path = request.path.rstrip('/')
         
-        # Get license key from request
-        license_key = (
-            request.headers.get('X-License-Key') or
-            request.args.get('license_key') or
-            (request.json.get('license_key') if request.is_json else None)
-        )
+        # List of base HTML page routes that don't require license key
+        base_html_routes = ['/data', '/analysis', '/download', '/converter', '/tasks', '/settings', '/api-keys', '/payments']
+        
+        # If it's exactly a base route (no sub-path), allow it
+        if path in base_html_routes:
+            return  # Allow HTML pages without license key
+        
+        # Exclude health/status endpoints (don't require license)
+        if request.path in ['/health', '/tasks/health', '/api/status']:
+            return
+        
+        # Check if this is an API endpoint that requires license key
+        # API endpoints that require license:
+        api_endpoints_requiring_license = [
+            '/api/files', '/api/upload', '/api/data',  # API routes (but not /api/status, /api/register)
+            '/data/load', '/data/filter', '/data/files',  # Data API routes
+            '/analysis/analyze',  # Analysis API routes
+            '/download/download', '/download/batch-download', '/download/history',  # Download API routes
+            '/user-data/',  # User data API routes
+            '/converter/convert', '/converter/batch-convert',  # Converter API routes
+            '/tasks/list', '/tasks/queue', '/tasks/submit', '/tasks/cleanup', '/tasks/cancel',  # Tasks API routes
+        ]
+        
+        # Check if this path matches any API endpoint
+        is_api_endpoint = False
+        for endpoint in api_endpoints_requiring_license:
+            if request.path.startswith(endpoint):
+                is_api_endpoint = True
+                break
+        
+        # Also check for /api/* routes (but exclude public ones)
+        if request.path.startswith('/api/') and request.path not in ['/api/status', '/api/register']:
+            is_api_endpoint = True
+        
+        # If it's not an API endpoint, allow it (it's an HTML page)
+        if not is_api_endpoint:
+            return  # Allow HTML pages without license key
+        
+        # Get license key from request - check multiple sources
+        license_key = None
+        
+        # Check headers first
+        license_key = request.headers.get('X-License-Key') or request.headers.get('x-license-key')
+        
+        # Check query parameters
+        if not license_key:
+            license_key = request.args.get('license_key')
+        
+        # Check form data (for file uploads)
+        if not license_key:
+            license_key = request.form.get('license_key')
+        
+        # Check JSON body - try even if request.is_json is False (sometimes Flask doesn't detect it)
+        if not license_key:
+            content_type = request.headers.get('Content-Type', '').lower()
+            if 'application/json' in content_type:
+                try:
+                    json_data = request.get_json(silent=True, force=True)
+                    if json_data and isinstance(json_data, dict):
+                        license_key = json_data.get('license_key')
+                        if license_key:
+                            logger.debug(f"Found license key in JSON body for {request.path}")
+                except Exception as e:
+                    logger.debug(f"Could not parse JSON body: {str(e)}")
         
         # For API endpoints, require license key
         if request.path.startswith('/api/') or request.path.startswith('/data/') or \
@@ -192,28 +248,48 @@ def create_app():
            request.path.startswith('/user-data/') or request.path.startswith('/converter/'):
             if not license_key:
                 from flask import jsonify
+                logger.warning(f"License key missing for {request.path}. Headers: {dict(request.headers)}")
                 return jsonify({
                     'error': 'License key is required',
-                    'message': 'Please provide a license key in X-License-Key header, license_key query parameter, or JSON body'
+                    'message': 'Please provide a license key in X-License-Key header, license_key query parameter, or JSON body',
+                    'debug': {
+                        'path': request.path,
+                        'method': request.method,
+                        'has_headers': bool(request.headers),
+                        'has_json': request.is_json,
+                        'headers_keys': list(request.headers.keys()) if request.headers else []
+                    }
                 }), 401
+            
+            logger.debug(f"License key found for {request.path}: {license_key[:20]}...")
             
             # Validate access
             try:
                 from redline.auth.access_control import access_controller
                 is_valid, error_msg, license_info = access_controller.validate_access(license_key)
-                
+
                 if not is_valid:
                     from flask import jsonify
+                    logger.warning(f"Access denied for {request.path}: {error_msg}")
                     return jsonify({
                         'error': error_msg or 'Access denied',
-                        'code': 'INSUFFICIENT_HOURS' if 'hours' in (error_msg or '').lower() else 'INVALID_LICENSE'
+                        'code': 'INSUFFICIENT_HOURS' if 'hours' in (error_msg or '').lower() else 'INVALID_LICENSE',
+                        'license_key_provided': license_key[:20] + '...' if license_key else None
                     }), 403
-                
+
                 # Store license info in g for use in request
                 g.license_key = license_key
                 g.license_info = license_info
+                logger.debug(f"Access granted for {request.path} with license {license_key[:20]}...")
             except ImportError:
                 logger.warning("Access controller not available, skipping access check")
+            except Exception as e:
+                logger.error(f"Error in access control: {str(e)}")
+                from flask import jsonify
+                return jsonify({
+                    'error': f'Access control error: {str(e)}',
+                    'code': 'ACCESS_CONTROL_ERROR'
+                }), 500
     
     # Usage tracking middleware (Gunicorn-compatible Flask decorator)
     @app.before_request
@@ -376,6 +452,9 @@ def main():
     except Exception as e:
         logger.error(f"Failed to start REDLINE Web Application: {str(e)}")
         sys.exit(1)
+
+# Create app instance for Gunicorn
+app = create_app()
 
 if __name__ == '__main__':
     main()

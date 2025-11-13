@@ -174,6 +174,7 @@ def save_api_keys():
     try:
         data = request.get_json()
         api_keys = data.get('api_keys', {})
+        custom_apis = data.get('custom_apis', {})  # New: custom API configurations
         
         # Validate API keys
         valid_keys = {}
@@ -181,22 +182,54 @@ def save_api_keys():
             if key and key.strip():
                 valid_keys[source] = key.strip()
         
+        # Validate custom API configurations
+        valid_custom_apis = {}
+        for api_id, api_config in custom_apis.items():
+            if api_config and isinstance(api_config, dict):
+                # Validate required fields - allow APIs without api_key (can be added later)
+                if api_config.get('name') and api_config.get('base_url') and api_config.get('endpoint'):
+                    # Ensure all required fields are present
+                    validated_config = {
+                        'name': api_config.get('name'),
+                        'base_url': api_config.get('base_url'),
+                        'endpoint': api_config.get('endpoint'),
+                        'api_key': api_config.get('api_key', ''),
+                        'rate_limit_per_minute': api_config.get('rate_limit_per_minute', 60),
+                        'date_format': api_config.get('date_format', 'YYYY-MM-DD'),
+                        'ticker_param': api_config.get('ticker_param', 'symbol'),
+                        'api_key_param': api_config.get('api_key_param', 'apikey'),
+                        'start_date_param': api_config.get('start_date_param', 'from'),
+                        'end_date_param': api_config.get('end_date_param', 'to'),
+                        'data_path': api_config.get('data_path', 'data'),
+                        'response_format': api_config.get('response_format', 'json')
+                    }
+                    valid_custom_apis[api_id] = validated_config
+        
         # Save to session (temporary)
         session['api_keys'] = valid_keys
+        session['custom_apis'] = valid_custom_apis
         
-        # Also save to a config file for persistence
-        config_file = 'data/api_keys.json'
+        # Also save to config files for persistence
         os.makedirs('data', exist_ok=True)
-        
         import json
+        
+        # Save standard API keys
+        config_file = 'data/api_keys.json'
         with open(config_file, 'w') as f:
             json.dump(valid_keys, f, indent=2)
         
+        # Save custom API configurations
+        custom_apis_file = 'data/custom_apis.json'
+        with open(custom_apis_file, 'w') as f:
+            json.dump(valid_custom_apis, f, indent=2)
+        
         logger.info(f"Saved API keys for sources: {list(valid_keys.keys())}")
+        logger.info(f"Saved custom API configurations: {list(valid_custom_apis.keys())}")
         
         return jsonify({
-            'message': f'Successfully saved API keys for {len(valid_keys)} sources',
-            'saved_sources': list(valid_keys.keys())
+            'message': f'Successfully saved API keys for {len(valid_keys)} sources and {len(valid_custom_apis)} custom APIs',
+            'saved_sources': list(valid_keys.keys()),
+            'saved_custom_apis': list(valid_custom_apis.keys())
         })
         
     except Exception as e:
@@ -205,20 +238,56 @@ def save_api_keys():
 
 @api_keys_bp.route('/load')
 def load_api_keys():
-    """Load saved API keys."""
+    """Load saved API keys and custom API configurations."""
     try:
         # Try to load from session first
         api_keys = session.get('api_keys', {})
+        custom_apis = session.get('custom_apis', {})
         
-        # Try to load from config file
+        # Try to load from config files
+        import json
+        
+        # Load standard API keys
         config_file = 'data/api_keys.json'
         if os.path.exists(config_file):
-            import json
             with open(config_file, 'r') as f:
                 file_keys = json.load(f)
                 api_keys.update(file_keys)
         
-        return jsonify({'api_keys': api_keys})
+        # Load custom API configurations
+        custom_apis_file = 'data/custom_apis.json'
+        if os.path.exists(custom_apis_file):
+            try:
+                with open(custom_apis_file, 'r') as f:
+                    file_custom_apis = json.load(f)
+                    # Filter and normalize custom APIs to ensure they have required fields
+                    for api_id, api_config in file_custom_apis.items():
+                        if api_config and isinstance(api_config, dict):
+                            # Only include if it has minimum required fields
+                            if api_config.get('name') and api_config.get('base_url') and api_config.get('endpoint'):
+                                # Normalize the config to ensure all fields are present
+                                normalized_config = {
+                                    'name': api_config.get('name'),
+                                    'base_url': api_config.get('base_url'),
+                                    'endpoint': api_config.get('endpoint'),
+                                    'api_key': api_config.get('api_key', ''),
+                                    'rate_limit_per_minute': api_config.get('rate_limit_per_minute', 60),
+                                    'date_format': api_config.get('date_format', 'YYYY-MM-DD'),
+                                    'ticker_param': api_config.get('ticker_param', 'symbol'),
+                                    'api_key_param': api_config.get('api_key_param', 'apikey'),
+                                    'start_date_param': api_config.get('start_date_param', 'from'),
+                                    'end_date_param': api_config.get('end_date_param', 'to'),
+                                    'data_path': api_config.get('data_path', 'data'),
+                                    'response_format': api_config.get('response_format', 'json')
+                                }
+                                custom_apis[api_id] = normalized_config
+            except Exception as e:
+                logger.warning(f"Error loading custom APIs from file: {str(e)}")
+        
+        return jsonify({
+            'api_keys': api_keys,
+            'custom_apis': custom_apis
+        })
         
     except Exception as e:
         logger.error(f"Error loading API keys: {str(e)}")

@@ -44,7 +44,7 @@ def create_checkout():
         if not license_key:
             return jsonify({'error': 'License key is required'}), 400
         
-        # Validate license (check expiration, status, etc.)
+        # Validate license (check status, etc.)
         try:
             import requests
             license_server_url = PaymentConfig.LICENSE_SERVER_URL
@@ -61,10 +61,8 @@ def create_checkout():
                     if not validation_result.get('valid'):
                         error_msg = validation_result.get('error', 'Invalid license')
                         # Allow purchase even if hours = 0 (user is buying more)
-                        # But block if expired or inactive
-                        if 'expired' in error_msg.lower():
-                            return jsonify({'error': 'License has expired. Please contact support to renew your license.'}), 403
-                        elif 'inactive' in error_msg.lower():
+                        # But block if inactive
+                        if 'inactive' in error_msg.lower():
                             return jsonify({'error': 'License is inactive. Please contact support.'}), 403
                         elif 'invalid' in error_msg.lower():
                             return jsonify({'error': 'Invalid license key'}), 403
@@ -308,7 +306,7 @@ def get_balance():
         if not license_key:
             return jsonify({'error': 'License key is required'}), 400
         
-        # Validate license (check expiration) before getting balance
+        # Validate license before getting balance
         license_server_url = PaymentConfig.LICENSE_SERVER_URL
         try:
             validate_response = requests.post(
@@ -323,9 +321,7 @@ def get_balance():
                     validation_result = validate_response.json()
                     if not validation_result.get('valid'):
                         error_msg = validation_result.get('error', 'Invalid license')
-                        if 'expired' in error_msg.lower():
-                            return jsonify({'error': 'License has expired', 'expired': True}), 403
-                        elif 'inactive' in error_msg.lower():
+                        if 'inactive' in error_msg.lower():
                             return jsonify({'error': 'License is inactive'}), 403
                 except:
                     # If response is not JSON, check status code
@@ -344,12 +340,30 @@ def get_balance():
         if response.status_code == 200:
             result = response.json()
             
+            # Ensure used_hours is included in response
+            if 'used_hours' not in result and 'success' in result:
+                # Get from license server if not in response
+                hours_response = requests.get(
+                    f'{license_server_url}/api/licenses/{license_key}/hours',
+                    timeout=5
+                )
+                if hours_response.status_code == 200:
+                    hours_data = hours_response.json()
+                    if 'success' in hours_data and hours_data['success']:
+                        result['used_hours'] = hours_data.get('used_hours', 0.0)
+            
             # Add usage statistics if storage is available
             try:
                 from redline.database.usage_storage import usage_storage, STORAGE_AVAILABLE
                 if STORAGE_AVAILABLE and usage_storage:
                     stats = usage_storage.get_access_stats(license_key, days=30)
                     result['usage_stats'] = stats
+                    # Also get total used hours from history if not already set
+                    if 'used_hours' not in result or result.get('used_hours', 0) == 0:
+                        history = usage_storage.get_usage_history(license_key, limit=1000)
+                        total_used = sum(h.get('hours_deducted', 0) for h in history)
+                        if total_used > 0:
+                            result['used_hours'] = total_used
             except Exception as e:
                 logger.debug(f"Failed to get usage stats: {str(e)}")
             
@@ -367,35 +381,43 @@ def get_balance():
 def get_history():
     """Get usage and payment history for a license"""
     try:
-        license_key = request.args.get('license_key')
-        history_type = request.args.get('type', 'all')  # all, usage, payments, sessions
+        license_key = request.args.get('license_key') or request.headers.get('X-License-Key')
+        history_type = request.args.get('type', 'all')  # 'all', 'usage', 'payment'
         
         if not license_key:
             return jsonify({'error': 'License key is required'}), 400
         
+        result = {
+            'usage_history': [],
+            'payment_history': [],
+            'session_history': []
+        }
+        
+        # Get usage history from storage
         try:
             from redline.database.usage_storage import usage_storage, STORAGE_AVAILABLE
-            if not STORAGE_AVAILABLE or not usage_storage:
-                return jsonify({'error': 'Usage storage not available'}), 503
-            
-            result = {}
-            
-            if history_type in ('all', 'usage'):
-                result['usage_history'] = usage_storage.get_usage_history(license_key, limit=100)
-            
-            if history_type in ('all', 'payments'):
-                result['payment_history'] = usage_storage.get_payment_history(license_key, limit=50)
-            
-            if history_type in ('all', 'sessions'):
-                result['session_history'] = usage_storage.get_session_history(license_key, limit=50)
-            
-            if history_type == 'all':
-                result['stats'] = usage_storage.get_access_stats(license_key, days=30)
-            
-            return jsonify(result), 200
-            
-        except ImportError:
-            return jsonify({'error': 'Usage storage module not available'}), 503
+            if STORAGE_AVAILABLE and usage_storage:
+                if history_type in ('all', 'usage'):
+                    result['usage_history'] = usage_storage.get_usage_history(license_key, limit=100)
+                    result['session_history'] = usage_storage.get_session_history(license_key, limit=50)
+                
+                if history_type in ('all', 'payment'):
+                    result['payment_history'] = usage_storage.get_payment_history(license_key, limit=50)
+                
+                # Calculate totals
+                total_used = sum(h.get('hours_deducted', 0) for h in result['usage_history'])
+                total_purchased = sum(p.get('hours_purchased', 0) for p in result['payment_history'])
+                
+                result['totals'] = {
+                    'total_hours_used': total_used,
+                    'total_hours_purchased': total_purchased,
+                    'total_payments': len(result['payment_history']),
+                    'total_sessions': len(result['session_history'])
+                }
+        except Exception as e:
+            logger.warning(f"Failed to get history from storage: {str(e)}")
+        
+        return jsonify(result), 200
         
     except Exception as e:
         logger.error(f"Error getting history: {str(e)}")

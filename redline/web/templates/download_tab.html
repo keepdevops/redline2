@@ -29,13 +29,29 @@
                             <div class="mb-3">
                                 <label for="source" class="form-label">Data Source</label>
                                 <select class="form-select" id="source" required>
-                                    <option value="yahoo">Yahoo Finance</option>
-                                    <option value="stooq">Stooq</option>
+                                    <option value="yahoo">Yahoo Finance (Free)</option>
+                                    <option value="stooq">Stooq (Free)</option>
+                                    <option value="alpha_vantage">Alpha Vantage (API Key Required)</option>
+                                    <option value="finnhub">Finnhub (API Key Required)</option>
+                                    <optgroup label="Custom APIs" id="customApisGroup"></optgroup>
                                 </select>
                                 <div class="form-text" id="stooqBrowserHelp" style="display: none;">
                                     <i class="fas fa-external-link-alt me-1"></i>
                                     <a href="https://stooq.com/db/h/" target="_blank" class="text-decoration-none">Open Stooq Database Browser</a> to browse and download data manually
                                 </div>
+                                <div class="form-text" id="apiKeyHelp" style="display: none;">
+                                    <i class="fas fa-key me-1"></i>
+                                    <a href="{{ url_for('api_keys.api_keys_page') }}" target="_blank" class="text-decoration-none">Manage API Keys</a> to add or update your API keys
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6" id="apiKeySelectContainer" style="display: none;">
+                            <div class="mb-3">
+                                <label for="apiKeySelect" class="form-label">API Key</label>
+                                <select class="form-select" id="apiKeySelect">
+                                    <option value="">Select API Key...</option>
+                                </select>
+                                <div class="form-text">Select a saved API key for this data source</div>
                             </div>
                         </div>
                     </div>
@@ -192,6 +208,78 @@
 
 {% block extra_js %}
 <script>
+// Ensure REDLINE object exists (from main.js)
+if (typeof REDLINE === 'undefined') {
+    // Create REDLINE object if not defined
+    window.REDLINE = {
+        api: {
+            post: function(url, data) {
+                // Get license key from localStorage
+                const licenseKey = localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY;
+                
+                const options = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                };
+                
+                // Add license key to headers
+                if (licenseKey) {
+                    options.headers['X-License-Key'] = licenseKey;
+                }
+                
+                return fetch(url, options)
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(err => Promise.reject(new Error(err.error || err.message || 'Request failed')));
+                        }
+                        return response.json();
+                    });
+            },
+            get: function(url) {
+                const licenseKey = localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY;
+                const options = {
+                    method: 'GET',
+                    headers: {}
+                };
+                
+                if (licenseKey) {
+                    options.headers['X-License-Key'] = licenseKey;
+                }
+                
+                return fetch(url, options)
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(err => Promise.reject(new Error(err.error || err.message || 'Request failed')));
+                        }
+                        return response.json();
+                    });
+            }
+        },
+        ui: {
+            showLoading: function(text) {
+                $('.loading-text').text(text || 'Processing...');
+                $('#loading-overlay').show();
+            },
+            hideLoading: function() {
+                $('#loading-overlay').hide();
+            },
+            showToast: function(message, type) {
+                const toast = $('#toast');
+                const icon = type === 'success' ? 'fas fa-check-circle text-success' : 
+                            type === 'error' ? 'fas fa-exclamation-circle text-danger' : 
+                            'fas fa-info-circle text-primary';
+                toast.find('.toast-header i').attr('class', icon);
+                toast.find('.toast-body').text(message);
+                const bsToast = new bootstrap.Toast(toast[0]);
+                bsToast.show();
+            }
+        }
+    };
+}
+
 $(document).ready(function() {
     // Set default dates
     const today = new Date();
@@ -223,9 +311,14 @@ $(document).ready(function() {
         $('#ticker').val(ticker);
     });
     
-    // Show/hide Stooq browser helper based on source selection
+    // Load saved API keys on page load
+    loadSavedApiKeys();
+    
+    // Show/hide Stooq browser helper and API key selection based on source selection
     $('#source').on('change', function() {
         const source = $(this).val();
+        
+        // Show/hide Stooq browser help
         if (source === 'stooq') {
             $('#stooqBrowserCard').show();
             $('#stooqBrowserHelp').show();
@@ -234,6 +327,19 @@ $(document).ready(function() {
             $('#stooqBrowserHelp').hide();
             $('#stooqInstructions').hide();
         }
+        
+        // Show/hide API key selection for sources that require it
+        const sourcesRequiringApiKey = ['alpha_vantage', 'finnhub'];
+        const isCustomApi = source && source.startsWith('custom_');
+        
+        if (sourcesRequiringApiKey.includes(source) || isCustomApi) {
+            $('#apiKeySelectContainer').show();
+            $('#apiKeyHelp').show();
+            updateApiKeyDropdown(source);
+        } else {
+            $('#apiKeySelectContainer').hide();
+            $('#apiKeyHelp').hide();
+        }
     });
     
     // Trigger on page load if Stooq is already selected
@@ -241,10 +347,137 @@ $(document).ready(function() {
         $('#stooqBrowserCard').show();
         $('#stooqBrowserHelp').show();
     }
+    
+    // Trigger on page load if API key source is selected
+    const initialSource = $('#source').val();
+    if (['alpha_vantage', 'finnhub'].includes(initialSource)) {
+        $('#apiKeySelectContainer').show();
+        $('#apiKeyHelp').show();
+    }
 });
 
 function showStooqInstructions() {
     $('#stooqInstructions').slideToggle();
+}
+
+// Load saved API keys and custom APIs
+function loadSavedApiKeys() {
+    // Get license key - use global function if available, otherwise fallback
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    fetch('/api-keys/load', {
+        method: 'GET',
+        headers: licenseKey ? { 'X-License-Key': licenseKey } : {}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.api_keys) {
+            window.savedApiKeys = data.api_keys;
+        }
+        if (data.custom_apis) {
+            window.customApis = data.custom_apis;
+        }
+        
+        // Always load custom APIs into dropdown
+        loadCustomApisToDropdown();
+        
+        // Update API key dropdown if a source requiring API key is selected
+        const source = $('#source').val();
+        if (['alpha_vantage', 'finnhub'].includes(source)) {
+            updateApiKeyDropdown(source);
+        } else if (source && source.startsWith('custom_')) {
+            updateApiKeyDropdown(source);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading API keys:', error);
+        window.savedApiKeys = {};
+        window.customApis = {};
+    });
+}
+
+// Load custom APIs into source dropdown
+function loadCustomApisToDropdown() {
+    // Load available sources to get custom APIs
+    fetch('/download/sources', {
+        method: 'GET',
+        headers: {}
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Download sources response:', data);
+        const customGroup = $('#customApisGroup');
+        if (!customGroup.length) {
+            console.error('customApisGroup not found');
+            return;
+        }
+        
+        customGroup.empty();
+        
+        if (data.sources) {
+            let hasCustomApis = false;
+            Object.entries(data.sources).forEach(([sourceKey, sourceInfo]) => {
+                if (sourceInfo.custom) {
+                    hasCustomApis = true;
+                    const option = $(`<option value="${sourceKey}">${sourceInfo.name} (Custom API)</option>`);
+                    customGroup.append(option);
+                }
+            });
+            
+            if (!hasCustomApis) {
+                customGroup.append('<option disabled>No custom APIs configured</option>');
+            }
+        } else {
+            customGroup.append('<option disabled>No custom APIs available</option>');
+        }
+    })
+    .catch(error => {
+        console.error('Error loading custom APIs:', error);
+        const customGroup = $('#customApisGroup');
+        if (customGroup.length) {
+            customGroup.append('<option disabled>Error loading custom APIs</option>');
+        }
+    });
+}
+
+// Update API key dropdown based on selected source
+function updateApiKeyDropdown(source) {
+    const select = $('#apiKeySelect');
+    select.empty();
+    select.append('<option value="">Select API Key...</option>');
+    
+    // Check if it's a custom API
+    if (source && source.startsWith('custom_')) {
+        const customApiId = source.replace('custom_', '');
+        if (window.customApis && window.customApis[customApiId]) {
+            const apiConfig = window.customApis[customApiId];
+            const apiKey = apiConfig.api_key;
+            if (apiKey) {
+                // Show masked version (first 8 chars + ...)
+                const maskedKey = apiKey.substring(0, 8) + '...' + apiKey.substring(apiKey.length - 4);
+                select.append(`<option value="${apiKey}">${maskedKey}</option>`);
+            } else {
+                select.append('<option value="" disabled>No API key configured for this custom API</option>');
+            }
+        } else {
+            select.append('<option value="" disabled>Custom API configuration not found</option>');
+        }
+    } else if (window.savedApiKeys && window.savedApiKeys[source]) {
+        // Standard API (Alpha Vantage, Finnhub, etc.)
+        const apiKey = window.savedApiKeys[source];
+        // Show masked version (first 8 chars + ...)
+        const maskedKey = apiKey.substring(0, 8) + '...' + apiKey.substring(apiKey.length - 4);
+        select.append(`<option value="${apiKey}">${maskedKey}</option>`);
+    } else {
+        select.append('<option value="" disabled>No API key saved for this source</option>');
+    }
 }
 
 function downloadData() {
@@ -259,14 +492,38 @@ function downloadData() {
         return;
     }
     
+    // Get license key - use global function if available, otherwise fallback
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    if (!licenseKey) {
+        REDLINE.ui.showToast('License key is required. Please register or enter your license key.', 'error');
+        return;
+    }
+    console.log('Downloading with license key:', licenseKey.substring(0, 20) + '...');
+    
     REDLINE.ui.showLoading('Downloading data...');
+    
+    // Get API key if source requires it
+    let apiKey = null;
+    const sourcesRequiringApiKey = ['alpha_vantage', 'finnhub'];
+    if (sourcesRequiringApiKey.includes(source)) {
+        apiKey = $('#apiKeySelect').val();
+        if (!apiKey) {
+            REDLINE.ui.showToast('Please select an API key for this data source', 'error');
+            REDLINE.ui.hideLoading();
+            return;
+        }
+    }
     
     const downloadData = {
         ticker: ticker,
         source: source,
         start_date: startDate,
         end_date: endDate,
-        interval: interval
+        interval: interval,
+        license_key: licenseKey,  // Include license key in request body as backup
+        api_key: apiKey  // Include API key if provided
     };
     
     REDLINE.api.post('/download/download', downloadData)
@@ -295,17 +552,43 @@ function batchDownload() {
         return;
     }
     
+    // Get license key - use global function if available, otherwise fallback
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    if (!licenseKey) {
+        REDLINE.ui.showToast('License key is required. Please register or enter your license key.', 'error');
+        return;
+    }
+    console.log('Downloading with license key:', licenseKey.substring(0, 20) + '...');
+    
     const source = $('#source').val();
     const startDate = $('#startDate').val();
     const endDate = $('#endDate').val();
     
     REDLINE.ui.showLoading(`Downloading data for ${tickers.length} tickers...`);
     
+    // Get API key if source requires it
+    let apiKey = null;
+    const sourcesRequiringApiKey = ['alpha_vantage', 'finnhub'];
+    const isCustomApi = source && source.startsWith('custom_');
+    
+    if (sourcesRequiringApiKey.includes(source) || isCustomApi) {
+        apiKey = $('#apiKeySelect').val();
+        if (!apiKey) {
+            REDLINE.ui.showToast('Please select an API key for this data source', 'error');
+            REDLINE.ui.hideLoading();
+            return;
+        }
+    }
+    
     const batchData = {
         tickers: tickers,
         source: source,
+        api_key: apiKey,  // Include API key if provided
         start_date: startDate,
-        end_date: endDate
+        end_date: endDate,
+        license_key: licenseKey  // Include license key in request body as backup
     };
     
     REDLINE.api.post('/download/batch-download', batchData)

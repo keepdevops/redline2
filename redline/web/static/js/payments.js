@@ -14,10 +14,20 @@
     let currentLicenseKey = null;
     let packages = [];
     let balance = null;
+    let balanceRefreshInterval = null;
+    let lastBalanceUpdate = null;
+    let balanceUpdateInterval = null;
+    const BALANCE_REFRESH_INTERVAL = 60000; // 1 minute (60 seconds)
     
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
         initializePayments();
+    });
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        stopBalanceRefresh();
+        stopTimeElapsedUpdater();
     });
     
     /**
@@ -37,10 +47,40 @@
         // Load balance if license key exists
         if (currentLicenseKey) {
             loadBalance();
+            startBalanceRefresh();
         }
         
         // Setup event listeners
         setupEventListeners();
+    }
+    
+    /**
+     * Start automatic balance refresh
+     */
+    function startBalanceRefresh() {
+        // Stop any existing interval
+        stopBalanceRefresh();
+        
+        // Start new interval
+        if (currentLicenseKey) {
+            balanceRefreshInterval = setInterval(function() {
+                if (currentLicenseKey) {
+                    loadBalance(true); // Silent refresh (don't show errors)
+                } else {
+                    stopBalanceRefresh();
+                }
+            }, BALANCE_REFRESH_INTERVAL);
+        }
+    }
+    
+    /**
+     * Stop automatic balance refresh
+     */
+    function stopBalanceRefresh() {
+        if (balanceRefreshInterval) {
+            clearInterval(balanceRefreshInterval);
+            balanceRefreshInterval = null;
+        }
     }
     
     /**
@@ -55,6 +95,9 @@
                 if (currentLicenseKey) {
                     localStorage.setItem(LICENSE_KEY_STORAGE, currentLicenseKey);
                     loadBalance();
+                    startBalanceRefresh();
+                } else {
+                    stopBalanceRefresh();
                 }
             });
         }
@@ -227,11 +270,14 @@
     
     /**
      * Load balance
+     * @param {boolean} silent - If true, don't show error messages (for auto-refresh)
      */
-    function loadBalance() {
+    function loadBalance(silent = false) {
         if (!currentLicenseKey) {
-            document.getElementById('balanceInfo').innerHTML = 
-                '<p class="text-muted">Enter your license key to view balance</p>';
+            if (!silent) {
+                document.getElementById('balanceInfo').innerHTML = 
+                    '<p class="text-muted">Enter your license key to view balance</p>';
+            }
             return;
         }
         
@@ -242,15 +288,83 @@
                     balance = data;
                     displayBalance();
                 } else {
-                    document.getElementById('balanceInfo').innerHTML = 
-                        `<p class="text-danger">${data.error || 'Failed to load balance'}</p>`;
+                    if (!silent) {
+                        document.getElementById('balanceInfo').innerHTML = 
+                            `<p class="text-danger">${data.error || 'Failed to load balance'}</p>`;
+                    }
                 }
             })
             .catch(error => {
                 console.error('Error loading balance:', error);
-                document.getElementById('balanceInfo').innerHTML = 
-                    '<p class="text-danger">Failed to load balance</p>';
+                if (!silent) {
+                    document.getElementById('balanceInfo').innerHTML = 
+                        '<p class="text-danger">Failed to load balance</p>';
+                }
             });
+    }
+    
+    /**
+     * Format time elapsed since last update
+     */
+    function formatTimeElapsed(seconds) {
+        if (seconds < 60) {
+            return `${Math.floor(seconds)} second${Math.floor(seconds) !== 1 ? 's' : ''} ago`;
+        } else if (seconds < 3600) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            if (secs === 0) {
+                return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+            }
+            return `${minutes} minute${minutes !== 1 ? 's' : ''} ${secs} second${secs !== 1 ? 's' : ''} ago`;
+        } else {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            let result = `${hours} hour${hours !== 1 ? 's' : ''}`;
+            if (minutes > 0) {
+                result += ` ${minutes} minute${minutes !== 1 ? 's' : ''}`;
+            }
+            if (secs > 0 && hours < 2) {
+                result += ` ${secs} second${secs !== 1 ? 's' : ''}`;
+            }
+            return result + ' ago';
+        }
+    }
+    
+    /**
+     * Update time elapsed display
+     */
+    function updateTimeElapsed() {
+        if (!lastBalanceUpdate) return;
+        
+        const elapsed = (Date.now() - lastBalanceUpdate) / 1000; // seconds
+        const timeElapsedEl = document.getElementById('timeElapsed');
+        if (timeElapsedEl) {
+            timeElapsedEl.textContent = formatTimeElapsed(elapsed);
+        }
+    }
+    
+    /**
+     * Start time elapsed updater
+     */
+    function startTimeElapsedUpdater() {
+        // Stop existing interval
+        if (balanceUpdateInterval) {
+            clearInterval(balanceUpdateInterval);
+        }
+        
+        // Update every second
+        balanceUpdateInterval = setInterval(updateTimeElapsed, 1000);
+    }
+    
+    /**
+     * Stop time elapsed updater
+     */
+    function stopTimeElapsedUpdater() {
+        if (balanceUpdateInterval) {
+            clearInterval(balanceUpdateInterval);
+            balanceUpdateInterval = null;
+        }
     }
     
     /**
@@ -264,6 +378,9 @@
         const usedHours = balance.used_hours || 0;
         const purchasedHours = balance.purchased_hours || 0;
         
+        // Update last balance update time
+        lastBalanceUpdate = Date.now();
+        
         // Determine status color
         let statusClass = 'text-success';
         if (hoursRemaining < 1) {
@@ -276,15 +393,24 @@
             <div class="mb-3">
                 <h2 class="${statusClass}">${hoursRemaining.toFixed(2)}</h2>
                 <p class="text-muted mb-0">Hours Remaining</p>
+                <small class="text-muted" id="timeElapsed">Just now</small>
             </div>
             <div class="small text-muted">
                 <div>Purchased: ${purchasedHours.toFixed(2)} hours</div>
                 <div>Used: ${usedHours.toFixed(2)} hours</div>
             </div>
             <button class="btn btn-sm btn-outline-primary mt-3" onclick="loadBalance()">
-                <i class="fas fa-sync me-1"></i>Refresh
+                <i class="fas fa-sync me-1"></i>Refresh Now
             </button>
+            <div class="mt-2">
+                <small class="text-muted">
+                    <i class="fas fa-info-circle me-1"></i>Auto-refreshes every minute
+                </small>
+            </div>
         `;
+        
+        // Start time elapsed updater
+        startTimeElapsedUpdater();
     }
     
     /**
@@ -396,19 +522,14 @@
             html += '<div class="col-md-6 mb-3"><h6>Payment History</h6><p class="text-muted">No payment history available</p></div>';
         }
         
-        // Stats
-        if (data.stats) {
-            html += '<div class="col-12"><h6>Statistics (Last 30 Days)</h6>';
-            html += `<p>Total API Calls: ${data.stats.total_api_calls || 0}</p>`;
-            html += `<p>Total Hours Used: ${(data.stats.total_hours_used || 0).toFixed(2)}</p>`;
-            if (data.stats.top_endpoints && data.stats.top_endpoints.length > 0) {
-                html += '<p>Most Used Endpoints:</p><ul>';
-                data.stats.top_endpoints.slice(0, 5).forEach(ep => {
-                    html += `<li>${ep.endpoint}: ${ep.count} calls</li>`;
-                });
-                html += '</ul>';
-            }
-            html += '</div>';
+        // Totals
+        if (data.totals) {
+            html += '<div class="col-12 mt-3"><div class="card"><div class="card-body"><h6>Summary</h6>';
+            html += `<p><strong>Total Hours Used:</strong> ${(data.totals.total_hours_used || 0).toFixed(2)} hours</p>`;
+            html += `<p><strong>Total Hours Purchased:</strong> ${(data.totals.total_hours_purchased || 0).toFixed(2)} hours</p>`;
+            html += `<p><strong>Total Payments:</strong> ${data.totals.total_payments || 0}</p>`;
+            html += `<p><strong>Total Sessions:</strong> ${data.totals.total_sessions || 0}</p>`;
+            html += '</div></div></div>';
         }
         
         html += '</div>';
@@ -423,6 +544,7 @@
             if (currentLicenseKey) {
                 loadBalance();
                 loadHistory();
+                startBalanceRefresh(); // Restart auto-refresh after payment
             }
         }, 1000);
     }
@@ -437,8 +559,10 @@
         });
     }
     
-    // Expose functions globally
-    window.loadBalance = loadBalance;
+    // Expose functions globally for onclick handlers
+    window.loadBalance = function() {
+        loadBalance(false);
+    };
     window.loadHistory = loadHistory;
     
 })();

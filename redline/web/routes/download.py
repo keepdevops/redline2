@@ -71,6 +71,31 @@ def get_sources():
             }
         }
         
+        # Load custom API configurations
+        custom_apis_file = 'data/custom_apis.json'
+        if os.path.exists(custom_apis_file):
+            import json
+            try:
+                with open(custom_apis_file, 'r') as f:
+                    custom_apis = json.load(f)
+                    for api_id, api_config in custom_apis.items():
+                        # Only include if it has required fields
+                        if api_config.get('name') and api_config.get('base_url') and api_config.get('endpoint'):
+                            source_key = f'custom_{api_id}'
+                            sources[source_key] = {
+                                'name': api_config.get('name', 'Custom API'),
+                                'description': api_config.get('description', 'Custom financial data API'),
+                                'supported_tickers': api_config.get('supported_tickers', 'Varies by API'),
+                                'data_types': api_config.get('data_types', ['OHLCV']),
+                                'delay': api_config.get('delay', 'Varies'),
+                                'rate_limit': f"{api_config.get('rate_limit_per_minute', 60)} calls per minute",
+                                'api_key_required': True,
+                                'custom': True,
+                                'api_id': api_id
+                            }
+            except Exception as e:
+                logger.warning(f"Error loading custom APIs: {str(e)}")
+        
         return jsonify({'sources': sources})
         
     except Exception as e:
@@ -81,7 +106,25 @@ def get_sources():
 def download_data():
     """Download data from specified source."""
     try:
-        data = request.get_json()
+        # Extract license key from headers or JSON body
+        license_key = (
+            request.headers.get('X-License-Key') or
+            request.args.get('license_key') or
+            None
+        )
+        
+        # Also check in JSON body if available
+        data = request.get_json() or {}
+        if not license_key and data:
+            license_key = data.get('license_key')
+        
+        # License key is required (enforced by access control middleware, but check here too)
+        if not license_key:
+            return jsonify({
+                'error': 'License key is required',
+                'message': 'Please provide a license key in X-License-Key header, license_key query parameter, or JSON body'
+            }), 401
+        
         ticker = data.get('ticker')
         source = data.get('source', 'yahoo')
         start_date = data.get('start_date')
@@ -121,7 +164,11 @@ def download_data():
             )
         elif source == 'alpha_vantage':
             from redline.downloaders.alpha_vantage_downloader import AlphaVantageDownloader
-            downloader = AlphaVantageDownloader()
+            # Get API key from request or environment
+            api_key = data.get('api_key') or os.environ.get('ALPHA_VANTAGE_API_KEY')
+            if not api_key:
+                return jsonify({'error': 'Alpha Vantage API key is required. Please select an API key or set ALPHA_VANTAGE_API_KEY environment variable.'}), 400
+            downloader = AlphaVantageDownloader(api_key=api_key)
             result = downloader.download_single_ticker(
                 ticker=ticker,
                 start_date=start_date,
@@ -129,12 +176,51 @@ def download_data():
             )
         elif source == 'finnhub':
             from redline.downloaders.finnhub_downloader import FinnhubDownloader
-            downloader = FinnhubDownloader()
+            # Get API key from request or environment
+            api_key = data.get('api_key') or os.environ.get('FINNHUB_API_KEY')
+            if not api_key:
+                return jsonify({'error': 'Finnhub API key is required. Please select an API key or set FINNHUB_API_KEY environment variable.'}), 400
+            downloader = FinnhubDownloader(api_key=api_key)
             result = downloader.download_single_ticker(
                 ticker=ticker,
                 start_date=start_date,
                 end_date=end_date
             )
+        elif source.startswith('custom_'):
+            # Custom API - load configuration
+            from redline.downloaders.generic_api_downloader import GenericAPIDownloader
+            import json
+            
+            # Get custom API ID (remove 'custom_' prefix)
+            custom_api_id = source.replace('custom_', '')
+            
+            # Load custom API configurations
+            custom_apis_file = 'data/custom_apis.json'
+            if not os.path.exists(custom_apis_file):
+                return jsonify({'error': 'No custom APIs configured. Please configure a custom API first.'}), 400
+            
+            with open(custom_apis_file, 'r') as f:
+                custom_apis = json.load(f)
+            
+            if custom_api_id not in custom_apis:
+                return jsonify({'error': f'Custom API "{custom_api_id}" not found. Please check your configuration.'}), 404
+            
+            api_config = custom_apis[custom_api_id]
+            
+            # Override API key if provided in request
+            if data.get('api_key'):
+                api_config['api_key'] = data.get('api_key')
+            
+            try:
+                downloader = GenericAPIDownloader(api_config)
+                result = downloader.download_single_ticker(
+                    ticker=ticker,
+                    start_date=start_date,
+                    end_date=end_date
+                )
+            except Exception as e:
+                logger.error(f"Error initializing custom API downloader: {str(e)}")
+                return jsonify({'error': f'Custom API configuration error: {str(e)}'}), 400
         elif source == 'csv':
             from redline.downloaders.csv_downloader import CSVDownloader
             downloader = CSVDownloader()
@@ -193,7 +279,25 @@ def download_data():
 def batch_download():
     """Download data for multiple tickers."""
     try:
-        data = request.get_json()
+        # Extract license key from headers or JSON body
+        license_key = (
+            request.headers.get('X-License-Key') or
+            request.args.get('license_key') or
+            None
+        )
+        
+        # Also check in JSON body if available
+        data = request.get_json() or {}
+        if not license_key and data:
+            license_key = data.get('license_key')
+        
+        # License key is required (enforced by access control middleware, but check here too)
+        if not license_key:
+            return jsonify({
+                'error': 'License key is required',
+                'message': 'Please provide a license key in X-License-Key header, license_key query parameter, or JSON body'
+            }), 401
+        
         tickers = data.get('tickers', [])
         source = data.get('source', 'yahoo')
         start_date = data.get('start_date')
@@ -223,10 +327,79 @@ def batch_download():
             downloader = StooqDownloader(output_dir=data_dir)
         elif source == 'alpha_vantage':
             from redline.downloaders.alpha_vantage_downloader import AlphaVantageDownloader
-            downloader = AlphaVantageDownloader()
+            # Get API key from request or environment
+            api_key = data.get('api_key') or os.environ.get('ALPHA_VANTAGE_API_KEY')
+            if not api_key:
+                errors.append({'ticker': 'ALL', 'error': 'Alpha Vantage API key is required. Please select an API key or set ALPHA_VANTAGE_API_KEY environment variable.'})
+                return jsonify({
+                    'success': False,
+                    'results': [],
+                    'errors': errors,
+                    'success_count': 0,
+                    'error_count': len(errors)
+                }), 400
+            downloader = AlphaVantageDownloader(api_key=api_key)
         elif source == 'finnhub':
             from redline.downloaders.finnhub_downloader import FinnhubDownloader
-            downloader = FinnhubDownloader()
+            # Get API key from request or environment
+            api_key = data.get('api_key') or os.environ.get('FINNHUB_API_KEY')
+            if not api_key:
+                errors.append({'ticker': 'ALL', 'error': 'Finnhub API key is required. Please select an API key or set FINNHUB_API_KEY environment variable.'})
+                return jsonify({
+                    'success': False,
+                    'results': [],
+                    'errors': errors,
+                    'success_count': 0,
+                    'error_count': len(errors)
+                }), 400
+            downloader = FinnhubDownloader(api_key=api_key)
+        elif source.startswith('custom_'):
+            # Custom API - load configuration
+            from redline.downloaders.generic_api_downloader import GenericAPIDownloader
+            import json
+            
+            custom_api_id = source.replace('custom_', '')
+            custom_apis_file = 'data/custom_apis.json'
+            
+            if not os.path.exists(custom_apis_file):
+                errors.append({'ticker': 'ALL', 'error': 'No custom APIs configured. Please configure a custom API first.'})
+                return jsonify({
+                    'success': False,
+                    'results': [],
+                    'errors': errors,
+                    'success_count': 0,
+                    'error_count': len(errors)
+                }), 400
+            
+            with open(custom_apis_file, 'r') as f:
+                custom_apis = json.load(f)
+            
+            if custom_api_id not in custom_apis:
+                errors.append({'ticker': 'ALL', 'error': f'Custom API "{custom_api_id}" not found. Please check your configuration.'})
+                return jsonify({
+                    'success': False,
+                    'results': [],
+                    'errors': errors,
+                    'success_count': 0,
+                    'error_count': len(errors)
+                }), 404
+            
+            api_config = custom_apis[custom_api_id].copy()
+            if data.get('api_key'):
+                api_config['api_key'] = data.get('api_key')
+            
+            try:
+                downloader = GenericAPIDownloader(api_config)
+            except Exception as e:
+                logger.error(f"Error initializing custom API downloader: {str(e)}")
+                errors.append({'ticker': 'ALL', 'error': f'Custom API configuration error: {str(e)}'})
+                return jsonify({
+                    'success': False,
+                    'results': [],
+                    'errors': errors,
+                    'success_count': 0,
+                    'error_count': len(errors)
+                }), 400
         elif source == 'csv':
             from redline.downloaders.csv_downloader import CSVDownloader
             downloader = CSVDownloader()
