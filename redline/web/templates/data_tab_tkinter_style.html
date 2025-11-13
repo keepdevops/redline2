@@ -32,15 +32,18 @@
         .file-list-item {
             cursor: pointer;
             padding: 10px;
-            border: 1px solid var(--border-color, #ddd);
+            border: 1px solid var(--border-color);
             margin-bottom: 5px;
             border-radius: 4px;
             transition: background-color 0.2s;
             position: relative;
             z-index: 3;
+            background-color: var(--light-color);
+            color: var(--text-primary);
         }
         .file-list-item:hover {
-            background-color: var(--light-color, #f8f9fa);
+            background-color: var(--secondary-color);
+            color: var(--text-white);
         }
         .file-list-item.selected {
             background-color: var(--primary-color);
@@ -49,7 +52,7 @@
         .data-table {
             max-height: 600px;
             overflow-y: auto;
-            border: 1px solid var(--border-color, #ddd);
+            border: 1px solid var(--border-color);
             position: relative;
             z-index: 3;
         }
@@ -58,9 +61,11 @@
             padding: 40px;
             position: relative;
             z-index: 3;
+            color: var(--text-primary);
         }
         .data-info {
-            background-color: var(--light-color, #e9ecef);
+            background-color: var(--light-color);
+            color: var(--text-primary);
             padding: 15px;
             border-radius: 4px;
             margin-bottom: 15px;
@@ -72,7 +77,7 @@
             height: 3rem;
         }
         .table th {
-            background-color: var(--dark-color, #343a40) !important;
+            background-color: var(--dark-color) !important;
             color: var(--text-white) !important;
             font-weight: bold;
             position: sticky;
@@ -83,6 +88,8 @@
             vertical-align: middle;
             position: relative;
             z-index: 1;
+            background-color: var(--light-color);
+            color: var(--text-primary);
         }
         .table-responsive {
             max-height: 600px;
@@ -92,14 +99,49 @@
         }
         
         /* Ensure proper stacking context */
+        .card {
+            background-color: var(--light-color);
+            color: var(--text-primary);
+            border-color: var(--border-color);
+        }
+        
         .card-body {
             position: relative;
             z-index: 3;
+            background-color: var(--light-color);
+            color: var(--text-primary);
         }
         
         .card-header {
             position: relative;
             z-index: 4;
+            background-color: var(--light-color);
+            color: var(--text-primary);
+            border-bottom-color: var(--border-color);
+        }
+        
+        /* Dark mode support */
+        body.theme-dark .card,
+        body.theme-dark .card-body,
+        body.theme-dark .card-header {
+            background-color: var(--light-color);
+            color: var(--text-primary);
+        }
+        
+        body.theme-dark .table td {
+            background-color: var(--light-color);
+            color: var(--text-primary);
+        }
+        
+        body.theme-dark .file-list-item {
+            background-color: var(--light-color);
+            color: var(--text-primary);
+            border-color: var(--border-color);
+        }
+        
+        body.theme-dark .data-info {
+            background-color: var(--dark-color);
+            color: var(--text-white);
         }
         
         /* Fix for any floating elements */
@@ -183,9 +225,9 @@
 
 {% block extra_js %}
 <script>
-// Global variables
-let currentFile = null;
-let currentData = null;
+// Global variables - attach to window to ensure global scope
+window.currentFile = null;
+window.currentData = null;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -314,9 +356,9 @@ async function deleteFile(filename, event) {
         refreshFileList();
         
         // If the deleted file was currently loaded, clear the display
-        if (currentFile === filename) {
-            currentFile = null;
-            currentData = null;
+        if (window.currentFile === filename) {
+            window.currentFile = null;
+            window.currentData = null;
             document.getElementById('dataDisplay').innerHTML = `
                 <div class="text-center text-muted">
                     <i class="fas fa-mouse-pointer fa-2x mb-3"></i>
@@ -444,8 +486,8 @@ function loadFileData(filename) {
                 data_rows: (data.data && Array.isArray(data.data)) ? data.data.length : 0
             });
             
-                currentFile = filename;
-                currentData = data.data;
+                window.currentFile = filename;
+                window.currentData = data.data;
                 displayDataTable(data);
                 
                 // Show data actions buttons
@@ -596,10 +638,10 @@ function displayDataTable(data) {
 }
 
 // Clean data (remove duplicates, handle missing values)
-let cleanedData = null;
+var cleanedData = null;
 
 async function cleanData() {
-    if (!currentData || !currentFile) {
+    if (!window.currentData || !window.currentFile) {
         alert('Please load a file first.');
         return;
     }
@@ -634,7 +676,7 @@ async function cleanData() {
                 'X-License-Key': licenseKey
             },
             body: JSON.stringify({
-                filename: currentFile,
+                filename: window.currentFile,
                 remove_duplicates: true,
                 handle_missing: 'drop' // Options: 'drop', 'forward_fill', 'backward_fill'
             })
@@ -651,7 +693,7 @@ async function cleanData() {
         
         // Display cleaned data
         displayDataTable({
-            filename: result.filename || currentFile + ' (cleaned)',
+            filename: result.filename || window.currentFile + ' (cleaned)',
             columns: result.columns || Object.keys(cleanedData[0] || {}),
             data: cleanedData,
             total_rows: result.total_rows || cleanedData.length
@@ -686,7 +728,7 @@ async function cleanData() {
 
 // Save cleaned data
 async function saveCleanedData() {
-    if (!cleanedData || !currentFile) {
+    if (!cleanedData || !window.currentFile) {
         alert('No cleaned data to save. Please clean the data first.');
         return;
     }
@@ -702,8 +744,8 @@ async function saveCleanedData() {
     }
     
     // Generate cleaned filename
-    const originalName = currentFile.replace(/\.[^/.]+$/, '');
-    const extension = currentFile.match(/\.[^/.]+$/)?.[0] || '.json';
+    const originalName = window.currentFile.replace(/\.[^/.]+$/, '');
+    const extension = window.currentFile.match(/\.[^/.]+$/)?.[0] || '.json';
     const cleanedFilename = `${originalName}_cleaned${extension}`;
     
     try {
