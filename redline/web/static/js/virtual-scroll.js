@@ -155,11 +155,20 @@ class VirtualScrollTable {
                 ...params
             };
             
+            // Get license key from localStorage
+            const licenseKey = localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY;
+            
+            // Add license key to request params
+            if (licenseKey) {
+                requestParams.license_key = licenseKey;
+            }
+            
             const response = await $.ajax({
                 url: url,
                 method: 'GET',
                 data: requestParams,
-                dataType: 'json'
+                dataType: 'json',
+                headers: licenseKey ? { 'X-License-Key': licenseKey } : {}
             });
             
             if (response.error) {

@@ -75,6 +75,13 @@
 // Auto-redirect to dashboard after 3 seconds if successful
 {% if success %}
 (function() {
+    // Save license key to localStorage for persistent access
+    const licenseKey = "{{ license_key }}";
+    if (licenseKey && licenseKey !== 'None' && licenseKey.trim()) {
+        localStorage.setItem('redline_license_key', licenseKey.trim());
+        console.log('License key saved to localStorage:', licenseKey);
+    }
+    
     let countdown = 3;
     const countdownEl = document.getElementById('countdown');
     const dashboardBtn = document.getElementById('dashboardBtn');
@@ -88,7 +95,7 @@
         
         if (countdown <= 0) {
             clearInterval(interval);
-            // Redirect to dashboard
+            // Redirect to dashboard (license key already in localStorage)
             if (dashboardBtn) {
                 dashboardBtn.click();
             } else {

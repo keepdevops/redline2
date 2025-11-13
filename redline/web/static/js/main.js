@@ -5,6 +5,34 @@ let currentData = null;
 let currentFilters = {};
 let isLoading = false;
 
+// License key management (persistent across all pages)
+const LICENSE_KEY_STORAGE = 'redline_license_key';
+
+// Get stored license key
+function getStoredLicenseKey() {
+    // Use global getLicenseKey if available (from base.html)
+    if (typeof window.getLicenseKey === 'function') {
+        return window.getLicenseKey();
+    }
+    // Fallback to direct localStorage access
+    return localStorage.getItem(LICENSE_KEY_STORAGE) || window.REDLINE_LICENSE_KEY;
+}
+
+// Save license key to localStorage
+function saveLicenseKey(licenseKey) {
+    if (licenseKey && licenseKey.trim()) {
+        localStorage.setItem(LICENSE_KEY_STORAGE, licenseKey.trim());
+        // Dispatch custom event so other scripts can listen
+        window.dispatchEvent(new CustomEvent('licenseKeyUpdated', { detail: { licenseKey: licenseKey.trim() } }));
+    }
+}
+
+// Remove license key (logout)
+function removeLicenseKey() {
+    localStorage.removeItem(LICENSE_KEY_STORAGE);
+    window.dispatchEvent(new CustomEvent('licenseKeyUpdated', { detail: { licenseKey: null } }));
+}
+
 // Utility functions
 const utils = {
     // Format file size
@@ -63,7 +91,18 @@ const api = {
             },
         };
 
+        // Auto-add license key to headers if available
+        const licenseKey = getStoredLicenseKey();
+        if (licenseKey) {
+            defaultOptions.headers['X-License-Key'] = licenseKey;
+        }
+
         const finalOptions = { ...defaultOptions, ...options };
+        
+        // Ensure license key header is set (don't override if explicitly provided)
+        if (licenseKey && !finalOptions.headers['X-License-Key']) {
+            finalOptions.headers['X-License-Key'] = licenseKey;
+        }
         
         return fetch(url, finalOptions)
             .then(response => {
@@ -349,8 +388,20 @@ const fileManager = {
         const formData = new FormData();
         formData.append('file', file);
         
+        // Get license key and add to form data
+        const licenseKey = getStoredLicenseKey();
+        if (licenseKey) {
+            formData.append('license_key', licenseKey);
+        }
+        
+        const headers = {};
+        if (licenseKey) {
+            headers['X-License-Key'] = licenseKey;
+        }
+        
         return fetch('/api/upload', {
             method: 'POST',
+            headers: headers,
             body: formData
         })
         .then(response => {

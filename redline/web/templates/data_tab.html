@@ -103,12 +103,33 @@ $(document).ready(function() {
 function loadFileList() {
     console.log('CACHE BUST: Loading file list from /api/files - ' + new Date().toISOString());
     
+    // Get license key - use global function if available, otherwise fallback
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    if (!licenseKey) {
+        console.error('No license key found!');
+        $('#fileSelect').empty().append('<option value="">License key required - Please register</option>');
+        return;
+    }
+    
+    console.log('Loading files with license key:', licenseKey.substring(0, 20) + '...');
+    
+    // Use jQuery ajax - the override in base.html will automatically add the license key
+    // But we also include it explicitly here as a backup
     $.ajax({
         url: '/api/files',
         method: 'GET',
+        headers: {
+            'X-License-Key': licenseKey  // Explicit header (jQuery override will also add it)
+        },
+        data: {
+            license_key: licenseKey  // Also in query params as backup
+        },
         dataType: 'json',
         success: function(response) {
-            console.log('Files loaded:', response.files.length);
+            console.log('✅ Files loaded:', response.files.length);
             const select = $('#fileSelect');
             select.empty();
             select.append('<option value="">Select a file to load...</option>');
@@ -123,8 +144,13 @@ function loadFileList() {
             }
         },
         error: function(xhr, status, error) {
-            console.error('Error loading files:', error);
-            $('#fileSelect').empty().append('<option value="">Error loading files</option>');
+            console.error('❌ Error loading files:', error);
+            console.error('Response:', xhr.responseText);
+            let errorMsg = 'Error loading files';
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = xhr.responseJSON.error;
+            }
+            $('#fileSelect').empty().append(`<option value="">${errorMsg}</option>`);
         }
     });
 }
@@ -135,15 +161,35 @@ function loadData(filename) {
     // Show loading message
     $('#dataTableContainer').html('<div class="text-center p-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading data...</div>');
     
-    // Use EXACT same data loading as tkinter GUI
+    // Get license key - use global function if available, otherwise fallback
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    if (!licenseKey) {
+        console.error('No license key found!');
+        $('#dataTableContainer').html('<div class="text-center p-4 text-danger"><i class="fas fa-exclamation-triangle me-2"></i>License key is required. Please register or enter your license key.</div>');
+        return;
+    }
+    
+    console.log('Using license key:', licenseKey.substring(0, 20) + '...');
+    
+    // Use jQuery ajax - the override in base.html will automatically add the license key
+    // But we also include it explicitly here as a backup
     $.ajax({
         url: '/data/load',
         method: 'POST',
         contentType: 'application/json',
-        data: JSON.stringify({ filename: filename }),
+        headers: {
+            'X-License-Key': licenseKey  // Explicit header (jQuery override will also add it)
+        },
+        data: JSON.stringify({ 
+            filename: filename, 
+            license_key: licenseKey  // Also in body as backup
+        }),
         dataType: 'json',
         success: function(response) {
-            console.log('Data loaded successfully:', response.total_rows, 'rows');
+            console.log('✅ Data loaded successfully:', response.total_rows, 'rows');
             currentFile = filename;
             currentData = response.data;
             
@@ -161,8 +207,19 @@ function loadData(filename) {
             });
         },
         error: function(xhr, status, error) {
-            console.error('Error loading data:', error);
-            $('#dataTableContainer').html('<div class="text-center p-4 text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Error loading data: ' + error + '</div>');
+            console.error('❌ Error loading data:', error);
+            console.error('Response:', xhr.responseText);
+            let errorMsg = error;
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = xhr.responseJSON.error;
+            }
+            $('#dataTableContainer').html(
+                '<div class="text-center p-4 text-danger">' +
+                '<i class="fas fa-exclamation-triangle me-2"></i>' +
+                'Error loading data: ' + errorMsg +
+                '<br><small>Status: ' + xhr.status + '</small>' +
+                '</div>'
+            );
         }
     });
 }

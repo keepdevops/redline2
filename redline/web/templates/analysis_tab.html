@@ -188,8 +188,17 @@ function loadQuickStats(filename) {
     const opt = $('#analysisFile option:selected');
     const filePath = opt.data('path') || null;
 
+    // Get license key - use global function if available, otherwise fallback
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
     // Get quick stats via data loader to avoid missing legacy endpoints
-    REDLINE.api.post('/data/load', { filename: filename, file_path: filePath })
+    REDLINE.api.post('/data/load', { 
+        filename: filename, 
+        file_path: filePath,
+        license_key: licenseKey
+    })
         .then(response => {
             const statsHtml = `
                 <div class="mb-2">
@@ -229,7 +238,17 @@ function runAnalysis() {
         return;
     }
     
+    // Get license key - use global function if available, otherwise fallback
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    if (!licenseKey) {
+        REDLINE.ui.showToast('License key is required. Please register or enter your license key.', 'error');
+        return;
+    }
+    
     REDLINE.ui.showLoading('Running analysis...');
+    console.log('Running analysis with license key:', licenseKey.substring(0, 20) + '...');
     
     // Include file_path hint to support converted files in subdirectories
     const opt = $('#analysisFile option:selected');
@@ -237,7 +256,8 @@ function runAnalysis() {
     const analysisData = {
         filename: filename,
         file_path: filePath,
-        analysis_type: analysisType
+        analysis_type: analysisType,
+        license_key: licenseKey  // Include license key in request body
     };
     
     REDLINE.api.post('/analysis/analyze', analysisData)

@@ -31,6 +31,14 @@ def register():
     """User registration page to get a license key."""
     return render_template('register.html')
 
+@main_bp.route('/test-button-clicks')
+def test_button_clicks():
+    """Test page for verifying license key inclusion in API calls."""
+    from flask import send_from_directory
+    import os
+    static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'redline', 'web', 'static')
+    return send_from_directory(static_dir, 'test_button_clicks.html')
+
 @main_bp.route('/api/register', methods=['POST'])
 def create_license_proxy():
     """Proxy endpoint for creating licenses (avoids CORS issues)"""

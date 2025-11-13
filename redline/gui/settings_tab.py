@@ -179,14 +179,23 @@ class SettingsTab:
             }
             
             # Load from config or use defaults
+            # Check if 'Data' section exists in config
+            data_section = config.get('Data', {}) if hasattr(config, 'get') else {}
+            
             for key, default_value in defaults.items():
-                if key in config['Data']:
+                if key in data_section:
                     if isinstance(default_value, bool):
-                        self.settings_vars[key].set(config['Data'].getboolean(key, default_value))
+                        if hasattr(data_section, 'getboolean'):
+                            self.settings_vars[key].set(data_section.getboolean(key, default_value))
+                        else:
+                            self.settings_vars[key].set(bool(data_section.get(key, default_value)))
                     elif isinstance(default_value, int):
-                        self.settings_vars[key].set(config['Data'].getint(key, default_value))
+                        if hasattr(data_section, 'getint'):
+                            self.settings_vars[key].set(data_section.getint(key, default_value))
+                        else:
+                            self.settings_vars[key].set(int(data_section.get(key, default_value)))
                     else:
-                        self.settings_vars[key].set(config['Data'].get(key, default_value))
+                        self.settings_vars[key].set(data_section.get(key, default_value))
                 else:
                     self.settings_vars[key].set(default_value)
                     

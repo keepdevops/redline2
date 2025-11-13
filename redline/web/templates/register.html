@@ -204,6 +204,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 `;
                 
+                // Save license key to localStorage for persistent access
+                localStorage.setItem('redline_license_key', licenseKey);
+                console.log('License key saved to localStorage:', licenseKey);
+                
                 // Scroll to result
                 resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             } else {

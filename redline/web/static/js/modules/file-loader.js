@@ -17,7 +17,24 @@ class FileLoader {
         try {
             console.log('FileLoader: Loading files from API...');
             
-            const response = await fetch(`${this.apiBaseUrl}/data/files`);
+            // Get license key from localStorage
+            const licenseKey = localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY;
+            
+            const headers = {};
+            if (licenseKey) {
+                headers['X-License-Key'] = licenseKey;
+            }
+            
+            // Build URL with license key as query parameter
+            let url = `${this.apiBaseUrl}/data/files`;
+            if (licenseKey) {
+                url += `?license_key=${encodeURIComponent(licenseKey)}`;
+            }
+            
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: headers
+            });
             
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);

@@ -189,10 +189,18 @@ function refreshDashboard() {
     // Show loading state
     $('#activityTable').html('<tr><td colspan="4" class="text-center text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</td></tr>');
     
+    // Get license key - use global function if available, otherwise fallback
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
     // Load dashboard data
     Promise.all([
         fetch('/api/status'),
-        fetch('/api/files')
+        fetch('/api/files', {
+            method: 'GET',
+            headers: licenseKey ? { 'X-License-Key': licenseKey } : {}
+        })
     ])
     .then(responses => Promise.all(responses.map(r => r.json())))
     .then(async ([status, files]) => {

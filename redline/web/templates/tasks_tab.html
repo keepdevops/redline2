@@ -210,7 +210,17 @@ $(document).ready(function() {
 });
 
 function loadSystemStatus() {
-    $.get('/tasks/health')
+    // Get license key - use global function if available, otherwise fallback
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    $.ajax({
+        url: '/tasks/health',
+        method: 'GET',
+        headers: licenseKey ? { 'X-License-Key': licenseKey } : {},
+        data: licenseKey ? { license_key: licenseKey } : {}
+    })
         .done(function(data) {
             const statusHtml = `
                 <div class="row">
@@ -255,7 +265,17 @@ function loadSystemStatus() {
 }
 
 function loadQueueStats() {
-    $.get('/tasks/queue/stats')
+    // Get license key - use global function if available, otherwise fallback
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    $.ajax({
+        url: '/tasks/queue/stats',
+        method: 'GET',
+        headers: licenseKey ? { 'X-License-Key': licenseKey } : {},
+        data: licenseKey ? { license_key: licenseKey } : {}
+    })
         .done(function(data) {
             const statsHtml = `
                 <div class="row">
@@ -302,10 +322,21 @@ function loadQueueStats() {
 }
 
 function loadTasks() {
-    const statusFilter = $('#statusFilter').val();
-    const url = statusFilter ? `/tasks/list?status=${statusFilter}` : '/tasks/list';
+    // Get license key - use global function if available, otherwise fallback
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
     
-    $.get(url)
+    const statusFilter = $('#statusFilter').val();
+    let url = statusFilter ? `/tasks/list?status=${statusFilter}` : '/tasks/list';
+    
+    // Use $.ajax to include license key in headers
+    $.ajax({
+        url: url,
+        method: 'GET',
+        headers: licenseKey ? { 'X-License-Key': licenseKey } : {},
+        data: licenseKey ? { license_key: licenseKey } : {}
+    })
         .done(function(data) {
             if (data.tasks && data.tasks.length > 0) {
                 const tasksHtml = data.tasks.map(task => createTaskRow(task)).join('');
@@ -388,7 +419,17 @@ function getStatusBadge(status) {
 function showTaskDetails(taskId) {
     currentTaskId = taskId;
     
-    $.get(`/tasks/status/${taskId}`)
+    // Get license key - use global function if available, otherwise fallback
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    $.ajax({
+        url: `/tasks/status/${taskId}`,
+        method: 'GET',
+        headers: licenseKey ? { 'X-License-Key': licenseKey } : {},
+        data: licenseKey ? { license_key: licenseKey } : {}
+    })
         .done(function(data) {
             const detailsHtml = `
                 <div class="row">
@@ -436,7 +477,17 @@ function showTaskDetails(taskId) {
 
 function cancelTaskById(taskId) {
     if (confirm('Are you sure you want to cancel this task?')) {
-        $.post(`/tasks/cancel/${taskId}`)
+        // Get license key - use global function if available, otherwise fallback
+        const licenseKey = (typeof window.getLicenseKey === 'function') 
+            ? window.getLicenseKey() 
+            : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+        
+        $.ajax({
+            url: `/tasks/cancel/${taskId}`,
+            method: 'POST',
+            headers: licenseKey ? { 'X-License-Key': licenseKey } : {},
+            data: licenseKey ? { license_key: licenseKey } : {}
+        })
             .done(function() {
                 REDLINE.ui.showToast('Task cancelled successfully', 'success');
                 loadTasks();
@@ -603,6 +654,19 @@ function submitTask() {
             break;
     }
     
+    // Get license key - use global function if available, otherwise fallback
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    if (!licenseKey) {
+        REDLINE.ui.showToast('License key is required. Please register or enter your license key.', 'error');
+        return;
+    }
+    
+    // Add license key to task data
+    taskData.license_key = licenseKey;
+    console.log('Submitting task with license key:', licenseKey.substring(0, 20) + '...');
+    
     // Submit task
     const endpoint = taskType.replace('process_', '').replace('_', '/');
     
@@ -624,7 +688,17 @@ function submitTask() {
 
 function cleanupOldTasks() {
     if (confirm('Are you sure you want to cleanup old tasks? This will remove completed tasks older than 7 days.')) {
-        $.post('/tasks/cleanup', {days: 7})
+        // Get license key - use global function if available, otherwise fallback
+        const licenseKey = (typeof window.getLicenseKey === 'function') 
+            ? window.getLicenseKey() 
+            : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+        
+        const cleanupData = {days: 7};
+        if (licenseKey) {
+            cleanupData.license_key = licenseKey;
+        }
+        
+        $.post('/tasks/cleanup', cleanupData)
             .done(function() {
                 REDLINE.ui.showToast('Old tasks cleaned up successfully', 'success');
                 loadTasks();

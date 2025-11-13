@@ -237,6 +237,269 @@
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     
+            <!-- License Key Auto-Load Script (MUST BE BEFORE OTHER SCRIPTS) -->
+            <script>
+            // Auto-load license key from localStorage on all pages
+            (function() {
+                const LICENSE_KEY_STORAGE = 'redline_license_key';
+                
+                // Function to get license key (available immediately)
+                function getLicenseKey() {
+                    const key = localStorage.getItem(LICENSE_KEY_STORAGE) || window.REDLINE_LICENSE_KEY;
+                    if (!key) {
+                        console.warn('⚠️ No license key found in localStorage or window.REDLINE_LICENSE_KEY');
+                    }
+                    return key;
+                }
+                
+                // Make getLicenseKey available globally immediately
+                window.getLicenseKey = getLicenseKey;
+                
+                // Load saved key
+                const savedKey = localStorage.getItem(LICENSE_KEY_STORAGE);
+                if (savedKey) {
+                    // Make license key available globally
+                    window.REDLINE_LICENSE_KEY = savedKey;
+                    console.log('✅ License key loaded from localStorage:', savedKey.substring(0, 20) + '...');
+                } else {
+                    console.log('ℹ️ No license key found in localStorage. Register or enter license key.');
+                }
+                
+                // Add diagnostic function
+                window.checkLicenseKey = function() {
+                    const key = getLicenseKey();
+                    console.log('🔑 License Key Check:');
+                    console.log('  - localStorage:', localStorage.getItem(LICENSE_KEY_STORAGE) ? 'Found' : 'Not found');
+                    console.log('  - window.REDLINE_LICENSE_KEY:', window.REDLINE_LICENSE_KEY ? 'Found' : 'Not found');
+                    console.log('  - Current key:', key ? key.substring(0, 20) + '...' : 'None');
+                    return key;
+                };
+                
+                // Override global fetch to automatically include license key
+                const originalFetch = window.fetch;
+                window.fetch = function(url, options = {}) {
+                    // Only add license key for same-origin requests (our API)
+                    if (typeof url === 'string' && (url.startsWith('/') || url.startsWith(window.location.origin))) {
+                        const licenseKey = getLicenseKey();
+                        
+                        if (licenseKey) {
+                            // Ensure options object exists
+                            if (!options) options = {};
+                            if (!options.headers) options.headers = {};
+                            
+                            // Add license key header if not already present
+                            if (!options.headers['X-License-Key'] && !options.headers['x-license-key']) {
+                                options.headers['X-License-Key'] = licenseKey;
+                            }
+                        }
+                    }
+                    
+                    return originalFetch.apply(this, arguments);
+                };
+                
+                // Wait for jQuery to be ready, then override
+                function setupJQueryOverride() {
+                    if (typeof $ === 'undefined' || !$.ajax) {
+                        // jQuery not loaded yet, try again
+                        setTimeout(setupJQueryOverride, 50);
+                        return;
+                    }
+                    
+                    // Override jQuery ajax to automatically include license key
+                    const originalAjax = $.ajax;
+                    $.ajax = function(urlOrOptions, options) {
+                        // Handle both $.ajax(url, options) and $.ajax(options) patterns
+                        let opts, url;
+                        
+                        if (typeof urlOrOptions === 'string') {
+                            // Called as $.ajax(url, options)
+                            url = urlOrOptions;
+                            opts = options || {};
+                            opts.url = url;
+                        } else {
+                            // Called as $.ajax(options)
+                            opts = urlOrOptions || {};
+                            url = opts.url;
+                        }
+                        
+                        // Only add license key for same-origin requests
+                        if (url && (url.startsWith('/') || url.startsWith(window.location.origin))) {
+                            const licenseKey = getLicenseKey();
+                            
+                            if (licenseKey) {
+                                // Ensure headers object exists
+                                if (!opts.headers) opts.headers = {};
+                                
+                                // Add license key header if not already present
+                                if (!opts.headers['X-License-Key'] && !opts.headers['x-license-key']) {
+                                    opts.headers['X-License-Key'] = licenseKey;
+                                    console.log('✅ Added license key to headers for:', url);
+                                }
+                                
+                                // Also add to beforeSend if it exists
+                                const originalBeforeSend = opts.beforeSend;
+                                opts.beforeSend = function(xhr) {
+                                    const key = getLicenseKey();
+                                    if (key && !xhr.getRequestHeader('X-License-Key')) {
+                                        xhr.setRequestHeader('X-License-Key', key);
+                                        console.log('✅ Added license key via beforeSend for:', url);
+                                    }
+                                    if (originalBeforeSend) {
+                                        return originalBeforeSend.apply(this, arguments);
+                                    }
+                                };
+                                
+                                // Handle data - could be object, string (JSON), FormData, etc.
+                                if (opts.data) {
+                                    // If data is a JSON string (common for POST with contentType: 'application/json')
+                                    if (typeof opts.data === 'string' && opts.contentType && opts.contentType.includes('application/json')) {
+                                        try {
+                                            const dataObj = JSON.parse(opts.data);
+                                            if (!dataObj.license_key) {
+                                                dataObj.license_key = licenseKey;
+                                                opts.data = JSON.stringify(dataObj);
+                                                console.log('✅ Added license key to JSON string data for:', url);
+                                            }
+                                        } catch (e) {
+                                            // Not valid JSON, skip
+                                        }
+                                    }
+                                    // If data is an object
+                                    else if (typeof opts.data === 'object' && !Array.isArray(opts.data) && !(opts.data instanceof FormData)) {
+                                        if (!opts.data.license_key) {
+                                            opts.data.license_key = licenseKey;
+                                            console.log('✅ Added license key to object data for:', url);
+                                        }
+                                    }
+                                    // If data is FormData
+                                    else if (opts.data instanceof FormData) {
+                                        if (!opts.data.has('license_key')) {
+                                            opts.data.append('license_key', licenseKey);
+                                            console.log('✅ Added license key to FormData for:', url);
+                                        }
+                                    }
+                                } else if (opts.type && opts.type.toUpperCase() === 'POST') {
+                                    // For POST requests without data, add license_key as query param or create data object
+                                    if (!opts.data) {
+                                        opts.data = { license_key: licenseKey };
+                                        console.log('✅ Created data object with license key for POST:', url);
+                                    }
+                                }
+                            } else {
+                                console.warn('⚠️ No license key found in localStorage for request:', url);
+                            }
+                        }
+                        
+                        // Call original ajax with modified options
+                        if (typeof urlOrOptions === 'string') {
+                            return originalAjax.call(this, url, opts);
+                        } else {
+                            return originalAjax.call(this, opts);
+                        }
+                    };
+                    
+                    // Also override $.get and $.post
+                    const originalGet = $.get;
+                    $.get = function(url, data, success, dataType) {
+                        const licenseKey = getLicenseKey();
+                        const opts = {
+                            url: url,
+                            type: 'GET',
+                            dataType: dataType
+                        };
+                        
+                        if (licenseKey) {
+                            if (!opts.headers) opts.headers = {};
+                            opts.headers['X-License-Key'] = licenseKey;
+                            
+                            if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
+                                opts.data = Object.assign({}, data, { license_key: licenseKey });
+                            } else if (typeof data === 'string') {
+                                opts.url = url + (url.includes('?') ? '&' : '?') + 'license_key=' + encodeURIComponent(licenseKey);
+                                opts.data = data;
+                            } else {
+                                opts.url = url + (url.includes('?') ? '&' : '?') + 'license_key=' + encodeURIComponent(licenseKey);
+                                opts.data = data;
+                            }
+                        } else {
+                            opts.data = data;
+                        }
+                        
+                        if (success) opts.success = success;
+                        
+                        return originalAjax(opts);
+                    };
+                    
+                    const originalPost = $.post;
+                    $.post = function(url, data, success, dataType) {
+                        const licenseKey = getLicenseKey();
+                        const opts = {
+                            url: url,
+                            type: 'POST',
+                            dataType: dataType
+                        };
+                        
+                        if (licenseKey) {
+                            if (!opts.headers) opts.headers = {};
+                            opts.headers['X-License-Key'] = licenseKey;
+                            
+                            if (typeof data === 'object' && data !== null && !Array.isArray(data) && !(data instanceof FormData)) {
+                                opts.data = Object.assign({}, data, { license_key: licenseKey });
+                            } else if (data instanceof FormData) {
+                                if (!data.has('license_key')) {
+                                    data.append('license_key', licenseKey);
+                                }
+                                opts.data = data;
+                            } else {
+                                opts.data = data;
+                            }
+                        } else {
+                            opts.data = data;
+                        }
+                        
+                        if (success) opts.success = success;
+                        
+                        return originalAjax(opts);
+                    };
+                    
+                    // Already logged in setupJQueryOverride
+                }
+                
+                // Setup jQuery override when jQuery is ready
+                // Try multiple times to ensure it's installed before other scripts
+                function installOverride() {
+                    if (typeof $ !== 'undefined' && $.ajax) {
+                        setupJQueryOverride();
+                        console.log('✅ jQuery license key override installed');
+                    } else {
+                        // Try again after a short delay
+                        setTimeout(installOverride, 50);
+                    }
+                }
+                
+                // Start installation immediately
+                if (typeof $ !== 'undefined' && $.ajax) {
+                    installOverride();
+                } else {
+                    // Wait for jQuery to load
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', installOverride);
+                    } else {
+                        // DOM already loaded, start immediately
+                        installOverride();
+                    }
+                    // Also try immediately in case jQuery is already loaded
+                    setTimeout(installOverride, 100);
+                    setTimeout(installOverride, 500);
+                }
+                
+                // Make license key available globally for all modules
+                window.REDLINE = window.REDLINE || {};
+                window.REDLINE.getLicenseKey = getLicenseKey;
+                window.REDLINE.LICENSE_KEY_STORAGE = LICENSE_KEY_STORAGE;
+            })();
+            </script>
+    
             <!-- Custom JS -->
             <script src="{{ url_for('static', filename='js/main.js') }}"></script>
             <script src="{{ url_for('static', filename='js/virtual-scroll.js') }}"></script>
@@ -253,7 +516,17 @@
         
         // Load recent files
         function loadRecentFiles() {
-            $.get('/api/files')
+            // Get license key - use global function if available, otherwise fallback
+            const licenseKey = (typeof window.getLicenseKey === 'function') 
+                ? window.getLicenseKey() 
+                : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+            
+            $.ajax({
+                url: '/api/files',
+                method: 'GET',
+                headers: licenseKey ? { 'X-License-Key': licenseKey } : {},
+                data: licenseKey ? { license_key: licenseKey } : {}
+            })
                 .done(function(data) {
                     const container = $('#recent-files');
                     container.empty();

@@ -103,7 +103,21 @@ class DatabaseConnector:
             os.makedirs(os.path.dirname(path), exist_ok=True)
             
             # Connect to database (will create file if it doesn't exist)
-            conn = duckdb.connect(path)
+            # Use read-only mode if database is locked by another process
+            try:
+                conn = duckdb.connect(path)
+            except Exception as lock_error:
+                if 'lock' in str(lock_error).lower() or 'conflicting' in str(lock_error).lower():
+                    # Try read-only mode if database is locked
+                    self.logger.warning(f"Database locked, attempting read-only connection: {str(lock_error)}")
+                    try:
+                        conn = duckdb.connect(path, read_only=True)
+                        self.logger.info("Connected in read-only mode")
+                    except Exception as read_error:
+                        self.logger.error(f"Failed to connect even in read-only mode: {str(read_error)}")
+                        raise lock_error  # Raise original error
+                else:
+                    raise
             return conn
         except Exception as e:
             self.logger.error(f"Failed to create database connection: {str(e)}")

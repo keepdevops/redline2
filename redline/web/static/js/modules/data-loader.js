@@ -18,12 +18,22 @@ class DataLoader {
         try {
             console.log(`DataLoader: Loading data for file: ${filename}`);
             
+            // Get license key from localStorage
+            const licenseKey = localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY;
+            
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            
+            // Add license key to headers
+            if (licenseKey) {
+                headers['X-License-Key'] = licenseKey;
+            }
+            
             const response = await fetch(`${this.apiBaseUrl}/data/load`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ filename: filename })
+                headers: headers,
+                body: JSON.stringify({ filename: filename, license_key: licenseKey })
             });
             
             if (!response.ok) {

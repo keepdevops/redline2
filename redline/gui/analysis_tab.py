@@ -175,6 +175,7 @@ class AnalysisTab:
             sorted_data = current_data.sort_values(timestamp_col)
             
             # Convert price column to numeric before calculating
+            import pandas as pd
             sorted_data[close_col] = pd.to_numeric(sorted_data[close_col], errors='coerce')
             
             # Calculate price changes
@@ -223,6 +224,7 @@ class AnalysisTab:
                 return
             
             # Convert volume column to numeric before calculating
+            import pandas as pd
             current_data[vol_col] = pd.to_numeric(current_data[vol_col], errors='coerce')
             
             # Volume statistics

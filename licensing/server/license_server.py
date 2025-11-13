@@ -99,11 +99,6 @@ class LicenseManager:
         
         license_data = self.licenses[license_key]
         
-        # Check if license is expired
-        expires = datetime.fromisoformat(license_data['expires'])
-        if datetime.now() > expires:
-            return {'valid': False, 'error': 'License expired'}
-        
         # Check if license is active
         if license_data['status'] != 'active':
             return {'valid': False, 'error': 'License inactive'}

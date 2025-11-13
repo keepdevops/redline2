@@ -358,13 +358,24 @@ function convertFile() {
         return;
     }
     
+    // Get license key - use global function if available, otherwise fallback
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    if (!licenseKey) {
+        REDLINE.ui.showToast('License key is required. Please register or enter your license key.', 'error');
+        return;
+    }
+    
     REDLINE.ui.showLoading('Converting file...');
+    console.log('Converting file with license key:', licenseKey.substring(0, 20) + '...');
     
     const conversionData = {
         input_file: inputFile,
         output_format: outputFormat,
         output_filename: outputFilename,
-        overwrite: overwrite
+        overwrite: overwrite,
+        license_key: licenseKey  // Include license key in request body
     };
     
     REDLINE.api.post('/converter/convert', conversionData)
@@ -468,7 +479,17 @@ function batchConvert() {
         return;
     }
     
+    // Get license key - use global function if available, otherwise fallback
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    if (!licenseKey) {
+        REDLINE.ui.showToast('License key is required. Please register or enter your license key.', 'error');
+        return;
+    }
+    
     REDLINE.ui.showLoading('Converting files...');
+    console.log('Batch converting with license key:', licenseKey.substring(0, 20) + '...');
     
     const files = batchFiles.map(file => ({
         input_file: file.name,
@@ -479,7 +500,8 @@ function batchConvert() {
     
     REDLINE.api.post('/converter/batch-convert', {
         files: files,
-        overwrite: overwrite
+        overwrite: overwrite,
+        license_key: licenseKey  // Include license key in request body
     })
         .then(response => {
             REDLINE.ui.hideLoading();

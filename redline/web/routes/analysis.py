@@ -118,22 +118,43 @@ def analyze_data():
         
         converter = FormatConverter()
         
-        # Determine file path - check both root data directory and downloaded subdirectory
+        # Determine file path - check multiple locations including converted files
         data_dir = os.path.join(os.getcwd(), 'data')
         data_path = None
         
-        # Check in root data directory first
-        root_path = os.path.join(data_dir, filename)
-        if os.path.exists(root_path):
-            data_path = root_path
+        # If file_path is provided (from converted files), use it directly
+        file_path_hint = data.get('file_path')
+        if file_path_hint and os.path.exists(file_path_hint):
+            data_path = file_path_hint
         else:
-            # Check in downloaded directory
-            downloaded_path = os.path.join(data_dir, 'downloaded', filename)
-            if os.path.exists(downloaded_path):
-                data_path = downloaded_path
+            # Check locations in order of priority (same as /data/load endpoint):
+            # 1. Root data directory
+            # 2. data/stooq directory (for Stooq downloads)
+            # 3. data/downloaded directory (for other downloads)
+            # 4. data/uploads directory (for uploaded files)
+            # 5. data/converted directory (recursively, for converted files)
+            search_paths = [
+                os.path.join(data_dir, filename),
+                os.path.join(data_dir, 'stooq', filename),
+                os.path.join(data_dir, 'downloaded', filename),
+                os.path.join(data_dir, 'uploads', filename)
+            ]
+            
+            # Check converted directory recursively
+            converted_dir = os.path.join(data_dir, 'converted')
+            if os.path.exists(converted_dir):
+                for root, dirs, files in os.walk(converted_dir):
+                    if filename in files:
+                        search_paths.append(os.path.join(root, filename))
+            
+            # Try each path
+            for path in search_paths:
+                if os.path.exists(path):
+                    data_path = path
+                    break
         
         if not data_path or not os.path.exists(data_path):
-            return jsonify({'error': 'File not found'}), 404
+            return jsonify({'error': f'File not found: {filename}'}), 404
         
         # Detect format from file extension (same as Tkinter)
         ext = os.path.splitext(data_path)[1].lower()
