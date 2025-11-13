@@ -95,6 +95,7 @@ custom_apis.json
 config.ini
 *config*.ini
 data_config.ini
+data_config.ini.backup
 *.conf
 *.cfg
 
