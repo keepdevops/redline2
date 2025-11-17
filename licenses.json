@@ -1606,10 +1606,10 @@
     ],
     "max_installs": 10,
     "installs": [],
-    "hours_remaining": 1.499,
+    "hours_remaining": 0.0,
     "purchased_hours": 1.5,
-    "used_hours": 0.001,
-    "last_usage_check": "2025-11-13T09:23:36.790660"
+    "used_hours": 1.5,
+    "last_usage_check": "2025-11-13T20:28:41.840374"
   },
   "RL-CE5CB36E-32BDD7B0-0ADF2BF4": {
     "key": "RL-CE5CB36E-32BDD7B0-0ADF2BF4",
@@ -1735,10 +1735,10 @@
     ],
     "max_installs": 1,
     "installs": [],
-    "hours_remaining": 4.135690858055555,
+    "hours_remaining": 0.0,
     "purchased_hours": 5.0,
-    "used_hours": 0.8643091419444444,
-    "last_usage_check": "2025-11-13T11:53:05.461445"
+    "used_hours": 4.999999999999999,
+    "last_usage_check": "2025-11-13T13:49:03.340534"
   },
   "RL-E9F94860-A8EC8D1F-FDCBE3B7": {
     "key": "RL-E9F94860-A8EC8D1F-FDCBE3B7",

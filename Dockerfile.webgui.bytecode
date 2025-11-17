@@ -1,0 +1,127 @@
+# syntax=docker/dockerfile:1
+# REDLINE Web-Based GUI - Bytecode Optimized Version
+# Multi-stage build with pre-compiled Python bytecode for production
+
+# ============================================
+# Stage 1: Builder - Install dependencies and compile bytecode
+# ============================================
+FROM python:3.11-slim AS builder
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=0 \
+    PYTHONOPTIMIZE=2 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Install build dependencies
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+WORKDIR /app
+COPY requirements.txt .
+
+# Install Python dependencies with cache mount
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir \
+    flask werkzeug jinja2 markupsafe click blinker itsdangerous \
+    flask-socketio flask-compress flask-limiter \
+    python-socketio eventlet gevent gevent-websocket \
+    numpy pandas duckdb pyarrow fastparquet yfinance polars \
+    celery redis \
+    requests urllib3 \
+    scikit-learn matplotlib seaborn \
+    openpyxl xlsxwriter \
+    configparser gunicorn psutil \
+    boto3
+
+# Copy application code
+COPY . /app
+
+# Pre-compile Python bytecode with optimization
+# -b flag: write bytecode files alongside source (not in __pycache__)
+# -OO: optimize bytecode (remove docstrings, assert statements)
+RUN PYTHONOPTIMIZE=2 python -OO -m compileall -b . && \
+    echo "✅ Compiled $(find . -name '*.pyc' | wc -l) bytecode files" && \
+    find . -name "*.py" -not -path "./web_app.py" -not -path "./main.py" -delete && \
+    find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true && \
+    echo "✅ Removed source files, kept essential entry points"
+
+# ============================================
+# Stage 2: Runtime - Minimal production image
+# ============================================
+FROM python:3.11-slim AS runtime
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONOPTIMIZE=2 \
+    FLASK_APP=web_app.py \
+    FLASK_ENV=production \
+    GUNICORN_WORKERS=1 \
+    GUNICORN_THREADS=4 \
+    GUNICORN_TIMEOUT=120
+
+# Install runtime dependencies only
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app user for security (don't run as root)
+RUN useradd -m -u 1000 -s /bin/bash appuser
+
+# Set working directory
+WORKDIR /app
+
+# Copy installed packages from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy compiled application code (bytecode only, no source)
+COPY --chown=appuser:appuser --from=builder /app /app
+
+# Create necessary directories
+RUN mkdir -p /app/data /app/logs /app/config /app/data/uploads /app/data/user_files && \
+    chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Expose web port
+EXPOSE 8080
+
+# Healthcheck disabled - causes issues with DuckDB single-worker constraint
+# HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+#     CMD curl -f http://localhost:8080/health || exit 1
+
+# Start the web application with Gunicorn (production settings)
+CMD ["gunicorn", \
+     "--bind", "0.0.0.0:8080", \
+     "--workers", "1", \
+     "--threads", "4", \
+     "--timeout", "120", \
+     "--worker-class", "gthread", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-", \
+     "web_app:create_app()"]
+
+# Labels for metadata
+LABEL maintainer="REDLINE Team <keepdevops@gmail.com>" \
+      version="bytecode-optimized" \
+      description="REDLINE Financial Analysis - Bytecode Optimized Production Version" \
+      architecture="multi-platform" \
+      performance="optimized" \
+      license="proprietary" \
+      beta="true"
+

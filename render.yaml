@@ -2,12 +2,9 @@ services:
   - type: web
     name: redline-backend
     env: docker
-    # Option 1: Use Dockerfile from repo
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
-    # Option 2: Use Docker image directly (uncomment and comment above)
-    # image: keepdevops/redline:latest
-    dockerCommand: gunicorn -w 2 -b 0.0.0.0:$PORT web_app:app
+    # Use bytecode-optimized Docker image
+    image: keepdevops/redline:latest
+    dockerCommand: gunicorn --bind 0.0.0.0:$PORT --workers ${GUNICORN_WORKERS:-1} --threads ${GUNICORN_THREADS:-4} --timeout ${GUNICORN_TIMEOUT:-120} --worker-class gthread --access-logfile - --error-logfile - web_app:create_app()
     plan: starter
     envVars:
       - key: FLASK_ENV
@@ -15,9 +12,16 @@ services:
       - key: FLASK_APP
         value: web_app.py
       - key: PORT
-        value: 8080
+        value: "8080"
       - key: HOST
         value: 0.0.0.0
-    healthCheckPath: /health
-    healthCheckTimeout: 100
+      - key: GUNICORN_WORKERS
+        value: "1"
+      - key: GUNICORN_THREADS
+        value: "4"
+      - key: GUNICORN_TIMEOUT
+        value: "120"
+    # Healthcheck disabled - causes issues with DuckDB single-worker constraint
+    # healthCheckPath: /health
+    # healthCheckTimeout: 100
 

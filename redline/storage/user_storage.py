@@ -48,13 +48,14 @@ class UserStorage:
         
         self.use_s3 = use_s3 and S3_AVAILABLE
         
-        # Load S3 config from environment if not provided
+        # Load S3/R2 config from environment if not provided
         if s3_config is None and self.use_s3:
             s3_config = {
                 'bucket': os.environ.get('S3_BUCKET'),
                 'access_key': os.environ.get('S3_ACCESS_KEY'),
                 'secret_key': os.environ.get('S3_SECRET_KEY'),
-                'region': os.environ.get('S3_REGION', 'us-east-1')
+                'region': os.environ.get('S3_REGION', 'us-east-1'),
+                'endpoint_url': os.environ.get('S3_ENDPOINT_URL')  # For R2 or custom endpoints
             }
         
         self.s3_config = s3_config or {}
@@ -63,18 +64,31 @@ class UserStorage:
             self._init_s3()
     
     def _init_s3(self):
-        """Initialize S3 client"""
+        """Initialize S3 client (supports AWS S3 and Cloudflare R2)"""
         try:
-            self.s3_client = boto3.client(
-                's3',
-                aws_access_key_id=self.s3_config.get('access_key'),
-                aws_secret_access_key=self.s3_config.get('secret_key'),
-                region_name=self.s3_config.get('region', 'us-east-1')
-            )
+            # Get endpoint URL for R2 (Cloudflare R2 uses custom endpoint)
+            endpoint_url = os.environ.get('S3_ENDPOINT_URL') or self.s3_config.get('endpoint_url')
+            
+            # Build client config
+            client_config = {
+                'aws_access_key_id': self.s3_config.get('access_key'),
+                'aws_secret_access_key': self.s3_config.get('secret_key'),
+                'region_name': self.s3_config.get('region', 'us-east-1')
+            }
+            
+            # Add endpoint URL if provided (for R2 or other S3-compatible services)
+            if endpoint_url:
+                client_config['endpoint_url'] = endpoint_url
+                logger.info(f"Using custom S3 endpoint: {endpoint_url}")
+            
+            self.s3_client = boto3.client('s3', **client_config)
             self.s3_bucket = self.s3_config.get('bucket')
-            logger.info(f"S3 storage initialized: bucket={self.s3_bucket}")
+            
+            # Determine storage type for logging
+            storage_type = "R2" if endpoint_url and 'r2.cloudflarestorage.com' in endpoint_url else "S3"
+            logger.info(f"{storage_type} storage initialized: bucket={self.s3_bucket}")
         except Exception as e:
-            logger.error(f"Failed to initialize S3: {str(e)}")
+            logger.error(f"Failed to initialize S3/R2: {str(e)}")
             self.use_s3 = False
     
     def _get_user_path(self, license_key: str) -> Path:

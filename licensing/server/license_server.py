@@ -204,19 +204,29 @@ class LicenseManager:
         
         current_hours = license_data.get('hours_remaining', 0.0)
         
-        if current_hours < hours:
-            return {'success': False, 'error': 'Insufficient hours remaining'}
+        # Cap deduction at remaining hours to allow zeroing out
+        # If trying to deduct more than available, deduct only what's available
+        hours_to_deduct = min(hours, current_hours)
         
-        # Deduct hours
-        license_data['hours_remaining'] = current_hours - hours
-        license_data['used_hours'] = license_data.get('used_hours', 0.0) + hours
+        if hours_to_deduct <= 0:
+            # No hours to deduct (already at zero or negative)
+            return {
+                'success': True,
+                'hours_deducted': 0.0,
+                'hours_remaining': max(0.0, current_hours),  # Ensure non-negative
+                'used_hours': license_data.get('used_hours', 0.0)
+            }
+        
+        # Deduct hours (cap at remaining hours to allow zeroing out)
+        license_data['hours_remaining'] = max(0.0, current_hours - hours_to_deduct)  # Ensure non-negative
+        license_data['used_hours'] = license_data.get('used_hours', 0.0) + hours_to_deduct
         license_data['last_usage_check'] = datetime.now().isoformat()
         
         self.save_licenses()
         
         return {
             'success': True,
-            'hours_deducted': hours,
+            'hours_deducted': hours_to_deduct,
             'hours_remaining': license_data['hours_remaining'],
             'used_hours': license_data['used_hours']
         }
