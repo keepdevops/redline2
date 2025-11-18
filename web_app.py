@@ -243,6 +243,13 @@ def create_app():
                     logger.debug(f"Could not parse JSON body: {str(e)}")
         
         # For API endpoints, require license key
+        # Exception: /api/files can be called from public pages (registration) - return empty list instead of error
+        if request.path == '/api/files' and not license_key:
+            # Allow /api/files without license key (returns empty list for public pages)
+            from flask import jsonify
+            logger.debug(f"/api/files called without license key (likely from public page like /register)")
+            return jsonify({'files': [], 'total': 0}), 200
+        
         if request.path.startswith('/api/') or request.path.startswith('/data/') or \
            request.path.startswith('/analysis/') or request.path.startswith('/download/') or \
            request.path.startswith('/user-data/') or request.path.startswith('/converter/'):
