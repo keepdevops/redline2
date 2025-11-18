@@ -356,13 +356,13 @@ function displayBasicAnalysis(result) {
 }
 
 function displayFinancialAnalysis(result) {
-    let html = '<h6>Financial Analysis</h6>';
+    let html = '<h6 class="mb-3" style="color: var(--text-primary);">Financial Analysis</h6>';
     
     if (result.price_analysis && Object.keys(result.price_analysis).length > 0) {
         html += `
-            <div class="card mb-3">
+            <div class="card mb-3" style="background-color: var(--light-color); color: var(--text-primary);">
                 <div class="card-body">
-                    <h6>Price Analysis</h6>
+                    <h6 style="color: var(--text-primary);">Price Analysis</h6>
                     <div class="row">
                         <div class="col-md-6">
                             <p><strong>Current Price:</strong> ${result.price_analysis.current_price || 'N/A'}</p>
@@ -381,9 +381,9 @@ function displayFinancialAnalysis(result) {
     
     if (result.returns_analysis && Object.keys(result.returns_analysis).length > 0) {
         html += `
-            <div class="card mb-3">
+            <div class="card mb-3" style="background-color: var(--light-color); color: var(--text-primary);">
                 <div class="card-body">
-                    <h6>Returns Analysis</h6>
+                    <h6 style="color: var(--text-primary);">Returns Analysis</h6>
                     <div class="row">
                         <div class="col-md-6">
                             <p><strong>Mean Return:</strong> ${(result.returns_analysis.mean_return * 100).toFixed(2)}%</p>
@@ -401,9 +401,9 @@ function displayFinancialAnalysis(result) {
     
     if (result.volatility_analysis && Object.keys(result.volatility_analysis).length > 0) {
         html += `
-            <div class="card mb-3">
+            <div class="card mb-3" style="background-color: var(--light-color); color: var(--text-primary);">
                 <div class="card-body">
-                    <h6>Volatility Analysis</h6>
+                    <h6 style="color: var(--text-primary);">Volatility Analysis</h6>
                     <div class="row">
                         <div class="col-md-6">
                             <p><strong>Daily Volatility:</strong> ${(result.volatility_analysis.daily_volatility * 100).toFixed(2)}%</p>
@@ -422,11 +422,11 @@ function displayFinancialAnalysis(result) {
 }
 
 function displayStatisticalAnalysis(result) {
-    let html = '<h6>Statistical Analysis</h6>';
+    let html = '<h6 class="mb-3" style="color: var(--text-primary);">Statistical Analysis</h6>';
     
     // Summary information
     if (result.summary) {
-        html += '<div class="alert alert-info">';
+        html += '<div class="alert alert-info" style="background-color: var(--light-color); color: var(--text-primary); border-left: 4px solid var(--info-color);">';
         html += `<p><strong>Dataset Summary:</strong></p>`;
         html += `<ul>`;
         html += `<li>Total Rows: ${result.summary.total_rows}</li>`;
@@ -437,9 +437,9 @@ function displayStatisticalAnalysis(result) {
     
     // Close price statistics (if available)
     if (result.close_price_stats) {
-        html += '<h6>Close Price Statistics</h6>';
-        html += '<div class="table-responsive"><table class="table table-sm">';
-        html += '<thead><tr><th>Statistic</th><th>Value</th></tr></thead><tbody>';
+        html += '<h6 class="mb-3" style="color: var(--text-primary);">Close Price Statistics</h6>';
+        html += '<div class="table-responsive"><table class="table table-sm" style="background-color: var(--light-color); color: var(--text-primary);">';
+        html += '<thead style="background-color: var(--dark-color); color: var(--text-white);"><tr><th>Statistic</th><th>Value</th></tr></thead><tbody>';
         
         Object.entries(result.close_price_stats).forEach(([stat, value]) => {
             html += `<tr><td><strong>${stat}</strong></td><td>${value.toFixed(2)}</td></tr>`;
@@ -449,9 +449,9 @@ function displayStatisticalAnalysis(result) {
     
     // Descriptive statistics
     if (result.descriptive_stats) {
-        html += '<h6>Descriptive Statistics</h6>';
-        html += '<div class="table-responsive"><table class="table table-sm">';
-        html += '<thead><tr><th>Statistic</th>';
+        html += '<h6 class="mb-3" style="color: var(--text-primary);">Descriptive Statistics</h6>';
+        html += '<div class="table-responsive"><table class="table table-sm" style="background-color: var(--light-color); color: var(--text-primary);">';
+        html += '<thead style="background-color: var(--dark-color); color: var(--text-white);"><tr><th>Statistic</th>';
         
         // Add column headers
         const firstStat = Object.values(result.descriptive_stats)[0];
@@ -466,7 +466,7 @@ function displayStatisticalAnalysis(result) {
         
         // Add data rows
         Object.entries(result.descriptive_stats).forEach(([stat, values]) => {
-            html += `<tr><td><strong>${stat}</strong></td>`;
+            html += `<tr style="color: var(--text-primary);"><td><strong>${stat}</strong></td>`;
             if (typeof values === 'object') {
                 Object.values(values).forEach(value => {
                     html += `<td>${typeof value === 'number' ? value.toFixed(2) : value}</td>`;
@@ -483,11 +483,11 @@ function displayStatisticalAnalysis(result) {
 }
 
 function displayCorrelationAnalysis(result) {
-    let html = '<h6>Correlation Analysis</h6>';
+    let html = '<h6 class="mb-3" style="color: var(--text-primary);">Correlation Analysis</h6>';
     
     // Summary information
     if (result.summary) {
-        html += '<div class="alert alert-info">';
+        html += '<div class="alert alert-info" style="background-color: var(--light-color); color: var(--text-primary); border-left: 4px solid var(--info-color);">';
         html += `<p><strong>Correlation Summary:</strong></p>`;
         html += `<ul>`;
         html += `<li>Total Numeric Columns: ${result.summary.total_numeric_columns}</li>`;
@@ -501,9 +501,9 @@ function displayCorrelationAnalysis(result) {
     
     // Correlation matrix
     if (result.correlation_matrix) {
-        html += '<h6>Correlation Matrix</h6>';
-        html += '<div class="table-responsive"><table class="table table-sm">';
-        html += '<thead><tr><th>Column</th>';
+        html += '<h6 class="mb-3" style="color: var(--text-primary);">Correlation Matrix</h6>';
+        html += '<div class="table-responsive"><table class="table table-sm" style="background-color: var(--light-color); color: var(--text-primary);">';
+        html += '<thead style="background-color: var(--dark-color); color: var(--text-white);"><tr><th>Column</th>';
         
         // Add column headers
         const firstRow = Object.values(result.correlation_matrix)[0];
@@ -520,7 +520,7 @@ function displayCorrelationAnalysis(result) {
         Object.entries(result.correlation_matrix).forEach(([col, correlations]) => {
             // Fix: Handle undefined/null column names
             const displayCol = (col !== null && col !== undefined && col !== '') ? col : 'Column';
-            html += `<tr><td><strong>${displayCol}</strong></td>`;
+            html += `<tr style="color: var(--text-primary);"><td><strong>${displayCol}</strong></td>`;
             if (typeof correlations === 'object') {
                 Object.values(correlations).forEach(value => {
                     html += `<td>${typeof value === 'number' ? value.toFixed(3) : value}</td>`;

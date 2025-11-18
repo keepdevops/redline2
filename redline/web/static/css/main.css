@@ -194,18 +194,18 @@ thead.table-dark {
 .table-dark th,
 .table thead.table-dark th,
 thead.table-dark th {
-    background-color: #1e293b !important;
-    color: #ffffff !important;
-    border-color: #dee2e6 !important;
+    background-color: var(--dark-color) !important;
+    color: var(--text-white) !important;
+    border-color: var(--border-color) !important;
     display: table-cell !important;
     visibility: visible !important;
 }
 
 .table thead th {
-    background-color: #1e293b !important;
-    border-bottom: 2px solid #dee2e6 !important;
+    background-color: var(--dark-color) !important;
+    border-bottom: 2px solid var(--border-color) !important;
     font-weight: 600;
-    color: #ffffff !important;
+    color: var(--text-white) !important;
     padding: 1rem;
     display: table-cell !important;
     visibility: visible !important;
@@ -339,8 +339,8 @@ thead.table-dark th {
 }
 
 .alert-info {
-    background-color: var(--info-color);
-    color: var(--text-white);
+    background-color: var(--light-color);
+    color: var(--text-primary);
     border-left: 4px solid var(--info-color);
 }
 

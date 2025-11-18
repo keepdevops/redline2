@@ -360,7 +360,7 @@ body.theme-dark {
 .theme-monochrome .form-control,
 .theme-grayscale .form-control {
     background-color: var(--light-color);
-    border-color: #ced4da;
+    border-color: var(--border-color);
     color: var(--text-primary);
 }
 
@@ -374,7 +374,7 @@ body.theme-dark {
     background-color: var(--light-color);
     border-color: var(--primary-color);
     color: var(--text-primary);
-    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--primary-color) 25%, transparent);
 }
 
 .theme-default .navbar,
@@ -526,42 +526,48 @@ body.theme-dark {
 /* Dark theme specific overrides */
 .theme-dark .navbar {
     background-color: var(--light-color) !important;
-    border-bottom: 1px solid #374151;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .theme-dark .card {
     background-color: var(--light-color) !important;
-    border: 1px solid #374151;
+    border: 1px solid var(--border-color);
     color: var(--text-primary) !important;
 }
 
 .theme-dark .welcome-section {
-    background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--dark-color) 100%);
 }
 
 .theme-dark .stats-card {
-    background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--dark-color) 100%);
 }
 
 .theme-dark .data-table-container {
     background-color: var(--light-color) !important;
-    border: 1px solid #374151;
+    border: 1px solid var(--border-color);
 }
 
 .theme-dark .form-control {
-    background-color: #374151 !important;
-    border-color: #4b5563 !important;
+    background-color: var(--dark-color) !important;
+    border-color: var(--border-color) !important;
     color: var(--text-primary) !important;
 }
 
 .theme-dark .form-control:focus {
-    background-color: #374151 !important;
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25) !important;
+    background-color: var(--dark-color) !important;
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--primary-color) 25%, transparent) !important;
 }
 
 .theme-dark .table {
     color: var(--text-primary) !important;
+}
+
+.theme-dark .alert-info {
+    background-color: var(--light-color) !important;
+    color: var(--text-primary) !important;
+    border-left-color: var(--info-color) !important;
 }
 
 /* Additional hardcoded color fixes */
@@ -641,9 +647,9 @@ body.theme-dark {
 .theme-sunset .alert-info,
 .theme-monochrome .alert-info,
 .theme-grayscale .alert-info {
-    background-color: var(--info-color) !important;
-    color: var(--text-white) !important;
-    border-color: var(--info-color) !important;
+    background-color: var(--light-color) !important;
+    color: var(--text-primary) !important;
+    border-left-color: var(--info-color) !important;
 }
 
 .theme-default .alert-warning,
