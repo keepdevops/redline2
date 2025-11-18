@@ -172,6 +172,155 @@ class DataManagementHelper:
             except Exception as e:
                 self.logger.error(f"Error saving unsaved changes: {str(e)}")
     
+    def open_clean_data_dialog(self):
+        """Open data cleaning options dialog."""
+        if self.data_tab.current_data is None or self.data_tab.current_data.empty:
+            self.data_tab.main_window.show_warning_message("Warning", "No data to clean")
+            return
+        
+        try:
+            import tkinter as tk
+            from tkinter import ttk
+            
+            # Create cleaning dialog
+            clean_window = tk.Toplevel(self.data_tab.frame)
+            clean_window.title("Clean Data Options")
+            clean_window.geometry("500x400")
+            clean_window.resizable(False, False)
+            
+            # Center the window
+            clean_window.transient(self.data_tab.frame)
+            clean_window.grab_set()
+            
+            # Remove duplicates option
+            remove_duplicates_var = tk.BooleanVar(value=True)
+            ttk.Checkbutton(
+                clean_window,
+                text="Remove Duplicate Rows",
+                variable=remove_duplicates_var
+            ).pack(anchor=tk.W, padx=20, pady=10)
+            
+            ttk.Label(
+                clean_window,
+                text="Removes rows that are exact duplicates. If ticker and timestamp\ncolumns exist, duplicates are detected based on those columns.",
+                font=("Arial", 8),
+                foreground="gray"
+            ).pack(anchor=tk.W, padx=40, pady=(0, 10))
+            
+            # Handle missing values option
+            ttk.Label(clean_window, text="Handle Missing Values:", font=("Arial", 10, "bold")).pack(anchor=tk.W, padx=20, pady=(10, 5))
+            
+            handle_missing_var = tk.StringVar(value="drop")
+            missing_frame = ttk.Frame(clean_window)
+            missing_frame.pack(fill=tk.X, padx=40, pady=(0, 10))
+            
+            ttk.Radiobutton(
+                missing_frame,
+                text="Drop rows with missing values",
+                variable=handle_missing_var,
+                value="drop"
+            ).pack(anchor=tk.W)
+            
+            ttk.Radiobutton(
+                missing_frame,
+                text="Forward fill (use previous value)",
+                variable=handle_missing_var,
+                value="forward_fill"
+            ).pack(anchor=tk.W)
+            
+            ttk.Radiobutton(
+                missing_frame,
+                text="Backward fill (use next value)",
+                variable=handle_missing_var,
+                value="backward_fill"
+            ).pack(anchor=tk.W)
+            
+            ttk.Radiobutton(
+                missing_frame,
+                text="Don't handle missing values",
+                variable=handle_missing_var,
+                value="none"
+            ).pack(anchor=tk.W)
+            
+            # Clean column names option
+            clean_column_names_var = tk.BooleanVar(value=True)
+            ttk.Checkbutton(
+                clean_window,
+                text="Clean column names (remove unnamed/empty columns)",
+                variable=clean_column_names_var
+            ).pack(anchor=tk.W, padx=20, pady=10)
+            
+            # Buttons
+            button_frame = ttk.Frame(clean_window)
+            button_frame.pack(fill=tk.X, padx=20, pady=20)
+            
+            def apply_cleaning():
+                """Apply cleaning options to data."""
+                try:
+                    from ...core.data_cleaner import DataCleaner
+                    from ...web.utils.data_helpers import clean_dataframe_columns
+                    
+                    cleaned_data = self.data_tab.current_data.copy()
+                    original_rows = len(cleaned_data)
+                    stats = {}
+                    
+                    # Initialize cleaner
+                    cleaner = DataCleaner()
+                    
+                    # Remove duplicates
+                    if remove_duplicates_var.get():
+                        df_before = len(cleaned_data)
+                        subset = None
+                        if 'ticker' in cleaned_data.columns and 'timestamp' in cleaned_data.columns:
+                            subset = ['ticker', 'timestamp']
+                        elif 'timestamp' in cleaned_data.columns:
+                            subset = ['timestamp']
+                        cleaned_data = cleaner.remove_duplicates(cleaned_data, subset=subset)
+                        duplicates_removed = df_before - len(cleaned_data)
+                        stats['duplicates_removed'] = duplicates_removed
+                    
+                    # Handle missing values
+                    handle_missing = handle_missing_var.get()
+                    if handle_missing and handle_missing != 'none':
+                        df_before = len(cleaned_data)
+                        cleaned_data = cleaner.handle_missing_values(cleaned_data, strategy=handle_missing)
+                        missing_handled = df_before - len(cleaned_data)
+                        stats['missing_handled'] = missing_handled
+                    
+                    # Clean column names
+                    if clean_column_names_var.get():
+                        cleaned_data = clean_dataframe_columns(cleaned_data)
+                    
+                    # Update data display
+                    self.data_tab.current_data = cleaned_data
+                    from .data_display import DataDisplayHelper
+                    display_helper = DataDisplayHelper(self.data_tab)
+                    display_helper.display_data(cleaned_data)
+                    self.data_tab.unsaved_changes = True
+                    
+                    # Show results
+                    stats_msg = f"Data cleaned successfully!\n\n"
+                    stats_msg += f"Original rows: {original_rows}\n"
+                    stats_msg += f"Final rows: {len(cleaned_data)}\n"
+                    if stats.get('duplicates_removed', 0) > 0:
+                        stats_msg += f"Duplicates removed: {stats['duplicates_removed']}\n"
+                    if stats.get('missing_handled', 0) > 0:
+                        stats_msg += f"Missing values handled: {stats['missing_handled']}\n"
+                    
+                    clean_window.destroy()
+                    self.data_tab.main_window.show_info_message("Data Cleaned", stats_msg)
+                    
+                except Exception as e:
+                    self.logger.error(f"Error cleaning data: {str(e)}")
+                    self.data_tab.main_window.show_error_message("Error", f"Failed to clean data: {str(e)}")
+            
+            ttk.Button(button_frame, text="Clean Data", command=apply_cleaning).pack(side=tk.LEFT, padx=(0, 10))
+            ttk.Button(button_frame, text="Cancel", command=clean_window.destroy).pack(side=tk.LEFT)
+            
+        except Exception as e:
+            self.logger.error(f"Error opening clean data dialog: {str(e)}")
+            self.data_tab.main_window.show_error_message("Error", f"Failed to open clean data dialog: {str(e)}")
+    
     def _detect_format_from_path(self, file_path: str) -> str:
         """Detect format from file path."""
         import os

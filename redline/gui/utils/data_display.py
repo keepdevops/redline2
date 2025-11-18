@@ -38,6 +38,12 @@ class DataDisplayHelper:
                 self.data_tab.main_window.show_warning_message("No Data", "The loaded file contains no data.")
                 return
             
+            # Apply date formatting if date format is set
+            data = self._apply_date_formatting(data.copy())
+            
+            # Mask API keys before display
+            data = self._mask_api_keys(data.copy())
+            
             # Clean data before display - ensure numeric columns are numeric
             try:
                 # Auto-convert common numeric columns to numeric type
@@ -101,4 +107,98 @@ class DataDisplayHelper:
         """Handle data double-click events."""
         # Could open detailed view or edit dialog
         pass
+    
+    def _apply_date_formatting(self, data):
+        """Apply date formatting based on selected format."""
+        if not hasattr(self.data_tab, 'date_format_var'):
+            return data
+        
+        date_format = self.data_tab.date_format_var.get()
+        if date_format == 'raw' or not date_format:
+            return data
+        
+        try:
+            import pandas as pd
+            from datetime import datetime
+            
+            # Find date columns
+            date_columns = []
+            for col in data.columns:
+                col_lower = str(col).lower()
+                if 'date' in col_lower or 'time' in col_lower or 'timestamp' in col_lower:
+                    date_columns.append(col)
+                # Also check if column contains YYYYMMDD format
+                elif data[col].dtype in ['int64', 'float64']:
+                    sample = data[col].dropna().head(10)
+                    if len(sample) > 0:
+                        # Check if values look like YYYYMMDD (8 digits, 19000101-21001231)
+                        first_val = int(sample.iloc[0]) if pd.notna(sample.iloc[0]) else None
+                        if first_val and 19000101 <= first_val <= 21001231:
+                            date_columns.append(col)
+            
+            if not date_columns:
+                return data
+            
+            # Apply formatting to date columns
+            for col in date_columns:
+                try:
+                    # Convert to string, remove commas
+                    data[col] = data[col].astype(str).str.replace(',', '')
+                    
+                    # Try to parse as YYYYMMDD
+                    def format_date(val):
+                        if pd.isna(val) or val == '' or val == 'nan':
+                            return val
+                        try:
+                            val_str = str(val).replace(',', '')
+                            if len(val_str) == 8 and val_str.isdigit():
+                                year = int(val_str[:4])
+                                month = int(val_str[4:6])
+                                day = int(val_str[6:8])
+                                
+                                if 1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31:
+                                    if date_format == 'auto' or date_format == 'YYYY-MM-DD':
+                                        return f"{year:04d}-{month:02d}-{day:02d}"
+                                    elif date_format == 'MM/DD/YYYY':
+                                        return f"{month:02d}/{day:02d}/{year:04d}"
+                                    elif date_format == 'DD/MM/YYYY':
+                                        return f"{day:02d}/{month:02d}/{year:04d}"
+                                    elif date_format == 'YYYY/MM/DD':
+                                        return f"{year:04d}/{month:02d}/{day:02d}"
+                                    elif date_format == 'DD-MM-YYYY':
+                                        return f"{day:02d}-{month:02d}-{year:04d}"
+                                    elif date_format == 'MM-DD-YYYY':
+                                        return f"{month:02d}-{day:02d}-{year:04d}"
+                        except:
+                            pass
+                        return val
+                    
+                    data[col] = data[col].apply(format_date)
+                except Exception as e:
+                    self.logger.warning(f"Could not format date column {col}: {str(e)}")
+            
+            return data
+        except Exception as e:
+            self.logger.warning(f"Error applying date formatting: {str(e)}")
+            return data
+    
+    def _mask_api_keys(self, data):
+        """Mask API keys in the data."""
+        try:
+            import pandas as pd
+            from ...web.utils.security_helpers import mask_dataframe_columns, should_mask_file
+            
+            # Check if current file is an API key file
+            current_file = getattr(self.data_tab, 'current_file', None)
+            if current_file and should_mask_file(str(current_file)):
+                data = mask_dataframe_columns(data)
+                self.logger.info(f"Masked API keys in file: {current_file}")
+            else:
+                # Still check for API key columns
+                data = mask_dataframe_columns(data)
+            
+            return data
+        except Exception as e:
+            self.logger.warning(f"Error masking API keys: {str(e)}")
+            return data
 

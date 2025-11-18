@@ -233,13 +233,35 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">📊 Data View</h5>
-                    <div id="dataActions" style="display: none;">
-                        <button class="btn btn-sm btn-outline-primary" onclick="showCleanDataModal()" title="Clean data with configurable options">
-                            <i class="fas fa-broom"></i> Clean Data
+                    <div class="d-flex align-items-center gap-2">
+                        <!-- Date Format Selector - Always Visible -->
+                        <div class="input-group" style="width: auto;">
+                            <label class="input-group-text" for="dateFormatSelect" style="margin-bottom: 0;">
+                                <i class="fas fa-calendar-alt me-1"></i>Date Format:
+                            </label>
+                            <select id="dateFormatSelect" class="form-select" style="width: auto;">
+                                <option value="auto">Auto (YYYY-MM-DD)</option>
+                                <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                                <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                                <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                                <option value="YYYY/MM/DD">YYYY/MM/DD</option>
+                                <option value="DD-MM-YYYY">DD-MM-YYYY</option>
+                                <option value="MM-DD-YYYY">MM-DD-YYYY</option>
+                                <option value="raw">Raw (No Formatting)</option>
+                            </select>
+                        </div>
+                        <!-- Column Names Editor Button -->
+                        <button class="btn btn-sm btn-outline-info" onclick="showColumnEditor()" title="Edit column names" id="editColumnsBtn">
+                            <i class="fas fa-edit"></i> Edit Columns
                         </button>
-                        <button class="btn btn-sm btn-outline-success" onclick="saveCleanedData()" title="Save cleaned data to file" style="display: none;" id="saveCleanedBtn">
-                            <i class="fas fa-save"></i> Save Cleaned
-                        </button>
+                        <div id="dataActions" style="display: none;">
+                            <button class="btn btn-sm btn-outline-primary" onclick="showCleanDataModal()" title="Clean data with configurable options" id="cleanDataBtn">
+                                <i class="fas fa-broom"></i> Clean Data
+                            </button>
+                            <button class="btn btn-sm btn-outline-success" onclick="saveCleanedData()" title="Save cleaned data to file" style="display: none;" id="saveCleanedBtn">
+                                <i class="fas fa-save"></i> Save Cleaned
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body">
@@ -270,8 +292,8 @@
                     <!-- Remove Duplicates -->
                     <div class="mb-3">
                         <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="removeDuplicates" checked style="cursor: pointer;">
-                            <label class="form-check-label" for="removeDuplicates" style="cursor: pointer;">
+                            <input class="form-check-input" type="checkbox" id="removeDuplicates" checked style="cursor: pointer !important; pointer-events: auto !important; opacity: 1 !important;">
+                            <label class="form-check-label" for="removeDuplicates" style="cursor: pointer !important;">
                                 <strong>Remove Duplicate Rows</strong>
                             </label>
                         </div>
@@ -285,7 +307,7 @@
                         <label for="handleMissing" class="form-label">
                             <strong>Handle Missing Values</strong>
                         </label>
-                        <select class="form-select" id="handleMissing" style="cursor: pointer; background-color: var(--light-color); color: var(--text-primary); border-color: var(--border-color);">
+                        <select class="form-select" id="handleMissing" style="cursor: pointer !important; pointer-events: auto !important; opacity: 1 !important; background-color: #ffffff !important; color: #000000 !important; border-color: var(--border-color) !important;">
                             <option value="drop" selected>Drop rows with missing values</option>
                             <option value="forward_fill">Forward fill (use previous value)</option>
                             <option value="backward_fill">Backward fill (use next value)</option>
@@ -303,8 +325,8 @@
                     <div class="mb-3">
                         <label class="form-label"><strong>Additional Options</strong></label>
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="cleanColumnNames" checked style="cursor: pointer;">
-                            <label class="form-check-label" for="cleanColumnNames" style="cursor: pointer;">
+                            <input class="form-check-input" type="checkbox" id="cleanColumnNames" checked style="cursor: pointer !important; pointer-events: auto !important; opacity: 1 !important;">
+                            <label class="form-check-label" for="cleanColumnNames" style="cursor: pointer !important;">
                                 Clean column names (remove unnamed/empty columns)
                             </label>
                         </div>
@@ -327,11 +349,37 @@
 // Global variables - attach to window to ensure global scope
 window.currentFile = null;
 window.currentData = null;
+window.currentColumns = null;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Tkinter-style data view loaded');
     refreshFileList();
+    
+    // Load saved date format preference
+    const savedDateFormat = localStorage.getItem('redline-date-format') || 'auto';
+    const dateFormatSelect = document.getElementById('dateFormatSelect');
+    if (dateFormatSelect) {
+        dateFormatSelect.value = savedDateFormat;
+        
+        // Date format change handler
+        dateFormatSelect.addEventListener('change', function() {
+            const selectedFormat = this.value;
+            localStorage.setItem('redline-date-format', selectedFormat);
+            console.log('Date format changed to:', selectedFormat);
+            
+            // Re-render table if data is already loaded
+            if (window.currentData && window.currentData.length > 0) {
+                console.log('Re-rendering table with new date format');
+                displayDataTable({
+                    filename: window.currentFile || 'Current file',
+                    columns: window.currentColumns,
+                    data: window.currentData,
+                    total_rows: window.currentData.length
+                });
+            }
+        });
+    }
 });
 
 // Refresh file list (like tkinter refresh)
@@ -599,11 +647,46 @@ function loadFileData(filename) {
             
                 window.currentFile = filename;
                 window.currentData = data.data;
+                window.currentColumns = data.columns;  // Store columns for date format changes
                 displayDataTable(data);
                 
-                // Show data actions buttons
-                document.getElementById('dataActions').style.display = 'block';
-                document.getElementById('saveCleanedBtn').style.display = 'none'; // Hide save button until cleaned
+                // Show data actions buttons with delay to ensure DOM is ready
+                setTimeout(() => {
+                    const dataActionsEl = document.getElementById('dataActions');
+                    const cleanDataBtn = document.getElementById('cleanDataBtn');
+                    
+                    console.log('Attempting to show elements:', {
+                        dataActionsEl: !!dataActionsEl,
+                        cleanDataBtn: !!cleanDataBtn
+                    });
+                    
+                    if (dataActionsEl) {
+                        // Force display with multiple methods
+                        dataActionsEl.removeAttribute('style');
+                        dataActionsEl.style.cssText = 'display: flex !important; visibility: visible !important;';
+                        dataActionsEl.style.display = 'flex';
+                        dataActionsEl.style.visibility = 'visible';
+                        dataActionsEl.classList.remove('d-none');
+                        console.log('✅ dataActionsEl shown, computed display:', window.getComputedStyle(dataActionsEl).display);
+                    } else {
+                        console.error('❌ dataActionsEl not found!');
+                    }
+                    
+                    if (cleanDataBtn) {
+                        cleanDataBtn.disabled = false;
+                        cleanDataBtn.style.pointerEvents = 'auto';
+                        cleanDataBtn.style.opacity = '1';
+                        cleanDataBtn.style.cursor = 'pointer';
+                        console.log('✅ cleanDataBtn enabled');
+                    }
+                    
+                    const saveCleanedBtn = document.getElementById('saveCleanedBtn');
+                    if (saveCleanedBtn) {
+                        saveCleanedBtn.style.display = 'none'; // Hide save button until cleaned
+                    }
+                    
+                    console.log('✅ All elements processed');
+                }, 100);
         });
     })
     .catch(error => {
@@ -770,15 +853,16 @@ function displayDataTable(data) {
             html += '<tr>';
             columnsForRows.forEach(col => {
                 const value = row[col];
-                // Format numeric values properly
+                // Format date values and numeric values properly
+                const formattedValue = formatDateValue(value, col);
                 let displayValue = '';
-                if (value === null || value === undefined) {
+                if (formattedValue === null || formattedValue === undefined || formattedValue === '') {
                     displayValue = '';
-                } else if (typeof value === 'number') {
+                } else if (typeof formattedValue === 'number') {
                     // Format numbers with appropriate precision
-                    displayValue = Number(value).toLocaleString();
+                    displayValue = Number(formattedValue).toLocaleString();
                 } else {
-                    displayValue = String(value);
+                    displayValue = String(formattedValue);
                 }
                 html += `<td>${displayValue}</td>`;
             });
@@ -797,38 +881,141 @@ function displayDataTable(data) {
     dataDisplay.innerHTML = html;
 }
 
+// Helper function to format YYYYMMDD numeric dates to readable format
+function formatDateValue(value, header) {
+    if (value === null || value === undefined || value === '') {
+        return '';
+    }
+    
+    // Get selected date format (default to 'auto')
+    const dateFormatSelect = document.getElementById('dateFormatSelect');
+    const dateFormat = dateFormatSelect ? dateFormatSelect.value : (localStorage.getItem('redline-date-format') || 'auto');
+    
+    // If format is 'raw', return original value
+    if (dateFormat === 'raw') {
+        return value;
+    }
+    
+    // Convert to string and remove any commas (thousands separators)
+    const strValue = String(value).replace(/,/g, '');
+    
+    // Check if it's a numeric value that could be YYYYMMDD format
+    // YYYYMMDD format: 8 digits, between 19000101 and 21001231
+    let year = null, month = null, day = null;
+    let isValidDate = false;
+    
+    if (/^\d{8}$/.test(strValue)) {
+        const numValue = parseInt(strValue, 10);
+        if (numValue >= 19000101 && numValue <= 21001231) {
+            // Extract year, month, day
+            year = Math.floor(numValue / 10000);
+            month = Math.floor((numValue % 10000) / 100);
+            day = numValue % 100;
+            
+            // Validate month and day
+            if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                // Check if the date is valid (e.g., not Feb 30)
+                const dateObj = new Date(year, month - 1, day);
+                if (dateObj.getFullYear() === year && dateObj.getMonth() === month - 1 && dateObj.getDate() === day) {
+                    isValidDate = true;
+                }
+            }
+        }
+    }
+    
+    // Also check for column names that suggest dates
+    if (!isValidDate) {
+        const headerLower = String(header || '').toLowerCase();
+        if (headerLower.includes('date') || headerLower.includes('time') || headerLower.includes('timestamp')) {
+            // Try to parse as YYYYMMDD
+            if (/^\d{8}$/.test(strValue)) {
+                const numValue = parseInt(strValue, 10);
+                if (numValue >= 19000101 && numValue <= 21001231) {
+                    year = Math.floor(numValue / 10000);
+                    month = Math.floor((numValue % 10000) / 100);
+                    day = numValue % 100;
+                    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                        const dateObj = new Date(year, month - 1, day);
+                        if (dateObj.getFullYear() === year && dateObj.getMonth() === month - 1 && dateObj.getDate() === day) {
+                            isValidDate = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // If we have a valid date, format it according to user preference
+    if (isValidDate && year && month && day) {
+        const monthStr = String(month).padStart(2, '0');
+        const dayStr = String(day).padStart(2, '0');
+        const yearStr = String(year);
+        
+        switch (dateFormat) {
+            case 'YYYY-MM-DD':
+            case 'auto':  // Default to YYYY-MM-DD
+                return `${yearStr}-${monthStr}-${dayStr}`;
+            case 'MM/DD/YYYY':
+                return `${monthStr}/${dayStr}/${yearStr}`;
+            case 'DD/MM/YYYY':
+                return `${dayStr}/${monthStr}/${yearStr}`;
+            case 'YYYY/MM/DD':
+                return `${yearStr}/${monthStr}/${dayStr}`;
+            case 'DD-MM-YYYY':
+                return `${dayStr}-${monthStr}-${yearStr}`;
+            case 'MM-DD-YYYY':
+                return `${monthStr}-${dayStr}-${yearStr}`;
+            default:
+                return `${yearStr}-${monthStr}-${dayStr}`;
+        }
+    }
+    
+    // Return original value if not a date
+    return value;
+}
+
 // Clean data (remove duplicates, handle missing values)
 var cleanedData = null;
 
 // Show clean data modal with options
 function showCleanDataModal() {
+    console.log('showCleanDataModal called');
     if (!window.currentData || !window.currentFile) {
         alert('Please load a file first.');
         return;
     }
     
-    // Get form controls and ensure they are enabled
+    // Get form controls and ensure they are enabled BEFORE showing modal
     const removeDuplicates = document.getElementById('removeDuplicates');
     const handleMissing = document.getElementById('handleMissing');
     const cleanColumnNames = document.getElementById('cleanColumnNames');
     
+    console.log('Form controls found:', {
+        removeDuplicates: !!removeDuplicates,
+        handleMissing: !!handleMissing,
+        cleanColumnNames: !!cleanColumnNames
+    });
+    
     if (removeDuplicates) {
         removeDuplicates.disabled = false;
         removeDuplicates.removeAttribute('readonly');
-        removeDuplicates.style.pointerEvents = 'auto';
-        removeDuplicates.style.opacity = '1';
+        removeDuplicates.removeAttribute('style');
+        removeDuplicates.setAttribute('style', 'cursor: pointer !important; pointer-events: auto !important; opacity: 1 !important;');
+        console.log('Enabled removeDuplicates');
     }
     if (handleMissing) {
         handleMissing.disabled = false;
         handleMissing.removeAttribute('readonly');
-        handleMissing.style.pointerEvents = 'auto';
-        handleMissing.style.opacity = '1';
+        handleMissing.removeAttribute('style');
+        handleMissing.setAttribute('style', 'cursor: pointer !important; pointer-events: auto !important; opacity: 1 !important; background-color: #ffffff !important; color: #000000 !important;');
+        console.log('Enabled handleMissing');
     }
     if (cleanColumnNames) {
         cleanColumnNames.disabled = false;
         cleanColumnNames.removeAttribute('readonly');
-        cleanColumnNames.style.pointerEvents = 'auto';
-        cleanColumnNames.style.opacity = '1';
+        cleanColumnNames.removeAttribute('style');
+        cleanColumnNames.setAttribute('style', 'cursor: pointer !important; pointer-events: auto !important; opacity: 1 !important;');
+        console.log('Enabled cleanColumnNames');
     }
     
     // Show modal - try Bootstrap 5 first, then fallback to jQuery
@@ -843,9 +1030,27 @@ function showCleanDataModal() {
         
         // Ensure form controls are enabled after modal shows
         modalElement.addEventListener('shown.bs.modal', function() {
-            if (removeDuplicates) removeDuplicates.disabled = false;
-            if (handleMissing) handleMissing.disabled = false;
-            if (cleanColumnNames) cleanColumnNames.disabled = false;
+            console.log('Modal shown (Bootstrap 5), enabling controls');
+            setTimeout(() => {
+                if (removeDuplicates) {
+                    removeDuplicates.disabled = false;
+                    removeDuplicates.removeAttribute('readonly');
+                    removeDuplicates.setAttribute('style', 'cursor: pointer !important; pointer-events: auto !important; opacity: 1 !important;');
+                    console.log('✅ removeDuplicates enabled in modal');
+                }
+                if (handleMissing) {
+                    handleMissing.disabled = false;
+                    handleMissing.removeAttribute('readonly');
+                    handleMissing.setAttribute('style', 'cursor: pointer !important; pointer-events: auto !important; opacity: 1 !important; background-color: #ffffff !important; color: #000000 !important;');
+                    console.log('✅ handleMissing enabled in modal');
+                }
+                if (cleanColumnNames) {
+                    cleanColumnNames.disabled = false;
+                    cleanColumnNames.removeAttribute('readonly');
+                    cleanColumnNames.setAttribute('style', 'cursor: pointer !important; pointer-events: auto !important; opacity: 1 !important;');
+                    console.log('✅ cleanColumnNames enabled in modal');
+                }
+            }, 200);
         }, { once: true });
     } else if (typeof $ !== 'undefined' && $.fn.modal) {
         $(modalElement).modal({
@@ -854,9 +1059,24 @@ function showCleanDataModal() {
             show: true
         });
         $(modalElement).on('shown.bs.modal', function() {
-            if (removeDuplicates) removeDuplicates.disabled = false;
-            if (handleMissing) handleMissing.disabled = false;
-            if (cleanColumnNames) cleanColumnNames.disabled = false;
+            console.log('Modal shown (jQuery), enabling controls');
+            setTimeout(() => {
+                if (removeDuplicates) {
+                    removeDuplicates.disabled = false;
+                    removeDuplicates.removeAttribute('readonly');
+                    removeDuplicates.setAttribute('style', 'cursor: pointer !important; pointer-events: auto !important; opacity: 1 !important;');
+                }
+                if (handleMissing) {
+                    handleMissing.disabled = false;
+                    handleMissing.removeAttribute('readonly');
+                    handleMissing.setAttribute('style', 'cursor: pointer !important; pointer-events: auto !important; opacity: 1 !important; background-color: #ffffff !important; color: #000000 !important;');
+                }
+                if (cleanColumnNames) {
+                    cleanColumnNames.disabled = false;
+                    cleanColumnNames.removeAttribute('readonly');
+                    cleanColumnNames.setAttribute('style', 'cursor: pointer !important; pointer-events: auto !important; opacity: 1 !important;');
+                }
+            }, 200);
         });
     } else {
         // Fallback: show modal manually
@@ -1032,6 +1252,118 @@ async function saveCleanedData() {
     } catch (error) {
         console.error('Error saving cleaned data:', error);
         alert(`Error saving cleaned data: ${error.message}`);
+    }
+}
+
+// Show column editor modal
+function showColumnEditor() {
+    if (!window.currentColumns || window.currentColumns.length === 0) {
+        alert('Please load a file first to edit column names.');
+        return;
+    }
+    
+    // Create modal dynamically
+    const modalHtml = `
+        <div class="modal fade" id="columnEditorModal" tabindex="-1" aria-labelledby="columnEditorModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header" style="background-color: var(--light-color); color: var(--text-primary);">
+                        <h5 class="modal-title" id="columnEditorModalLabel">
+                            <i class="fas fa-edit me-2"></i>Edit Column Names
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" style="background-color: var(--light-color); color: var(--text-primary);">
+                        <p class="text-muted">Edit column names below. Changes will be applied to the displayed data.</p>
+                        <div id="columnEditorList" class="list-group">
+                            ${window.currentColumns.map((col, index) => `
+                                <div class="list-group-item d-flex align-items-center">
+                                    <label class="form-label mb-0 me-2" style="min-width: 150px;">Column ${index + 1}:</label>
+                                    <input type="text" class="form-control column-name-input" data-original="${col}" value="${col}" data-index="${index}">
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="background-color: var(--light-color); color: var(--text-primary);">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="applyColumnNames()">Apply Changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('columnEditorModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('columnEditorModal'));
+    modal.show();
+    
+    // Clean up on hide
+    document.getElementById('columnEditorModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+
+// Apply column name changes
+function applyColumnNames() {
+    const inputs = document.querySelectorAll('.column-name-input');
+    const newColumns = [];
+    const columnMapping = {};
+    
+    inputs.forEach(input => {
+        const original = input.getAttribute('data-original');
+        const newName = input.value.trim() || original;
+        const index = parseInt(input.getAttribute('data-index'));
+        
+        newColumns[index] = newName;
+        if (original !== newName) {
+            columnMapping[original] = newName;
+        }
+    });
+    
+    // Update global columns
+    window.currentColumns = newColumns;
+    
+    // Update data with new column names
+    if (window.currentData && window.currentData.length > 0) {
+        const updatedData = window.currentData.map(row => {
+            const newRow = {};
+            Object.keys(row).forEach(oldKey => {
+                const newKey = columnMapping[oldKey] || oldKey;
+                newRow[newKey] = row[oldKey];
+            });
+            return newRow;
+        });
+        
+        window.currentData = updatedData;
+        
+        // Re-render table
+        displayDataTable({
+            filename: window.currentFile || 'Current file',
+            columns: window.currentColumns,
+            data: window.currentData,
+            total_rows: window.currentData.length
+        });
+    }
+    
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('columnEditorModal'));
+    if (modal) {
+        modal.hide();
+    }
+    
+    if (typeof window.showToast === 'function') {
+        window.showToast('Column names updated successfully', 'success');
+    } else {
+        alert('Column names updated successfully');
     }
 }
 

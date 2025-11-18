@@ -82,8 +82,36 @@ class DataTab:
         self.filter_button = ttk.Button(self.operations_frame, text="Filter", command=self.open_filter_dialog)
         self.filter_button.pack(side=tk.LEFT, padx=5, pady=5)
         
+        self.clean_button = ttk.Button(self.operations_frame, text="Clean Data", command=self.open_clean_data_dialog)
+        self.clean_button.pack(side=tk.LEFT, padx=5, pady=5)
+        
         self.clear_button = ttk.Button(self.operations_frame, text="Clear", command=self.clear_data)
         self.clear_button.pack(side=tk.LEFT, padx=5, pady=5)
+        
+        # Date format selection frame
+        self.date_format_frame = ttk.LabelFrame(self.control_frame, text="Date Format")
+        self.date_format_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        ttk.Label(self.date_format_frame, text="Date Format:").pack(side=tk.LEFT, padx=5, pady=5)
+        self.date_format_var = tk.StringVar(value="auto")
+        self.date_format_combo = ttk.Combobox(
+            self.date_format_frame,
+            textvariable=self.date_format_var,
+            state='readonly',
+            width=20,
+            values=[
+                "auto",
+                "YYYY-MM-DD",
+                "MM/DD/YYYY",
+                "DD/MM/YYYY",
+                "YYYY/MM/DD",
+                "DD-MM-YYYY",
+                "MM-DD-YYYY",
+                "raw"
+            ]
+        )
+        self.date_format_combo.pack(side=tk.LEFT, padx=5, pady=5)
+        self.date_format_combo.bind('<<ComboboxSelected>>', self.on_date_format_changed)
         
         # Status frame
         self.status_frame = ttk.Frame(self.frame)
@@ -195,6 +223,19 @@ class DataTab:
     def on_data_double_click(self, event):
         """Handle data double-click events."""
         return self.display.on_data_double_click(event)
+    
+    def on_date_format_changed(self, event=None):
+        """Handle date format selection change."""
+        if self.current_data is not None:
+            self.refresh_data()
+    
+    def open_clean_data_dialog(self):
+        """Open data cleaning options dialog."""
+        if self.current_data is None or self.current_data.empty:
+            self.main_window.show_warning_message("Warning", "No data to clean")
+            return
+        
+        return self.ops.open_clean_data_dialog()
     
     def on_tab_activated(self):
         """Handle tab activation."""

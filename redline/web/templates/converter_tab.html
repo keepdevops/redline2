@@ -58,6 +58,51 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- Data Cleaning Options -->
+                    <div class="mb-3">
+                        <h6 class="mb-3"><i class="fas fa-broom me-2"></i><strong>Data Cleaning Options</strong> <small class="text-muted">(Applied before conversion)</small></h6>
+                        <div class="card card-body bg-light">
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="convertRemoveDuplicates" checked>
+                                        <label class="form-check-label" for="convertRemoveDuplicates">
+                                            <strong>Remove Duplicate Rows</strong>
+                                        </label>
+                                    </div>
+                                    <small class="form-text text-muted">
+                                        Removes rows that are exact duplicates. If ticker and timestamp columns exist, duplicates are detected based on those columns.
+                                    </small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="convertHandleMissing" class="form-label">
+                                        <strong>Handle Missing Values</strong>
+                                    </label>
+                                    <select class="form-select" id="convertHandleMissing">
+                                        <option value="drop" selected>Drop rows with missing values</option>
+                                        <option value="forward_fill">Forward fill (use previous value)</option>
+                                        <option value="backward_fill">Backward fill (use next value)</option>
+                                        <option value="none">Don't handle missing values</option>
+                                    </select>
+                                    <small class="form-text text-muted">
+                                        <strong>Drop:</strong> Removes rows with missing values in ticker, timestamp, or close columns<br>
+                                        <strong>Forward Fill:</strong> Fills missing values with the previous row's value<br>
+                                        <strong>Backward Fill:</strong> Fills missing values with the next row's value<br>
+                                        <strong>None:</strong> Leaves missing values as-is
+                                    </small>
+                                </div>
+                                
+                                <div class="mb-0">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="convertCleanColumnNames" checked>
+                                        <label class="form-check-label" for="convertCleanColumnNames">
+                                            Clean column names (remove unnamed/empty columns)
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                    </div>
                 </form>
             </div>
         </div>
@@ -370,12 +415,21 @@ function convertFile() {
     REDLINE.ui.showLoading('Converting file...');
     console.log('Converting file with license key:', licenseKey.substring(0, 20) + '...');
     
+    // Get cleaning options
+    const removeDuplicates = $('#convertRemoveDuplicates').is(':checked');
+    const handleMissing = $('#convertHandleMissing').val();
+    const cleanColumnNames = $('#convertCleanColumnNames').is(':checked');
+    
     const conversionData = {
         input_file: inputFile,
         output_format: outputFormat,
         output_filename: outputFilename,
         overwrite: overwrite,
-        license_key: licenseKey  // Include license key in request body
+        license_key: licenseKey,  // Include license key in request body
+        // Data cleaning options
+        remove_duplicates: removeDuplicates,
+        handle_missing: handleMissing,
+        clean_column_names: cleanColumnNames
     };
     
     REDLINE.api.post('/converter/convert', conversionData)
@@ -516,15 +570,34 @@ function batchConvert() {
 }
 
 function showConversionResults(results) {
-    const resultsHtml = results.map(result => `
+    const resultsHtml = results.map(result => {
+        let cleaningInfo = '';
+        if (result.cleaning_applied && result.cleaning_stats) {
+            const stats = result.cleaning_stats;
+            cleaningInfo = '<div class="mt-2"><small><strong>Data Cleaning Applied:</strong><ul class="mb-0">';
+            if (stats.duplicates_removed !== undefined && stats.duplicates_removed > 0) {
+                cleaningInfo += `<li>Removed ${stats.duplicates_removed} duplicate row(s)</li>`;
+            }
+            if (stats.missing_handled !== undefined && stats.missing_handled > 0) {
+                cleaningInfo += `<li>Handled ${stats.missing_handled} row(s) with missing values</li>`;
+            }
+            if (result.original_records && result.records) {
+                cleaningInfo += `<li>Original: ${result.original_records} rows → Final: ${result.records} rows</li>`;
+            }
+            cleaningInfo += '</ul></small></div>';
+        }
+        
+        return `
         <div class="alert alert-success" style="background-color: var(--light-color); color: var(--text-primary); border-left: 4px solid var(--success-color);">
             <h6 style="color: var(--text-primary);"><i class="fas fa-check-circle me-2"></i>Conversion Successful</h6>
             <p class="mb-1" style="color: var(--text-primary);">Input: ${result.input_file}</p>
             <p class="mb-1" style="color: var(--text-primary);">Output: ${result.output_file}</p>
             <p class="mb-1" style="color: var(--text-primary);">Format: ${result.output_format}</p>
-            <p class="mb-0" style="color: var(--text-primary);">Records: ${result.records}</p>
+            <p class="mb-1" style="color: var(--text-primary);">Records: ${result.records}${result.original_records && result.original_records !== result.records ? ` (from ${result.original_records} original)` : ''}</p>
+            ${cleaningInfo}
         </div>
-    `).join('');
+        `;
+    }).join('');
     
     $('#resultsContent').html(resultsHtml);
     $('#conversionResults').show();

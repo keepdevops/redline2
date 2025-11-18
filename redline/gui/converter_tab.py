@@ -448,6 +448,16 @@ class ConverterTab:
             
     def show_preview_dialog(self, file_path: str, data):
         """Show data preview dialog."""
+        # Mask API keys in preview
+        from ...web.utils.security_helpers import should_mask_file, mask_dataframe_columns
+        preview_data = data.copy()
+        if should_mask_file(file_path):
+            preview_data = mask_dataframe_columns(preview_data)
+            self.logger.info(f"Masked API keys in preview for file: {file_path}")
+        else:
+            # Still check for API key columns
+            preview_data = mask_dataframe_columns(preview_data)
+        
         preview_window = tk.Toplevel(self.frame)
         preview_window.title(f"Preview: {os.path.basename(file_path)}")
         preview_window.geometry("800x600")
@@ -457,24 +467,24 @@ class ConverterTab:
         info_frame.pack(fill=tk.X, padx=10, pady=10)
         
         ttk.Label(info_frame, text=f"File: {os.path.basename(file_path)}").pack(anchor=tk.W)
-        ttk.Label(info_frame, text=f"Shape: {data.shape[0]} rows × {data.shape[1]} columns").pack(anchor=tk.W)
-        ttk.Label(info_frame, text=f"Columns: {list(data.columns)}").pack(anchor=tk.W)
+        ttk.Label(info_frame, text=f"Shape: {preview_data.shape[0]} rows × {preview_data.shape[1]} columns").pack(anchor=tk.W)
+        ttk.Label(info_frame, text=f"Columns: {list(preview_data.columns)}").pack(anchor=tk.W)
         
         # Data preview
         preview_frame = ttk.Frame(preview_window)
         preview_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         # Create treeview for preview
-        preview_tree = ttk.Treeview(preview_frame, columns=list(data.columns), show='headings')
+        preview_tree = ttk.Treeview(preview_frame, columns=list(preview_data.columns), show='headings')
         
         # Configure columns
-        for col in data.columns:
+        for col in preview_data.columns:
             preview_tree.heading(col, text=str(col))
             preview_tree.column(col, width=100)
             
-        # Add data (first 100 rows)
-        preview_data = data.head(100)
-        for idx, row in preview_data.iterrows():
+        # Add data (first 100 rows) - using masked data
+        preview_data_display = preview_data.head(100)
+        for idx, row in preview_data_display.iterrows():
             preview_tree.insert('', 'end', values=list(row))
             
         # Scrollbars
@@ -676,7 +686,7 @@ class ConverterTab:
             data = data.drop_duplicates()
             
         if self.fill_missing_var.get():
-            data = data.fillna(method='ffill').fillna(method='bfill')
+            data = data.ffill().bfill()
             
         if self.normalize_dates_var.get():
             # Try to normalize date columns

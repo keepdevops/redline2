@@ -86,6 +86,7 @@
 <script>
 let currentFile = null;
 let currentData = null;
+let currentColumns = null;
 
 $(document).ready(function() {
     console.log('Data tab loaded - using tkinter-style data loading');
@@ -124,10 +125,12 @@ $(document).ready(function() {
     $('#dateFormatSelect').on('change', function() {
         const selectedFormat = $(this).val();
         localStorage.setItem('redline-date-format', selectedFormat);
+        console.log('Date format changed to:', selectedFormat);
         
-        // Re-render table if data is already loaded
+        // Re-render table if data is already loaded (pass columns to preserve headers)
         if (currentData && currentData.length > 0) {
-            displayDataInTable(currentData);
+            console.log('Re-rendering table with new date format, columns:', currentColumns);
+            displayDataInTable(currentData, currentColumns);
         }
     });
 });
@@ -222,14 +225,17 @@ function loadData(filename) {
         dataType: 'json',
         success: function(response) {
             console.log('✅ Data loaded successfully:', response.total_rows, 'rows');
+            console.log('Response columns:', response.columns);
+            console.log('Response data sample:', response.data ? response.data[0] : 'No data');
             currentFile = filename;
             currentData = response.data;
+            currentColumns = response.columns;  // Store columns for date format changes
             
             // Show data table section
             $('#dataTableSection').show();
             
-            // Display data in table
-            displayDataInTable(response.data);
+            // Display data in table (pass both data and columns)
+            displayDataInTable(response.data, response.columns);
             
             // Update data info
             updateDataInfo({
@@ -348,8 +354,9 @@ function formatDateValue(value, header) {
     return value;
 }
 
-function displayDataInTable(data) {
-    console.log('Displaying data in table:', data.length, 'rows');
+function displayDataInTable(data, columns) {
+    console.log('Displaying data in table:', data ? data.length : 0, 'rows');
+    console.log('Columns provided:', columns);
     
     if (!data || data.length === 0) {
         $('#dataTableContainer').html('<div class="text-center p-4"><i class="fas fa-info-circle me-2"></i>No data to display</div>');
@@ -359,11 +366,24 @@ function displayDataInTable(data) {
     // Create HTML table
     let tableHtml = '<div class="table-responsive"><table class="table table-striped table-hover"><thead class="table-dark"><tr>';
     
-    // Add headers from first row
-    const headers = Object.keys(data[0]);
-    headers.forEach(header => {
+    // Get headers - prefer provided columns, fallback to Object.keys
+    let headers = [];
+    if (columns && Array.isArray(columns) && columns.length > 0) {
+        headers = columns;
+        console.log('Using provided columns:', headers);
+    } else if (data && data.length > 0 && data[0]) {
+        headers = Object.keys(data[0]);
+        console.log('Extracted headers from data:', headers);
+    } else {
+        console.error('No columns available and no data to extract from');
+        $('#dataTableContainer').html('<div class="text-center p-4 text-danger"><i class="fas fa-exclamation-triangle me-2"></i>No column headers available</div>');
+        return;
+    }
+    
+    // Add headers to table
+    headers.forEach((header, index) => {
         // Fix: Handle undefined/null headers
-        const displayHeader = (header !== null && header !== undefined && header !== '') ? header : 'Column';
+        const displayHeader = (header !== null && header !== undefined && header !== '') ? String(header) : `Column_${index + 1}`;
         tableHtml += `<th>${displayHeader}</th>`;
     });
     tableHtml += '</tr></thead><tbody>';

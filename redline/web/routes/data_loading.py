@@ -116,6 +116,15 @@ def load_data():
         # Clean up malformed CSV headers - remove unnamed/empty columns
         df = clean_dataframe_columns(df)
         
+        # Mask API keys if this is an API key file or contains API key columns
+        from ..utils.security_helpers import should_mask_file, mask_dataframe_columns
+        if should_mask_file(filename):
+            df = mask_dataframe_columns(df)
+            logger.info(f"Masked API keys in file: {filename}")
+        else:
+            # Still check for API key columns even if not an API key file
+            df = mask_dataframe_columns(df)
+        
         return jsonify({
             'columns': list(df.columns),
             'data': df.head(1000).to_dict('records'),

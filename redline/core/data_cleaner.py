@@ -255,9 +255,9 @@ class DataCleaner:
             if strategy == 'drop':
                 result = data.dropna(subset=['ticker', 'timestamp', 'close'])
             elif strategy == 'forward_fill':
-                result = data.fillna(method='ffill')
+                result = data.ffill()
             elif strategy == 'backward_fill':
-                result = data.fillna(method='bfill')
+                result = data.bfill()
             else:
                 self.logger.warning(f"Unknown strategy '{strategy}', returning original data")
                 return data

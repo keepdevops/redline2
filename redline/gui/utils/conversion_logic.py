@@ -156,29 +156,43 @@ class ConversionLogicHelper:
         # Load input data
         data = self.converter_tab.loader.load_file_by_type(input_file, input_format)
         
-        # Apply data cleaning options
-        if self.converter_tab.remove_duplicates_var.get():
-            data = data.drop_duplicates()
+        # Note: We don't mask API keys in the actual conversion data
+        # because that would corrupt the output file. API keys are only
+        # masked in display/preview views, not in actual file operations.
+        
+        # Apply data cleaning options (matching web version)
+        original_rows = len(data) if isinstance(data, pd.DataFrame) else 0
+        
+        if isinstance(data, pd.DataFrame):
+            # Remove duplicates
+            if self.converter_tab.remove_duplicates_var.get():
+                from ...core.data_cleaner import DataCleaner
+                cleaner = DataCleaner()
+                df_before = len(data)
+                # Determine subset for duplicate detection
+                subset = None
+                if 'ticker' in data.columns and 'timestamp' in data.columns:
+                    subset = ['ticker', 'timestamp']
+                elif 'timestamp' in data.columns:
+                    subset = ['timestamp']
+                data = cleaner.remove_duplicates(data, subset=subset)
+                self.logger.info(f"Removed {df_before - len(data)} duplicate rows")
             
-        if self.converter_tab.fill_missing_var.get():
-            data = data.fillna(method='ffill').fillna(method='bfill')
+            # Handle missing values
+            handle_missing = self.converter_tab.handle_missing_var.get()
+            if handle_missing and handle_missing != 'none':
+                from ...core.data_cleaner import DataCleaner
+                cleaner = DataCleaner()
+                df_before = len(data)
+                data = cleaner.handle_missing_values(data, strategy=handle_missing)
+                self.logger.info(f"Handled missing values using {handle_missing} strategy, {df_before - len(data)} rows affected")
             
-        if self.converter_tab.normalize_dates_var.get():
-            # Try to normalize date columns
-            date_cols = ['date', 'timestamp', '<DATE>', '<TIME>']
-            for col in date_cols:
-                if col in data.columns:
-                    try:
-                        data[col] = pd.to_datetime(data[col], utc=True)
-                    except:
-                        pass
-                        
-        if self.converter_tab.standardize_columns_var.get():
-            # Standardize column names
-            data.columns = [col.strip().replace(' ', '_').replace('<', '').replace('>', '') 
-                           for col in data.columns]
-                           
-        if self.converter_tab.validate_data_var.get():
+            # Clean column names
+            if self.converter_tab.clean_column_names_var.get():
+                from ...web.utils.data_helpers import clean_dataframe_columns
+                data = clean_dataframe_columns(data)
+                self.logger.info("Cleaned column names")
+            
             # Basic validation
             if data.empty:
                 raise ValueError("Data is empty after processing")

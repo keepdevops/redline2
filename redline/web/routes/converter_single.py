@@ -88,6 +88,47 @@ def convert_file():
                 'details': f'Could not load data from {input_file} as {format_type} format'
             }), 400
         
+        # Apply data cleaning options if provided
+        remove_duplicates = data.get('remove_duplicates', False)
+        handle_missing = data.get('handle_missing', 'none')
+        clean_column_names = data.get('clean_column_names', False)
+        
+        original_rows = len(data_obj) if isinstance(data_obj, pd.DataFrame) else 0
+        cleaning_stats = {}
+        
+        if isinstance(data_obj, pd.DataFrame):
+            # Remove duplicates
+            if remove_duplicates:
+                from redline.core.data_cleaner import DataCleaner
+                cleaner = DataCleaner()
+                df_before = len(data_obj)
+                # Determine subset for duplicate detection
+                subset = None
+                if 'ticker' in data_obj.columns and 'timestamp' in data_obj.columns:
+                    subset = ['ticker', 'timestamp']
+                elif 'timestamp' in data_obj.columns:
+                    subset = ['timestamp']
+                data_obj = cleaner.remove_duplicates(data_obj, subset=subset)
+                duplicates_removed = df_before - len(data_obj)
+                cleaning_stats['duplicates_removed'] = duplicates_removed
+                logger.info(f"Removed {duplicates_removed} duplicate rows")
+            
+            # Handle missing values
+            if handle_missing and handle_missing != 'none':
+                from redline.core.data_cleaner import DataCleaner
+                cleaner = DataCleaner()
+                df_before = len(data_obj)
+                data_obj = cleaner.handle_missing_values(data_obj, strategy=handle_missing)
+                missing_handled = df_before - len(data_obj)
+                cleaning_stats['missing_handled'] = missing_handled
+                logger.info(f"Handled missing values using {handle_missing} strategy, {missing_handled} rows affected")
+            
+            # Clean column names
+            if clean_column_names:
+                from redline.web.utils.data_helpers import clean_dataframe_columns
+                data_obj = clean_dataframe_columns(data_obj)
+                logger.info("Cleaned column names")
+        
         # Ensure output directory exists
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         
@@ -148,7 +189,10 @@ def convert_file():
             'output_path': output_path,
             'file_size': file_stat.st_size,
             'records': len(data_obj) if isinstance(data_obj, pd.DataFrame) else 0,
-            'user_file_id': user_file_id  # ID in user storage if saved
+            'original_records': original_rows,
+            'user_file_id': user_file_id,  # ID in user storage if saved
+            'cleaning_applied': remove_duplicates or (handle_missing and handle_missing != 'none') or clean_column_names,
+            'cleaning_stats': cleaning_stats
         }
         
         return jsonify(result)

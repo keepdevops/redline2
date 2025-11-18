@@ -681,6 +681,38 @@ body.theme-dark .form-select:focus,
     color: var(--text-muted) !important;
 }
 
+/* Dark Theme - Form Check Inputs (Checkboxes, Switches) */
+body.theme-dark .form-check-input,
+.theme-dark .modal .form-check-input,
+.theme-dark .form-check-input {
+    background-color: #ffffff !important;
+    border-color: var(--border-color) !important;
+    cursor: pointer !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+body.theme-dark .form-check-input:checked,
+.theme-dark .modal .form-check-input:checked,
+.theme-dark .form-check-input:checked {
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+}
+
+body.theme-dark .form-check-input:focus,
+.theme-dark .modal .form-check-input:focus,
+.theme-dark .form-check-input:focus {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--primary-color) 25%, transparent) !important;
+}
+
+body.theme-dark .form-check-label,
+.theme-dark .modal .form-check-label,
+.theme-dark .form-check-label {
+    color: var(--text-primary) !important;
+    cursor: pointer !important;
+}
+
 /* Dark Theme - Card Styles - Only specific overrides not covered by global theme */
 .theme-dark .card-header.bg-primary {
     background-color: var(--primary-color) !important;

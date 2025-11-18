@@ -99,40 +99,72 @@ class ConversionUIHelper:
     
     def create_conversion_options(self, parent):
         """Create conversion options section."""
-        options_frame = ttk.LabelFrame(parent, text="Conversion Options", padding=10)
+        options_frame = ttk.LabelFrame(parent, text="Data Cleaning Options", padding=10)
         options_frame.pack(fill=tk.X, padx=10, pady=5)
         
         # Data cleaning options
         cleaning_frame = ttk.Frame(options_frame)
         cleaning_frame.pack(fill=tk.X, pady=(0, 10))
         
-        ttk.Label(cleaning_frame, text="Data Cleaning:", font=("Arial", 10, "bold")).pack(anchor=tk.W)
+        ttk.Label(cleaning_frame, text="Data Cleaning (Applied before conversion):", font=("Arial", 10, "bold")).pack(anchor=tk.W)
         
+        # Remove duplicates
         self.converter_tab.remove_duplicates_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(cleaning_frame, text="Remove duplicate rows", 
-                       variable=self.converter_tab.remove_duplicates_var).pack(anchor=tk.W, padx=(20, 0))
+        ttk.Checkbutton(
+            cleaning_frame,
+            text="Remove Duplicate Rows",
+            variable=self.converter_tab.remove_duplicates_var
+        ).pack(anchor=tk.W, padx=(20, 0), pady=5)
         
-        self.converter_tab.fill_missing_var = tk.BooleanVar()
-        ttk.Checkbutton(cleaning_frame, text="Fill missing values", 
-                       variable=self.converter_tab.fill_missing_var).pack(anchor=tk.W, padx=(20, 0))
+        ttk.Label(
+            cleaning_frame,
+            text="Removes rows that are exact duplicates. If ticker and timestamp columns exist,\nduplicates are detected based on those columns.",
+            font=("Arial", 8),
+            foreground="gray"
+        ).pack(anchor=tk.W, padx=(40, 0), pady=(0, 10))
         
-        self.converter_tab.normalize_dates_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(cleaning_frame, text="Normalize date formats", 
-                       variable=self.converter_tab.normalize_dates_var).pack(anchor=tk.W, padx=(20, 0))
+        # Handle missing values
+        ttk.Label(cleaning_frame, text="Handle Missing Values:", font=("Arial", 9, "bold")).pack(anchor=tk.W, padx=(20, 0), pady=(5, 5))
         
-        # Schema options
-        schema_frame = ttk.Frame(options_frame)
-        schema_frame.pack(fill=tk.X, pady=(0, 10))
+        self.converter_tab.handle_missing_var = tk.StringVar(value="drop")
+        missing_frame = ttk.Frame(cleaning_frame)
+        missing_frame.pack(fill=tk.X, padx=(40, 0), pady=(0, 10))
         
-        ttk.Label(schema_frame, text="Schema Options:", font=("Arial", 10, "bold")).pack(anchor=tk.W)
+        ttk.Radiobutton(
+            missing_frame,
+            text="Drop rows with missing values",
+            variable=self.converter_tab.handle_missing_var,
+            value="drop"
+        ).pack(anchor=tk.W)
         
-        self.converter_tab.standardize_columns_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(schema_frame, text="Standardize column names", 
-                       variable=self.converter_tab.standardize_columns_var).pack(anchor=tk.W, padx=(20, 0))
+        ttk.Radiobutton(
+            missing_frame,
+            text="Forward fill (use previous value)",
+            variable=self.converter_tab.handle_missing_var,
+            value="forward_fill"
+        ).pack(anchor=tk.W)
         
-        self.converter_tab.validate_data_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(schema_frame, text="Validate data integrity", 
-                       variable=self.converter_tab.validate_data_var).pack(anchor=tk.W, padx=(20, 0))
+        ttk.Radiobutton(
+            missing_frame,
+            text="Backward fill (use next value)",
+            variable=self.converter_tab.handle_missing_var,
+            value="backward_fill"
+        ).pack(anchor=tk.W)
+        
+        ttk.Radiobutton(
+            missing_frame,
+            text="Don't handle missing values",
+            variable=self.converter_tab.handle_missing_var,
+            value="none"
+        ).pack(anchor=tk.W)
+        
+        # Clean column names
+        self.converter_tab.clean_column_names_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(
+            cleaning_frame,
+            text="Clean column names (remove unnamed/empty columns)",
+            variable=self.converter_tab.clean_column_names_var
+        ).pack(anchor=tk.W, padx=(20, 0), pady=10)
     
     def create_batch_section(self, parent):
         """Create batch conversion section."""
