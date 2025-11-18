@@ -8,6 +8,7 @@ from flask import Blueprint, render_template, request, jsonify, session
 import logging
 import os
 from datetime import datetime
+from ...utils.config_paths import ensure_config_dir
 
 api_keys_bp = Blueprint('api_keys', __name__)
 logger = logging.getLogger(__name__)
@@ -209,19 +210,26 @@ def save_api_keys():
         session['api_keys'] = valid_keys
         session['custom_apis'] = valid_custom_apis
         
-        # Also save to config files for persistence
-        os.makedirs('data', exist_ok=True)
+        # Also save to config files for persistence (in hidden directory)
+        from ...utils.config_paths import get_api_keys_file, get_custom_apis_file, ensure_config_dir
         import json
         
-        # Save standard API keys
-        config_file = 'data/api_keys.json'
+        # Ensure config directory exists with proper permissions
+        ensure_config_dir()
+        
+        # Save standard API keys to hidden directory
+        config_file = get_api_keys_file()
         with open(config_file, 'w') as f:
             json.dump(valid_keys, f, indent=2)
+        # Set secure permissions (rw-------)
+        os.chmod(config_file, 0o600)
         
-        # Save custom API configurations
-        custom_apis_file = 'data/custom_apis.json'
+        # Save custom API configurations to hidden directory
+        custom_apis_file = get_custom_apis_file()
         with open(custom_apis_file, 'w') as f:
             json.dump(valid_custom_apis, f, indent=2)
+        # Set secure permissions (rw-------)
+        os.chmod(custom_apis_file, 0o600)
         
         logger.info(f"Saved API keys for sources: {list(valid_keys.keys())}")
         logger.info(f"Saved custom API configurations: {list(valid_custom_apis.keys())}")
@@ -244,19 +252,38 @@ def load_api_keys():
         api_keys = session.get('api_keys', {})
         custom_apis = session.get('custom_apis', {})
         
-        # Try to load from config files
+        # Try to load from config files (in hidden directory)
+        from ...utils.config_paths import get_api_keys_file, get_custom_apis_file
         import json
         
-        # Load standard API keys
-        config_file = 'data/api_keys.json'
-        if os.path.exists(config_file):
+        # Load standard API keys from hidden directory
+        config_file = get_api_keys_file()
+        if config_file.exists():
             with open(config_file, 'r') as f:
                 file_keys = json.load(f)
                 api_keys.update(file_keys)
         
-        # Load custom API configurations
-        custom_apis_file = 'data/custom_apis.json'
-        if os.path.exists(custom_apis_file):
+        # Also check old location for migration
+        old_config_file = 'data/api_keys.json'
+        if os.path.exists(old_config_file):
+            try:
+                with open(old_config_file, 'r') as f:
+                    old_keys = json.load(f)
+                    api_keys.update(old_keys)
+                # Migrate to new location
+                if api_keys:
+                    from ...utils.config_paths import ensure_config_dir
+                    ensure_config_dir()
+                    with open(config_file, 'w') as f:
+                        json.dump(api_keys, f, indent=2)
+                    os.chmod(config_file, 0o600)
+                logger.info("Migrated API keys from data/ to ~/.redline/")
+            except Exception as e:
+                logger.warning(f"Error migrating API keys: {e}")
+        
+        # Load custom API configurations from hidden directory
+        custom_apis_file = get_custom_apis_file()
+        if custom_apis_file.exists():
             try:
                 with open(custom_apis_file, 'r') as f:
                     file_custom_apis = json.load(f)
@@ -283,6 +310,41 @@ def load_api_keys():
                                 custom_apis[api_id] = normalized_config
             except Exception as e:
                 logger.warning(f"Error loading custom APIs from file: {str(e)}")
+        
+        # Also check old location for migration
+        old_custom_apis_file = 'data/custom_apis.json'
+        if os.path.exists(old_custom_apis_file):
+            try:
+                with open(old_custom_apis_file, 'r') as f:
+                    old_custom_apis = json.load(f)
+                    for api_id, api_config in old_custom_apis.items():
+                        if api_config and isinstance(api_config, dict):
+                            if api_config.get('name') and api_config.get('base_url') and api_config.get('endpoint'):
+                                normalized_config = {
+                                    'name': api_config.get('name'),
+                                    'base_url': api_config.get('base_url'),
+                                    'endpoint': api_config.get('endpoint'),
+                                    'api_key': api_config.get('api_key', ''),
+                                    'rate_limit_per_minute': api_config.get('rate_limit_per_minute', 60),
+                                    'date_format': api_config.get('date_format', 'YYYY-MM-DD'),
+                                    'ticker_param': api_config.get('ticker_param', 'symbol'),
+                                    'api_key_param': api_config.get('api_key_param', 'apikey'),
+                                    'start_date_param': api_config.get('start_date_param', 'from'),
+                                    'end_date_param': api_config.get('end_date_param', 'to'),
+                                    'data_path': api_config.get('data_path', 'data'),
+                                    'response_format': api_config.get('response_format', 'json')
+                                }
+                                custom_apis[api_id] = normalized_config
+                # Migrate to new location
+                if custom_apis:
+                    from ...utils.config_paths import ensure_config_dir
+                    ensure_config_dir()
+                    with open(custom_apis_file, 'w') as f:
+                        json.dump(custom_apis, f, indent=2)
+                    os.chmod(custom_apis_file, 0o600)
+                logger.info("Migrated custom APIs from data/ to ~/.redline/")
+            except Exception as e:
+                logger.warning(f"Error migrating custom APIs: {e}")
         
         return jsonify({
             'api_keys': api_keys,

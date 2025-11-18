@@ -123,21 +123,10 @@ class FormatConverter:
         elif filetype == 'json':
             # Replace NaN/NaT values with None before saving to JSON
             # This ensures valid JSON output (NaN is not valid JSON)
+            from ...utils.json_utils import clean_dataframe_for_json
             import json
-            def replace_nan_in_dict(obj):
-                """Recursively replace NaN values with None."""
-                if isinstance(obj, dict):
-                    return {k: replace_nan_in_dict(v) for k, v in obj.items()}
-                elif isinstance(obj, list):
-                    return [replace_nan_in_dict(item) for item in obj]
-                elif isinstance(obj, float) and (pd.isna(obj) or pd.isnull(obj)):
-                    return None
-                elif pd.isna(obj):
-                    return None
-                return obj
-            # Convert to dict and clean NaN values
-            data_dict = df.to_dict(orient='records')
-            cleaned_data = [replace_nan_in_dict(record) for record in data_dict]
+            # Convert to dict and clean NaN values using centralized utility
+            cleaned_data = clean_dataframe_for_json(df)
             # Write JSON directly (lines format for compatibility)
             with open(file_path, 'w') as f:
                 for record in cleaned_data:

@@ -90,7 +90,8 @@ def batch_download():
             import json
             
             custom_api_id = source.replace('custom_', '')
-            custom_apis_file = 'data/custom_apis.json'
+            from ...utils.config_paths import get_custom_apis_file
+            custom_apis_file = str(get_custom_apis_file())
             
             if not os.path.exists(custom_apis_file):
                 errors.append({'ticker': 'ALL', 'error': 'No custom APIs configured. Please configure a custom API first.'})

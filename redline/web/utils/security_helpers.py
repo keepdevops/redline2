@@ -21,12 +21,21 @@ API_KEY_PATTERNS = [
     r'bearer',
 ]
 
-# Known API key file names
+# Known API key file names (including hidden directory)
 API_KEY_FILES = [
     'api_keys.json',
     'custom_apis.json',
+    'licenses.json',
     'data/api_keys.json',
     'data/custom_apis.json',
+    'data/licenses.json',
+    # Hidden directory paths
+    '.redline/api_keys.json',
+    '.redline/custom_apis.json',
+    '.redline/licenses.json',
+    '~/.redline/api_keys.json',
+    '~/.redline/custom_apis.json',
+    '~/.redline/licenses.json',
 ]
 
 # Known API key column names (case-insensitive)

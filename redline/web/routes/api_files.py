@@ -16,9 +16,10 @@ logger = logging.getLogger(__name__)
 SYSTEM_FILES = {
     'usage_data.duckdb',
     'redline_data.duckdb',
-    'api_keys.json',
-    'custom_apis.json',
-    'licenses.json',
+    # These files are now in ~/.redline/ and should not be listed
+    # 'api_keys.json',
+    # 'custom_apis.json',
+    # 'licenses.json',
     'data_config.ini',
     'config.ini'
 }
@@ -27,9 +28,10 @@ SYSTEM_FILES = {
 PROTECTED_FILES = {
     'usage_data.duckdb',
     'redline_data.duckdb',
-    'api_keys.json',
-    'custom_apis.json',
-    'licenses.json',
+    # These files are now in ~/.redline/ and should not be listed
+    # 'api_keys.json',
+    # 'custom_apis.json',
+    # 'licenses.json',
     'data_config.ini',
     'config.ini'
 }

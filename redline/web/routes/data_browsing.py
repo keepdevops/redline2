@@ -23,9 +23,10 @@ def list_files():
         SYSTEM_FILES = {
             'usage_data.duckdb',
             'redline_data.duckdb',
-            'api_keys.json',
-            'custom_apis.json',
-            'licenses.json',
+            # These files are now in ~/.redline/ and should not be listed
+            # 'api_keys.json',
+            # 'custom_apis.json',
+            # 'licenses.json',
             'data_config.ini',
             'config.ini'
         }

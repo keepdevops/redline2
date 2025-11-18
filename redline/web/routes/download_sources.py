@@ -65,9 +65,10 @@ def get_sources():
             }
         }
         
-        # Load custom API configurations
-        custom_apis_file = 'data/custom_apis.json'
-        if os.path.exists(custom_apis_file):
+        # Load custom API configurations from hidden directory
+        from ...utils.config_paths import get_custom_apis_file
+        custom_apis_file = get_custom_apis_file()
+        if custom_apis_file.exists():
             import json
             try:
                 with open(custom_apis_file, 'r') as f:

@@ -99,7 +99,8 @@ def download_data():
             custom_api_id = source.replace('custom_', '')
             
             # Load custom API configurations
-            custom_apis_file = 'data/custom_apis.json'
+            from ...utils.config_paths import get_custom_apis_file
+            custom_apis_file = str(get_custom_apis_file())
             if not os.path.exists(custom_apis_file):
                 return jsonify({'error': 'No custom APIs configured. Please configure a custom API first.'}), 400
             

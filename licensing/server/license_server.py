@@ -19,7 +19,15 @@ CORS(app)
 
 # Configuration
 SECRET_KEY = os.environ.get('LICENSE_SECRET_KEY') or secrets.token_hex(32)
-LICENSE_DB_FILE = 'licenses.json'
+# Use hidden directory for license storage
+try:
+    from redline.utils.config_paths import get_licenses_file, ensure_config_dir
+    LICENSE_DB_FILE = str(get_licenses_file())
+    ensure_config_dir()
+except ImportError:
+    # Fallback if config_paths not available
+    LICENSE_DB_FILE = os.path.expanduser('~/.redline/licenses.json')
+    os.makedirs(os.path.dirname(LICENSE_DB_FILE), mode=0o700, exist_ok=True)
 
 class LicenseManager:
     def __init__(self):

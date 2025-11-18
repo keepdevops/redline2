@@ -1882,9 +1882,84 @@
     ],
     "max_installs": 1,
     "installs": [],
-    "hours_remaining": 0.423234313611111,
+    "hours_remaining": 0.0,
     "purchased_hours": 1.0,
-    "used_hours": 0.5767656863888889,
-    "last_usage_check": "2025-11-18T11:08:43.065351"
+    "used_hours": 1.0000000000000002,
+    "last_usage_check": "2025-11-18T11:25:43.078375"
+  },
+  "RL-27C52A37-D7E3BFDF-85F864F6": {
+    "key": "RL-27C52A37-D7E3BFDF-85F864F6",
+    "customer": {
+      "name": "Test test",
+      "email": "keepdevops@gmail.com",
+      "company": "gentry",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-18T11:10:47.833372",
+    "expires": "2026-11-18T11:10:47.833377",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.9895037080555555,
+    "purchased_hours": 1.0,
+    "used_hours": 0.010496291944444444,
+    "last_usage_check": "2025-11-18T11:11:28.687639"
+  },
+  "RL-ED05E8C9-4B6B88B2-AF94301E": {
+    "key": "RL-ED05E8C9-4B6B88B2-AF94301E",
+    "customer": {
+      "name": "Test test",
+      "email": "keepdevops@gmail.com",
+      "company": "gentry",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-18T11:13:33.177806",
+    "expires": "2026-11-18T11:13:33.177811",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 1.0,
+    "used_hours": 1.0000000000000002,
+    "last_usage_check": "2025-11-18T11:26:34.629414"
+  },
+  "RL-F21F848E-A75ED712-285F0A4A": {
+    "key": "RL-F21F848E-A75ED712-285F0A4A",
+    "customer": {
+      "name": "Test test",
+      "email": "keepdevops@gmail.com",
+      "company": "gentry",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-18T11:59:57.957482",
+    "expires": "2026-11-18T11:59:57.957487",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.1678416830555556,
+    "purchased_hours": 1.0,
+    "used_hours": 0.8321583169444444,
+    "last_usage_check": "2025-11-18T13:01:06.276994"
   }
 }
