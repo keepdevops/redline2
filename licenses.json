@@ -1957,9 +1957,34 @@
     ],
     "max_installs": 1,
     "installs": [],
-    "hours_remaining": 0.1678416830555556,
+    "hours_remaining": 0.0,
     "purchased_hours": 1.0,
-    "used_hours": 0.8321583169444444,
-    "last_usage_check": "2025-11-18T13:01:06.276994"
+    "used_hours": 1.0,
+    "last_usage_check": "2025-11-18T13:13:06.296853"
+  },
+  "RL-BAE4B2A4-42432CD3-C576530A": {
+    "key": "RL-BAE4B2A4-42432CD3-C576530A",
+    "customer": {
+      "name": "Test test",
+      "email": "keepdevops@gmail.com",
+      "company": "gentry",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-18T14:05:23.348625",
+    "expires": "2026-11-18T14:05:23.348645",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.0,
+    "purchased_hours": 0.0,
+    "used_hours": 0.0,
+    "last_usage_check": null
   }
 }
