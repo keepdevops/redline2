@@ -78,6 +78,16 @@ class AccessController:
                 data = response.json()
                 return data.get('hours_remaining', 0.0)
             return None
+        except requests.exceptions.ConnectionError:
+            # License server unavailable - return None or default value
+            if not self.require_license_server:
+                logger.debug(f"License server unavailable, returning default hours for {license_key}")
+                # For development, return a default value (0 hours for dev licenses)
+                if license_key.startswith('RL-DEV-'):
+                    return 0.0  # Dev licenses start with 0 hours
+                return None
+            logger.error(f"License server unavailable and REQUIRE_LICENSE_SERVER=true")
+            return None
         except Exception as e:
             logger.error(f"Error checking hours: {str(e)}")
             return None

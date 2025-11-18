@@ -336,7 +336,8 @@ body.theme-dark {
 .theme-forest .card,
 .theme-sunset .card,
 .theme-monochrome .card,
-.theme-grayscale .card {
+.theme-grayscale .card,
+.theme-dark .card {
     background-color: var(--light-color);
     color: var(--text-primary);
 }
@@ -383,7 +384,8 @@ body.theme-dark {
 .theme-forest .navbar,
 .theme-sunset .navbar,
 .theme-monochrome .navbar,
-.theme-grayscale .navbar {
+.theme-grayscale .navbar,
+.theme-dark .navbar {
     background-color: var(--light-color);
     color: var(--text-primary);
 }
@@ -394,7 +396,8 @@ body.theme-dark {
 .theme-forest .sidebar,
 .theme-sunset .sidebar,
 .theme-monochrome .sidebar,
-.theme-grayscale .sidebar {
+.theme-grayscale .sidebar,
+.theme-dark .sidebar {
     background-color: var(--light-color);
     color: var(--text-primary);
 }
@@ -405,7 +408,8 @@ body.theme-dark {
 .theme-forest .data-table-container,
 .theme-sunset .data-table-container,
 .theme-monochrome .data-table-container,
-.theme-grayscale .data-table-container {
+.theme-grayscale .data-table-container,
+.theme-dark .data-table-container {
     background-color: var(--light-color);
     color: var(--text-primary);
 }
@@ -416,7 +420,8 @@ body.theme-dark {
 .theme-forest .filter-section,
 .theme-sunset .filter-section,
 .theme-monochrome .filter-section,
-.theme-grayscale .filter-section {
+.theme-grayscale .filter-section,
+.theme-dark .filter-section {
     background-color: var(--light-color);
     color: var(--text-primary);
 }
@@ -427,7 +432,8 @@ body.theme-dark {
 .theme-forest .chart-container,
 .theme-sunset .chart-container,
 .theme-monochrome .chart-container,
-.theme-grayscale .chart-container {
+.theme-grayscale .chart-container,
+.theme-dark .chart-container {
     background-color: var(--light-color);
     color: var(--text-primary);
 }
@@ -439,7 +445,8 @@ body.theme-dark {
 .theme-forest .panel,
 .theme-sunset .panel,
 .theme-monochrome .panel,
-.theme-grayscale .panel {
+.theme-grayscale .panel,
+.theme-dark .panel {
     background-color: var(--light-color);
     color: var(--text-primary);
 }
@@ -450,10 +457,11 @@ body.theme-dark {
 .theme-forest .panel-header,
 .theme-sunset .panel-header,
 .theme-monochrome .panel-header,
-.theme-grayscale .panel-header {
+.theme-grayscale .panel-header,
+.theme-dark .panel-header {
     background-color: var(--light-color);
     color: var(--text-primary);
-    border-bottom: 1px solid #dee2e6;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .theme-default .panel-body,
@@ -462,7 +470,8 @@ body.theme-dark {
 .theme-forest .panel-body,
 .theme-sunset .panel-body,
 .theme-monochrome .panel-body,
-.theme-grayscale .panel-body {
+.theme-grayscale .panel-body,
+.theme-dark .panel-body {
     background-color: var(--light-color);
     color: var(--text-primary);
 }
@@ -474,7 +483,8 @@ body.theme-dark {
 .theme-forest .feature-card,
 .theme-sunset .feature-card,
 .theme-monochrome .feature-card,
-.theme-grayscale .feature-card {
+.theme-grayscale .feature-card,
+.theme-dark .feature-card {
     background-color: var(--light-color);
     color: var(--text-primary);
 }
@@ -485,7 +495,8 @@ body.theme-dark {
 .theme-forest .feature-icon,
 .theme-sunset .feature-icon,
 .theme-monochrome .feature-icon,
-.theme-grayscale .feature-icon {
+.theme-grayscale .feature-icon,
+.theme-dark .feature-icon {
     color: var(--primary-color);
 }
 
@@ -496,10 +507,11 @@ body.theme-dark {
 .theme-forest .code-block,
 .theme-sunset .code-block,
 .theme-monochrome .code-block,
-.theme-grayscale .code-block {
+.theme-grayscale .code-block,
+.theme-dark .code-block {
     background-color: var(--light-color);
     color: var(--text-primary);
-    border: 1px solid #e9ecef;
+    border: 1px solid var(--border-color);
 }
 
 /* List items and text content */
@@ -509,7 +521,8 @@ body.theme-dark {
 .theme-forest .list-unstyled,
 .theme-sunset .list-unstyled,
 .theme-monochrome .list-unstyled,
-.theme-grayscale .list-unstyled {
+.theme-grayscale .list-unstyled,
+.theme-dark .list-unstyled {
     color: var(--text-primary);
 }
 
@@ -519,22 +532,12 @@ body.theme-dark {
 .theme-forest .text-muted,
 .theme-sunset .text-muted,
 .theme-monochrome .text-muted,
-.theme-grayscale .text-muted {
+.theme-grayscale .text-muted,
+.theme-dark .text-muted {
     color: var(--text-muted) !important;
 }
 
-/* Dark theme specific overrides */
-.theme-dark .navbar {
-    background-color: var(--light-color) !important;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.theme-dark .card {
-    background-color: var(--light-color) !important;
-    border: 1px solid var(--border-color);
-    color: var(--text-primary) !important;
-}
-
+/* Dark theme specific overrides - Only unique styles that aren't covered by global theme */
 .theme-dark .welcome-section {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--dark-color) 100%);
 }
@@ -543,22 +546,7 @@ body.theme-dark {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--dark-color) 100%);
 }
 
-.theme-dark .data-table-container {
-    background-color: var(--light-color) !important;
-    border: 1px solid var(--border-color);
-}
-
-.theme-dark .form-control {
-    background-color: var(--dark-color) !important;
-    border-color: var(--border-color) !important;
-    color: var(--text-primary) !important;
-}
-
-.theme-dark .form-control:focus {
-    background-color: var(--dark-color) !important;
-    border-color: var(--primary-color) !important;
-    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--primary-color) 25%, transparent) !important;
-}
+/* Removed conflicting form-control styles - using the ones defined later with white backgrounds */
 
 .theme-dark .table {
     color: var(--text-primary) !important;
@@ -568,6 +556,140 @@ body.theme-dark {
     background-color: var(--light-color) !important;
     color: var(--text-primary) !important;
     border-left-color: var(--info-color) !important;
+}
+
+.theme-dark .alert-success {
+    background-color: var(--light-color) !important;
+    color: var(--text-primary) !important;
+    border-left-color: var(--success-color) !important;
+}
+
+.theme-dark .alert-danger {
+    background-color: var(--light-color) !important;
+    color: var(--text-primary) !important;
+    border-left-color: var(--danger-color) !important;
+}
+
+.theme-dark .alert-warning {
+    background-color: var(--light-color) !important;
+    color: var(--text-primary) !important;
+    border-left-color: var(--warning-color) !important;
+}
+
+/* Dark Theme - Modal Styles - Maximum specificity to override Bootstrap 5.3.0 */
+body.theme-dark .modal.show .modal-dialog .modal-content,
+body.theme-dark .modal.fade.show .modal-dialog .modal-content,
+body.theme-dark .modal .modal-dialog .modal-content,
+.theme-dark.modal.show .modal-dialog .modal-content,
+.theme-dark.modal.fade.show .modal-dialog .modal-content,
+.theme-dark.modal .modal-dialog .modal-content,
+body.theme-dark .modal-content {
+    background-color: var(--light-color) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+body.theme-dark .modal-backdrop.show,
+body.theme-dark .modal-backdrop,
+.theme-dark .modal-backdrop.show,
+.theme-dark .modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+body.theme-dark .modal.show .modal-dialog .modal-content .modal-header,
+body.theme-dark .modal.fade.show .modal-dialog .modal-content .modal-header,
+body.theme-dark .modal .modal-dialog .modal-content .modal-header,
+.theme-dark.modal.show .modal-dialog .modal-content .modal-header,
+body.theme-dark .modal-header {
+    background-color: var(--light-color) !important;
+    color: var(--text-primary) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+body.theme-dark .modal-header .modal-title,
+.theme-dark .modal-header .modal-title,
+body.theme-dark .modal.show .modal-header .modal-title {
+    color: var(--text-primary) !important;
+}
+
+body.theme-dark .modal.show .modal-dialog .modal-content .modal-body,
+body.theme-dark .modal.fade.show .modal-dialog .modal-content .modal-body,
+body.theme-dark .modal .modal-dialog .modal-content .modal-body,
+.theme-dark.modal.show .modal-dialog .modal-content .modal-body,
+body.theme-dark .modal-body {
+    background-color: var(--light-color) !important;
+    color: var(--text-primary) !important;
+}
+
+body.theme-dark .modal.show .modal-dialog .modal-content .modal-footer,
+body.theme-dark .modal.fade.show .modal-dialog .modal-content .modal-footer,
+body.theme-dark .modal .modal-dialog .modal-content .modal-footer,
+.theme-dark.modal.show .modal-dialog .modal-content .modal-footer,
+body.theme-dark .modal-footer {
+    background-color: var(--light-color) !important;
+    color: var(--text-primary) !important;
+    border-top: 1px solid var(--border-color) !important;
+}
+
+/* Dark Theme - Form Controls - Higher specificity to override Bootstrap */
+body.theme-dark .form-control,
+.theme-dark .modal .form-control,
+.theme-dark .form-control {
+    background-color: #ffffff !important;
+    border-color: var(--border-color) !important;
+    color: #000000 !important;
+}
+
+body.theme-dark .form-control:focus,
+.theme-dark .modal .form-control:focus,
+.theme-dark .form-control:focus {
+    background-color: #ffffff !important;
+    border-color: var(--primary-color) !important;
+    color: #000000 !important;
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--primary-color) 25%, transparent) !important;
+}
+
+body.theme-dark .form-control::placeholder,
+.theme-dark .modal .form-control::placeholder,
+.theme-dark .form-control::placeholder {
+    color: #6c757d !important;
+}
+
+body.theme-dark .form-select,
+.theme-dark .modal .form-select,
+.theme-dark .form-select {
+    background-color: #ffffff !important;
+    border-color: var(--border-color) !important;
+    color: #000000 !important;
+}
+
+body.theme-dark .form-select:focus,
+.theme-dark .modal .form-select:focus,
+.theme-dark .form-select:focus {
+    background-color: #ffffff !important;
+    border-color: var(--primary-color) !important;
+    color: #000000 !important;
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--primary-color) 25%, transparent) !important;
+}
+
+.theme-dark .form-label {
+    color: var(--text-primary) !important;
+}
+
+.theme-dark .form-text,
+.theme-dark small.text-muted {
+    color: var(--text-muted) !important;
+}
+
+/* Dark Theme - Card Styles - Only specific overrides not covered by global theme */
+.theme-dark .card-header.bg-primary {
+    background-color: var(--primary-color) !important;
+    color: var(--text-white) !important;
+}
+
+/* Dark Theme - Button Close (Modal) */
+.theme-dark .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
 }
 
 /* Additional hardcoded color fixes */
@@ -623,9 +745,9 @@ body.theme-dark {
 .theme-sunset .alert-success,
 .theme-monochrome .alert-success,
 .theme-grayscale .alert-success {
-    background-color: var(--success-color) !important;
-    color: var(--text-white) !important;
-    border-color: var(--success-color) !important;
+    background-color: var(--light-color) !important;
+    color: var(--text-primary) !important;
+    border-left-color: var(--success-color) !important;
 }
 
 .theme-default .alert-danger,
@@ -635,9 +757,9 @@ body.theme-dark {
 .theme-sunset .alert-danger,
 .theme-monochrome .alert-danger,
 .theme-grayscale .alert-danger {
-    background-color: var(--danger-color) !important;
-    color: var(--text-white) !important;
-    border-color: var(--danger-color) !important;
+    background-color: var(--light-color) !important;
+    color: var(--text-primary) !important;
+    border-left-color: var(--danger-color) !important;
 }
 
 .theme-default .alert-info,
@@ -659,7 +781,7 @@ body.theme-dark {
 .theme-sunset .alert-warning,
 .theme-monochrome .alert-warning,
 .theme-grayscale .alert-warning {
-    background-color: var(--warning-color) !important;
-    color: var(--text-white) !important;
-    border-color: var(--warning-color) !important;
+    background-color: var(--light-color) !important;
+    color: var(--text-primary) !important;
+    border-left-color: var(--warning-color) !important;
 }

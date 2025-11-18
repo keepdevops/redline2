@@ -42,13 +42,30 @@
                     <h5 class="card-title mb-0">
                         <i class="fas fa-table me-2"></i>Data Preview
                     </h5>
-                    <div class="btn-group">
-                        <button id="exportBtn" class="btn btn-outline-primary">
-                            <i class="fas fa-download me-2"></i>Export
-                        </button>
-                        <button id="refreshDataBtn" class="btn btn-outline-secondary">
-                            <i class="fas fa-sync-alt me-2"></i>Refresh
-                        </button>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="input-group" style="width: auto;">
+                            <label class="input-group-text" for="dateFormatSelect" style="margin-bottom: 0;">
+                                <i class="fas fa-calendar-alt me-1"></i>Date Format:
+                            </label>
+                            <select id="dateFormatSelect" class="form-select" style="width: auto;">
+                                <option value="auto">Auto (YYYY-MM-DD)</option>
+                                <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                                <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                                <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                                <option value="YYYY/MM/DD">YYYY/MM/DD</option>
+                                <option value="DD-MM-YYYY">DD-MM-YYYY</option>
+                                <option value="MM-DD-YYYY">MM-DD-YYYY</option>
+                                <option value="raw">Raw (No Formatting)</option>
+                            </select>
+                        </div>
+                        <div class="btn-group">
+                            <button id="exportBtn" class="btn btn-outline-primary">
+                                <i class="fas fa-download me-2"></i>Export
+                            </button>
+                            <button id="refreshDataBtn" class="btn btn-outline-secondary">
+                                <i class="fas fa-sync-alt me-2"></i>Refresh
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -73,6 +90,10 @@ let currentData = null;
 $(document).ready(function() {
     console.log('Data tab loaded - using tkinter-style data loading');
     
+    // Load saved date format preference
+    const savedDateFormat = localStorage.getItem('redline-date-format') || 'auto';
+    $('#dateFormatSelect').val(savedDateFormat);
+    
     // Load file list on page load
     loadFileList();
     
@@ -96,6 +117,17 @@ $(document).ready(function() {
     $('#refreshDataBtn').on('click', function() {
         if (currentFile) {
             loadData(currentFile);
+        }
+    });
+    
+    // Date format change handler - re-render table with new format
+    $('#dateFormatSelect').on('change', function() {
+        const selectedFormat = $(this).val();
+        localStorage.setItem('redline-date-format', selectedFormat);
+        
+        // Re-render table if data is already loaded
+        if (currentData && currentData.length > 0) {
+            displayDataInTable(currentData);
         }
     });
 });
@@ -224,6 +256,98 @@ function loadData(filename) {
     });
 }
 
+// Helper function to format YYYYMMDD numeric dates to readable format
+function formatDateValue(value, header) {
+    if (value === null || value === undefined || value === '') {
+        return '';
+    }
+    
+    // Get selected date format (default to 'auto')
+    const dateFormat = $('#dateFormatSelect').val() || localStorage.getItem('redline-date-format') || 'auto';
+    
+    // If format is 'raw', return original value
+    if (dateFormat === 'raw') {
+        return value;
+    }
+    
+    // Convert to string and remove any commas (thousands separators)
+    const strValue = String(value).replace(/,/g, '');
+    
+    // Check if it's a numeric value that could be YYYYMMDD format
+    // YYYYMMDD format: 8 digits, between 19000101 and 21001231
+    let year = null, month = null, day = null;
+    let isValidDate = false;
+    
+    if (/^\d{8}$/.test(strValue)) {
+        const numValue = parseInt(strValue, 10);
+        if (numValue >= 19000101 && numValue <= 21001231) {
+            // Extract year, month, day
+            year = Math.floor(numValue / 10000);
+            month = Math.floor((numValue % 10000) / 100);
+            day = numValue % 100;
+            
+            // Validate month and day
+            if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                // Check if the date is valid (e.g., not Feb 30)
+                const dateObj = new Date(year, month - 1, day);
+                if (dateObj.getFullYear() === year && dateObj.getMonth() === month - 1 && dateObj.getDate() === day) {
+                    isValidDate = true;
+                }
+            }
+        }
+    }
+    
+    // Also check for column names that suggest dates
+    if (!isValidDate) {
+        const headerLower = String(header || '').toLowerCase();
+        if (headerLower.includes('date') || headerLower.includes('time') || headerLower.includes('timestamp')) {
+            // Try to parse as YYYYMMDD
+            if (/^\d{8}$/.test(strValue)) {
+                const numValue = parseInt(strValue, 10);
+                if (numValue >= 19000101 && numValue <= 21001231) {
+                    year = Math.floor(numValue / 10000);
+                    month = Math.floor((numValue % 10000) / 100);
+                    day = numValue % 100;
+                    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                        const dateObj = new Date(year, month - 1, day);
+                        if (dateObj.getFullYear() === year && dateObj.getMonth() === month - 1 && dateObj.getDate() === day) {
+                            isValidDate = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // If we have a valid date, format it according to user preference
+    if (isValidDate && year && month && day) {
+        const monthStr = String(month).padStart(2, '0');
+        const dayStr = String(day).padStart(2, '0');
+        const yearStr = String(year);
+        
+        switch (dateFormat) {
+            case 'YYYY-MM-DD':
+            case 'auto':  // Default to YYYY-MM-DD
+                return `${yearStr}-${monthStr}-${dayStr}`;
+            case 'MM/DD/YYYY':
+                return `${monthStr}/${dayStr}/${yearStr}`;
+            case 'DD/MM/YYYY':
+                return `${dayStr}/${monthStr}/${yearStr}`;
+            case 'YYYY/MM/DD':
+                return `${yearStr}/${monthStr}/${dayStr}`;
+            case 'DD-MM-YYYY':
+                return `${dayStr}-${monthStr}-${yearStr}`;
+            case 'MM-DD-YYYY':
+                return `${monthStr}-${dayStr}-${yearStr}`;
+            default:
+                return `${yearStr}-${monthStr}-${dayStr}`;
+        }
+    }
+    
+    // Return original value if not a date
+    return value;
+}
+
 function displayDataInTable(data) {
     console.log('Displaying data in table:', data.length, 'rows');
     
@@ -250,7 +374,9 @@ function displayDataInTable(data) {
         tableHtml += '<tr>';
         headers.forEach(header => {
             const value = data[i][header];
-            tableHtml += `<td>${value !== null && value !== undefined ? value : ''}</td>`;
+            // Format date values (YYYYMMDD -> YYYY-MM-DD)
+            const formattedValue = formatDateValue(value, header);
+            tableHtml += `<td>${formattedValue !== null && formattedValue !== undefined ? formattedValue : ''}</td>`;
         });
         tableHtml += '</tr>';
     }

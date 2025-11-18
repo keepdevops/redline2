@@ -103,7 +103,7 @@
 .color-input:focus {
     outline: none;
     border-color: var(--primary-color, #2563eb);
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 20%, transparent);
 }
 
 .color-preview {
@@ -137,13 +137,13 @@
 
 .color-customizer-btn:hover {
     background: var(--primary-color, #2563eb);
-    color: white;
+    color: var(--text-white);
     border-color: var(--primary-color, #2563eb);
 }
 
 .color-customizer-btn.primary {
     background: var(--primary-color, #2563eb);
-    color: white;
+    color: var(--text-white);
     border-color: var(--primary-color, #2563eb);
 }
 
@@ -161,7 +161,7 @@
     width: 50px;
     height: 50px;
     background: var(--primary-color, #2563eb);
-    color: white;
+    color: var(--text-white);
     border: none;
     border-radius: 50%;
     cursor: pointer;
@@ -209,7 +209,7 @@
 
 .preset-color.active {
     border-color: var(--primary-color, #2563eb);
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 20%, transparent);
 }
 
 .preset-color-label {

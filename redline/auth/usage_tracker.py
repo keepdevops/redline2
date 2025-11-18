@@ -28,9 +28,12 @@ class UsageTracker:
         self.active_sessions: Dict[str, Dict] = {}
         self.session_lock = Lock()
         self.license_server_url = os.environ.get('LICENSE_SERVER_URL', 'http://localhost:5001')
+        self.require_license_server = os.environ.get('REQUIRE_LICENSE_SERVER', 'false').lower() == 'true'
         self.check_interval = float(os.environ.get('USAGE_CHECK_INTERVAL', '30'))  # 30 seconds default
         # Track last deduction time per license key (for session-independent tracking)
         self.last_deduction_time: Dict[str, datetime] = {}
+        # Local license storage for development (when license server unavailable)
+        self.local_licenses: Dict[str, Dict] = {}
         
     def start_session(self, license_key: str, user_id: Optional[str] = None) -> str:
         """Start a new usage session"""
@@ -164,6 +167,22 @@ class UsageTracker:
             else:
                 logger.warning(f"Failed to deduct hours: {response.text}")
                 
+        except requests.exceptions.ConnectionError:
+            # License server unavailable - use local tracking if not required
+            if not self.require_license_server:
+                logger.debug(f"License server unavailable, tracking hours locally for {license_key}")
+                # Initialize local license if not exists
+                if license_key not in self.local_licenses:
+                    self.local_licenses[license_key] = {
+                        'hours_remaining': 0.0,
+                        'used_hours': 0.0
+                    }
+                
+                # Track locally (don't actually deduct, just log)
+                self.local_licenses[license_key]['used_hours'] += hours
+                logger.debug(f"Tracked {hours:.4f} hours locally for {license_key}")
+            else:
+                logger.error(f"License server unavailable and REQUIRE_LICENSE_SERVER=true")
         except Exception as e:
             logger.error(f"Error deducting hours: {str(e)}")
     

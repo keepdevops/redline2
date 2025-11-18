@@ -1,9 +1,9 @@
 /* Virtual Scrolling Styles for REDLINE Web GUI */
 
 .virtual-scroll-container {
-    border: 1px solid #dee2e6;
+    border: 1px solid var(--border-color);
     border-radius: 0.375rem;
-    background: white;
+    background: var(--light-color);
 }
 
 .virtual-scroll-header {
@@ -11,8 +11,8 @@
     justify-content: space-between;
     align-items: center;
     padding: 1rem;
-    border-bottom: 1px solid #dee2e6;
-    background-color: #f8f9fa;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--light-color);
     flex-wrap: wrap;
     gap: 1rem;
 }
@@ -25,7 +25,7 @@
 
 .pagination-info {
     font-weight: 500;
-    color: #495057;
+    color: var(--text-secondary);
 }
 
 .virtual-scroll-controls {
@@ -52,8 +52,8 @@
 }
 
 .virtual-table th {
-    background-color: #343a40;
-    color: white;
+    background-color: var(--dark-color);
+    color: var(--text-white);
     font-weight: 600;
     padding: 0.75rem 0.5rem;
     border: none;
@@ -64,23 +64,27 @@
 
 .virtual-table td {
     padding: 0.5rem;
-    border-bottom: 1px solid #dee2e6;
+    border-bottom: 1px solid var(--border-color);
     vertical-align: middle;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    color: var(--text-primary);
+    background-color: var(--light-color);
 }
 
 .virtual-table tbody tr:hover {
-    background-color: #f8f9fa;
+    background-color: var(--light-color);
+    opacity: 0.9;
 }
 
 .virtual-table tbody tr:nth-child(even) {
-    background-color: #f8f9fa;
+    background-color: var(--light-color);
 }
 
 .virtual-table tbody tr:nth-child(even):hover {
-    background-color: #e9ecef;
+    background-color: var(--light-color);
+    opacity: 0.85;
 }
 
 .virtual-scroll-loading {
@@ -88,7 +92,8 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: rgba(255, 255, 255, 0.9);
+    background: var(--light-color);
+    opacity: 0.9;
     padding: 1rem;
     border-radius: 0.375rem;
     box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
@@ -96,6 +101,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    color: var(--text-primary);
 }
 
 .virtual-scroll-footer {
@@ -103,20 +109,21 @@
     justify-content: space-between;
     align-items: center;
     padding: 0.75rem 1rem;
-    border-top: 1px solid #dee2e6;
-    background-color: #f8f9fa;
+    border-top: 1px solid var(--border-color);
+    background-color: var(--light-color);
     font-size: 0.875rem;
     flex-wrap: wrap;
     gap: 1rem;
+    color: var(--text-primary);
 }
 
 .row-count {
-    color: #6c757d;
+    color: var(--text-secondary);
     font-weight: 500;
 }
 
 .performance-stats {
-    color: #6c757d;
+    color: var(--text-secondary);
 }
 
 /* Responsive adjustments */
@@ -153,17 +160,17 @@
 }
 
 .virtual-scroll-viewport::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: var(--light-color);
     border-radius: 4px;
 }
 
 .virtual-scroll-viewport::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
+    background: var(--border-color);
     border-radius: 4px;
 }
 
 .virtual-scroll-viewport::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
+    background: var(--text-muted);
 }
 
 /* Loading animation */
@@ -184,35 +191,44 @@
 
 /* Theme-specific adjustments */
 .theme-dark .virtual-scroll-container {
-    background: #1e293b;
-    border-color: #475569;
+    background: var(--light-color);
+    border-color: var(--border-color);
 }
 
 .theme-dark .virtual-scroll-header,
 .theme-dark .virtual-scroll-footer {
-    background-color: #334155;
-    border-color: #475569;
+    background-color: var(--light-color);
+    border-color: var(--border-color);
 }
 
 .theme-dark .virtual-table th {
-    background-color: #0f172a;
+    background-color: var(--dark-color);
+    color: var(--text-white);
+}
+
+.theme-dark .virtual-table td {
+    background-color: var(--light-color);
+    color: var(--text-primary);
 }
 
 .theme-dark .virtual-table tbody tr:hover {
-    background-color: #334155;
+    background-color: var(--light-color);
+    opacity: 0.9;
 }
 
 .theme-dark .virtual-table tbody tr:nth-child(even) {
-    background-color: #334155;
+    background-color: var(--light-color);
 }
 
 .theme-dark .virtual-table tbody tr:nth-child(even):hover {
-    background-color: #475569;
+    background-color: var(--light-color);
+    opacity: 0.85;
 }
 
 .theme-dark .virtual-scroll-loading {
-    background: rgba(30, 41, 59, 0.9);
-    color: white;
+    background: var(--light-color);
+    opacity: 0.9;
+    color: var(--text-primary);
 }
 
 /* Performance indicators */
@@ -225,13 +241,13 @@
 }
 
 .performance-indicator.excellent {
-    background-color: #28a745;
+    background-color: var(--success-color);
 }
 
 .performance-indicator.good {
-    background-color: #ffc107;
+    background-color: var(--warning-color);
 }
 
 .performance-indicator.poor {
-    background-color: #dc3545;
+    background-color: var(--danger-color);
 }

@@ -162,14 +162,14 @@
 <!-- Conversion Results -->
 <div id="conversionResults" class="row mt-4" style="display: none;">
     <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
+        <div class="card" style="background-color: var(--light-color); color: var(--text-primary);">
+            <div class="card-header" style="background-color: var(--light-color); color: var(--text-primary);">
+                <h5 class="card-title mb-0" style="color: var(--text-primary);">
                     <i class="fas fa-check-circle me-2"></i>Conversion Results
                 </h5>
             </div>
-            <div class="card-body">
-                <div id="resultsContent">
+            <div class="card-body" style="background-color: var(--light-color); color: var(--text-primary);">
+                <div id="resultsContent" style="color: var(--text-primary);">
                     <!-- Results will be displayed here -->
                 </div>
             </div>
@@ -517,12 +517,12 @@ function batchConvert() {
 
 function showConversionResults(results) {
     const resultsHtml = results.map(result => `
-        <div class="alert alert-success">
-            <h6><i class="fas fa-check-circle me-2"></i>Conversion Successful</h6>
-            <p class="mb-1">Input: ${result.input_file}</p>
-            <p class="mb-1">Output: ${result.output_file}</p>
-            <p class="mb-1">Format: ${result.output_format}</p>
-            <p class="mb-0">Records: ${result.records}</p>
+        <div class="alert alert-success" style="background-color: var(--light-color); color: var(--text-primary); border-left: 4px solid var(--success-color);">
+            <h6 style="color: var(--text-primary);"><i class="fas fa-check-circle me-2"></i>Conversion Successful</h6>
+            <p class="mb-1" style="color: var(--text-primary);">Input: ${result.input_file}</p>
+            <p class="mb-1" style="color: var(--text-primary);">Output: ${result.output_file}</p>
+            <p class="mb-1" style="color: var(--text-primary);">Format: ${result.output_format}</p>
+            <p class="mb-0" style="color: var(--text-primary);">Records: ${result.records}</p>
         </div>
     `).join('');
     
@@ -532,30 +532,30 @@ function showConversionResults(results) {
 
 function showBatchResults(response) {
     let resultsHtml = `
-        <div class="alert alert-info">
-            <h6><i class="fas fa-info-circle me-2"></i>Batch Conversion Summary</h6>
-            <p class="mb-0">Total: ${response.total_files} | Successful: ${response.successful} | Failed: ${response.failed}</p>
+        <div class="alert alert-info" style="background-color: var(--light-color); color: var(--text-primary); border-left: 4px solid var(--info-color);">
+            <h6 style="color: var(--text-primary);"><i class="fas fa-info-circle me-2"></i>Batch Conversion Summary</h6>
+            <p class="mb-0" style="color: var(--text-primary);">Total: ${response.total_files} | Successful: ${response.successful} | Failed: ${response.failed}</p>
         </div>
     `;
     
     if (response.results && response.results.length > 0) {
-        resultsHtml += '<h6>Successful Conversions:</h6>';
+        resultsHtml += '<h6 style="color: var(--text-primary); margin-top: 1rem;">Successful Conversions:</h6>';
         response.results.forEach(result => {
             resultsHtml += `
-                <div class="alert alert-success">
-                    <p class="mb-1"><strong>${result.input_file}</strong> → ${result.output_file}</p>
-                    <p class="mb-0">Records: ${result.records}</p>
+                <div class="alert alert-success" style="background-color: var(--light-color); color: var(--text-primary); border-left: 4px solid var(--success-color);">
+                    <p class="mb-1" style="color: var(--text-primary);"><strong>${result.input_file}</strong> → ${result.output_file}</p>
+                    <p class="mb-0" style="color: var(--text-primary);">Records: ${result.records}</p>
                 </div>
             `;
         });
     }
     
     if (response.errors && response.errors.length > 0) {
-        resultsHtml += '<h6>Failed Conversions:</h6>';
+        resultsHtml += '<h6 style="color: var(--text-primary); margin-top: 1rem;">Failed Conversions:</h6>';
         response.errors.forEach(error => {
             resultsHtml += `
-                <div class="alert alert-danger">
-                    <p class="mb-0"><strong>${error.input_file}</strong>: ${error.error}</p>
+                <div class="alert alert-danger" style="background-color: var(--light-color); color: var(--text-primary); border-left: 4px solid var(--danger-color);">
+                    <p class="mb-0" style="color: var(--text-primary);"><strong>${error.input_file}</strong>: ${error.error}</p>
                 </div>
             `;
         });

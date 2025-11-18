@@ -60,7 +60,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('data.data_tab') }}">
+                        <a class="nav-link" href="/data/">
                             <i class="fas fa-database me-1"></i>Data
                         </a>
                     </li>
@@ -70,12 +70,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('download.download_tab') }}">
+                        <a class="nav-link" href="/download/">
                             <i class="fas fa-download me-1"></i>Download
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('converter.converter_tab') }}">
+                        <a class="nav-link" href="/converter/">
                             <i class="fas fa-exchange-alt me-1"></i>Converter
                         </a>
                     </li>
@@ -164,13 +164,13 @@
                     <div class="sidebar-section">
                         <h6 class="sidebar-title">Quick Actions</h6>
                         <div class="list-group list-group-flush">
-                            <a href="{{ url_for('download.download_tab') }}" class="list-group-item list-group-item-action">
+                            <a href="/download/" class="list-group-item list-group-item-action">
                                 <i class="fas fa-download me-2"></i>Download Data
                             </a>
-                            <a href="{{ url_for('data.data_tab') }}" class="list-group-item list-group-item-action">
+                            <a href="/data/" class="list-group-item list-group-item-action">
                                 <i class="fas fa-eye me-2"></i>View Data
                             </a>
-                            <a href="{{ url_for('converter.converter_tab') }}" class="list-group-item list-group-item-action">
+                            <a href="/converter/" class="list-group-item list-group-item-action">
                                 <i class="fas fa-exchange-alt me-2"></i>Convert Format
                             </a>
                             <a href="{{ url_for('analysis.analysis_tab') }}" class="list-group-item list-group-item-action">

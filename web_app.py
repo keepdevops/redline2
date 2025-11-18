@@ -194,7 +194,7 @@ def create_app():
             '/api/files', '/api/upload', '/api/data',  # API routes (but not /api/status, /api/register)
             '/data/load', '/data/filter', '/data/files',  # Data API routes
             '/analysis/analyze',  # Analysis API routes
-            '/download/download', '/download/batch-download', '/download/history',  # Download API routes
+            '/download/download', '/download/batch-download',  # Download API routes (history doesn't require license)
             '/user-data/',  # User data API routes
             '/converter/convert', '/converter/batch-convert',  # Converter API routes
             '/tasks/list', '/tasks/queue', '/tasks/submit', '/tasks/cleanup', '/tasks/cancel',  # Tasks API routes
@@ -359,8 +359,8 @@ def create_app():
         
         # Log access to persistent storage
         try:
-            from redline.database.usage_storage import usage_storage, STORAGE_AVAILABLE
-            if STORAGE_AVAILABLE and usage_storage:
+            from redline.database.usage_storage import usage_storage
+            if usage_storage:
                 usage_storage.log_access(
                     license_key=license_key,
                     endpoint=request.endpoint or request.path,

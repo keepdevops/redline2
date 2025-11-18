@@ -462,9 +462,16 @@ function loadLogs() {
                 
                 response.logs.forEach(log => {
                     // Handle both old format (log.line) and new format (log as string)
-                    const logLine = typeof log === 'string' ? log : (log.line || log);
-                    const logLevel = log.level || (logLine.match(/\b(ERROR|WARNING|INFO|DEBUG)\b/) ? logLine.match(/\b(ERROR|WARNING|INFO|DEBUG)\b/)[1] : 'INFO');
-                    const timestamp = log.timestamp || (logLine.match(/^\d{4}-\d{2}-\d{2}/) ? logLine.split(' - ')[0] : '');
+                    const logLine = typeof log === 'string' ? log : (log && typeof log === 'object' ? (log.line || log.toString()) : String(log || ''));
+                    
+                    // Ensure logLine is a string before calling match
+                    if (typeof logLine !== 'string' || !logLine) {
+                        console.warn('Invalid log entry:', log);
+                        return; // Skip invalid entries
+                    }
+                    
+                    const logLevel = (log && log.level) || (logLine.match(/\b(ERROR|WARNING|INFO|DEBUG)\b/) ? logLine.match(/\b(ERROR|WARNING|INFO|DEBUG)\b/)[1] : 'INFO');
+                    const timestamp = (log && log.timestamp) || (logLine.match(/^\d{4}-\d{2}-\d{2}/) ? logLine.split(' - ')[0] : '');
                     
                     const logClass = logLevel === 'ERROR' ? 'text-danger' : 
                                    logLevel === 'WARNING' ? 'text-warning' : 

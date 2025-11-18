@@ -6,7 +6,7 @@
 class ColorCustomizer {
     constructor() {
         this.isOpen = false;
-        this.currentTheme = 'theme-default';
+        this.currentTheme = this.getCurrentTheme();
         this.customColors = {};
         this.presetSchemes = {
             'default': {
@@ -131,6 +131,108 @@ class ColorCustomizer {
         this.createCustomizerInterface();
         this.loadSavedColors();
         this.bindEvents();
+        this.listenForThemeChanges();
+    }
+    
+    getCurrentTheme() {
+        // Get current theme from body class or localStorage
+        const bodyTheme = document.body.className.match(/theme-\w+/);
+        if (bodyTheme) {
+            return bodyTheme[0];
+        }
+        return localStorage.getItem('redline-theme') || 'theme-default';
+    }
+    
+    listenForThemeChanges() {
+        // Listen for theme change events
+        $(document).on('themeChanged', (event, theme) => {
+            const previousTheme = this.currentTheme;
+            this.currentTheme = theme;
+            // Clear saved colors when theme changes (user wants theme colors, not custom)
+            this.updateColorsForTheme(theme, true);
+        });
+        
+        // Also listen for direct theme class changes on body
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    const newTheme = this.getCurrentTheme();
+                    if (newTheme !== this.currentTheme) {
+                        const previousTheme = this.currentTheme;
+                        this.currentTheme = newTheme;
+                        // Clear saved colors when theme changes (user wants theme colors, not custom)
+                        this.updateColorsForTheme(newTheme, true);
+                    }
+                }
+            });
+        });
+        
+        observer.observe(document.body, {
+            attributes: true,
+            attributeFilter: ['class']
+        });
+    }
+    
+    updateColorsForTheme(theme, clearSaved = false) {
+        // Map theme class to preset name
+        const themeToPreset = {
+            'theme-default': 'default',
+            'theme-high-contrast': 'high-contrast',
+            'theme-ocean': 'ocean',
+            'theme-forest': 'forest',
+            'theme-sunset': 'sunset',
+            'theme-monochrome': 'monochrome',
+            'theme-grayscale': 'grayscale',
+            'theme-dark': 'dark'
+        };
+        
+        const presetName = themeToPreset[theme] || 'default';
+        
+        // Clear custom color overrides to let theme colors show
+        this.clearCustomOverrides();
+        
+        // If theme changed (not initial load), clear saved custom colors
+        if (clearSaved) {
+            localStorage.removeItem('redline-custom-font-colors');
+            this.customColors = {};
+        }
+        
+        // Update color picker inputs to show theme defaults
+        const presetColors = this.presetSchemes[presetName];
+        if (presetColors && this.customizer) {
+            Object.keys(presetColors).forEach(colorVar => {
+                const input = this.customizer.querySelector(`[data-color="${colorVar}"]`);
+                if (input) {
+                    input.value = presetColors[colorVar];
+                    this.updateColorPreview(input);
+                }
+            });
+            
+            // Update active preset indicator
+            this.customizer.querySelectorAll('.preset-color').forEach(preset => {
+                preset.classList.remove('active');
+            });
+            const activePreset = this.customizer.querySelector(`[data-preset="${presetName}"]`);
+            if (activePreset) {
+                activePreset.classList.add('active');
+            }
+        }
+    }
+    
+    clearCustomOverrides() {
+        // Remove inline style overrides from documentElement to let theme CSS variables take precedence
+        const colorVars = [
+            'text-primary', 'text-secondary', 'text-muted', 'text-light', 
+            'text-dark', 'text-white', 'text-success', 'text-warning', 
+            'text-danger', 'text-info', 'text-link', 'text-link-hover'
+        ];
+        
+        colorVars.forEach(colorVar => {
+            document.documentElement.style.removeProperty(`--${colorVar}`);
+        });
+        
+        // Clear custom colors object
+        this.customColors = {};
     }
     
     createToggleButton() {
@@ -345,7 +447,13 @@ class ColorCustomizer {
         this.customizer.querySelectorAll('.preset-color').forEach(preset => {
             preset.classList.remove('active');
         });
-        this.customizer.querySelector(`[data-preset="${presetName}"]`).classList.add('active');
+        const activePreset = this.customizer.querySelector(`[data-preset="${presetName}"]`);
+        if (activePreset) {
+            activePreset.classList.add('active');
+        }
+        
+        // Clear any existing custom overrides first
+        this.clearCustomOverrides();
         
         // Apply preset colors
         const presetColors = this.presetSchemes[presetName];
@@ -354,15 +462,22 @@ class ColorCustomizer {
             if (input) {
                 input.value = presetColors[colorVar];
                 this.updateColorPreview(input);
-                this.applyColorChange(colorVar, presetColors[colorVar]);
+                // Don't apply as custom override - let theme handle it
+                // Only apply if user manually changes a color
             }
         });
         
-        this.customColors = { ...presetColors };
+        // Store preset colors but don't apply as overrides
+        this.customColors = {};
     }
     
     resetToDefault() {
-        this.selectPreset('default');
+        // Reset to current theme's default colors
+        const currentTheme = this.getCurrentTheme();
+        this.updateColorsForTheme(currentTheme);
+        // Clear saved custom colors
+        localStorage.removeItem('redline-custom-font-colors');
+        this.showNotification('Font colors reset to theme defaults', 'success');
     }
     
     saveColors() {
@@ -371,18 +486,28 @@ class ColorCustomizer {
     }
     
     loadSavedColors() {
+        // First, set colors to match current theme (don't clear saved colors on initial load)
+        const currentTheme = this.getCurrentTheme();
+        this.updateColorsForTheme(currentTheme, false);
+        
+        // Then, if user has custom colors saved, apply them (but only if they explicitly saved them)
         const savedColors = localStorage.getItem('redline-custom-font-colors');
         if (savedColors) {
             try {
-                this.customColors = JSON.parse(savedColors);
-                Object.keys(this.customColors).forEach(colorVar => {
-                    const input = this.customizer.querySelector(`[data-color="${colorVar}"]`);
-                    if (input) {
-                        input.value = this.customColors[colorVar];
-                        this.updateColorPreview(input);
-                        this.applyColorChange(colorVar, this.customColors[colorVar]);
-                    }
-                });
+                const parsedColors = JSON.parse(savedColors);
+                // Only apply if user explicitly saved custom colors (not just theme defaults)
+                const hasCustomColors = Object.keys(parsedColors).length > 0;
+                if (hasCustomColors) {
+                    this.customColors = parsedColors;
+                    Object.keys(this.customColors).forEach(colorVar => {
+                        const input = this.customizer.querySelector(`[data-color="${colorVar}"]`);
+                        if (input) {
+                            input.value = this.customColors[colorVar];
+                            this.updateColorPreview(input);
+                            this.applyColorChange(colorVar, this.customColors[colorVar]);
+                        }
+                    });
+                }
             } catch (e) {
                 console.warn('Failed to load saved font colors:', e);
             }

@@ -161,11 +161,42 @@ def payment_success():
                 
                 # Add hours to license via license server
                 license_server_url = PaymentConfig.LICENSE_SERVER_URL
-                response = requests.post(
-                    f'{license_server_url}/api/licenses/{license_key}/hours',
-                    json={'hours': hours},
-                    timeout=10
-                )
+                require_license_server = os.environ.get('REQUIRE_LICENSE_SERVER', 'false').lower() == 'true'
+                
+                try:
+                    response = requests.post(
+                        f'{license_server_url}/api/licenses/{license_key}/hours',
+                        json={'hours': hours},
+                        timeout=10
+                    )
+                except requests.exceptions.ConnectionError:
+                    # License server unavailable - log payment but can't add hours
+                    if not require_license_server:
+                        logger.warning(f"License server unavailable, payment processed but hours not added to server for {license_key}")
+                        # Log payment anyway
+                        try:
+                            from redline.database.usage_storage import usage_storage, STORAGE_AVAILABLE
+                            if STORAGE_AVAILABLE and usage_storage:
+                                usage_storage.log_payment(
+                                    license_key=license_key,
+                                    hours=hours,
+                                    amount=session.amount_total / 100,
+                                    currency=session.currency,
+                                    payment_id=session.id,
+                                    status='completed'
+                                )
+                        except Exception as e:
+                            logger.warning(f"Failed to log payment: {str(e)}")
+                        
+                        return jsonify({
+                            'success': True,
+                            'message': f'Payment processed. {hours} hours will be added when license server is available.',
+                            'hours': hours,
+                            'license_key': license_key,
+                            'warning': 'License server unavailable - hours not added yet'
+                        }), 200
+                    else:
+                        return jsonify({'error': 'License server unavailable'}), 503
                 
                 if response.status_code == 200:
                     result = response.json()
@@ -173,8 +204,8 @@ def payment_success():
                     
                     # Log payment to persistent storage
                     try:
-                        from redline.database.usage_storage import usage_storage, STORAGE_AVAILABLE
-                        if STORAGE_AVAILABLE and usage_storage:
+                        from redline.database.usage_storage import usage_storage
+                        if usage_storage:
                             usage_storage.log_payment(
                                 license_key=license_key,
                                 hours_purchased=hours,
@@ -264,19 +295,45 @@ def stripe_webhook():
         if license_key and hours > 0:
             # Add hours to license
             license_server_url = PaymentConfig.LICENSE_SERVER_URL
+            require_license_server = os.environ.get('REQUIRE_LICENSE_SERVER', 'false').lower() == 'true'
+            
             try:
                 response = requests.post(
                     f'{license_server_url}/api/licenses/{license_key}/hours',
                     json={'hours': hours},
                     timeout=10
                 )
+            except requests.exceptions.ConnectionError:
+                # License server unavailable - log payment but can't add hours
+                if not require_license_server:
+                    logger.warning(f"License server unavailable, payment processed but hours not added to server for {license_key}")
+                    # Log payment anyway
+                    try:
+                        from redline.database.usage_storage import usage_storage
+                        if usage_storage:
+                            usage_storage.log_payment(
+                                license_key=license_key,
+                                hours=hours,
+                                amount=session['amount_total'] / 100,
+                                currency=session['currency'],
+                                payment_id=session['id'],
+                                status='completed'
+                            )
+                    except Exception as e:
+                        logger.warning(f"Failed to log payment: {str(e)}")
+                    return jsonify({'received': True}), 200
+                else:
+                    logger.error(f"License server unavailable and REQUIRE_LICENSE_SERVER=true")
+                    return jsonify({'received': True, 'warning': 'License server unavailable'}), 200
+            
+            try:
                 if response.status_code == 200:
                     result = response.json()
                     
                     # Log payment to persistent storage
                     try:
-                        from redline.database.usage_storage import usage_storage, STORAGE_AVAILABLE
-                        if STORAGE_AVAILABLE and usage_storage:
+                        from redline.database.usage_storage import usage_storage
+                        if usage_storage:
                             usage_storage.log_payment(
                                 license_key=license_key,
                                 hours_purchased=hours,
@@ -308,6 +365,8 @@ def get_balance():
         
         # Validate license before getting balance
         license_server_url = PaymentConfig.LICENSE_SERVER_URL
+        require_license_server = os.environ.get('REQUIRE_LICENSE_SERVER', 'false').lower() == 'true'
+        
         try:
             validate_response = requests.post(
                 f'{license_server_url}/api/licenses/{license_key}/validate',
@@ -327,30 +386,101 @@ def get_balance():
                     # If response is not JSON, check status code
                     if validate_response.status_code == 400:
                         return jsonify({'error': 'License validation failed'}), 403
+        except requests.exceptions.ConnectionError:
+            # License server unavailable - skip validation if not required
+            if not require_license_server:
+                logger.debug(f"License server unavailable, skipping validation for {license_key}")
+                # Continue to get balance anyway
+            else:
+                return jsonify({'error': 'License server unavailable'}), 503
         except Exception as e:
             logger.warning(f"Could not validate license: {str(e)}")
             # Continue to get balance anyway
         
         # Get hours from license server
-        response = requests.get(
-            f'{license_server_url}/api/licenses/{license_key}/hours',
-            timeout=10
-        )
+        try:
+            response = requests.get(
+                f'{license_server_url}/api/licenses/{license_key}/hours',
+                timeout=10
+            )
+        except requests.exceptions.ConnectionError:
+            # License server unavailable - return local/default value
+            if not require_license_server:
+                logger.debug(f"License server unavailable, returning default balance for {license_key}")
+                # For dev licenses, return 0 hours with success flag
+                if license_key.startswith('RL-DEV-'):
+                    # Try to get usage stats from local storage
+                    result = {
+                        'success': True,
+                        'hours_remaining': 0.0,
+                        'used_hours': 0.0,
+                        'purchased_hours': 0.0,
+                        'message': 'License server unavailable - using local tracking'
+                    }
+                    try:
+                        from redline.database.usage_storage import usage_storage
+                        if usage_storage:
+                            stats = usage_storage.get_access_stats(license_key, days=30)
+                            result['usage_stats'] = stats
+                            # Get total used hours from history
+                            history = usage_storage.get_usage_history(license_key, limit=1000)
+                            total_used = sum(h.get('hours_deducted', 0) for h in history)
+                            if total_used > 0:
+                                result['used_hours'] = total_used
+                    except Exception as e:
+                        logger.debug(f"Failed to get usage stats: {str(e)}")
+                    
+                    return jsonify(result), 200
+                return jsonify({'success': False, 'error': 'License server unavailable'}), 503
+            else:
+                return jsonify({'success': False, 'error': 'License server unavailable'}), 503
+        
+        # Handle non-200 responses - for dev licenses, return default
+        if response.status_code != 200:
+            if license_key.startswith('RL-DEV-') and not require_license_server:
+                logger.debug(f"License server returned {response.status_code} for dev license, using local tracking")
+                result = {
+                    'success': True,
+                    'hours_remaining': 0.0,
+                    'used_hours': 0.0,
+                    'purchased_hours': 0.0,
+                    'message': 'License not found on server - using local tracking'
+                }
+                try:
+                    from redline.database.usage_storage import usage_storage, STORAGE_AVAILABLE
+                    if STORAGE_AVAILABLE and usage_storage:
+                        stats = usage_storage.get_access_stats(license_key, days=30)
+                        result['usage_stats'] = stats
+                        history = usage_storage.get_usage_history(license_key, limit=1000)
+                        total_used = sum(h.get('hours_deducted', 0) for h in history)
+                        if total_used > 0:
+                            result['used_hours'] = total_used
+                except Exception as e:
+                    logger.debug(f"Failed to get usage stats: {str(e)}")
+                
+                return jsonify(result), 200
         
         if response.status_code == 200:
             result = response.json()
             
+            # Ensure success flag is set
+            if 'success' not in result:
+                result['success'] = True
+            
             # Ensure used_hours is included in response
-            if 'used_hours' not in result and 'success' in result:
+            if 'used_hours' not in result:
                 # Get from license server if not in response
-                hours_response = requests.get(
-                    f'{license_server_url}/api/licenses/{license_key}/hours',
-                    timeout=5
-                )
-                if hours_response.status_code == 200:
-                    hours_data = hours_response.json()
-                    if 'success' in hours_data and hours_data['success']:
-                        result['used_hours'] = hours_data.get('used_hours', 0.0)
+                try:
+                    hours_response = requests.get(
+                        f'{license_server_url}/api/licenses/{license_key}/hours',
+                        timeout=5
+                    )
+                    if hours_response.status_code == 200:
+                        hours_data = hours_response.json()
+                        if 'used_hours' in hours_data:
+                            result['used_hours'] = hours_data.get('used_hours', 0.0)
+                except:
+                    pass
             
             # Add usage statistics if storage is available
             try:
@@ -369,9 +499,24 @@ def get_balance():
             
             return jsonify(result), 200
         elif response.status_code == 404:
-            return jsonify({'error': 'License not found'}), 404
+            # License not found - return default for dev licenses
+            if license_key.startswith('RL-DEV-'):
+                return jsonify({
+                    'success': True,
+                    'hours_remaining': 0.0,
+                    'used_hours': 0.0,
+                    'purchased_hours': 0.0,
+                    'message': 'License not found on server - using local tracking'
+                }), 200
+            return jsonify({'success': False, 'error': 'License not found'}), 404
         else:
-            return jsonify({'error': 'Failed to retrieve balance'}), 500
+            # Try to return a helpful error message
+            try:
+                error_data = response.json()
+                error_msg = error_data.get('error', 'Failed to retrieve balance')
+                return jsonify({'success': False, 'error': error_msg}), response.status_code
+            except:
+                return jsonify({'success': False, 'error': f'Failed to retrieve balance (status: {response.status_code})'}), 500
         
     except Exception as e:
         logger.error(f"Error getting balance: {str(e)}")
@@ -395,8 +540,9 @@ def get_history():
         
         # Get usage history from storage
         try:
-            from redline.database.usage_storage import usage_storage, STORAGE_AVAILABLE
-            if STORAGE_AVAILABLE and usage_storage:
+            from redline.database.usage_storage import UsageStorage
+            usage_storage = UsageStorage()
+            if usage_storage:
                 if history_type in ('all', 'usage'):
                     result['usage_history'] = usage_storage.get_usage_history(license_key, limit=100)
                     result['session_history'] = usage_storage.get_session_history(license_key, limit=50)

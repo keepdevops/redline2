@@ -54,35 +54,78 @@ def create_license_proxy():
         
         # Get license server URL
         license_server_url = os.environ.get('LICENSE_SERVER_URL', 'http://localhost:5001')
+        require_license_server = os.environ.get('REQUIRE_LICENSE_SERVER', 'false').lower() == 'true'
         
-        # Forward request to license server
-        response = requests.post(
-            f'{license_server_url}/api/licenses',
-            json=data,
-            timeout=10
-        )
-        
-        if response.status_code == 201:
-            result = response.json()
-            license_data = result.get('license', {})
-            license_key = license_data.get('key')
-            email = data.get('email')
+        # Try to connect to license server
+        try:
+            response = requests.post(
+                f'{license_server_url}/api/licenses',
+                json=data,
+                timeout=10
+            )
             
-            # Send email with license key
-            try:
-                send_license_email(email, license_key, data.get('name'), license_data)
-            except Exception as e:
-                logger.warning(f"Failed to send license email: {str(e)}")
-                # Don't fail registration if email fails
-            
-            # Return response from license server
-            return jsonify(result), 201
-        else:
-            # Return error response
-            return jsonify(response.json()), response.status_code
+            if response.status_code == 201:
+                result = response.json()
+                license_data = result.get('license', {})
+                license_key = license_data.get('key')
+                email = data.get('email')
+                
+                # Send email with license key
+                try:
+                    send_license_email(email, license_key, data.get('name'), license_data)
+                except Exception as e:
+                    logger.warning(f"Failed to send license email: {str(e)}")
+                    # Don't fail registration if email fails
+                
+                # Return response from license server
+                return jsonify(result), 201
+            else:
+                # Return error response
+                return jsonify(response.json()), response.status_code
         
-    except requests.exceptions.ConnectionError:
-        return jsonify({'error': 'Could not connect to license server. Please try again later.'}), 503
+        except requests.exceptions.ConnectionError:
+            # If license server is not available, generate a simple license key locally
+            if not require_license_server:
+                logger.warning(f"License server unavailable at {license_server_url}, generating local license key")
+                
+                # Generate a simple license key for development
+                import hashlib
+                import secrets
+                import datetime
+                
+                # Create a simple license key
+                key_data = f"{data.get('email')}{data.get('name')}{datetime.datetime.now().isoformat()}"
+                key_hash = hashlib.sha256(key_data.encode()).hexdigest()[:24]
+                license_key = f"RL-DEV-{key_hash[:8]}-{key_hash[8:16]}-{key_hash[16:24]}"
+                
+                # Create license data
+                expires = (datetime.datetime.now() + datetime.timedelta(days=365)).isoformat()
+                license_data = {
+                    'key': license_key,
+                    'type': data.get('type', 'trial'),
+                    'email': data.get('email'),
+                    'name': data.get('name'),
+                    'company': data.get('company'),
+                    'expires': expires,
+                    'hours_remaining': 0,
+                    'created': datetime.datetime.now().isoformat()
+                }
+                
+                result = {
+                    'license': license_data,
+                    'message': 'License key generated locally (license server unavailable)'
+                }
+                
+                # Try to send email (optional)
+                try:
+                    send_license_email(data.get('email'), license_key, data.get('name'), license_data)
+                except Exception as e:
+                    logger.warning(f"Failed to send license email: {str(e)}")
+                
+                return jsonify(result), 201
+            else:
+                # License server is required but unavailable
+                return jsonify({'error': 'Could not connect to license server. Please try again later.'}), 503
     except Exception as e:
         logger.error(f"Error creating license: {str(e)}")
         return jsonify({'error': f'Registration failed: {str(e)}'}), 500

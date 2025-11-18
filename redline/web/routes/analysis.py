@@ -246,8 +246,68 @@ def perform_basic_analysis(df):
             'categorical_summary': {}
         }
         
-        # Numeric columns analysis
-        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        # Exclude date/datetime columns from numeric analysis
+        date_keywords = ['date', 'time', 'timestamp', 'year', 'month', 'day']
+        date_cols = [col for col in df.columns 
+                    if any(keyword in str(col).lower() for keyword in date_keywords) 
+                    or pd.api.types.is_datetime64_any_dtype(df[col])]
+        
+        # Also exclude columns that are likely date components (year, month, day as integers)
+        # Check if column values look like dates (years 1900-2100, months 1-12, days 1-31)
+        for col in df.columns:
+            if col not in date_cols and pd.api.types.is_integer_dtype(df[col]):
+                unique_vals = df[col].dropna().unique()
+                if len(unique_vals) > 0:
+                    min_val, max_val = unique_vals.min(), unique_vals.max()
+                    # Check if values look like years, months, or days
+                    if (col.lower() == 'year' or (min_val >= 1900 and max_val <= 2100 and len(unique_vals) <= 100)):
+                        date_cols.append(col)
+                    elif (col.lower() == 'month' or (min_val >= 1 and max_val <= 12 and len(unique_vals) <= 12)):
+                        date_cols.append(col)
+                    elif (col.lower() == 'day' or (min_val >= 1 and max_val <= 31 and len(unique_vals) <= 31)):
+                        date_cols.append(col)
+        
+        # Also exclude columns with very large numbers that could be timestamps
+        # Unix timestamps (seconds): 1000000000-2000000000 (2001-2033)
+        # Unix timestamps (milliseconds): 1000000000000-2000000000000
+        # Excel serial dates: 40000-50000 (around 2009-2037)
+        for col in df.columns:
+            if col not in date_cols and pd.api.types.is_numeric_dtype(df[col]):
+                numeric_vals = df[col].dropna()
+                if len(numeric_vals) > 0:
+                    min_val, max_val = numeric_vals.min(), numeric_vals.max()
+                    # Check for Unix timestamps (seconds) - 1000000000 to 2000000000
+                    if min_val >= 1000000000 and max_val <= 2000000000:
+                        date_cols.append(col)
+                        logger.debug(f"Excluding column '{col}' as Unix timestamp (seconds): range {min_val}-{max_val}")
+                    # Check for Unix timestamps (milliseconds) - 1000000000000 to 2000000000000
+                    elif min_val >= 1000000000000 and max_val <= 2000000000000:
+                        date_cols.append(col)
+                        logger.debug(f"Excluding column '{col}' as Unix timestamp (milliseconds): range {min_val}-{max_val}")
+                    # Check for Excel serial dates - 40000 to 50000
+                    elif min_val >= 40000 and max_val <= 50000:
+                        date_cols.append(col)
+                        logger.debug(f"Excluding column '{col}' as Excel serial date: range {min_val}-{max_val}")
+                    # Check for very large numbers that are suspiciously date-like
+                    # If values are in millions and look like they could be timestamps
+                    # Be more aggressive: if all values are in this range and there are many unique values,
+                    # it's likely a timestamp column (even without date-like name)
+                    elif min_val > 10000000 and max_val < 1000000000:
+                        unique_count = len(numeric_vals.unique())
+                        total_count = len(numeric_vals)
+                        # If most values are unique and in suspicious range, likely timestamps
+                        if unique_count > 50 and (unique_count / total_count) > 0.8:
+                            date_cols.append(col)
+                            logger.debug(f"Excluding column '{col}' as potential timestamp: range {min_val:.2f}-{max_val:.2f}, {unique_count} unique values")
+                        # Also exclude if column name suggests it's a date
+                        elif any(keyword in str(col).lower() for keyword in ['time', 'date', 'stamp', 'epoch']):
+                            date_cols.append(col)
+                            logger.debug(f"Excluding column '{col}' as potential timestamp based on name and value range")
+        
+        # Numeric columns analysis (excluding date columns)
+        numeric_cols = [col for col in df.select_dtypes(include=[np.number]).columns 
+                       if col not in date_cols]
+        
         if len(numeric_cols) > 0:
             numeric_df = df[numeric_cols]
             
@@ -350,16 +410,82 @@ def perform_financial_analysis(df):
 def perform_statistical_analysis(df):
     """Perform statistical analysis - simplified version matching Tkinter GUI."""
     try:
-        # Simple approach like Tkinter GUI
-        stats = df.describe()
+        # Exclude date/datetime columns from statistical analysis
+        date_keywords = ['date', 'time', 'timestamp', 'year', 'month', 'day']
+        date_cols = [col for col in df.columns 
+                    if any(keyword in str(col).lower() for keyword in date_keywords) 
+                    or pd.api.types.is_datetime64_any_dtype(df[col])]
+        
+        # Also exclude columns that are likely date components (year, month, day as integers)
+        # Check if column values look like dates (years 1900-2100, months 1-12, days 1-31)
+        for col in df.columns:
+            if col not in date_cols and pd.api.types.is_integer_dtype(df[col]):
+                unique_vals = df[col].dropna().unique()
+                if len(unique_vals) > 0:
+                    min_val, max_val = unique_vals.min(), unique_vals.max()
+                    # Check if values look like years, months, or days
+                    if (col.lower() == 'year' or (min_val >= 1900 and max_val <= 2100 and len(unique_vals) <= 100)):
+                        date_cols.append(col)
+                    elif (col.lower() == 'month' or (min_val >= 1 and max_val <= 12 and len(unique_vals) <= 12)):
+                        date_cols.append(col)
+                    elif (col.lower() == 'day' or (min_val >= 1 and max_val <= 31 and len(unique_vals) <= 31)):
+                        date_cols.append(col)
+        
+        # Also exclude columns with very large numbers that could be timestamps
+        # Unix timestamps (seconds): 1000000000-2000000000 (2001-2033)
+        # Unix timestamps (milliseconds): 1000000000000-2000000000000
+        # Excel serial dates: 40000-50000 (around 2009-2037)
+        for col in df.columns:
+            if col not in date_cols and pd.api.types.is_numeric_dtype(df[col]):
+                numeric_vals = df[col].dropna()
+                if len(numeric_vals) > 0:
+                    min_val, max_val = numeric_vals.min(), numeric_vals.max()
+                    # Check for Unix timestamps (seconds) - 1000000000 to 2000000000
+                    if min_val >= 1000000000 and max_val <= 2000000000:
+                        date_cols.append(col)
+                        logger.debug(f"Excluding column '{col}' as Unix timestamp (seconds): range {min_val}-{max_val}")
+                    # Check for Unix timestamps (milliseconds) - 1000000000000 to 2000000000000
+                    elif min_val >= 1000000000000 and max_val <= 2000000000000:
+                        date_cols.append(col)
+                        logger.debug(f"Excluding column '{col}' as Unix timestamp (milliseconds): range {min_val}-{max_val}")
+                    # Check for Excel serial dates - 40000 to 50000
+                    elif min_val >= 40000 and max_val <= 50000:
+                        date_cols.append(col)
+                        logger.debug(f"Excluding column '{col}' as Excel serial date: range {min_val}-{max_val}")
+                    # Check for very large numbers that are suspiciously date-like
+                    # If values are in millions and look like they could be timestamps
+                    # Be more aggressive: if all values are in this range and there are many unique values,
+                    # it's likely a timestamp column (even without date-like name)
+                    elif min_val > 10000000 and max_val < 1000000000:
+                        unique_count = len(numeric_vals.unique())
+                        total_count = len(numeric_vals)
+                        # If most values are unique and in suspicious range, likely timestamps
+                        if unique_count > 50 and (unique_count / total_count) > 0.8:
+                            date_cols.append(col)
+                            logger.debug(f"Excluding column '{col}' as potential timestamp: range {min_val:.2f}-{max_val:.2f}, {unique_count} unique values")
+                        # Also exclude if column name suggests it's a date
+                        elif any(keyword in str(col).lower() for keyword in ['time', 'date', 'stamp', 'epoch']):
+                            date_cols.append(col)
+                            logger.debug(f"Excluding column '{col}' as potential timestamp based on name and value range")
+        
+        # Get numeric columns excluding date columns
+        numeric_cols = [col for col in df.select_dtypes(include=[np.number]).columns 
+                       if col not in date_cols]
+        
+        # Only describe numeric columns (excluding dates)
+        if len(numeric_cols) > 0:
+            stats = df[numeric_cols].describe()
+        else:
+            stats = pd.DataFrame()
         
         # Convert to simple dictionary format
         analysis = {
-            'descriptive_stats': stats.to_dict(),
+            'descriptive_stats': stats.to_dict() if not stats.empty else {},
             'summary': {
                 'total_rows': len(df),
                 'total_columns': len(df.columns),
-                'numeric_columns': len(df.select_dtypes(include=[np.number]).columns)
+                'numeric_columns': len(numeric_cols),
+                'excluded_date_columns': date_cols
             }
         }
         
@@ -389,8 +515,67 @@ def perform_statistical_analysis(df):
 def perform_correlation_analysis(df):
     """Perform correlation analysis - simplified version matching Tkinter GUI."""
     try:
-        # Select numeric columns for correlation (like Tkinter)
-        numeric_cols = df.select_dtypes(include=['number']).columns
+        # Exclude date/datetime columns from correlation analysis
+        date_keywords = ['date', 'time', 'timestamp', 'year', 'month', 'day']
+        date_cols = [col for col in df.columns 
+                    if any(keyword in str(col).lower() for keyword in date_keywords) 
+                    or pd.api.types.is_datetime64_any_dtype(df[col])]
+        
+        # Also exclude columns that are likely date components (year, month, day as integers)
+        # Check if column values look like dates (years 1900-2100, months 1-12, days 1-31)
+        for col in df.columns:
+            if col not in date_cols and pd.api.types.is_integer_dtype(df[col]):
+                unique_vals = df[col].dropna().unique()
+                if len(unique_vals) > 0:
+                    min_val, max_val = unique_vals.min(), unique_vals.max()
+                    # Check if values look like years, months, or days
+                    if (col.lower() == 'year' or (min_val >= 1900 and max_val <= 2100 and len(unique_vals) <= 100)):
+                        date_cols.append(col)
+                    elif (col.lower() == 'month' or (min_val >= 1 and max_val <= 12 and len(unique_vals) <= 12)):
+                        date_cols.append(col)
+                    elif (col.lower() == 'day' or (min_val >= 1 and max_val <= 31 and len(unique_vals) <= 31)):
+                        date_cols.append(col)
+        
+        # Also exclude columns with very large numbers that could be timestamps
+        # Unix timestamps (seconds): 1000000000-2000000000 (2001-2033)
+        # Unix timestamps (milliseconds): 1000000000000-2000000000000
+        # Excel serial dates: 40000-50000 (around 2009-2037)
+        for col in df.columns:
+            if col not in date_cols and pd.api.types.is_numeric_dtype(df[col]):
+                numeric_vals = df[col].dropna()
+                if len(numeric_vals) > 0:
+                    min_val, max_val = numeric_vals.min(), numeric_vals.max()
+                    # Check for Unix timestamps (seconds) - 1000000000 to 2000000000
+                    if min_val >= 1000000000 and max_val <= 2000000000:
+                        date_cols.append(col)
+                        logger.debug(f"Excluding column '{col}' as Unix timestamp (seconds): range {min_val}-{max_val}")
+                    # Check for Unix timestamps (milliseconds) - 1000000000000 to 2000000000000
+                    elif min_val >= 1000000000000 and max_val <= 2000000000000:
+                        date_cols.append(col)
+                        logger.debug(f"Excluding column '{col}' as Unix timestamp (milliseconds): range {min_val}-{max_val}")
+                    # Check for Excel serial dates - 40000 to 50000
+                    elif min_val >= 40000 and max_val <= 50000:
+                        date_cols.append(col)
+                        logger.debug(f"Excluding column '{col}' as Excel serial date: range {min_val}-{max_val}")
+                    # Check for very large numbers that are suspiciously date-like
+                    # If values are in millions and look like they could be timestamps
+                    # Be more aggressive: if all values are in this range and there are many unique values,
+                    # it's likely a timestamp column (even without date-like name)
+                    elif min_val > 10000000 and max_val < 1000000000:
+                        unique_count = len(numeric_vals.unique())
+                        total_count = len(numeric_vals)
+                        # If most values are unique and in suspicious range, likely timestamps
+                        if unique_count > 50 and (unique_count / total_count) > 0.8:
+                            date_cols.append(col)
+                            logger.debug(f"Excluding column '{col}' as potential timestamp: range {min_val:.2f}-{max_val:.2f}, {unique_count} unique values")
+                        # Also exclude if column name suggests it's a date
+                        elif any(keyword in str(col).lower() for keyword in ['time', 'date', 'stamp', 'epoch']):
+                            date_cols.append(col)
+                            logger.debug(f"Excluding column '{col}' as potential timestamp based on name and value range")
+        
+        # Select numeric columns for correlation (excluding date columns)
+        numeric_cols = [col for col in df.select_dtypes(include=['number']).columns 
+                       if col not in date_cols]
         
         if len(numeric_cols) < 2:
             return {'error': 'Not enough numeric columns for correlation analysis'}

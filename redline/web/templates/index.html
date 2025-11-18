@@ -26,7 +26,7 @@
                 <i class="fas fa-download feature-icon text-primary"></i>
                 <h5 class="card-title">Download Data</h5>
                 <p class="card-text">Download financial data from multiple sources including Yahoo Finance and Stooq.</p>
-                <a href="{{ url_for('download.download_tab') }}" class="btn btn-primary">
+                <a href="/download/" class="btn btn-primary">
                     <i class="fas fa-download me-2"></i>Download Data
                 </a>
             </div>
@@ -39,7 +39,7 @@
                 <i class="fas fa-eye feature-icon text-success"></i>
                 <h5 class="card-title">View & Filter</h5>
                 <p class="card-text">View and filter large datasets with advanced filtering capabilities and virtual scrolling.</p>
-                <a href="{{ url_for('data.data_tab') }}" class="btn btn-success">
+                <a href="/data/" class="btn btn-success">
                     <i class="fas fa-eye me-2"></i>View Data
                 </a>
             </div>
@@ -65,7 +65,7 @@
                 <i class="fas fa-exchange-alt feature-icon text-info"></i>
                 <h5 class="card-title">Convert Formats</h5>
                 <p class="card-text">Convert between different data formats including CSV, JSON, Parquet, and more.</p>
-                <a href="{{ url_for('converter.converter_tab') }}" class="btn btn-info">
+                <a href="/converter/" class="btn btn-info">
                     <i class="fas fa-exchange-alt me-2"></i>Convert Data
                 </a>
             </div>
@@ -100,7 +100,7 @@
                 </div>
                 
                 <div class="mt-3">
-                    <a href="{{ url_for('download.download_tab') }}" class="btn btn-primary me-2">
+                    <a href="/download/" class="btn btn-primary me-2">
                         <i class="fas fa-play me-2"></i>Start with Download
                     </a>
                     <a href="{{ url_for('main.help_page') }}" class="btn btn-outline-secondary">

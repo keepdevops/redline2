@@ -338,14 +338,23 @@ function displayBasicAnalysis(result) {
         
         Object.entries(result.numeric_summary.count).forEach(([col, count]) => {
             const summary = result.numeric_summary;
+            const formatNumber = (val) => {
+                if (val === null || val === undefined) return 'N/A';
+                if (typeof val !== 'number') return val;
+                // Format large numbers with commas for readability
+                if (Math.abs(val) >= 1000) {
+                    return val.toLocaleString('en-US', {maximumFractionDigits: 2});
+                }
+                return val.toFixed(2);
+            };
             html += `
                 <tr>
                     <td>${col}</td>
                     <td>${count}</td>
-                    <td>${summary.mean[col] ? summary.mean[col].toFixed(2) : 'N/A'}</td>
-                    <td>${summary.std[col] ? summary.std[col].toFixed(2) : 'N/A'}</td>
-                    <td>${summary.min[col] ? summary.min[col].toFixed(2) : 'N/A'}</td>
-                    <td>${summary.max[col] ? summary.max[col].toFixed(2) : 'N/A'}</td>
+                    <td>${formatNumber(summary.mean[col])}</td>
+                    <td>${formatNumber(summary.std[col])}</td>
+                    <td>${formatNumber(summary.min[col])}</td>
+                    <td>${formatNumber(summary.max[col])}</td>
                 </tr>
             `;
         });
@@ -469,7 +478,16 @@ function displayStatisticalAnalysis(result) {
             html += `<tr style="color: var(--text-primary);"><td><strong>${stat}</strong></td>`;
             if (typeof values === 'object') {
                 Object.values(values).forEach(value => {
-                    html += `<td>${typeof value === 'number' ? value.toFixed(2) : value}</td>`;
+                    if (typeof value === 'number') {
+                        // Format large numbers with commas for readability
+                        if (Math.abs(value) >= 1000) {
+                            html += `<td>${value.toLocaleString('en-US', {maximumFractionDigits: 2})}</td>`;
+                        } else {
+                            html += `<td>${value.toFixed(2)}</td>`;
+                        }
+                    } else {
+                        html += `<td>${value}</td>`;
+                    }
                 });
             } else {
                 html += `<td>${values}</td>`;

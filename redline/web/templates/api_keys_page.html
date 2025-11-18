@@ -13,7 +13,7 @@
     }
     
     .api-source-card:hover {
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 8px color-mix(in srgb, var(--dark-color) 10%, transparent);
     }
     
     .api-source-header {
@@ -142,7 +142,7 @@
     
     .api-key-input input:focus {
         border-color: var(--primary-color);
-        box-shadow: 0 0 0 0.2rem var(--primary-color);
+        box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--primary-color) 25%, transparent);
         outline: 0;
     }
     
@@ -736,7 +736,10 @@ function showCustomApiForm(apiId = null) {
     }
     
     const modal = document.createElement('div');
-    modal.className = 'modal fade';
+    // Inherit theme class from body to ensure theme styles apply
+    const bodyTheme = document.body.className.match(/theme-\w+/);
+    const themeClass = bodyTheme ? bodyTheme[0] : 'theme-default';
+    modal.className = `modal fade ${themeClass}`;
     modal.id = 'customApiModal';
     modal.setAttribute('tabindex', '-1');
     modal.setAttribute('aria-labelledby', 'customApiModalLabel');
@@ -833,7 +836,7 @@ function showCustomApiForm(apiId = null) {
             });
             bsModal.show();
             
-            // Ensure form is visible after modal shows
+            // Ensure form is visible after modal shows and apply dark theme styles
             modal.addEventListener('shown.bs.modal', () => {
                 const form = document.getElementById('customApiForm');
                 if (form) {
@@ -843,6 +846,42 @@ function showCustomApiForm(apiId = null) {
                     if (firstInput) {
                         setTimeout(() => firstInput.focus(), 300);
                     }
+                }
+                
+                // Force apply dark theme styles if in dark theme
+                if (document.body.classList.contains('theme-dark')) {
+                    const modalContent = modal.querySelector('.modal-content');
+                    const modalHeader = modal.querySelector('.modal-header');
+                    const modalBody = modal.querySelector('.modal-body');
+                    const modalFooter = modal.querySelector('.modal-footer');
+                    const root = getComputedStyle(document.documentElement);
+                    const lightColor = root.getPropertyValue('--light-color').trim() || '#1f2937';
+                    const textPrimary = root.getPropertyValue('--text-primary').trim() || '#f9fafb';
+                    const borderColor = root.getPropertyValue('--border-color').trim() || '#374151';
+                    
+                    if (modalContent) {
+                        modalContent.style.setProperty('background-color', lightColor, 'important');
+                        modalContent.style.setProperty('color', textPrimary, 'important');
+                    }
+                    if (modalHeader) {
+                        modalHeader.style.setProperty('background-color', lightColor, 'important');
+                        modalHeader.style.setProperty('color', textPrimary, 'important');
+                    }
+                    if (modalBody) {
+                        modalBody.style.setProperty('background-color', lightColor, 'important');
+                        modalBody.style.setProperty('color', textPrimary, 'important');
+                    }
+                    if (modalFooter) {
+                        modalFooter.style.setProperty('background-color', lightColor, 'important');
+                        modalFooter.style.setProperty('color', textPrimary, 'important');
+                    }
+                    
+                    // Force white input boxes
+                    const inputs = modal.querySelectorAll('.form-control, .form-select');
+                    inputs.forEach(input => {
+                        input.style.setProperty('background-color', '#ffffff', 'important');
+                        input.style.setProperty('color', '#000000', 'important');
+                    });
                 }
             }, { once: true });
         } else {

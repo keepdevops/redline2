@@ -734,10 +734,11 @@ function displayDataTable(data) {
             console.warn('No columns found and no data to extract from');
         }
         
-        // Use hardcoded colors to ensure visibility - dark background with white text
-        const darkColor = '#1e293b';  // Dark blue-gray
-        const whiteColor = '#ffffff';  // Pure white
-        console.log('Using hardcoded colors - dark:', darkColor, 'white:', whiteColor);
+        // Use CSS variables for theme-aware colors
+        const root = getComputedStyle(document.documentElement);
+        const darkColor = root.getPropertyValue('--dark-color').trim() || '#1e293b';
+        const whiteColor = root.getPropertyValue('--text-white').trim() || '#ffffff';
+        console.log('Using theme colors - dark:', darkColor, 'white:', whiteColor);
         
         // HTML escape function to prevent < > from being interpreted as HTML tags
         function escapeHtml(text) {

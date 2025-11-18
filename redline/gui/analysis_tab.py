@@ -80,10 +80,41 @@ class AnalysisTab:
                 self.results_text.insert(tk.END, "No data available for analysis.\n")
                 return
             
-            # Basic statistics
-            stats = current_data.describe()
-            self.results_text.insert(tk.END, "Statistical Summary:\n")
-            self.results_text.insert(tk.END, str(stats) + "\n\n")
+            # Exclude date/datetime columns from statistical analysis
+            import pandas as pd
+            date_keywords = ['date', 'time', 'timestamp', 'year', 'month', 'day']
+            date_cols = [col for col in current_data.columns 
+                        if any(keyword in str(col).lower() for keyword in date_keywords) 
+                        or pd.api.types.is_datetime64_any_dtype(current_data[col])]
+            
+            # Also exclude columns that are likely date components (year, month, day as integers)
+            # Check if column values look like dates (years 1900-2100, months 1-12, days 1-31)
+            for col in current_data.columns:
+                if col not in date_cols and pd.api.types.is_integer_dtype(current_data[col]):
+                    unique_vals = current_data[col].dropna().unique()
+                    if len(unique_vals) > 0:
+                        min_val, max_val = unique_vals.min(), unique_vals.max()
+                        # Check if values look like years, months, or days
+                        if (col.lower() == 'year' or (min_val >= 1900 and max_val <= 2100 and len(unique_vals) <= 100)):
+                            date_cols.append(col)
+                        elif (col.lower() == 'month' or (min_val >= 1 and max_val <= 12 and len(unique_vals) <= 12)):
+                            date_cols.append(col)
+                        elif (col.lower() == 'day' or (min_val >= 1 and max_val <= 31 and len(unique_vals) <= 31)):
+                            date_cols.append(col)
+            
+            # Get numeric columns excluding date columns
+            numeric_cols = [col for col in current_data.select_dtypes(include=['number']).columns 
+                          if col not in date_cols]
+            
+            # Basic statistics (only on numeric columns, excluding dates)
+            if len(numeric_cols) > 0:
+                stats = current_data[numeric_cols].describe()
+                self.results_text.insert(tk.END, "Statistical Summary:\n")
+                self.results_text.insert(tk.END, str(stats) + "\n\n")
+                if date_cols:
+                    self.results_text.insert(tk.END, f"Note: Date columns excluded: {', '.join(date_cols)}\n\n")
+            else:
+                self.results_text.insert(tk.END, "No numeric columns found for statistical analysis.\n\n")
             
             # Additional analysis - check for close price column with enhanced detection
             close_col = None
