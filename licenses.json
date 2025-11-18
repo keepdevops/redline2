@@ -1857,9 +1857,34 @@
     ],
     "max_installs": 1,
     "installs": [],
-    "hours_remaining": 0.23294187638888877,
+    "hours_remaining": 0.0,
     "purchased_hours": 1.0,
-    "used_hours": 0.7670581236111111,
-    "last_usage_check": "2025-11-18T10:26:43.277342"
+    "used_hours": 0.9999999999999999,
+    "last_usage_check": "2025-11-18T10:32:10.476342"
+  },
+  "RL-9A3C7434-EC2295B2-E8C15495": {
+    "key": "RL-9A3C7434-EC2295B2-E8C15495",
+    "customer": {
+      "name": "Test test",
+      "email": "keepdevops@gmail.com",
+      "company": "gentry",
+      "type": "trial",
+      "duration_days": 365,
+      "hours": 0
+    },
+    "type": "trial",
+    "created": "2025-11-18T10:33:03.612047",
+    "expires": "2026-11-18T10:33:03.612055",
+    "status": "active",
+    "features": [
+      "basic_analysis",
+      "data_import"
+    ],
+    "max_installs": 1,
+    "installs": [],
+    "hours_remaining": 0.423234313611111,
+    "purchased_hours": 1.0,
+    "used_hours": 0.5767656863888889,
+    "last_usage_check": "2025-11-18T11:08:43.065351"
   }
 }

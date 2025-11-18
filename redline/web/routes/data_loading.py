@@ -125,11 +125,17 @@ def load_data():
             # Still check for API key columns even if not an API key file
             df = mask_dataframe_columns(df)
         
+        # Check if file is in converted directory (suggests it may have been cleaned during conversion)
+        is_converted_file = 'converted' in data_path.replace(os.sep, '/')
+        logger.info(f"File {filename} is_converted_file: {is_converted_file} (path: {data_path})")
+        
         return jsonify({
             'columns': list(df.columns),
             'data': df.head(1000).to_dict('records'),
             'total_rows': len(df),
-            'filename': filename
+            'filename': filename,
+            'is_converted_file': is_converted_file,  # Indicates file is in converted/ directory
+            'file_path': data_path  # Include path for debugging
         })
         
     except Exception as e:
