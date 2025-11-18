@@ -322,11 +322,9 @@ class DataManagementHelper:
             self.data_tab.main_window.show_error_message("Error", f"Failed to open clean data dialog: {str(e)}")
     
     def _detect_format_from_path(self, file_path: str) -> str:
-        """Detect format from file path."""
-        import os
-        from ...core.schema import EXT_TO_FORMAT
-        ext = os.path.splitext(file_path)[1].lower()
-        return EXT_TO_FORMAT.get(ext, 'csv')
+        """Detect format from file path (uses centralized function)."""
+        from ...core.schema import detect_format_from_path
+        return detect_format_from_path(file_path)
 
 
 

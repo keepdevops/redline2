@@ -11,7 +11,7 @@ from typing import List, Dict, Any, Optional, Union
 from pathlib import Path
 import glob
 
-from .schema import EXT_TO_FORMAT, REQUIRED_COLUMNS
+from .schema import EXT_TO_FORMAT, REQUIRED_COLUMNS, detect_format_from_path
 from .data_validator import DataValidator
 from .data_cleaner import DataCleaner
 from .format_converter import FormatConverter
@@ -174,7 +174,7 @@ class DataLoadingService(LoggingMixin):
     
     def detect_format(self, file_path: str) -> str:
         """
-        Detect file format from file extension.
+        Detect file format from file extension (uses centralized function).
         
         Args:
             file_path: Path to the file
@@ -182,8 +182,7 @@ class DataLoadingService(LoggingMixin):
         Returns:
             Detected format type
         """
-        ext = os.path.splitext(file_path)[1].lower().lstrip('.')
-        return EXT_TO_FORMAT.get(ext, 'csv')
+        return detect_format_from_path(file_path)
     
     def _load_large_file_chunked(self, file_path: str, format_type: str) -> pd.DataFrame:
         """

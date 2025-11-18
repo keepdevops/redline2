@@ -114,43 +114,53 @@ def api_list_files():
 def delete_file(filename):
     """Delete a data file."""
     try:
-        # Secure the filename to prevent directory traversal
-        safe_filename = secure_filename(os.path.basename(filename))
+        # Get the original filename from the path parameter
+        # The filename may contain special characters like '=' that secure_filename removes
+        original_filename = os.path.basename(filename)
+        safe_filename = secure_filename(original_filename)
         
         # Check if file is protected
-        if safe_filename in PROTECTED_FILES:
+        if safe_filename in PROTECTED_FILES or original_filename in PROTECTED_FILES:
             return jsonify({
                 'error': 'Cannot delete system file',
-                'message': f'File "{safe_filename}" is a protected system file and cannot be deleted'
+                'message': f'File "{original_filename}" is a protected system file and cannot be deleted'
             }), 403
         
         # Search for the file in data directories
         data_dir = os.path.join(os.getcwd(), 'data')
         file_path = None
         
-        # Check locations in order of priority
-        search_paths = [
-            os.path.join(data_dir, safe_filename),
-            os.path.join(data_dir, 'downloaded', safe_filename),
-            os.path.join(data_dir, 'stooq', safe_filename),
-            os.path.join(data_dir, 'uploads', safe_filename)
-        ]
+        # Try both original and safe filename in case secure_filename modified it
+        filenames_to_search = [original_filename]
+        if safe_filename != original_filename:
+            filenames_to_search.append(safe_filename)
+        
+        # Check locations in order of priority for both filename variants
+        search_paths = []
+        for search_filename in filenames_to_search:
+            search_paths.extend([
+                os.path.join(data_dir, search_filename),
+                os.path.join(data_dir, 'downloaded', search_filename),
+                os.path.join(data_dir, 'stooq', search_filename),
+                os.path.join(data_dir, 'uploads', search_filename)
+            ])
         
         # Also search in converted directory recursively
         converted_dir = os.path.join(data_dir, 'converted')
         if os.path.exists(converted_dir):
-            # First try direct path
-            direct_path = os.path.join(converted_dir, safe_filename)
-            if os.path.exists(direct_path) and os.path.isfile(direct_path):
-                search_paths.append(direct_path)
-            else:
-                # Search recursively
-                for root, dirs, files in os.walk(converted_dir):
-                    if safe_filename in files:
-                        potential_path = os.path.join(root, safe_filename)
-                        if os.path.exists(potential_path) and os.path.isfile(potential_path):
-                            search_paths.append(potential_path)
-                            break
+            for search_filename in filenames_to_search:
+                # First try direct path
+                direct_path = os.path.join(converted_dir, search_filename)
+                if os.path.exists(direct_path) and os.path.isfile(direct_path):
+                    search_paths.append(direct_path)
+                else:
+                    # Search recursively in all subdirectories
+                    for root, dirs, files in os.walk(converted_dir):
+                        if search_filename in files:
+                            potential_path = os.path.join(root, search_filename)
+                            if os.path.exists(potential_path) and os.path.isfile(potential_path):
+                                search_paths.append(potential_path)
+                                break  # Found it, no need to continue
         
         # Find the file
         for path in search_paths:
@@ -159,9 +169,10 @@ def delete_file(filename):
                 break
         
         if not file_path:
+            logger.warning(f"File not found: {original_filename} (searched as: {filenames_to_search})")
             return jsonify({
                 'error': 'File not found',
-                'message': f'File "{safe_filename}" not found in data directories'
+                'message': f'File "{original_filename}" not found in data directories'
             }), 404
         
         # Delete the file

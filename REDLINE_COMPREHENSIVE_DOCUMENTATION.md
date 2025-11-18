@@ -8,10 +8,11 @@ REDLINE is a comprehensive financial data analysis platform that provides both d
 
 - **Grade: A+ (100/100)** - Production ready
 - **Performance: 0.009s average response time**
-- **Cost: FREE** vs $24,000+/year for Bloomberg Terminal
+- **Cost: Affordable** - Pay-per-use vs $24,000+/year for Bloomberg Terminal
 - **Competitive Score: 4.4/5** - Ranks #1 vs industry leaders
 - **File Support: 6 formats** (CSV, Parquet, Feather, JSON, DuckDB, TXT)
 - **Analysis Types: 7** (Basic, Financial, Statistical, Correlation, Trend, Volume, Price)
+- **Latest Features**: Data cleaning, date formatting, API key masking, custom APIs, subscription service
 
 ## 🏗️ **Architecture**
 
@@ -36,14 +37,16 @@ redline/
 ## 🌐 **Web Application Features**
 
 ### **Core Capabilities**
-- **RESTful API**: Complete API for all operations
+- **RESTful API**: Complete API for all operations with license key authentication
 - **Real-time Processing**: Sub-10ms response times
-- **File Management**: Upload, download, conversion
-- **Theme System**: 8 different themes with customization
+- **File Management**: Upload, download, conversion with data cleaning
+- **Theme System**: 8 different themes with live color customization
 - **Responsive Design**: Bootstrap-based responsive layout
-- **Virtual Scrolling**: Handle large datasets efficiently
-- **Background Tasks**: Asynchronous processing with Celery
-- **SocketIO**: Real-time updates and notifications
+- **Virtual Scrolling**: Handle large datasets efficiently (millions of rows)
+- **Subscription Service**: Cloud-based access with license key management
+- **Payment Integration**: Stripe payment processing for hour purchases
+- **API Key Management**: Secure storage and masking of API keys
+- **Custom API Support**: Configure and use your own data source APIs
 
 ### **API Endpoints**
 ```
@@ -95,8 +98,14 @@ GET  /download/           # Download interface
 ### **Data Processing**
 - **Field Detection**: Automatic financial field recognition
 - **Data Validation**: Input validation and integrity checks
-- **Data Cleaning**: Missing value handling, outlier detection
-- **Format Conversion**: Bidirectional conversion between formats
+- **Data Cleaning**: 
+  - Remove duplicate rows
+  - Handle missing values (drop, forward fill, backward fill)
+  - Clean column names (remove unnamed/empty columns)
+- **Date Formatting**: Multiple date format options (YYYY-MM-DD, MM/DD/YYYY, etc.)
+- **Column Editing**: Rename columns directly in the data view
+- **API Key Masking**: Automatic masking of sensitive API keys in data views
+- **Format Conversion**: Bidirectional conversion between formats with cleaning options
 - **Batch Processing**: Multiple file operations
 - **Memory Optimization**: Efficient resource usage
 
@@ -128,11 +137,13 @@ GET  /download/           # Download interface
 ## 📥 **Data Acquisition**
 
 ### **Download Sources**
-- **Stooq.com**: Primary data source with comprehensive coverage
-- **Yahoo Finance**: Secondary source with fallback support
+- **Yahoo Finance**: Free, no API key required (recommended)
+- **Stooq.com**: High-quality data with manual authentication
+- **Alpha Vantage**: API access with free tier (5 calls/minute)
+- **Finnhub**: API access with free tier (60 calls/minute)
+- **Custom APIs**: Configure your own data source APIs
 - **Multi-source**: Automatic fallback between sources
 - **Bulk Download**: Parallel processing for multiple symbols
-- **Custom Sources**: Extensible architecture for new sources
 
 ### **Download Features**
 - **Symbol Management**: Support for various symbol formats
@@ -180,10 +191,12 @@ GET  /download/           # Download interface
 
 ### **Theme System**
 - **8 Themes Available**: Default, High Contrast, Ocean, Forest, Sunset, Monochrome, Grayscale, Dark
-- **Customizable Colors**: Live color customization
+- **Live Color Customization**: Adjust colors in real-time
+- **Font Color Presets**: Choose from predefined color schemes
 - **Responsive Design**: Adapts to different screen sizes
 - **Accessibility**: Color-blind friendly options
 - **Consistent Styling**: Unified design language
+- **Auto-save Preferences**: Theme choices saved automatically
 
 ### **Interface Features**
 - **Intuitive Navigation**: Clear navigation structure
@@ -213,11 +226,14 @@ GET  /download/           # Download interface
 ## 🔒 **Security & Reliability**
 
 ### **Security Features**
+- **License Key Authentication**: Secure license key-based access
+- **API Key Masking**: Automatic masking of sensitive API keys
 - **Input Validation**: Comprehensive input validation
 - **Error Handling**: Robust error management
 - **File Access Control**: Controlled file system access
-- **API Security**: Basic security measures
-- **Data Privacy**: Self-hosted data control
+- **API Security**: Secure API endpoints with authentication
+- **Data Privacy**: Cloud-based secure data storage
+- **Payment Security**: Stripe secure payment processing
 
 ### **Reliability Features**
 - **Error Recovery**: Graceful error handling
@@ -238,12 +254,13 @@ GET  /download/           # Download interface
 | FactSet | 3.8/5 | $12,000+ | Portfolio analytics, risk modeling |
 
 ### **Competitive Advantages**
-- **Cost**: FREE vs thousands per year
+- **Cost**: Affordable pay-per-use vs thousands per year
 - **Modern UI**: Superior to dated Bloomberg interface
-- **Open Source**: No vendor lock-in
-- **Self-hosted**: Complete data control
+- **Cloud-Based**: No installation required, access from anywhere
+- **Subscription Service**: Flexible hour-based pricing
 - **Performance**: Faster than many commercial platforms
-- **Customization**: Unmatched flexibility
+- **Customization**: Unmatched flexibility with custom APIs
+- **Latest Features**: Data cleaning, date formatting, API key management
 
 ## 🎯 **Target Markets**
 
@@ -261,36 +278,26 @@ GET  /download/           # Download interface
 - **Privacy-Focused Users**: Self-hosted solutions
 - **Custom Integrations**: Extensible architecture
 
-## 🔧 **Installation & Setup**
+## 🔧 **Getting Started**
 
 ### **System Requirements**
-- **Python**: 3.8 or higher
-- **Operating System**: Windows, macOS, Linux
-- **Memory**: 4GB RAM minimum, 8GB recommended
-- **Storage**: 1GB free space
-- **Network**: Internet connection for data downloads
+- **Browser**: Chrome 90+, Firefox 88+, Safari 14+, Edge 90+
+- **Internet**: Broadband connection required
+- **Screen**: Minimum 1280x720, recommended 1920x1080 or higher
+- **JavaScript**: Must be enabled
+- **Cookies**: Must be enabled for session management
 
-### **Installation Methods**
-1. **Direct Installation**: `pip install -r requirements.txt`
-2. **Docker**: `docker-compose up`
-3. **Script Installation**: `./universal_install.sh`
-4. **Manual Setup**: Follow detailed installation guide
+### **Registration & Access**
+1. **Register**: Visit https://redfindat.com/register
+2. **Receive License Key**: Check your email for your license key
+3. **Access Platform**: Login at https://redfindat.com with your license key
+4. **Add Hours**: Purchase hours to use the platform
 
 ### **Quick Start**
-```bash
-# Clone repository
-git clone <repository-url>
-cd redline
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Start web application
-python web_app.py
-
-# Start GUI application
-python main.py
-```
+1. **Register**: Create an account at https://redfindat.com/register
+2. **Login**: Use your license key to access the platform
+3. **Download Data**: Go to Download tab and download your first dataset
+4. **Analyze Data**: Use Analysis tab to run your first analysis
 
 ## 📚 **API Documentation**
 
@@ -349,26 +356,21 @@ python -m pytest tests/gui/
 python -m pytest --cov=redline
 ```
 
-## 🚀 **Deployment**
+## 🚀 **Subscription Service**
 
-### **Production Deployment**
-- **Web Server**: Use production WSGI server (Gunicorn, uWSGI)
-- **Database**: Configure DuckDB for production use
-- **Security**: Implement authentication and authorization
-- **Monitoring**: Set up logging and monitoring
-- **Backup**: Configure data backup procedures
+### **Cloud-Based Platform**
+- **No Installation Required**: Access via web browser
+- **Automatic Updates**: Always use the latest version
+- **Scalable Infrastructure**: Handles large datasets efficiently
+- **Secure Access**: License key-based authentication
+- **Data Privacy**: Your data is stored securely in the cloud
 
-### **Docker Deployment**
-```bash
-# Build and run with Docker Compose
-docker-compose up -d
-
-# Access web interface
-http://localhost:8080
-
-# View logs
-docker-compose logs -f
-```
+### **Subscription Model**
+- **Time-Based**: Pay for hours of usage
+- **Flexible Packages**: Choose from 5, 10, 20, 50 hours or custom
+- **Secure Payments**: Stripe payment processing
+- **Usage Tracking**: Real-time balance and usage history
+- **No Long-Term Commitment**: Purchase hours as needed
 
 ## 🔮 **Future Roadmap**
 
@@ -428,8 +430,18 @@ For detailed Docker Compose management, see: [REDLINE_DOCKER_COMPOSE_MANAGEMENT_
 
 ## 🏆 **Conclusion**
 
-REDLINE represents a significant achievement in financial data analysis software, providing enterprise-grade capabilities at zero cost. With its modern architecture, excellent performance, and comprehensive feature set, it successfully competes with and often outperforms commercial platforms costing thousands of dollars per year.
+REDLINE represents a significant achievement in financial data analysis software, providing enterprise-grade capabilities through an affordable cloud-based subscription service. With its modern architecture, excellent performance, and comprehensive feature set, it successfully competes with and often outperforms commercial platforms costing thousands of dollars per year.
 
-The application is production-ready and suitable for a wide range of users, from individual investors to educational institutions and research organizations. Its open-source nature ensures transparency, flexibility, and continuous improvement through community contributions.
+The application is production-ready and suitable for a wide range of users, from individual investors to educational institutions and research organizations. Its cloud-based subscription model ensures easy access, automatic updates, and scalable infrastructure without the need for local installation or maintenance.
 
-**REDLINE: Professional-grade financial analysis, completely free and open source.** 🌟
+**Latest Features Include:**
+- Data cleaning (remove duplicates, handle missing values, clean column names)
+- Date format selection (multiple formats supported)
+- Column editing (rename columns in data view)
+- API key masking (automatic security)
+- Custom API support (configure your own data sources)
+- Subscription service (cloud-based access)
+- Payment integration (Stripe secure payments)
+- Theme customization (8 themes with live color customization)
+
+**REDLINE: Professional-grade financial analysis accessible through cloud subscription service.** 🌟

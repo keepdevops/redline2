@@ -44,3 +44,29 @@ DEFAULT_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 # Default time format for Stooq
 STOOQ_TIME_FORMAT = '000000'
+
+
+def detect_format_from_path(file_path: str) -> str:
+    """
+    Detect file format from file path extension.
+    
+    This is the centralized format detection function used across the codebase.
+    All format detection should use this function to ensure consistency.
+    
+    Args:
+        file_path: Path to the file (can be full path or just filename)
+        
+    Returns:
+        Detected format type (defaults to 'csv' if extension not recognized)
+        
+    Examples:
+        >>> detect_format_from_path('data.csv')
+        'csv'
+        >>> detect_format_from_path('/path/to/file.json')
+        'json'
+        >>> detect_format_from_path('unknown.xyz')
+        'csv'
+    """
+    import os
+    ext = os.path.splitext(file_path)[1].lower()
+    return EXT_TO_FORMAT.get(ext, 'csv')

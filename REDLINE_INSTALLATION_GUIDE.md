@@ -1,678 +1,310 @@
-# REDLINE Installation & Setup Guide
+# REDLINE Subscription Service - Getting Started Guide
 
 ## 🚀 **Quick Start**
 
-Get REDLINE running in minutes with our optimized installation process.
+Get started with REDLINE in minutes - no installation required!
 
-### **🎯 Fastest Installation (Pre-built Docker Images)**
-```bash
-# For Intel/AMD64 machines (Dell, most servers)
-wget https://github.com/keepdevops/redline2/releases/download/v1.0.0-optimized/redline-webgui-amd64.tar
-docker load -i redline-webgui-amd64.tar
-docker tag redline-webgui:amd64 redline-webgui:latest
+### **Step 1: Register for an Account**
 
-# For Apple Silicon (M1/M2/M3 Macs)
-wget https://github.com/keepdevops/redline2/releases/download/v1.0.0-optimized/redline-webgui-arm64.tar
-docker load -i redline-webgui-arm64.tar
-docker tag redline-webgui:arm64 redline-webgui:latest
+1. **Visit** https://redfindat.com
+2. **Click "Register"** in the navigation bar
+3. **Fill in your information**:
+   - Name
+   - Email address
+   - Company (optional)
+4. **Submit registration**
+5. **Check your email** for your license key
 
-# Start optimized container
-docker run -d --name redline-webgui -p 8080:8080 \
-  -v $(pwd)/data:/app/data \
-  --restart unless-stopped \
-  redline-webgui:latest
+### **Step 2: Access REDLINE**
 
-# Access at http://localhost:8080
+1. **Open your web browser** (Chrome, Firefox, Safari, or Edge)
+2. **Navigate to** https://redfindat.com
+3. **Enter your license key** when prompted
+4. **Start using REDLINE** immediately
+
+### **Step 3: Add Hours to Your Account**
+
+1. **Go to Settings tab** or Payment page
+2. **Choose a package**:
+   - 5 hours
+   - 10 hours
+   - 20 hours
+   - 50 hours
+   - Custom hours
+3. **Complete payment** via Stripe
+4. **Hours are added** automatically to your account
+
+---
+
+## 🌐 **System Requirements**
+
+### **Browser Requirements**
+
+| Browser | Minimum Version | Recommended |
+|---------|----------------|-------------|
+| **Chrome** | 90+ | Latest |
+| **Firefox** | 88+ | Latest |
+| **Safari** | 14+ | Latest |
+| **Edge** | 90+ | Latest |
+
+### **Network Requirements**
+
+- **Internet Connection**: Broadband connection required
+- **Bandwidth**: Minimum 1 Mbps for optimal performance
+- **HTTPS**: Secure connection required (HTTPS)
+
+### **Device Requirements**
+
+- **Screen Resolution**: Minimum 1280x720, recommended 1920x1080 or higher
+- **JavaScript**: Must be enabled
+- **Cookies**: Must be enabled for session management
+- **Local Storage**: Required for theme preferences
+
+---
+
+## 📋 **Account Setup**
+
+### **Registration Process**
+
+1. **Visit Registration Page**: https://redfindat.com/register
+2. **Enter Information**:
+   - Full Name
+   - Email Address (used for license key delivery)
+   - Company Name (optional)
+3. **Submit Registration**
+4. **Receive License Key**: Check your email for your license key
+5. **Login**: Use your license key to access the platform
+
+### **License Key Format**
+
+License keys follow this format:
+```
+RL-DEV-XXXXXXXX-XXXXXXXX-XXXXXXXX
 ```
 
-### **Prerequisites**
-- **Docker** (for pre-built images) OR **Python 3.11+** (for source installation)
-- **4GB RAM** minimum (8GB recommended)
-- **1GB free disk space**
-- **Internet connection** (for data downloads)
-
-### **Installation Methods**
-
-#### **Method 1: Universal Installer (Recommended)**
-```bash
-# Clone the repository
-git clone https://github.com/your-repo/redline.git
-cd redline
-
-# Run the universal installer
-./install_options_redline.sh
+Example:
+```
+RL-DEV-8dfdb2e7-c606053c-7d0c15f4
 ```
 
-The installer provides 6 installation options:
-1. **Web-based GUI** (Docker buildx) - **Optimized with Gunicorn** - Modern web interface
-2. **Tkinter GUI** (X11) - Traditional desktop interface  
-3. **Hybrid GUI** - Both web and desktop options
-4. **Docker Compose** - Containerized deployment
-5. **Native Installation** - Direct Python installation
-6. **Dependency Check** - Verify system requirements
-
-### **🚀 New in v1.0.0-optimized:**
-- ✅ **Gunicorn Production Server**: 8x concurrent request capacity
-- ✅ **Multi-platform Docker**: Works on both ARM64 and AMD64
-- ✅ **50% Smaller Images**: Multi-stage builds reduce size
-- ✅ **75% Faster Builds**: BuildKit optimization and layer caching
-- ✅ **Asset Minification**: 25-40% smaller CSS/JS files
-- ✅ **Security Hardening**: Non-root user, minimal attack surface
-
-#### **Method 2: Manual Installation**
-```bash
-# Clone the repository
-git clone https://github.com/your-repo/redline.git
-cd redline
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Start web application
-python3 web_app.py
-
-# Or start GUI application
-python3 main.py
-```
-
-#### **Method 3: Docker Installation**
-```bash
-# Clone repository
-git clone https://github.com/your-repo/redline.git
-cd redline
-
-# Build and run with Docker Compose
-docker-compose up -d
-
-# Access web interface
-open http://localhost:8080
-```
-
-#### **Docker Compose Management**
-
-For Option 4 (Docker Compose) installations, use the comprehensive management script:
-
-```bash
-# Quick start
-cp docker-compose-option4.yml docker-compose.yml
-./manage_compose.sh start
-
-# Management commands
-./manage_compose.sh start      # Start services
-./manage_compose.sh stop       # Stop services
-./manage_compose.sh restart    # Restart services
-./manage_compose.sh status     # Show status
-./manage_compose.sh logs       # Show logs
-./manage_compose.sh rebuild    # Rebuild services
-./manage_compose.sh cleanup    # Remove everything
-./manage_compose.sh help       # Show help
-```
-
-**Service URLs:**
-- **Web App**: http://localhost:8080
-- **Tkinter GUI**: Use X11 forwarding (see GUI setup guide)
+### **First Login**
 
-For detailed Docker Compose management, see: [REDLINE_DOCKER_COMPOSE_MANAGEMENT_GUIDE.md](REDLINE_DOCKER_COMPOSE_MANAGEMENT_GUIDE.md)
-
-## 🖥️ **Platform-Specific Instructions**
+1. **Enter License Key**: Paste your license key in the login prompt
+2. **Access Granted**: You'll be redirected to the dashboard
+3. **Check Balance**: View your remaining hours in Settings tab
+4. **Start Using**: Begin downloading and analyzing data
 
-### **Windows**
-
-#### **Using Python**
-```cmd
-# Install Python 3.9+ from python.org
-# Open Command Prompt as Administrator
+---
 
-# Clone repository
-git clone https://github.com/your-repo/redline.git
-cd redline
+## 💳 **Subscription & Payment**
 
-# Install dependencies
-pip install -r requirements.txt
+### **Hour Packages**
 
-# Start web application
-python web_app.py
+REDLINE uses a time-based subscription model. Purchase hours to use the platform:
 
-# Start GUI application
-python main.py
-```
+| Package | Hours | Price |
+|---------|-------|-------|
+| **Starter** | 5 hours | $X.XX |
+| **Standard** | 10 hours | $X.XX |
+| **Professional** | 20 hours | $X.XX |
+| **Enterprise** | 50 hours | $X.XX |
+| **Custom** | Any amount | Custom pricing |
 
-#### **Using Anaconda**
-```cmd
-# Create conda environment
-conda create -n redline python=3.9
-conda activate redline
+### **Adding Hours**
 
-# Install dependencies
-pip install -r requirements.txt
+1. **Navigate to Payment Tab** or Settings > Payment
+2. **Select Package**: Choose from available packages or enter custom hours
+3. **Click "Purchase"**: Redirected to Stripe checkout
+4. **Complete Payment**: Secure payment via Stripe
+5. **Hours Added**: Hours are automatically added to your account
 
-# Start application
-python web_app.py
-```
+### **Usage Tracking**
 
-### **macOS**
+- **Session-based**: Hours are tracked per active session
+- **Automatic Deduction**: Hours are deducted when you use the platform
+- **Real-time Balance**: Check your balance anytime in Settings
+- **Usage History**: View detailed usage history
 
-#### **Using Homebrew**
-```bash
-# Install Python
-brew install python@3.9
+### **Payment Methods**
 
-# Clone repository
-git clone https://github.com/your-repo/redline.git
-cd redline
+- **Credit Cards**: Visa, Mastercard, American Express
+- **Debit Cards**: Supported debit cards
+- **Secure Processing**: All payments processed via Stripe
 
-# Install dependencies
-pip3 install -r requirements.txt
+---
 
-# Start application
-python3 web_app.py
-```
+## 🔑 **API Key Configuration**
 
-#### **Using MacPorts**
-```bash
-# Install Python
-sudo port install python39
+### **Built-in Data Sources**
 
-# Clone repository
-git clone https://github.com/your-repo/redline.git
-cd redline
+REDLINE supports multiple data sources. Some require API keys:
 
-# Install dependencies
-python3.9 -m pip install -r requirements.txt
+#### **Yahoo Finance**
+- ✅ **No API Key Required**: Free to use
+- ✅ **Recommended**: Best for most users
+- ✅ **Comprehensive**: Stocks, ETFs, indices, crypto
 
-# Start application
-python3.9 web_app.py
-```
+#### **Alpha Vantage**
+- 🔑 **API Key Required**: Get free key at alphavantage.co
+- ✅ **Real-time Data**: Live market data
+- 📊 **Rate Limits**: Free tier: 5 calls/minute
 
-### **Linux (Ubuntu/Debian)**
+#### **Finnhub**
+- 🔑 **API Key Required**: Get free key at finnhub.io
+- ✅ **Real-time Data**: Live market data
+- 📊 **Rate Limits**: Free tier: 60 calls/minute
 
-```bash
-# Update system
-sudo apt update && sudo apt upgrade -y
+### **Configuring API Keys**
 
-# Install Python and dependencies
-sudo apt install python3.9 python3.9-pip python3.9-venv git -y
+1. **Go to Settings Tab**
+2. **Click "API Keys"** section
+3. **Enter API Keys**:
+   - Alpha Vantage API Key
+   - Finnhub API Key
+   - IEX Cloud API Key (optional)
+4. **Save Configuration**: API keys are securely stored and masked
 
-# Clone repository
-git clone https://github.com/your-repo/redline.git
-cd redline
+### **Custom API Configuration**
 
-# Create virtual environment
-python3.9 -m venv redline_env
-source redline_env/bin/activate
+1. **Click "Add Custom API"** in Settings > API Keys
+2. **Configure Your API**:
+   - **Name**: Display name for your API
+   - **Base URL**: API base endpoint (e.g., `https://api.example.com`)
+   - **Endpoint**: Data endpoint path (e.g., `/v1/data`)
+   - **API Key**: Your API key (masked for security)
+   - **Rate Limit**: Requests per minute
+   - **Date Format**: Expected date format (YYYY-MM-DD, etc.)
+   - **Parameter Names**: Ticker, date, API key parameter names
+3. **Save Configuration**
+4. **Use in Download Tab**: Your custom API will appear as a data source
 
-# Install dependencies
-pip install -r requirements.txt
+---
 
-# Start application
-python web_app.py
-```
+## 🎨 **Theme Customization**
 
-### **Linux (CentOS/RHEL/Fedora)**
+### **Available Themes**
 
-```bash
-# Install Python and dependencies
-sudo dnf install python39 python39-pip git -y
+REDLINE offers 8 color-blind friendly themes:
 
-# Clone repository
-git clone https://github.com/your-repo/redline.git
-cd redline
-
-# Create virtual environment
-python3.9 -m venv redline_env
-source redline_env/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Start application
-python web_app.py
-```
-
-## 🐳 **Docker Installation**
-
-### **Docker Compose (Recommended)**
-
-```bash
-# Clone repository
-git clone https://github.com/your-repo/redline.git
-cd redline
-
-# Start services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
-```
-
-### **Docker Run**
-
-```bash
-# Build image
-docker build -t redline .
-
-# Run container
-docker run -d \
-  --name redline \
-  -p 8080:8080 \
-  -v $(pwd)/data:/app/data \
-  redline
-
-# Access application
-open http://localhost:8080
-```
-
-## ⚙️ **Configuration**
-
-### **Environment Variables**
-
-Create a `.env` file in the project root:
-
-```bash
-# Application Configuration
-REDLINE_PORT=8080
-REDLINE_HOST=0.0.0.0
-REDLINE_DEBUG=False
-
-# Database Configuration
-REDLINE_DB_PATH=data/redline_data.duckdb
-REDLINE_DB_POOL_SIZE=8
-
-# Data Configuration
-REDLINE_DATA_DIR=data
-REDLINE_UPLOAD_DIR=data/uploads
-REDLINE_MAX_FILE_SIZE=100MB
-
-# API Configuration
-REDLINE_API_RATE_LIMIT=1000
-REDLINE_API_TIMEOUT=30
-
-# Theme Configuration
-REDLINE_DEFAULT_THEME=theme-default
-REDLINE_THEME_CUSTOMIZATION=True
-```
-
-### **Configuration File**
-
-Edit `data_config.ini`:
-
-```ini
-[general]
-name = REDLINE
-version = 1.0.0
-debug = False
-
-[database]
-path = data/redline_data.duckdb
-pool_size = 8
-cache_size = 64
-
-[data]
-data_dir = data
-upload_dir = data/uploads
-max_file_size = 104857600
-supported_formats = csv,parquet,feather,json,duckdb,txt
-
-[api]
-rate_limit = 1000
-timeout = 30
-cors_enabled = True
-
-[themes]
-default_theme = theme-default
-customization_enabled = True
-```
-
-## 🚀 **Starting the Application**
-
-### **Web Application**
-
-```bash
-# Start web server
-python web_app.py
-
-# Or with custom port
-WEB_PORT=8082 python web_app.py
-
-# Or with environment file
-python -m dotenv run python web_app.py
-```
-
-**Access the application at:**
-- **Local**: http://localhost:8080
-- **Network**: http://your-ip:8080
-
-### **GUI Application**
-
-```bash
-# Start GUI application
-python main.py
-
-# Or with specific configuration
-python main.py --config custom_config.ini
-```
-
-### **Both Applications**
-
-```bash
-# Start web application in background
-python web_app.py &
-
-# Start GUI application
-python main.py
-```
+1. **Default** - Clean, professional theme
+2. **High Contrast** - Maximum contrast for accessibility
+3. **Ocean** - Blue color scheme
+4. **Forest** - Green color scheme
+5. **Sunset** - Orange/red color scheme
+6. **Monochrome** - Grayscale theme
+7. **Grayscale** - Black and white theme
+8. **Dark** - Dark mode theme
+
+### **Changing Themes**
+
+1. **Click Theme Selector** in the navigation bar
+2. **Select Theme**: Choose from available themes
+3. **Theme Applied**: Changes are applied immediately
+4. **Saved Automatically**: Your preference is saved
+
+### **Color Customization**
+
+1. **Go to Settings Tab**
+2. **Click "Font Colors"** section
+3. **Customize Colors**: Adjust colors for different UI elements
+4. **Save Preferences**: Your custom colors are saved
+
+---
+
+## 📊 **Getting Started with Data**
+
+### **First Data Download**
+
+1. **Go to Download Tab**
+2. **Select Data Source**: Choose Yahoo Finance (recommended)
+3. **Enter Ticker**: Try `AAPL` (Apple)
+4. **Select Date Range**: Choose `2Y` (2 years)
+5. **Click "Download"**
+6. **Wait for Completion**: Progress bar shows download status
+7. **File Saved**: Data is saved to your account
+
+### **Loading and Viewing Data**
+
+1. **Go to Data Tab**
+2. **Click "Load Data"**
+3. **Select File**: Choose your downloaded file
+4. **Data Loaded**: Data appears in virtual scrolling table
+5. **Customize Display**: Use date format selector and column editor
+
+### **Running Your First Analysis**
+
+1. **Load Data**: Load a data file in Data tab
+2. **Go to Analysis Tab**
+3. **Select Analysis Type**: Choose "Basic Analysis"
+4. **Click "Run Analysis"**
+5. **View Results**: Analysis results are displayed
+6. **Export Results**: Save results to CSV or JSON
+
+---
 
 ## 🔧 **Troubleshooting**
 
 ### **Common Issues**
 
-#### **Python Version Issues**
-```bash
-# Check Python version
-python --version
-
-# If version is too old, install Python 3.9+
-# Windows: Download from python.org
-# macOS: brew install python@3.9
-# Linux: sudo apt install python3.9
-```
-
-#### **Dependency Issues**
-```bash
-# Update pip
-pip install --upgrade pip
-
-# Install dependencies with verbose output
-pip install -r requirements.txt -v
-
-# Install specific problematic package
-pip install pandas numpy duckdb flask
-```
-
-#### **Permission Issues**
-```bash
-# Linux/macOS: Fix permissions
-sudo chown -R $USER:$USER /path/to/redline
-chmod +x *.sh
-
-# Windows: Run Command Prompt as Administrator
-```
-
-#### **Port Already in Use**
-```bash
-# Find process using port 8080
-lsof -i :8080  # macOS/Linux
-netstat -ano | findstr :8080  # Windows
-
-# Kill process
-kill -9 <PID>  # macOS/Linux
-taskkill /PID <PID> /F  # Windows
-
-# Or use different port
-WEB_PORT=8082 python web_app.py
-```
-
-#### **Database Issues**
-```bash
-# Reset database
-rm data/redline_data.duckdb
-python -c "from redline.database.connector import DatabaseConnector; DatabaseConnector().initialize()"
-
-# Check database permissions
-ls -la data/
-```
-
-#### **Memory Issues**
-```bash
-# Check available memory
-free -h  # Linux
-vm_stat  # macOS
-wmic memorychip  # Windows
-
-# Reduce memory usage
-export REDLINE_DB_POOL_SIZE=4
-export REDLINE_MAX_FILE_SIZE=50MB
-```
-
-### **Log Files**
-
-Check log files for detailed error information:
-
-```bash
-# Application logs
-tail -f redline.log
-
-# Web application logs
-tail -f redline_web.log
-
-# Database logs
-tail -f redline_data.log
-```
-
-### **Debug Mode**
-
-Enable debug mode for detailed error information:
-
-```bash
-# Set debug environment variable
-export REDLINE_DEBUG=True
-
-# Or edit configuration file
-echo "debug = True" >> data_config.ini
-
-# Start application
-python web_app.py
-```
-
-## 🔍 **Verification**
-
-### **Installation Verification**
-
-Run the verification script:
-
-```bash
-# Run verification
-python verify_installation.py
-
-# Or use the shell script
-./verify_installation.sh
-```
-
-### **Manual Verification**
-
-```bash
-# Test Python imports
-python -c "
-import redline
-from redline.core.data_loader import DataLoader
-from redline.database.connector import DatabaseConnector
-print('✅ All imports successful')
-"
-
-# Test web application
-curl http://localhost:8080/api/status
-
-# Test GUI application
-python -c "
-import tkinter as tk
-from redline.gui.main_window import StockAnalyzerGUI
-print('✅ GUI components available')
-"
-```
-
-### **Performance Test**
-
-```bash
-# Run performance tests
-python -m pytest tests/performance/ -v
-
-# Or run specific tests
-python tests/test_performance.py
-```
-
-## 📦 **Package Management**
-
-### **Virtual Environments**
-
-#### **Using venv**
-```bash
-# Create virtual environment
-python -m venv redline_env
-
-# Activate (Linux/macOS)
-source redline_env/bin/activate
-
-# Activate (Windows)
-redline_env\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Deactivate
-deactivate
-```
-
-#### **Using conda**
-```bash
-# Create conda environment
-conda create -n redline python=3.9
-
-# Activate environment
-conda activate redline
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Deactivate
-conda deactivate
-```
-
-### **Dependency Management**
-
-#### **requirements.txt**
-```
-flask>=2.3.0
-pandas>=1.5.0
-numpy>=1.21.0
-duckdb>=0.8.0
-tkinter
-requests>=2.28.0
-```
-
-#### **requirements-dev.txt**
-```
-pytest>=7.0.0
-pytest-cov>=4.0.0
-black>=22.0.0
-flake8>=5.0.0
-mypy>=1.0.0
-```
-
-## 🔄 **Updates**
-
-### **Updating REDLINE**
-
-```bash
-# Pull latest changes
-git pull origin main
-
-# Update dependencies
-pip install -r requirements.txt --upgrade
-
-# Restart application
-pkill -f "web_app.py"
-python web_app.py &
-```
-
-### **Rollback**
-
-```bash
-# Check git log
-git log --oneline
-
-# Rollback to previous version
-git reset --hard <commit-hash>
-
-# Reinstall dependencies if needed
-pip install -r requirements.txt
-```
-
-## 🛠️ **Development Setup**
-
-### **Development Dependencies**
-
-```bash
-# Install development dependencies
-pip install -r requirements-dev.txt
-
-# Install pre-commit hooks
-pre-commit install
-
-# Run tests
-pytest
-
-# Run linting
-flake8 redline/
-black redline/
-mypy redline/
-```
-
-### **IDE Configuration**
-
-#### **VS Code**
-```json
-{
-    "python.defaultInterpreterPath": "./redline_env/bin/python",
-    "python.linting.enabled": true,
-    "python.linting.flake8Enabled": true,
-    "python.formatting.provider": "black",
-    "python.testing.pytestEnabled": true
-}
-```
-
-#### **PyCharm**
-- Set Python interpreter to virtual environment
-- Enable pytest as test runner
-- Configure code style to use Black formatter
-
-## 📚 **Additional Resources**
-
-- **Documentation**: [REDLINE Comprehensive Documentation](REDLINE_COMPREHENSIVE_DOCUMENTATION.md)
-- **API Reference**: [REDLINE API Reference](REDLINE_API_REFERENCE.md)
-- **User Guide**: [REDLINE User Guide](REDLINE_USER_GUIDE.md)
-- **Developer Guide**: [REDLINE Developer Guide](REDLINE_DEVELOPER_GUIDE.md)
-
-## 🆘 **Getting Help**
-
-### **Support Channels**
-- **GitHub Issues**: Report bugs and request features
-- **Documentation**: Comprehensive guides and tutorials
-- **Community Forums**: User community support
-- **Email Support**: support@redline.dev
-
-### **Common Commands**
-
-```bash
-# Check system status
-curl http://localhost:8080/api/status
-
-# View application logs
-tail -f redline.log
-
-# Restart application
-pkill -f "web_app.py" && python web_app.py &
-
-# Reset configuration
-cp data_config.ini.backup data_config.ini
-
-# Clear cache
-rm -rf __pycache__/
-rm -rf redline/__pycache__/
-```
+#### **"License key missing" Error**
+- **Cause**: License key not provided or expired
+- **Solution**: Enter your license key in the login prompt or Settings tab
+- **Check Balance**: Verify you have hours remaining in Settings
+
+#### **"Failed to retrieve balance"**
+- **Cause**: License server temporarily unavailable
+- **Solution**: Check your internet connection and try again
+- **Note**: The platform will continue to work with local tracking
+
+#### **"API key invalid" Error**
+- **Cause**: API key is incorrect or expired
+- **Solution**: Update your API key in Settings > API Keys
+- **Check**: Verify API key is correct and has sufficient quota
+
+#### **Browser Compatibility Issues**
+- **Cause**: Using an unsupported browser
+- **Solution**: Update to the latest version of Chrome, Firefox, Safari, or Edge
+- **Check**: Verify JavaScript and cookies are enabled
+
+### **Performance Optimization**
+
+#### **Large Datasets**
+- Use virtual scrolling (automatic)
+- Process data in chunks
+- Consider using Parquet format for storage
+- Close unused browser tabs
+
+#### **Download Speed**
+- Use Yahoo Finance for fastest downloads
+- Download multiple tickers in batches
+- Avoid peak market hours for better performance
+- Check your internet connection speed
+
+### **Getting Help**
+
+#### **Support Resources**
+- **Help Page**: Access comprehensive documentation at https://redfindat.com/help
+- **Settings Tab**: View system information and logs
+- **Email Support**: Contact support@redfindat.com
 
 ---
 
-**REDLINE: Easy to install, powerful to use.** 🚀
+## 📚 **Additional Resources**
+
+- **User Guide**: [REDLINE_USER_GUIDE.md](REDLINE_USER_GUIDE.md) - Complete user guide
+- **API Reference**: [REDLINE_API_REFERENCE.md](REDLINE_API_REFERENCE.md) - API documentation
+- **Comprehensive Documentation**: [REDLINE_COMPREHENSIVE_DOCUMENTATION.md](REDLINE_COMPREHENSIVE_DOCUMENTATION.md) - Full documentation
+
+---
+
+## 🆘 **Support**
+
+For additional help or to report issues:
+1. Check the troubleshooting section above
+2. Review the Help page in the application
+3. Contact support@redfindat.com
+4. Ensure you're using a supported browser
+
+---
+
+**REDLINE: Professional-grade financial data analysis accessible through cloud subscription service.** 🚀

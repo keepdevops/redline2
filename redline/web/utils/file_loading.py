@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Optional, Dict, Any
 from flask import current_app
 from ...core.data_loader import DataLoader
-from ...core.schema import EXT_TO_FORMAT
+from ...core.schema import EXT_TO_FORMAT, detect_format_from_path
 
 logger = logging.getLogger(__name__)
 
@@ -29,10 +29,8 @@ def rate_limit(limit_string):
             return func
     return decorator
 
-def detect_format_from_path(file_path: str) -> str:
-    """Detect format from file path - same as tkinter GUI."""
-    ext = os.path.splitext(file_path)[1].lower()
-    return EXT_TO_FORMAT.get(ext, 'csv')
+# Format detection is now centralized in redline.core.schema.detect_format_from_path
+# Imported above for use in this module
 
 def load_single_file_parallel(file_path: str) -> Optional[pd.DataFrame]:
     """Load a single file - optimized for speed with parallel processing (same as tkinter GUI)."""
@@ -261,7 +259,26 @@ def save_file_by_format(df: pd.DataFrame, file_path: str, format_type: str) -> b
         if format_type == 'csv':
             df.to_csv(file_path, index=False)
         elif format_type == 'json':
-            df.to_json(file_path, orient='records', indent=2)
+            # Replace NaN/NaT values with None before saving to JSON
+            # This ensures valid JSON output (NaN is not valid JSON)
+            import json
+            def replace_nan_in_dict(obj):
+                """Recursively replace NaN values with None."""
+                if isinstance(obj, dict):
+                    return {k: replace_nan_in_dict(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [replace_nan_in_dict(item) for item in obj]
+                elif isinstance(obj, float) and (pd.isna(obj) or pd.isnull(obj)):
+                    return None
+                elif pd.isna(obj):
+                    return None
+                return obj
+            # Convert to dict and clean NaN values
+            data_dict = df.to_dict(orient='records')
+            cleaned_data = [replace_nan_in_dict(record) for record in data_dict]
+            # Write JSON directly
+            with open(file_path, 'w') as f:
+                json.dump(cleaned_data, f, indent=2, default=str)
         elif format_type == 'parquet':
             df.to_parquet(file_path, index=False)
         elif format_type == 'feather':

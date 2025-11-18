@@ -134,15 +134,9 @@ def _load_data(args):
         raise ValueError(f"Input path does not exist: {args.input}")
 
 def _detect_format(file_path):
-    """Detect file format from extension."""
-    ext = os.path.splitext(file_path)[1].lower()
-    format_map = {
-        '.csv': 'csv',
-        '.parquet': 'parquet',
-        '.json': 'json',
-        '.txt': 'txt'
-    }
-    return format_map.get(ext, 'csv')
+    """Detect file format from extension (uses centralized function)."""
+    from redline.core.schema import detect_format_from_path
+    return detect_format_from_path(file_path)
 
 def _apply_filters(data, args):
     """Apply filters to data."""

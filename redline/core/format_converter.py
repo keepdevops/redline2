@@ -189,14 +189,42 @@ class FormatConverter:
                 try:
                     if isinstance(data, dict):
                         self.logger.info(f"Saving dictionary to JSON: {file_path}")
+                        # Replace NaN values in dict before saving
+                        def replace_nan(obj):
+                            if isinstance(obj, dict):
+                                return {k: replace_nan(v) for k, v in obj.items()}
+                            elif isinstance(obj, list):
+                                return [replace_nan(item) for item in obj]
+                            elif isinstance(obj, float) and (pd.isna(obj) or pd.isnull(obj)):
+                                return None
+                            return obj
+                        cleaned_data = replace_nan(data)
                         with open(file_path, 'w') as f:
-                            json.dump(data, f, indent=2, default=str)
+                            json.dump(cleaned_data, f, indent=2, default=str)
                         self.logger.info(f"Successfully saved JSON file: {file_path}")
                     elif isinstance(data, pd.DataFrame):
                         self.logger.info(f"Saving {len(data)} rows to JSON: {file_path}")
                         if data.empty:
                             self.logger.warning("DataFrame is empty, creating empty JSON file")
-                        data.to_json(file_path, orient='records', indent=2)
+                        # Replace NaN/NaT values with None before saving to JSON
+                        # This ensures valid JSON output (NaN is not valid JSON)
+                        def replace_nan_in_dict(obj):
+                            """Recursively replace NaN values with None."""
+                            if isinstance(obj, dict):
+                                return {k: replace_nan_in_dict(v) for k, v in obj.items()}
+                            elif isinstance(obj, list):
+                                return [replace_nan_in_dict(item) for item in obj]
+                            elif isinstance(obj, float) and (pd.isna(obj) or pd.isnull(obj)):
+                                return None
+                            elif pd.isna(obj):
+                                return None
+                            return obj
+                        # Convert to dict and clean NaN values
+                        data_dict = data.to_dict(orient='records')
+                        cleaned_data = [replace_nan_in_dict(record) for record in data_dict]
+                        # Write JSON directly
+                        with open(file_path, 'w') as f:
+                            json.dump(cleaned_data, f, indent=2, default=str)
                         self.logger.info(f"Successfully saved JSON file: {file_path}")
                     else:
                         raise ValueError(f"Cannot save {type(data)} to JSON format")
@@ -441,7 +469,7 @@ class FormatConverter:
     
     def detect_format_from_extension(self, file_path: str) -> str:
         """
-        Detect format from file extension.
+        Detect format from file extension (uses centralized function).
         
         Args:
             file_path: Path to file
@@ -449,15 +477,5 @@ class FormatConverter:
         Returns:
             Detected format
         """
-        ext = os.path.splitext(file_path)[1].lower()
-        
-        format_map = {
-            '.csv': 'csv',
-            '.parquet': 'parquet',
-            '.feather': 'feather',
-            '.json': 'json',
-            '.duckdb': 'duckdb',
-            '.db': 'duckdb'
-        }
-        
-        return format_map.get(ext, 'csv')
+        from .schema import detect_format_from_path
+        return detect_format_from_path(file_path)

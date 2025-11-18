@@ -7,12 +7,46 @@ REDLINE provides a comprehensive RESTful API for all data operations, analysis, 
 ## 📊 **Base URL**
 
 ```
-http://localhost:8080/api
+https://redfindat.com/api
 ```
 
 ## 🔐 **Authentication**
 
-Currently, REDLINE does not require authentication. Future versions will include user authentication and API key management.
+REDLINE uses license key-based authentication for subscription service access. All API requests require a valid license key.
+
+### **License Key Authentication**
+
+Include your license key in one of the following ways:
+
+**Option 1: Header (Recommended)**
+```http
+X-License-Key: RL-DEV-XXXXXXXX-XXXXXXXX-XXXXXXXX
+```
+
+**Option 2: Query Parameter**
+```
+?license_key=RL-DEV-XXXXXXXX-XXXXXXXX-XXXXXXXX
+```
+
+**Option 3: JSON Body**
+```json
+{
+  "license_key": "RL-DEV-XXXXXXXX-XXXXXXXX-XXXXXXXX",
+  ...
+}
+```
+
+### **Getting a License Key**
+
+1. Register at https://redfindat.com/register
+2. Receive your license key via email
+3. Use the license key in all API requests
+
+### **License Validation**
+
+- License keys are validated on each request
+- Hours are deducted based on usage time
+- Check remaining hours with `/payments/balance` endpoint
 
 ## 📋 **Response Format**
 
@@ -509,40 +543,48 @@ Currently, REDLINE does not implement rate limiting. Future versions will includ
 ```python
 import requests
 
+# Your license key
+LICENSE_KEY = "RL-DEV-XXXXXXXX-XXXXXXXX-XXXXXXXX"
+BASE_URL = "https://redfindat.com"
+HEADERS = {"X-License-Key": LICENSE_KEY}
+
 # 1. Check system status
-response = requests.get('http://localhost:8082/api/status')
+response = requests.get(f'{BASE_URL}/api/status', headers=HEADERS)
 print(response.json())
 
 # 2. Upload a file
 with open('data.csv', 'rb') as f:
     files = {'file': f}
-    response = requests.post('http://localhost:8082/api/upload', files=files)
+    response = requests.post(f'{BASE_URL}/api/upload', files=files, headers=HEADERS)
     print(response.json())
 
 # 3. Load data
 data = {
+    'license_key': LICENSE_KEY,
     'filename': 'data.csv',
     'format': 'csv'
 }
-response = requests.post('http://localhost:8082/data/load', json=data)
+response = requests.post(f'{BASE_URL}/data/load', json=data, headers=HEADERS)
 data_id = response.json()['data_id']
 
 # 4. Run analysis
 analysis = {
+    'license_key': LICENSE_KEY,
     'data_id': data_id,
     'analysis_type': 'financial'
 }
-response = requests.post('http://localhost:8082/analysis/analyze', json=analysis)
+response = requests.post(f'{BASE_URL}/analysis/analyze', json=analysis, headers=HEADERS)
 print(response.json())
 
 # 5. Convert format
 conversion = {
+    'license_key': LICENSE_KEY,
     'input_format': 'csv',
     'output_format': 'parquet',
     'input_file': 'data.csv',
     'output_file': 'data.parquet'
 }
-response = requests.post('http://localhost:8082/converter/convert', json=conversion)
+response = requests.post(f'{BASE_URL}/converter/convert', json=conversion, headers=HEADERS)
 print(response.json())
 ```
 
@@ -552,7 +594,7 @@ print(response.json())
 ```python
 from redline_api import RedlineClient
 
-client = RedlineClient('http://localhost:8082')
+client = RedlineClient('https://redfindat.com', license_key='RL-DEV-XXXXXXXX-XXXXXXXX-XXXXXXXX')
 
 # Upload and analyze data
 file_id = client.upload_file('data.csv')
@@ -564,7 +606,9 @@ results = client.get_analysis_results(analysis['analysis_id'])
 ```javascript
 import { RedlineClient } from 'redline-js-sdk';
 
-const client = new RedlineClient('http://localhost:8082');
+const client = new RedlineClient('https://redfindat.com', {
+  licenseKey: 'RL-DEV-XXXXXXXX-XXXXXXXX-XXXXXXXX'
+});
 
 // Upload and analyze data
 const fileId = await client.uploadFile('data.csv');
@@ -572,12 +616,166 @@ const analysis = await client.analyzeData(fileId, 'financial');
 const results = await client.getAnalysisResults(analysis.analysis_id);
 ```
 
+## 💳 **Subscription & Payment Endpoints**
+
+### **POST /api/register**
+Register for a new account and receive a license key.
+
+**Request:**
+```json
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "company": "Example Corp"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "license": {
+    "key": "RL-DEV-XXXXXXXX-XXXXXXXX-XXXXXXXX",
+    "type": "trial",
+    "email": "john@example.com",
+    "hours_remaining": 0
+  }
+}
+```
+
+### **GET /payments/balance**
+Get remaining hours for your license key.
+
+**Headers:**
+```
+X-License-Key: RL-DEV-XXXXXXXX-XXXXXXXX-XXXXXXXX
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "license_key": "RL-DEV-XXXXXXXX-XXXXXXXX-XXXXXXXX",
+  "hours_remaining": 5.0,
+  "used_hours": 2.5,
+  "purchased_hours": 10.0
+}
+```
+
+### **POST /payments/create-checkout**
+Create a Stripe checkout session to purchase hours.
+
+**Request:**
+```json
+{
+  "license_key": "RL-DEV-XXXXXXXX-XXXXXXXX-XXXXXXXX",
+  "hours": 10,
+  "package": "10_hours"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "checkout_url": "https://checkout.stripe.com/...",
+  "session_id": "cs_..."
+}
+```
+
+### **GET /payments/history**
+Get payment and usage history.
+
+**Headers:**
+```
+X-License-Key: RL-DEV-XXXXXXXX-XXXXXXXX-XXXXXXXX
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "history": [
+    {
+      "timestamp": "2024-10-21T20:00:00Z",
+      "type": "purchase",
+      "hours": 10.0,
+      "amount": 9.99
+    },
+    {
+      "timestamp": "2024-10-21T19:00:00Z",
+      "type": "usage",
+      "hours": 0.5,
+      "operation": "data_analysis"
+    }
+  ]
+}
+```
+
+## 🔑 **API Key Management Endpoints**
+
+### **GET /api-keys/sources**
+Get available data source APIs and custom API configurations.
+
+**Headers:**
+```
+X-License-Key: RL-DEV-XXXXXXXX-XXXXXXXX-XXXXXXXX
+```
+
+**Response:**
+```json
+{
+  "sources": [
+    {
+      "name": "yahoo",
+      "display_name": "Yahoo Finance",
+      "requires_api_key": false
+    },
+    {
+      "name": "alpha_vantage",
+      "display_name": "Alpha Vantage",
+      "requires_api_key": true
+    }
+  ],
+  "custom_apis": [
+    {
+      "id": "custom_1",
+      "name": "My Custom API",
+      "base_url": "https://api.example.com"
+    }
+  ]
+}
+```
+
+### **POST /api-keys/save**
+Save API keys and custom API configurations.
+
+**Request:**
+```json
+{
+  "license_key": "RL-DEV-XXXXXXXX-XXXXXXXX-XXXXXXXX",
+  "api_keys": {
+    "alpha_vantage": "YOUR_API_KEY",
+    "finnhub": "YOUR_API_KEY"
+  },
+  "custom_apis": {
+    "custom_1": {
+      "name": "My Custom API",
+      "base_url": "https://api.example.com",
+      "endpoint": "/data",
+      "api_key": "YOUR_API_KEY"
+    }
+  }
+}
+```
+
 ## 📚 **Additional Resources**
 
-- **Web Interface**: http://localhost:8082
-- **API Documentation**: http://localhost:8082/help
-- **Status Page**: http://localhost:8082/status
-- **Health Check**: http://localhost:8082/health
+- **Web Interface**: https://redfindat.com
+- **API Documentation**: https://redfindat.com/help
+- **Status Page**: https://redfindat.com/api/status
+- **Health Check**: https://redfindat.com/api/health
+- **Registration**: https://redfindat.com/register
 
 ## 🔄 **Version History**
 

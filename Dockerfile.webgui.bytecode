@@ -29,19 +29,10 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install Python dependencies with cache mount
+# Using requirements.txt for consistent dependency management
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir \
-    flask werkzeug jinja2 markupsafe click blinker itsdangerous \
-    flask-socketio flask-compress flask-limiter \
-    python-socketio eventlet gevent gevent-websocket \
-    numpy pandas duckdb pyarrow fastparquet yfinance polars \
-    celery redis \
-    requests urllib3 \
-    scikit-learn matplotlib seaborn \
-    openpyxl xlsxwriter \
-    configparser gunicorn psutil \
-    boto3
+    pip install --upgrade pip>=25.3 setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . /app
@@ -61,6 +52,13 @@ RUN PYTHONOPTIMIZE=2 python -OO -m compileall -b . && \
 FROM python:3.11-slim AS runtime
 
 # Set environment variables
+# Note: Subscription service environment variables should be set at runtime:
+# - STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY (for payment processing)
+# - STRIPE_WEBHOOK_SECRET (for Stripe webhooks)
+# - LICENSE_SERVER_URL (license server endpoint)
+# - REQUIRE_LICENSE_SERVER (true/false - require license server connection)
+# - S3_ENDPOINT_URL (optional - for Cloudflare R2 or S3 storage)
+# - S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY (for cloud storage)
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -69,7 +67,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
     FLASK_ENV=production \
     GUNICORN_WORKERS=1 \
     GUNICORN_THREADS=4 \
-    GUNICORN_TIMEOUT=120
+    GUNICORN_TIMEOUT=120 \
+    REQUIRE_LICENSE_SERVER=false \
+    LICENSE_SERVER_URL=http://localhost:5001 \
+    REDLINE_VERSION=2.0.0
 
 # Install runtime dependencies only
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
@@ -118,10 +119,12 @@ CMD ["gunicorn", \
 
 # Labels for metadata
 LABEL maintainer="REDLINE Team <keepdevops@gmail.com>" \
-      version="bytecode-optimized" \
-      description="REDLINE Financial Analysis - Bytecode Optimized Production Version" \
+      version="2.0.0-bytecode" \
+      description="REDLINE Financial Analysis - Bytecode Optimized Production Version with Subscription Service" \
       architecture="multi-platform" \
       performance="optimized" \
       license="proprietary" \
-      beta="true"
+      service="subscription" \
+      features="data-cleaning,date-formatting,api-key-masking,custom-apis,payment-integration" \
+      build-date="2025-01-18"
 
