@@ -597,7 +597,10 @@ function updateBatchButtons() {
     $('#editColumnsBtn').prop('disabled', batchFiles.length === 0 || !mergeChecked);
 }
 
-let columnMappings = {};
+// Global variable to store column mappings (declared once at top level)
+if (typeof window.columnMappings === 'undefined') {
+    window.columnMappings = {};
+}
 
 function batchConvert() {
     if (batchFiles.length === 0) {
@@ -735,9 +738,6 @@ function showColumnEditorModal() {
     });
 }
 
-// Global variable to store column mappings
-let columnMappings = {};
-
 function loadColumnMappings() {
     // Get selected files for batch conversion
     const selectedFiles = batchFiles.map(f => f.input_file || f.name || f);
@@ -826,16 +826,16 @@ function loadColumnMappings() {
             $('#columnMappingsList').html(mappingsHtml);
             
             // Initialize column mappings with original names
-            columnMappings = {};
+            window.columnMappings = {};
             allColumns.forEach(col => {
-                columnMappings[col] = col; // Default: no change
+                window.columnMappings[col] = col; // Default: no change
             });
             
             // Add change handlers
             $('.column-mapping-input').on('input', function() {
                 const original = $(this).data('original');
                 const newName = $(this).val().trim() || original;
-                columnMappings[original] = newName;
+                window.columnMappings[original] = newName;
             });
         })
         .catch(error => {
@@ -851,9 +851,9 @@ function loadColumnMappings() {
 function saveColumnMappings() {
     // Filter out mappings where original == new (no change)
     const activeMappings = {};
-    Object.keys(columnMappings).forEach(original => {
-        if (columnMappings[original] !== original) {
-            activeMappings[original] = columnMappings[original];
+    Object.keys(window.columnMappings || {}).forEach(original => {
+        if (window.columnMappings[original] !== original) {
+            activeMappings[original] = window.columnMappings[original];
         }
     });
     
@@ -940,7 +940,7 @@ function mergeConvertedFiles() {
             files: selectedConvertedFiles,
             output_format: outputFormat,
             output_filename: outputFilename,
-            column_mappings: columnMappings,
+            column_mappings: window.columnMappings || {},
             overwrite: false,
             license_key: licenseKey
         })

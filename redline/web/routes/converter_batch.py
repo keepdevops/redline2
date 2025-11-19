@@ -20,6 +20,8 @@ def batch_convert():
         files = data.get('files', [])  # List of {input_file, output_format, output_filename}
         overwrite = data.get('overwrite', False)
         
+        logger.info(f"Batch conversion started: {len(files)} file(s)")
+        
         if not files:
             return jsonify({'error': 'No files provided for conversion'}), 400
         
@@ -27,11 +29,13 @@ def batch_convert():
         errors = []
         data_dir = os.path.join(os.getcwd(), 'data')
         
-        for file_config in files:
+        for idx, file_config in enumerate(files, 1):
             try:
                 input_file = file_config.get('input_file')
                 output_format = file_config.get('output_format')
                 output_filename = file_config.get('output_filename')
+                
+                logger.info(f"Processing file {idx}/{len(files)}: {input_file}")
                 
                 if not all([input_file, output_format, output_filename]):
                     errors.append({
@@ -87,19 +91,25 @@ def batch_convert():
                 ext = os.path.splitext(input_path)[1].lower()
                 format_type = EXT_TO_FORMAT.get(ext, 'csv')
                 
+                logger.info(f"Loading file {input_file} as {format_type} format...")
                 data_obj = converter.load_file_by_type(input_path, format_type)
                 
                 if data_obj is None or (hasattr(data_obj, 'empty') and data_obj.empty):
+                    logger.warning(f"Failed to load or empty file: {input_file}")
                     errors.append({
                         'input_file': input_file,
-                        'error': 'Failed to load input file'
+                        'error': 'Failed to load input file or file is empty'
                     })
                     continue
                 
+                logger.info(f"Successfully loaded {input_file}: {len(data_obj)} rows")
+                
                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
+                logger.info(f"Saving converted file to {output_path}...")
                 converter.save_file_by_type(data_obj, output_path, output_format)
                 
                 file_stat = os.stat(output_path)
+                logger.info(f"Successfully converted {input_file} to {output_filename} ({file_stat.st_size} bytes)")
                 
                 results.append({
                     'input_file': input_file,
@@ -115,6 +125,8 @@ def batch_convert():
                     'input_file': file_config.get('input_file', 'unknown'),
                     'error': str(e)
                 })
+        
+        logger.info(f"Batch conversion completed: {len(results)} successful, {len(errors)} failed")
         
         return jsonify({
             'message': f'Batch conversion completed. {len(results)} successful, {len(errors)} failed.',
