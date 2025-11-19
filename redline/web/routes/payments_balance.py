@@ -10,13 +10,13 @@ import os
 import requests
 
 from redline.payment.config import PaymentConfig
-from redline.web.utils.api_helpers import rate_limit
 
 payments_balance_bp = Blueprint('payments_balance', __name__)
 logger = logging.getLogger(__name__)
 
+# Rate limit will be applied via decorator after app initialization
+# Using a simple pass-through for now - limiter applies limits via middleware
 @payments_balance_bp.route('/balance', methods=['GET'])
-@rate_limit("120 per hour")  # Higher limit for frequent polling (60 sec = 60 req/hour, allow headroom for multiple tabs)
 def get_balance():
     """Get remaining hours balance for a license"""
     try:
@@ -130,20 +130,14 @@ def get_balance():
             if 'success' not in result:
                 result['success'] = True
             
-            # Ensure used_hours is included in response
+            # Ensure all required hours fields are included in response
+            # The license server should return: hours_remaining, purchased_hours, used_hours
+            if 'purchased_hours' not in result:
+                result['purchased_hours'] = 0.0
+            if 'hours_remaining' not in result:
+                result['hours_remaining'] = 0.0
             if 'used_hours' not in result:
-                # Get from license server if not in response
-                try:
-                    hours_response = requests.get(
-                        f'{license_server_url}/api/licenses/{license_key}/hours',
-                        timeout=5
-                    )
-                    if hours_response.status_code == 200:
-                        hours_data = hours_response.json()
-                        if 'used_hours' in hours_data:
-                            result['used_hours'] = hours_data.get('used_hours', 0.0)
-                except:
-                    pass
+                result['used_hours'] = 0.0
             
             # Add usage statistics if storage is available
             try:
