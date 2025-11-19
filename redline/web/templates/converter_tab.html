@@ -321,6 +321,11 @@ $(document).ready(function() {
         updateBatchButtons();
     });
     
+    // Update button state when output format changes
+    $('#batchOutputFormat').on('change', function() {
+        updateBatchButtons();
+    });
+    
     $('#editColumnsBtn').on('click', function() {
         showColumnEditorModal();
     });
@@ -591,7 +596,9 @@ function removeFromBatch(index) {
 
 function updateBatchButtons() {
     $('#clearBatchBtn').prop('disabled', batchFiles.length === 0);
-    $('#batchConvertBtn').prop('disabled', batchFiles.length === 0);
+    // Enable convert button only when files are selected AND output format is selected
+    const outputFormat = $('#batchOutputFormat').val();
+    $('#batchConvertBtn').prop('disabled', batchFiles.length === 0 || !outputFormat);
     // Enable Edit Column Names button when files are selected and merge is checked
     const mergeChecked = $('#batchMergeFiles').is(':checked');
     $('#editColumnsBtn').prop('disabled', batchFiles.length === 0 || !mergeChecked);

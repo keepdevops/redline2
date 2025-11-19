@@ -4,6 +4,7 @@
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/virtual-scroll.js') }}"></script>
+<script src="{{ url_for('static', filename='js/date-formatter.js') }}"></script>
 {% endblock %}
 
 {% block head %}
@@ -297,7 +298,7 @@
             <div class="file-selector">
                 <h5 class="mb-3">📁 Select Files to Load</h5>
                 <div class="mb-3">
-                    <button id="loadSelectedBtn" class="load-button" disabled>
+                    <button id="loadSelectedBtn" class="load-button">
                         Load Selected Files
                     </button>
                     <button id="clearAllBtn" class="clear-button">
@@ -320,6 +321,28 @@
         <div class="col-md-8">
             <div class="data-display-area">
                 <h5 class="mb-3">📊 Multi-File Data View</h5>
+                <div class="mb-3 d-flex align-items-center gap-2">
+                    <!-- Date Format Selector - Always Visible -->
+                    <div class="input-group" style="width: auto;">
+                        <label class="input-group-text" for="dateFormatSelect" style="margin-bottom: 0;">
+                            <i class="fas fa-calendar-alt me-1"></i>Date Format:
+                        </label>
+                        <select id="dateFormatSelect" class="form-select" style="width: auto;">
+                            <option value="auto">Auto (YYYY-MM-DD)</option>
+                            <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                            <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                            <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                            <option value="YYYY/MM/DD">YYYY/MM/DD</option>
+                            <option value="DD-MM-YYYY">DD-MM-YYYY</option>
+                            <option value="MM-DD-YYYY">MM-DD-YYYY</option>
+                            <option value="raw">Raw (No Formatting)</option>
+                        </select>
+                    </div>
+                    <!-- Column Names Editor Button -->
+                    <button class="btn btn-sm btn-outline-info" onclick="showColumnEditor()" title="Edit column names" id="editColumnsBtn">
+                        <i class="fas fa-edit"></i> Edit Columns
+                    </button>
+                </div>
                 <div id="dataDisplay">
                     <div class="no-data-message">
                         <i class="fas fa-database fa-3x mb-3"></i>
@@ -335,10 +358,36 @@
 <script>
 let selectedFiles = new Set();
 let loadedDatasets = new Map();
+// Store column mappings per file: { filename: { oldName: newName } }
+let columnMappings = new Map();
 
 // Load file list on page load
 document.addEventListener('DOMContentLoaded', function() {
     loadFileList();
+    
+    // Load saved date format preference
+    const savedDateFormat = localStorage.getItem('redline-date-format') || 'auto';
+    const dateFormatSelect = document.getElementById('dateFormatSelect');
+    if (dateFormatSelect) {
+        dateFormatSelect.value = savedDateFormat;
+        
+        // Date format change handler
+        dateFormatSelect.addEventListener('change', function() {
+            const selectedFormat = this.value;
+            localStorage.setItem('redline-date-format', selectedFormat);
+            console.log('Date format changed to:', selectedFormat);
+            
+            // Re-render all loaded datasets with new date format
+            if (loadedDatasets.size > 0) {
+                console.log('Re-rendering all datasets with new date format');
+                // Force full re-render by clearing existing containers
+                document.querySelectorAll('.dataset-container[data-filename]').forEach(container => {
+                    container.remove();
+                });
+                updateDataDisplay();
+            }
+        });
+    }
     
     // Event listeners
     document.getElementById('loadSelectedBtn').addEventListener('click', loadSelectedFiles);
@@ -386,6 +435,15 @@ function displayFileList(files) {
             </div>
         </div>
     `).join('');
+    
+    // Ensure button state is correct after file list is displayed
+    updateLoadButtonState();
+}
+
+// Update load button state (button is always enabled)
+function updateLoadButtonState() {
+    // Button is always enabled - no state changes needed
+    // This function is kept for compatibility but does nothing
 }
 
 // Toggle file selection
@@ -393,24 +451,31 @@ function toggleFileSelection(filename) {
     const checkbox = document.getElementById(`file-${filename}`);
     const fileItem = document.querySelector(`[data-filename="${filename}"]`);
     
-    if (checkbox.checked) {
+    if (checkbox && checkbox.checked) {
         selectedFiles.add(filename);
-        fileItem.classList.add('selected');
+        if (fileItem) {
+            fileItem.classList.add('selected');
+        }
     } else {
         selectedFiles.delete(filename);
-        fileItem.classList.remove('selected');
+        if (fileItem) {
+            fileItem.classList.remove('selected');
+        }
     }
     
     // Update load button state
-    const loadBtn = document.getElementById('loadSelectedBtn');
-    loadBtn.disabled = selectedFiles.size === 0;
+    updateLoadButtonState();
 }
 
 // Load selected files
 async function loadSelectedFiles() {
-    if (selectedFiles.size === 0) return;
+    if (selectedFiles.size === 0) {
+        alert('Please select at least one file to load.');
+        return;
+    }
     
     const loadBtn = document.getElementById('loadSelectedBtn');
+    const originalText = loadBtn.textContent;
     loadBtn.disabled = true;
     loadBtn.textContent = 'Loading...';
     
@@ -426,6 +491,8 @@ async function loadSelectedFiles() {
         
         if (!licenseKey) {
             alert('License key is required. Please register or enter your license key.');
+            loadBtn.disabled = false;
+            loadBtn.textContent = originalText || 'Load Selected Files';
             return;
         }
         
@@ -451,6 +518,10 @@ async function loadSelectedFiles() {
         // Handle successful loads - ADD to existing datasets (don't overwrite)
         if (result.results && typeof result.results === 'object') {
             Object.entries(result.results).forEach(([filename, data]) => {
+                // Store original columns if not already stored
+                if (!data.originalColumns && data.columns) {
+                    data.originalColumns = [...data.columns];
+                }
                 // Only add if not already loaded, or update if it exists
                 loadedDatasets.set(filename, data);
             });
@@ -479,6 +550,9 @@ async function loadSelectedFiles() {
             if (checkbox) checkbox.checked = false;
         });
         
+        // Update load button state
+        updateLoadButtonState();
+        
         // Show summary
         if (result.error_count > 0) {
             alert(`Loaded ${result.success_count} files successfully. ${result.error_count} files had errors. Check console for details.`);
@@ -489,7 +563,7 @@ async function loadSelectedFiles() {
         alert('Error loading files. Check console for details.');
     } finally {
         loadBtn.disabled = false;
-        loadBtn.textContent = 'Load Selected Files';
+        loadBtn.textContent = originalText || 'Load Selected Files';
     }
 }
 
@@ -527,6 +601,11 @@ async function loadFileData(filename) {
         }
         
         const data = await response.json();
+        
+        // Store original columns if not already stored
+        if (!data.originalColumns && data.columns) {
+            data.originalColumns = [...data.columns];
+        }
         
         // Store loaded data
         loadedDatasets.set(filename, data);
@@ -630,7 +709,6 @@ function updateDataDisplay() {
     
     // Display all loaded datasets - preserve existing containers when possible
     let html = '';
-    const virtualScrollFiles = [];
     const processedFiles = new Set();
     
     loadedDatasets.forEach((data, filename) => {
@@ -655,13 +733,6 @@ function updateDataDisplay() {
             // New file, add to display
             html += createDatasetHTML(data, filename);
         }
-        
-        // Track files that need virtual scrolling
-        const totalRows = data.total_rows || (data.data ? data.data.length : 0);
-        const isMergedFile = filename.toLowerCase().includes('merged');
-        if (isMergedFile || totalRows > 10000) {
-            virtualScrollFiles.push({ filename, data });
-        }
     });
     
     // Remove containers for files that are no longer in loadedDatasets
@@ -682,15 +753,6 @@ function updateDataDisplay() {
             dataDisplay.insertAdjacentHTML('beforeend', html);
         }
     }
-    
-    // Initialize virtual scrolling for large files (only new ones)
-    virtualScrollFiles.forEach(({ filename, data }) => {
-        const containerId = `virtual-scroll-${filename.replace(/[^a-zA-Z0-9]/g, '-')}`;
-        const container = document.getElementById(containerId);
-        if (container && !window[`virtualScroll_${containerId}`]) {
-            setTimeout(() => initializeVirtualScrolling(filename, data), 100);
-        }
-    });
 }
 
 // Create HTML for a single dataset
@@ -708,9 +770,24 @@ function createDatasetHTML(data, filename) {
         console.warn(`[${filename}] No columns found and no data to extract from`);
     }
     
+    // Apply column mappings if they exist
+    // Note: After applyColumnNames(), data.columns and data.data are already updated
+    // But if we're rendering fresh data from API, we need to apply mappings
+    const mapping = columnMappings.get(filename);
+    if (mapping && Object.keys(mapping).length > 0) {
+        // If data.columns already has mapped names, use them directly
+        // Otherwise, apply the mapping to the original column names
+        // Check if columns are already mapped by seeing if any column matches a mapping value
+        const isAlreadyMapped = columnsToUse.some(col => Object.values(mapping).includes(col));
+        
+        if (!isAlreadyMapped) {
+            // Apply mapping to original column names
+            columnsToUse = columnsToUse.map(col => mapping[col] || col);
+        }
+        // If already mapped, columnsToUse is already correct
+    }
+    
     const totalRows = data.total_rows !== undefined ? data.total_rows : (data.data ? data.data.length : 0);
-    const isMergedFile = filename.toLowerCase().includes('merged');
-    const useVirtualScrolling = isMergedFile || totalRows > 10000;
     
     // Create a hash for change detection
     const dataHash = JSON.stringify(columnsToUse) + '_' + totalRows;
@@ -719,79 +796,78 @@ function createDatasetHTML(data, filename) {
         <div class="dataset-container" data-filename="${filename}" data-data-hash="${dataHash}">
             <div class="dataset-header">
                 <h6 class="dataset-title">📄 ${filename}</h6>
-                <p class="dataset-info">Rows: ${totalRows} | Columns: ${columnsToUse.length} ${useVirtualScrolling ? '| <span class="text-info">Virtual Scrolling</span>' : ''}</p>
+                <p class="dataset-info">Rows: ${totalRows} | Columns: ${columnsToUse.length}</p>
             </div>
             <div class="dataset-content">
     `;
     
     if (data.data && data.data.length > 0 && columnsToUse.length > 0) {
-        if (useVirtualScrolling) {
-            // Use virtual scrolling for merged files or large files
-            const containerId = `virtual-scroll-${filename.replace(/[^a-zA-Z0-9]/g, '-')}`;
-            html += `<div id="${containerId}" class="virtual-scroll-container"></div>`;
-        } else {
-            // Use pagination for regular files (<10k rows)
-            const currentPage = 1;
-            const pageSize = 500;
-            const startIdx = (currentPage - 1) * pageSize;
-            const endIdx = Math.min(startIdx + pageSize, data.data.length);
-            const pageData = data.data.slice(startIdx, endIdx);
-            const totalPages = Math.ceil(totalRows / pageSize);
-            
-            html += '<div class="table-responsive" style="overflow-x: auto;">';
-            html += '<table class="table table-striped table-hover table-sm" style="border-collapse: collapse; width: 100%;">';
-            
-            // HTML escape function
-            function escapeHtml(text) {
-                const div = document.createElement('div');
-                div.textContent = text;
-                return div.innerHTML;
-            }
-            
-            // Headers
-            html += '<thead class="table-dark"><tr>';
-            columnsToUse.forEach((col, index) => {
-                const displayCol = (col !== null && col !== undefined && col !== '') ? String(col) : `Column_${index + 1}`;
-                const escapedCol = escapeHtml(displayCol);
-                html += `<th scope="col" style="background-color: var(--dark-color) !important; color: var(--text-white) !important; padding: 0.75rem !important; font-weight: 600 !important; border: 1px solid var(--border-color) !important;">${escapedCol}</th>`;
+        // Use pagination for all files
+        // Get pagination info from API response if available, otherwise calculate from data
+        const pagination = data.pagination || {};
+        const currentPage = pagination.page || 1;
+        const pageSize = pagination.per_page || 500;
+        const totalPages = pagination.pages || Math.ceil(totalRows / pageSize);
+        const startIdx = pagination.page ? (currentPage - 1) * pageSize : 0;
+        const endIdx = pagination.page ? Math.min(startIdx + pageSize, totalRows) : Math.min(pageSize, data.data.length);
+        // Use data directly from API (already paginated) or slice if needed
+        const pageData = data.data;
+        
+        html += '<div class="table-responsive" style="overflow-x: auto;">';
+        html += '<table class="table table-striped table-hover table-sm" style="border-collapse: collapse; width: 100%;">';
+        
+        // HTML escape function
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Headers
+        html += '<thead class="table-dark"><tr>';
+        columnsToUse.forEach((col, index) => {
+            const displayCol = (col !== null && col !== undefined && col !== '') ? String(col) : `Column_${index + 1}`;
+            const escapedCol = escapeHtml(displayCol);
+            html += `<th scope="col" style="background-color: var(--dark-color) !important; color: var(--text-white) !important; padding: 0.75rem !important; font-weight: 600 !important; border: 1px solid var(--border-color) !important;">${escapedCol}</th>`;
+        });
+        html += '</tr></thead>';
+        
+        // Data rows
+        html += '<tbody>';
+        pageData.forEach((row, index) => {
+            html += '<tr>';
+            columnsToUse.forEach(col => {
+                const value = row[col];
+                // Format date values using the same function as single view
+                const formattedValue = typeof formatDateValue === 'function' ? formatDateValue(value, col) : value;
+                let displayValue = '';
+                if (formattedValue === null || formattedValue === undefined || formattedValue === '') {
+                    displayValue = '';
+                } else if (typeof formattedValue === 'number') {
+                    displayValue = Number(formattedValue).toLocaleString();
+                } else {
+                    displayValue = String(formattedValue);
+                }
+                html += `<td>${displayValue}</td>`;
             });
-            html += '</tr></thead>';
-            
-            // Data rows
-            html += '<tbody>';
-            pageData.forEach((row, index) => {
-                html += '<tr>';
-                columnsToUse.forEach(col => {
-                    const value = row[col];
-                    let displayValue = '';
-                    if (value === null || value === undefined || value === '') {
-                        displayValue = '';
-                    } else if (typeof value === 'number') {
-                        displayValue = Number(value).toLocaleString();
-                    } else {
-                        displayValue = String(value);
-                    }
-                    html += `<td>${displayValue}</td>`;
-                });
-                html += '</tr>';
-            });
-            html += '</tbody></table>';
-            html += '</div>';
-            
-            // Pagination controls
-            if (totalPages > 1) {
-                html += `
-                    <div class="d-flex justify-content-between align-items-center mt-3">
-                        <div class="pagination-info">
-                            Showing ${startIdx + 1}-${endIdx} of ${totalRows} rows (Page ${currentPage} of ${totalPages})
-                        </div>
-                        <div class="btn-group" role="group">
-                            <button class="btn btn-sm btn-outline-primary" onclick="loadPageForFile('${filename}', ${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>
-                            <button class="btn btn-sm btn-outline-primary" onclick="loadPageForFile('${filename}', ${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>
-                        </div>
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+        html += '</div>';
+        
+        // Pagination controls
+        if (totalPages > 1) {
+            html += `
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <div class="pagination-info">
+                        Showing ${startIdx + 1}-${endIdx} of ${totalRows} rows (Page ${currentPage} of ${totalPages})
                     </div>
-                `;
-            }
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadPageForFile('${filename}', ${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadPageForFile('${filename}', ${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>
+                    </div>
+                </div>
+            `;
         }
     } else {
         html += '<div class="no-data-message">No data found in file</div>';
@@ -883,21 +959,34 @@ async function loadPageForFile(filename, page) {
         
         const data = await response.json();
         
+        // Apply column mappings if they exist (for pagination)
+        const mapping = columnMappings.get(filename);
+        if (mapping && Object.keys(mapping).length > 0) {
+            // Update columns array
+            if (data.columns && Array.isArray(data.columns)) {
+                data.columns = data.columns.map(col => mapping[col] || col);
+            }
+            // Update data rows with new column names
+            if (data.data && Array.isArray(data.data)) {
+                data.data = data.data.map(row => {
+                    const newRow = {};
+                    Object.keys(row).forEach(oldKey => {
+                        const newKey = mapping[oldKey] || oldKey;
+                        newRow[newKey] = row[oldKey];
+                    });
+                    return newRow;
+                });
+            }
+        }
+        
         // Update the dataset
         loadedDatasets.set(filename, data);
         
-        // Re-render just this dataset
+        // Re-render just this dataset with updated page data
         const container = document.querySelector(`[data-filename="${filename}"]`);
         if (container) {
             const newHtml = createDatasetHTML(data, filename);
             container.outerHTML = newHtml;
-            
-            // Re-initialize virtual scrolling if needed
-            const totalRows = data.total_rows || (data.data ? data.data.length : 0);
-            const isMergedFile = filename.toLowerCase().includes('merged');
-            if (isMergedFile || totalRows > 10000) {
-                setTimeout(() => initializeVirtualScrolling(filename, data), 100);
-            }
         }
     } catch (error) {
         console.error(`Error loading page ${page} for ${filename}:`, error);
@@ -921,7 +1010,7 @@ function clearAllData() {
     });
     
     // Update load button
-    document.getElementById('loadSelectedBtn').disabled = true;
+    updateLoadButtonState();
     
     // Clear display
     updateDataDisplay();
@@ -939,6 +1028,368 @@ function formatFileSize(bytes) {
 function formatDate(timestamp) {
     const date = new Date(timestamp * 1000);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+}
+
+// Show column editor modal (adapted from single view)
+function showColumnEditor() {
+    if (loadedDatasets.size === 0) {
+        alert('Please load files first to edit column names.');
+        return;
+    }
+    
+    // Get all loaded filenames
+    const filenames = Array.from(loadedDatasets.keys());
+    
+    // If only one file, edit it directly
+    // If multiple files, show file selector and global edit option
+    let selectedFilename = filenames[0];
+    let fileSelectorHtml = '';
+    let editModeHtml = '';
+    
+    // Find common columns across all files (for global edit mode)
+    let commonColumns = [];
+    if (filenames.length > 1) {
+        const allColumns = new Map(); // column name -> Set of files that have it
+        filenames.forEach(filename => {
+            const fileData = loadedDatasets.get(filename);
+            const originalCols = fileData.originalColumns || fileData.columns || (fileData.data && fileData.data.length > 0 ? Object.keys(fileData.data[0]) : []);
+            originalCols.forEach(col => {
+                if (!allColumns.has(col)) {
+                    allColumns.set(col, new Set());
+                }
+                allColumns.get(col).add(filename);
+            });
+        });
+        
+        // Find columns that exist in ALL files
+        commonColumns = Array.from(allColumns.entries())
+            .filter(([col, files]) => files.size === filenames.length)
+            .map(([col]) => col);
+        
+        editModeHtml = `
+            <div class="mb-3">
+                <label class="form-label">Edit Mode:</label>
+                <div class="btn-group" role="group" id="editModeGroup">
+                    <input type="radio" class="btn-check" name="editMode" id="editModeSingle" value="single" checked>
+                    <label class="btn btn-outline-primary" for="editModeSingle">Single File</label>
+                    <input type="radio" class="btn-check" name="editMode" id="editModeGlobal" value="global" ${commonColumns.length > 0 ? '' : 'disabled'}>
+                    <label class="btn btn-outline-primary" for="editModeGlobal" title="${commonColumns.length > 0 ? 'Edit common columns across all files' : 'No common columns found across all files'}">
+                        Global (${commonColumns.length} common)
+                    </label>
+                </div>
+            </div>
+        `;
+        
+        fileSelectorHtml = `
+            <div class="mb-3" id="fileSelectorContainer">
+                <label for="columnEditorFileSelect" class="form-label">Select file to edit:</label>
+                <select id="columnEditorFileSelect" class="form-select" onchange="updateColumnEditorList()">
+                    ${filenames.map(f => `<option value="${f}">${f}</option>`).join('')}
+                </select>
+            </div>
+        `;
+    }
+    
+    // Get columns for selected file
+    const data = loadedDatasets.get(selectedFilename);
+    // Use current columns (which may already be mapped) for display
+    // But we'll use originalColumns for mapping
+    const columns = data.columns || (data.data && data.data.length > 0 ? Object.keys(data.data[0]) : []);
+    
+    // Ensure originalColumns is stored
+    if (!data.originalColumns && columns.length > 0) {
+        if (data.columns && Array.isArray(data.columns)) {
+            data.originalColumns = [...data.columns];
+        } else if (data.data && data.data.length > 0) {
+            data.originalColumns = Object.keys(data.data[0]);
+        }
+    }
+    
+    if (columns.length === 0) {
+        alert('No columns found in the selected file.');
+        return;
+    }
+    
+    // Create modal dynamically
+    const modalHtml = `
+        <div class="modal fade" id="columnEditorModal" tabindex="-1" aria-labelledby="columnEditorModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header" style="background-color: var(--light-color); color: var(--text-primary);">
+                        <h5 class="modal-title" id="columnEditorModalLabel">
+                            <i class="fas fa-edit me-2"></i>Edit Column Names
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" style="background-color: var(--light-color); color: var(--text-primary);">
+                        <p class="text-muted">Edit column names below. Changes will be applied to the displayed data.</p>
+                        ${editModeHtml}
+                        ${fileSelectorHtml}
+                        <div id="columnEditorList" class="list-group">
+                            ${columns.map((col, index) => {
+                                // Get the original column name (before any mappings)
+                                const data = loadedDatasets.get(selectedFilename);
+                                const originalColumns = data.originalColumns || columns;
+                                const originalCol = originalColumns[index] || col;
+                                
+                                // Check if there's a mapping for this original column
+                                const mapping = columnMappings.get(selectedFilename) || {};
+                                const currentName = mapping[originalCol] || col;
+                                
+                                // Default to single file mode (not global)
+                                const filenameAttr = `data-filename="${selectedFilename}"`;
+                                
+                                return `
+                                    <div class="list-group-item d-flex align-items-center">
+                                        <label class="form-label mb-0 me-2" style="min-width: 150px;">Column ${index + 1}:</label>
+                                        <input type="text" class="form-control column-name-input" data-original="${originalCol}" value="${currentName}" data-index="${index}" ${filenameAttr}>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="background-color: var(--light-color); color: var(--text-primary);">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="applyColumnNames()">Apply Changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('columnEditorModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('columnEditorModal'));
+    modal.show();
+    
+    // Store common columns for use in event handlers
+    if (filenames.length > 1 && commonColumns.length > 0) {
+        document.getElementById('columnEditorModal').dataset.commonColumns = JSON.stringify(commonColumns);
+        document.getElementById('columnEditorModal').dataset.filenames = JSON.stringify(filenames);
+    }
+    
+    // Add event handlers for edit mode changes
+    if (filenames.length > 1) {
+        document.getElementById('editModeSingle')?.addEventListener('change', function() {
+            if (this.checked) {
+                document.getElementById('fileSelectorContainer').style.display = 'block';
+                updateColumnEditorList();
+            }
+        });
+        
+        document.getElementById('editModeGlobal')?.addEventListener('change', function() {
+            if (this.checked) {
+                document.getElementById('fileSelectorContainer').style.display = 'none';
+                updateColumnEditorListGlobal();
+            }
+        });
+    }
+    
+    // Clean up on hide
+    document.getElementById('columnEditorModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+
+// Update column editor list for global mode
+function updateColumnEditorListGlobal() {
+    const modal = document.getElementById('columnEditorModal');
+    if (!modal) return;
+    
+    const commonColumnsStr = modal.dataset.commonColumns;
+    const filenamesStr = modal.dataset.filenames;
+    
+    if (!commonColumnsStr || !filenamesStr) return;
+    
+    const commonColumns = JSON.parse(commonColumnsStr);
+    const filenames = JSON.parse(filenamesStr);
+    
+    const columnList = document.getElementById('columnEditorList');
+    if (!columnList) return;
+    
+    // For global mode, show common columns
+    // Use the first file's current mapped names as the starting point
+    const firstFileData = loadedDatasets.get(filenames[0]);
+    const firstFileOriginalCols = firstFileData.originalColumns || firstFileData.columns || [];
+    
+    columnList.innerHTML = commonColumns.map((origCol, index) => {
+        // Find current name from first file's mapping (or use original)
+        const firstFileMapping = columnMappings.get(filenames[0]) || {};
+        const currentName = firstFileMapping[origCol] || origCol;
+        
+        return `
+            <div class="list-group-item d-flex align-items-center">
+                <label class="form-label mb-0 me-2" style="min-width: 150px;">Column ${index + 1}:</label>
+                <input type="text" class="form-control column-name-input" data-original="${origCol}" value="${currentName}" data-index="${index}" data-filename="*" data-global="true">
+            </div>
+        `;
+    }).join('');
+}
+
+// Update column editor list when file selection changes
+function updateColumnEditorList() {
+    const fileSelect = document.getElementById('columnEditorFileSelect');
+    if (!fileSelect) return;
+    
+    const selectedFilename = fileSelect.value;
+    const fileData = loadedDatasets.get(selectedFilename);
+    const columns = fileData.columns || (fileData.data && fileData.data.length > 0 ? Object.keys(fileData.data[0]) : []);
+    
+    const columnList = document.getElementById('columnEditorList');
+    if (!columnList) return;
+    
+    // Get original columns for this file
+    const originalColumns = fileData.originalColumns || columns;
+    const mapping = columnMappings.get(selectedFilename) || {};
+    
+    columnList.innerHTML = columns.map((col, index) => {
+        // Get the original column name
+        const originalCol = originalColumns[index] || col;
+        const currentName = mapping[originalCol] || col;
+        return `
+            <div class="list-group-item d-flex align-items-center">
+                <label class="form-label mb-0 me-2" style="min-width: 150px;">Column ${index + 1}:</label>
+                <input type="text" class="form-control column-name-input" data-original="${originalCol}" value="${currentName}" data-index="${index}" data-filename="${selectedFilename}">
+            </div>
+        `;
+    }).join('');
+}
+
+// Apply column name changes (adapted from single view)
+function applyColumnNames() {
+    const inputs = document.querySelectorAll('.column-name-input');
+    if (inputs.length === 0) return;
+    
+    // Check if we're in global mode
+    const isGlobalMode = inputs.length > 0 && inputs[0].getAttribute('data-global') === 'true';
+    
+    // Group inputs by filename
+    const changesByFile = new Map();
+    
+    if (isGlobalMode) {
+        // Global mode: apply changes to all files
+        const globalMapping = {};
+        
+        inputs.forEach(input => {
+            const original = input.getAttribute('data-original');
+            const newName = input.value.trim() || original;
+            
+            if (original !== newName) {
+                globalMapping[original] = newName;
+            }
+        });
+        
+        // Apply to all loaded files
+        const filenames = Array.from(loadedDatasets.keys());
+        filenames.forEach(filename => {
+            changesByFile.set(filename, { ...globalMapping });
+        });
+    } else {
+        // Single file mode: apply to selected file only
+        inputs.forEach(input => {
+            const filename = input.getAttribute('data-filename');
+            const original = input.getAttribute('data-original');
+            const newName = input.value.trim() || original;
+            
+            if (!changesByFile.has(filename)) {
+                changesByFile.set(filename, {});
+            }
+            
+            const fileMapping = changesByFile.get(filename);
+            if (original !== newName) {
+                fileMapping[original] = newName;
+            }
+        });
+    }
+    
+    // Apply mappings to each file
+    changesByFile.forEach((mapping, filename) => {
+        if (Object.keys(mapping).length > 0) {
+            // Get existing mapping BEFORE merging (to know current row key state)
+            const existingMapping = columnMappings.get(filename) || {};
+            
+            // Update the dataset's columns
+            const data = loadedDatasets.get(filename);
+            if (data) {
+                // Store original columns if not already stored
+                if (!data.originalColumns) {
+                    // Get original columns from data.columns or extract from first row
+                    if (data.columns && Array.isArray(data.columns)) {
+                        data.originalColumns = [...data.columns];
+                    } else if (data.data && data.data.length > 0) {
+                        data.originalColumns = Object.keys(data.data[0]);
+                    }
+                }
+                
+                // Always map from original columns to new columns
+                const originalCols = data.originalColumns || [];
+                
+                // Merge mappings: existing + new
+                const mergedMapping = { ...existingMapping, ...mapping };
+                columnMappings.set(filename, mergedMapping);
+                
+                // Update columns array using merged mapping (map from original to new)
+                if (originalCols.length > 0) {
+                    data.columns = originalCols.map(origCol => mergedMapping[origCol] || origCol);
+                }
+                
+                // Update data rows with new column names
+                // Row keys should match current data.columns (which may already be mapped)
+                // So we need to find values by checking: current row keys (which match current data.columns)
+                if (data.data && Array.isArray(data.data) && originalCols.length > 0) {
+                    data.data = data.data.map(row => {
+                        const newRow = {};
+                        // Iterate through original columns
+                        originalCols.forEach(origCol => {
+                            // Get the new column name from merged mapping
+                            const newColName = mergedMapping[origCol] || origCol;
+                            
+                            // Find the value in the row
+                            // Current row keys should match the current data.columns (before this update)
+                            // So we need to find what the current column name is for this original
+                            const currentColName = existingMapping[origCol] || origCol;
+                            
+                            // Get value using current column name (what the row currently has)
+                            const value = row[currentColName];
+                            
+                            // Use the new column name
+                            newRow[newColName] = value;
+                        });
+                        return newRow;
+                    });
+                }
+            }
+        }
+    });
+    
+    // Force full re-render by clearing existing containers
+    document.querySelectorAll('.dataset-container[data-filename]').forEach(container => {
+        container.remove();
+    });
+    
+    // Re-render all datasets
+    updateDataDisplay();
+    
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('columnEditorModal'));
+    if (modal) {
+        modal.hide();
+    }
+    
+    // Show success message
+    if (typeof REDLINE !== 'undefined' && REDLINE.ui && typeof REDLINE.ui.showToast === 'function') {
+        REDLINE.ui.showToast('Column names updated successfully', 'success');
+    } else {
+        alert('Column names updated successfully');
+    }
 }
 </script>
 {% endblock %}
