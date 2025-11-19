@@ -1,0 +1,164 @@
+
+
+# REDLINE Complete Docker Compose Configuration - DEVELOPMENT MODE
+# Includes: Web App, License Server, Redis, and Celery Worker
+# For development with unminified code and debug features
+
+services:
+  # REDLINE Web Application (Development)
+  redline-web:
+    image: keepdevops/redline:20251119-no-minify
+    # Or build from uncompiled Dockerfile:
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile.webgui.uncompiled
+    # image: redline-webgui:dev
+    container_name: redline-web-dev
+    ports:
+      - "8080:8080"
+    volumes:
+      # Persistent data storage
+      - redline-dev-data:/app/data
+      - redline-dev-logs:/app/logs
+      - redline-dev-config:/app/config
+      # Mount source for live development (uncomment for live editing)
+      # - .:/app
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - REDLINE_ENV=development
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=0
+      - GUNICORN_WORKERS=1
+      - GUNICORN_THREADS=2
+      - REQUIRE_LICENSE_SERVER=${REQUIRE_LICENSE_SERVER:-false}
+      - LICENSE_SERVER_URL=http://license-server:5001
+      # Stripe Configuration (Test Mode)
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - HOURS_PER_DOLLAR=${HOURS_PER_DOLLAR:-5}
+      - PAYMENT_CURRENCY=${PAYMENT_CURRENCY:-usd}
+      # Redis/Celery Configuration
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - license-server
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - redline-dev-network
+
+  # License Server (Development)
+  license-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.license-server
+    image: redline-license-server:dev
+    container_name: redline-license-server-dev
+    ports:
+      - "5001:5001"
+    volumes:
+      # License data (read-write for dev)
+      - ./licensing/server/licenses.json:/app/licenses.json
+      - ./licensing/server:/app/licensing/server
+      - license-dev-logs:/app/logs
+    environment:
+      - LICENSE_SERVER_PORT=5001
+      - DEBUG=true
+      - FLASK_ENV=development
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - redline-dev-network
+
+  # Redis for Celery and caching (Development)
+  redis:
+    image: redis:7-alpine
+    container_name: redline-redis-dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-dev-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - redline-dev-network
+
+  # Celery Worker (Development - Optional)
+  celery-worker:
+    image: keepdevops/redline:20251119-no-minify
+    # Or build from uncompiled:
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile.webgui.uncompiled
+    # image: redline-webgui:dev
+    container_name: redline-celery-worker-dev
+    volumes:
+      - redline-dev-data:/app/data
+      - redline-dev-logs:/app/logs
+      - redline-dev-config:/app/config
+      # Mount source for live development
+      # - .:/app
+    environment:
+      - FLASK_ENV=development
+      - REDLINE_ENV=development
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CELERY_CONCURRENCY=${CELERY_CONCURRENCY:-2}
+      - CELERY_LOGLEVEL=${CELERY_LOGLEVEL:-debug}
+      - CELERY_QUEUE=redline_tasks
+    command: >
+      sh -c "celery -A redline.background.tasks worker
+      --concurrency=$${CELERY_CONCURRENCY:-2}
+      --loglevel=$${CELERY_LOGLEVEL:-debug}
+      --hostname=redline-worker-dev@%h
+      --queues=redline_tasks
+      --time-limit=1800
+      --soft-time-limit=1500
+      --max-tasks-per-child=1000"
+    depends_on:
+      - redis
+    restart: unless-stopped
+    profiles:
+      - celery  # Only start with: docker-compose --profile celery up
+    networks:
+      - redline-dev-network
+
+volumes:
+  redline-dev-data:
+    driver: local
+  redline-dev-logs:
+    driver: local
+  redline-dev-config:
+    driver: local
+  redis-dev-data:
+    driver: local
+  license-dev-logs:
+    driver: local
+
+networks:
+  redline-dev-network:
+    driver: bridge
+    name: redline-dev-network
+
+

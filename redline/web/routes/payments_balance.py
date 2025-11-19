@@ -10,11 +10,13 @@ import os
 import requests
 
 from redline.payment.config import PaymentConfig
+from redline.web.utils.api_helpers import rate_limit
 
 payments_balance_bp = Blueprint('payments_balance', __name__)
 logger = logging.getLogger(__name__)
 
 @payments_balance_bp.route('/balance', methods=['GET'])
+@rate_limit("120 per hour")  # Higher limit for frequent polling (60 sec = 60 req/hour, allow headroom for multiple tabs)
 def get_balance():
     """Get remaining hours balance for a license"""
     try:

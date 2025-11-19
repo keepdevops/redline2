@@ -510,16 +510,20 @@
             })();
             </script>
     
-            <!-- Custom JS -->
+            <!-- Custom JS (use minified in production) -->
+            {% if config.get('ENV') == 'production' %}
+            <script src="{{ url_for('static', filename='js/main.min.js') }}"></script>
+            <script src="{{ url_for('static', filename='js/virtual-scroll.min.js') }}"></script>
+            <script src="{{ url_for('static', filename='js/color-customizer.min.js') }}"></script>
+            <script src="{{ url_for('static', filename='js/date-formatter.min.js') }}"></script>
+            <script src="{{ url_for('static', filename='js/balance_tracker.min.js') }}"></script>
+            {% else %}
             <script src="{{ url_for('static', filename='js/main.js') }}"></script>
             <script src="{{ url_for('static', filename='js/virtual-scroll.js') }}"></script>
             <script src="{{ url_for('static', filename='js/color-customizer.js') }}"></script>
-            
-            <!-- Shared JavaScript utilities -->
             <script src="{{ url_for('static', filename='js/date-formatter.js') }}"></script>
-            
-            <!-- Global Balance Tracker (loads after license key script) -->
             <script src="{{ url_for('static', filename='js/balance_tracker.js') }}"></script>
+            {% endif %}
     
     {% block extra_js %}{% endblock %}
     

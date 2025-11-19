@@ -40,7 +40,17 @@ class UserStorage:
                                       os.path.join(os.getcwd(), 'data', 'users'))
         
         self.base_path = Path(base_path)
-        self.base_path.mkdir(parents=True, exist_ok=True)
+        try:
+            self.base_path.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            if e.errno == 28:  # No space left on device
+                error_msg = (
+                    f"Disk space exhausted. Cannot create directory: {self.base_path}\n"
+                    f"Please free up disk space or configure S3 storage (USE_S3_STORAGE=true)."
+                )
+                logger.error(error_msg)
+                raise OSError(error_msg) from e
+            raise
         
         # Auto-detect S3 usage from environment
         if use_s3 is None:

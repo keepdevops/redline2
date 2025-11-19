@@ -7,6 +7,13 @@ set -e  # Exit on error
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Load environment variables from .env file if it exists
+if [ -f .env ]; then
+    echo "📋 Loading environment variables from .env file..."
+    export $(grep -v '^#' .env | grep -v '^$' | xargs)
+    echo "✅ Environment variables loaded"
+fi
+
 echo "🚀 Starting REDLINE Services"
 echo "=============================="
 echo ""
@@ -60,7 +67,7 @@ start_web_app() {
         return 0
     fi
     
-    nohup gunicorn -c gunicorn.conf.py web_app:app > redline_web.log 2>&1 &
+    nohup env FLASK_ENV=production ENV=production gunicorn -c gunicorn.conf.py web_app:app > redline_web.log 2>&1 &
     WEB_PID=$!
     
     sleep 3

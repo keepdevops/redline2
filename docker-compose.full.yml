@@ -1,0 +1,148 @@
+version: '3.8'
+
+# REDLINE Complete Docker Compose Configuration
+# Includes: Web App, License Server, Redis, and Celery Worker
+
+services:
+  # REDLINE Web Application
+  redline-web:
+    image: keepdevops/redline:latest
+    container_name: redline-web
+    ports:
+      - "8080:8080"
+    volumes:
+      # Persistent data storage
+      - redline-data:/app/data
+      - redline-logs:/app/logs
+      - redline-config:/app/config
+    environment:
+      - FLASK_ENV=production
+      - REDLINE_ENV=production
+      - GUNICORN_WORKERS=1
+      - GUNICORN_THREADS=4
+      - REQUIRE_LICENSE_SERVER=${REQUIRE_LICENSE_SERVER:-true}
+      - LICENSE_SERVER_URL=http://license-server:5001
+      # Stripe Configuration (load from .env file)
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - HOURS_PER_DOLLAR=${HOURS_PER_DOLLAR:-5}
+      - PAYMENT_CURRENCY=${PAYMENT_CURRENCY:-usd}
+      # Redis/Celery Configuration
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - license-server
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - redline-network
+
+  # License Server
+  license-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.license-server
+    image: redline-license-server:latest
+    container_name: redline-license-server
+    ports:
+      - "5001:5001"
+    volumes:
+      # License data
+      - ./licensing/server/licenses.json:/app/licenses.json:ro
+      - ./licensing/server:/app/licensing/server:ro
+      - license-logs:/app/logs
+    environment:
+      - LICENSE_SERVER_PORT=5001
+      - DEBUG=${DEBUG:-false}
+      - FLASK_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - redline-network
+
+  # Redis for Celery and caching
+  redis:
+    image: redis:7-alpine
+    container_name: redline-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - redline-network
+
+  # Celery Worker (Optional - only start with --profile celery)
+  celery-worker:
+    image: keepdevops/redline:latest
+    container_name: redline-celery-worker
+    volumes:
+      - redline-data:/app/data
+      - redline-logs:/app/logs
+      - redline-config:/app/config
+    environment:
+      - FLASK_ENV=production
+      - REDLINE_ENV=production
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CELERY_CONCURRENCY=${CELERY_CONCURRENCY:-2}
+      - CELERY_LOGLEVEL=${CELERY_LOGLEVEL:-info}
+      - CELERY_QUEUE=redline_tasks
+    command: >
+      sh -c "celery -A redline.background.tasks worker
+      --concurrency=$${CELERY_CONCURRENCY:-2}
+      --loglevel=$${CELERY_LOGLEVEL:-info}
+      --hostname=redline-worker@%h
+      --queues=redline_tasks
+      --time-limit=1800
+      --soft-time-limit=1500
+      --max-tasks-per-child=1000"
+    depends_on:
+      - redis
+    restart: unless-stopped
+    profiles:
+      - celery  # Only start with: docker-compose --profile celery up
+    networks:
+      - redline-network
+
+volumes:
+  redline-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data
+  redline-logs:
+    driver: local
+  redline-config:
+    driver: local
+  redis-data:
+    driver: local
+  license-logs:
+    driver: local
+
+networks:
+  redline-network:
+    driver: bridge
+    name: redline-network
+
+

@@ -187,6 +187,10 @@
 {% endblock %}
 
 {% block extra_js %}
+{% if config.get('ENV') == 'production' %}
+<script src="{{ url_for('static', filename='js/payments.min.js') }}"></script>
+{% else %}
 <script src="{{ url_for('static', filename='js/payments.js') }}"></script>
+{% endif %}
 {% endblock %}
 

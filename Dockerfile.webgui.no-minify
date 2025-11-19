@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
-# REDLINE Web-Based GUI - Bytecode Optimized Version
-# Multi-stage build with pre-compiled Python bytecode and minified JavaScript/CSS for production
+# REDLINE Web-Based GUI - Bytecode Optimized Version (No JavaScript/CSS Minification)
+# Multi-stage build with pre-compiled Python bytecode but WITHOUT JavaScript/CSS minification
+# Useful for development/debugging where you need readable JavaScript code
 
 # ============================================
 # Stage 1: Builder - Install dependencies and compile bytecode
@@ -15,15 +16,13 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install build dependencies (including Node.js for JavaScript minification)
+# Install build dependencies (NO Node.js needed since we're not minifying)
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     curl \
-    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
@@ -39,57 +38,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Copy application code
 COPY . /app
 
-# Install npm packages for JavaScript/CSS minification
-RUN npm install -g terser cssnano-cli && \
-    echo "✅ Installed minification tools"
-
-# Minify JavaScript and CSS assets
-RUN echo "🔨 Minifying JavaScript and CSS assets..." && \
-    JS_DIR="redline/web/static/js" && \
-    CSS_DIR="redline/web/static/css" && \
-    # Minify JavaScript files
-    if [ -f "$JS_DIR/main.js" ]; then \
-        npx terser "$JS_DIR/main.js" --compress --mangle --output "$JS_DIR/main.min.js" && \
-        echo "✅ Minified main.js"; \
-    fi && \
-    if [ -f "$JS_DIR/color-customizer.js" ]; then \
-        npx terser "$JS_DIR/color-customizer.js" --compress --mangle --output "$JS_DIR/color-customizer.min.js" && \
-        echo "✅ Minified color-customizer.js"; \
-    fi && \
-    if [ -f "$JS_DIR/virtual-scroll.js" ]; then \
-        npx terser "$JS_DIR/virtual-scroll.js" --compress --mangle --output "$JS_DIR/virtual-scroll.min.js" && \
-        echo "✅ Minified virtual-scroll.js"; \
-    fi && \
-    if [ -f "$JS_DIR/date-formatter.js" ]; then \
-        npx terser "$JS_DIR/date-formatter.js" --compress --mangle --output "$JS_DIR/date-formatter.min.js" && \
-        echo "✅ Minified date-formatter.js"; \
-    fi && \
-    if [ -f "$JS_DIR/payments.js" ]; then \
-        npx terser "$JS_DIR/payments.js" --compress --mangle --output "$JS_DIR/payments.min.js" && \
-        echo "✅ Minified payments.js"; \
-    fi && \
-    if [ -f "$JS_DIR/balance_tracker.js" ]; then \
-        npx terser "$JS_DIR/balance_tracker.js" --compress --mangle --output "$JS_DIR/balance_tracker.min.js" && \
-        echo "✅ Minified balance_tracker.js"; \
-    fi && \
-    # Minify CSS files
-    if [ -f "$CSS_DIR/main.css" ]; then \
-        npx cssnano "$CSS_DIR/main.css" "$CSS_DIR/main.min.css" && \
-        echo "✅ Minified main.css"; \
-    fi && \
-    if [ -f "$CSS_DIR/themes.css" ]; then \
-        npx cssnano "$CSS_DIR/themes.css" "$CSS_DIR/themes.min.css" && \
-        echo "✅ Minified themes.css"; \
-    fi && \
-    if [ -f "$CSS_DIR/virtual-scroll.css" ]; then \
-        npx cssnano "$CSS_DIR/virtual-scroll.css" "$CSS_DIR/virtual-scroll.min.css" && \
-        echo "✅ Minified virtual-scroll.css"; \
-    fi && \
-    if [ -f "$CSS_DIR/color-customizer.css" ]; then \
-        npx cssnano "$CSS_DIR/color-customizer.css" "$CSS_DIR/color-customizer.min.css" && \
-        echo "✅ Minified color-customizer.css"; \
-    fi && \
-    echo "✅ JavaScript and CSS minification complete"
+# NOTE: JavaScript and CSS minification is SKIPPED
+# Original JavaScript and CSS files are kept as-is for easier debugging
+# This allows you to see readable code in browser dev tools
 
 # Pre-compile Python bytecode with optimization
 # -b flag: write bytecode files alongside source (not in __pycache__)
@@ -144,6 +95,7 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy compiled application code (bytecode only, no source)
+# JavaScript and CSS files remain unminified for debugging
 COPY --chown=appuser:appuser --from=builder /app /app
 
 # Create necessary directories
@@ -173,14 +125,17 @@ CMD ["gunicorn", \
 
 # Labels for metadata
 LABEL maintainer="REDLINE Team <keepdevops@gmail.com>" \
-      version="2.0.0-bytecode" \
-      description="REDLINE Financial Analysis - Bytecode Optimized Production Version with Modular Architecture and Subscription Service" \
+      version="2.0.0-bytecode-no-minify" \
+      description="REDLINE Financial Analysis - Bytecode Optimized Version WITHOUT JavaScript/CSS Minification (for development/debugging)" \
       architecture="multi-platform" \
       performance="optimized" \
       license="proprietary" \
       service="subscription" \
-      features="modular-blueprints,data-cleaning,date-formatting,api-key-masking,custom-apis,payment-integration,stripe-integration,js-minification,css-minification" \
+      features="modular-blueprints,data-cleaning,date-formatting,api-key-masking,custom-apis,payment-integration,stripe-integration" \
       code-organization="27-modular-blueprints-under-200LOC" \
-      optimizations="python-bytecode,javascript-minification,css-minification" \
-      build-date="2025-01-27"
+      optimizations="python-bytecode" \
+      javascript="unminified" \
+      css="unminified" \
+      build-date="2025-11-19"
+
 
