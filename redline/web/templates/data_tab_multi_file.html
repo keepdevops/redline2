@@ -519,11 +519,16 @@ async function loadSelectedFiles() {
         if (result.results && typeof result.results === 'object') {
             Object.entries(result.results).forEach(([filename, data]) => {
                 // Store original columns if not already stored
-                if (!data.originalColumns && data.columns) {
-                    data.originalColumns = [...data.columns];
+                if (!data.originalColumns) {
+                    if (data.columns && Array.isArray(data.columns)) {
+                        data.originalColumns = [...data.columns];
+                    } else if (data.data && data.data.length > 0) {
+                        data.originalColumns = Object.keys(data.data[0]);
+                    }
                 }
                 // Only add if not already loaded, or update if it exists
                 loadedDatasets.set(filename, data);
+                console.log(`[${filename}] Loaded with originalColumns:`, data.originalColumns);
             });
         }
         
@@ -603,12 +608,17 @@ async function loadFileData(filename) {
         const data = await response.json();
         
         // Store original columns if not already stored
-        if (!data.originalColumns && data.columns) {
-            data.originalColumns = [...data.columns];
+        if (!data.originalColumns) {
+            if (data.columns && Array.isArray(data.columns)) {
+                data.originalColumns = [...data.columns];
+            } else if (data.data && data.data.length > 0) {
+                data.originalColumns = Object.keys(data.data[0]);
+            }
         }
         
         // Store loaded data
         loadedDatasets.set(filename, data);
+        console.log(`[${filename}] Loaded with originalColumns:`, data.originalColumns);
         
         // Update display
         updateDataDisplay();
@@ -1046,25 +1056,30 @@ function showColumnEditor() {
     let fileSelectorHtml = '';
     let editModeHtml = '';
     
-    // Find common columns across all files (for global edit mode)
+    // Find all columns across all files (for global edit mode)
+    let allColumnsMap = new Map(); // column name -> Set of files that have it
     let commonColumns = [];
+    let allUniqueColumns = [];
+    
     if (filenames.length > 1) {
-        const allColumns = new Map(); // column name -> Set of files that have it
         filenames.forEach(filename => {
             const fileData = loadedDatasets.get(filename);
             const originalCols = fileData.originalColumns || fileData.columns || (fileData.data && fileData.data.length > 0 ? Object.keys(fileData.data[0]) : []);
             originalCols.forEach(col => {
-                if (!allColumns.has(col)) {
-                    allColumns.set(col, new Set());
+                if (!allColumnsMap.has(col)) {
+                    allColumnsMap.set(col, new Set());
                 }
-                allColumns.get(col).add(filename);
+                allColumnsMap.get(col).add(filename);
             });
         });
         
-        // Find columns that exist in ALL files
-        commonColumns = Array.from(allColumns.entries())
+        // Find columns that exist in ALL files (common columns)
+        commonColumns = Array.from(allColumnsMap.entries())
             .filter(([col, files]) => files.size === filenames.length)
             .map(([col]) => col);
+        
+        // Get all unique columns across all files (for flexible global editing)
+        allUniqueColumns = Array.from(allColumnsMap.keys()).sort();
         
         editModeHtml = `
             <div class="mb-3">
@@ -1072,9 +1087,9 @@ function showColumnEditor() {
                 <div class="btn-group" role="group" id="editModeGroup">
                     <input type="radio" class="btn-check" name="editMode" id="editModeSingle" value="single" checked>
                     <label class="btn btn-outline-primary" for="editModeSingle">Single File</label>
-                    <input type="radio" class="btn-check" name="editMode" id="editModeGlobal" value="global" ${commonColumns.length > 0 ? '' : 'disabled'}>
-                    <label class="btn btn-outline-primary" for="editModeGlobal" title="${commonColumns.length > 0 ? 'Edit common columns across all files' : 'No common columns found across all files'}">
-                        Global (${commonColumns.length} common)
+                    <input type="radio" class="btn-check" name="editMode" id="editModeGlobal" value="global">
+                    <label class="btn btn-outline-primary" for="editModeGlobal" title="Edit columns across all files (applies to files that have each column)">
+                        Global (${allUniqueColumns.length} total, ${commonColumns.length} common)
                     </label>
                 </div>
             </div>
@@ -1170,10 +1185,13 @@ function showColumnEditor() {
     const modal = new bootstrap.Modal(document.getElementById('columnEditorModal'));
     modal.show();
     
-    // Store common columns for use in event handlers
-    if (filenames.length > 1 && commonColumns.length > 0) {
-        document.getElementById('columnEditorModal').dataset.commonColumns = JSON.stringify(commonColumns);
-        document.getElementById('columnEditorModal').dataset.filenames = JSON.stringify(filenames);
+    // Store column information for use in event handlers
+    if (filenames.length > 1) {
+        const modal = document.getElementById('columnEditorModal');
+        modal.dataset.commonColumns = JSON.stringify(commonColumns);
+        modal.dataset.allColumns = JSON.stringify(allUniqueColumns);
+        modal.dataset.columnsMap = JSON.stringify(Array.from(allColumnsMap.entries()).map(([col, files]) => [col, Array.from(files)]));
+        modal.dataset.filenames = JSON.stringify(filenames);
     }
     
     // Add event handlers for edit mode changes
@@ -1204,31 +1222,47 @@ function updateColumnEditorListGlobal() {
     const modal = document.getElementById('columnEditorModal');
     if (!modal) return;
     
-    const commonColumnsStr = modal.dataset.commonColumns;
+    const allColumnsStr = modal.dataset.allColumns;
+    const columnsMapStr = modal.dataset.columnsMap;
     const filenamesStr = modal.dataset.filenames;
     
-    if (!commonColumnsStr || !filenamesStr) return;
+    if (!allColumnsStr || !filenamesStr) return;
     
-    const commonColumns = JSON.parse(commonColumnsStr);
+    const allColumns = JSON.parse(allColumnsStr);
+    const columnsMap = columnsMapStr ? new Map(JSON.parse(columnsMapStr).map(([col, files]) => [col, new Set(files)])) : new Map();
     const filenames = JSON.parse(filenamesStr);
     
     const columnList = document.getElementById('columnEditorList');
     if (!columnList) return;
     
-    // For global mode, show common columns
-    // Use the first file's current mapped names as the starting point
-    const firstFileData = loadedDatasets.get(filenames[0]);
-    const firstFileOriginalCols = firstFileData.originalColumns || firstFileData.columns || [];
-    
-    columnList.innerHTML = commonColumns.map((origCol, index) => {
-        // Find current name from first file's mapping (or use original)
-        const firstFileMapping = columnMappings.get(filenames[0]) || {};
-        const currentName = firstFileMapping[origCol] || origCol;
+    // For global mode, show all columns from all files
+    // Group by which files have each column
+    // Use the first file that has the column for the current mapped name
+    columnList.innerHTML = allColumns.map((origCol, index) => {
+        // Find which files have this column
+        const filesWithColumn = columnsMap.get(origCol) || new Set();
+        const fileCount = filesWithColumn.size;
+        
+        // Find current name from first file that has this column (or use original)
+        let currentName = origCol;
+        for (const filename of filenames) {
+            if (filesWithColumn.has(filename)) {
+                const fileMapping = columnMappings.get(filename) || {};
+                currentName = fileMapping[origCol] || origCol;
+                break;
+            }
+        }
+        
+        // Show which files have this column
+        const fileIndicator = fileCount === filenames.length 
+            ? '<span class="badge bg-success ms-2">All files</span>'
+            : `<span class="badge bg-info ms-2">${fileCount} file(s)</span>`;
         
         return `
             <div class="list-group-item d-flex align-items-center">
                 <label class="form-label mb-0 me-2" style="min-width: 150px;">Column ${index + 1}:</label>
-                <input type="text" class="form-control column-name-input" data-original="${origCol}" value="${currentName}" data-index="${index}" data-filename="*" data-global="true">
+                <input type="text" class="form-control column-name-input" data-original="${origCol}" value="${currentName}" data-index="${index}" data-filename="*" data-global="true" style="flex: 1;">
+                ${fileIndicator}
             </div>
         `;
     }).join('');
@@ -1270,6 +1304,7 @@ function applyColumnNames() {
     
     // Check if we're in global mode
     const isGlobalMode = inputs.length > 0 && inputs[0].getAttribute('data-global') === 'true';
+    console.log('applyColumnNames: isGlobalMode =', isGlobalMode, 'inputs.length =', inputs.length);
     
     // Group inputs by filename
     const changesByFile = new Map();
@@ -1287,11 +1322,47 @@ function applyColumnNames() {
             }
         });
         
-        // Apply to all loaded files
+        // Apply to all loaded files - only for columns that exist in each file
         const filenames = Array.from(loadedDatasets.keys());
+        console.log('Global mode: Processing', filenames.length, 'files:', filenames);
+        console.log('Global mode: Collected mappings:', globalMapping);
+        
         filenames.forEach(filename => {
-            changesByFile.set(filename, { ...globalMapping });
+            const fileData = loadedDatasets.get(filename);
+            
+            // Ensure originalColumns is set for this file
+            if (!fileData.originalColumns) {
+                if (fileData.columns && Array.isArray(fileData.columns)) {
+                    fileData.originalColumns = [...fileData.columns];
+                } else if (fileData.data && fileData.data.length > 0) {
+                    fileData.originalColumns = Object.keys(fileData.data[0]);
+                } else {
+                    console.warn(`[${filename}] Cannot determine originalColumns, skipping`);
+                    return;
+                }
+            }
+            
+            const fileOriginalCols = fileData.originalColumns;
+            console.log(`[${filename}] Original columns (${fileOriginalCols.length}):`, fileOriginalCols);
+            
+            // Only include mappings for columns that exist in this file
+            const fileSpecificMapping = {};
+            Object.keys(globalMapping).forEach(origCol => {
+                if (fileOriginalCols.includes(origCol)) {
+                    fileSpecificMapping[origCol] = globalMapping[origCol];
+                    console.log(`[${filename}] Will map "${origCol}" -> "${globalMapping[origCol]}"`);
+                }
+            });
+            
+            if (Object.keys(fileSpecificMapping).length > 0) {
+                changesByFile.set(filename, fileSpecificMapping);
+                console.log(`[${filename}] Added to changesByFile with`, Object.keys(fileSpecificMapping).length, 'mappings');
+            } else {
+                console.log(`[${filename}] No mappings to apply (file doesn't have any of the edited columns)`);
+            }
         });
+        
+        console.log('Global mode: Applying mappings to', changesByFile.size, 'files');
     } else {
         // Single file mode: apply to selected file only
         inputs.forEach(input => {
@@ -1311,7 +1382,9 @@ function applyColumnNames() {
     }
     
     // Apply mappings to each file
+    console.log('applyColumnNames: Processing', changesByFile.size, 'files');
     changesByFile.forEach((mapping, filename) => {
+        console.log(`[${filename}] Applying mapping:`, mapping);
         if (Object.keys(mapping).length > 0) {
             // Get existing mapping BEFORE merging (to know current row key state)
             const existingMapping = columnMappings.get(filename) || {};
@@ -1324,9 +1397,13 @@ function applyColumnNames() {
                     // Get original columns from data.columns or extract from first row
                     if (data.columns && Array.isArray(data.columns)) {
                         data.originalColumns = [...data.columns];
+                        console.log(`[${filename}] Stored originalColumns from data.columns:`, data.originalColumns);
                     } else if (data.data && data.data.length > 0) {
                         data.originalColumns = Object.keys(data.data[0]);
+                        console.log(`[${filename}] Stored originalColumns from data keys:`, data.originalColumns);
                     }
+                } else {
+                    console.log(`[${filename}] Using existing originalColumns:`, data.originalColumns);
                 }
                 
                 // Always map from original columns to new columns
@@ -1335,10 +1412,13 @@ function applyColumnNames() {
                 // Merge mappings: existing + new
                 const mergedMapping = { ...existingMapping, ...mapping };
                 columnMappings.set(filename, mergedMapping);
+                console.log(`[${filename}] Merged mapping:`, mergedMapping);
                 
                 // Update columns array using merged mapping (map from original to new)
                 if (originalCols.length > 0) {
-                    data.columns = originalCols.map(origCol => mergedMapping[origCol] || origCol);
+                    const newColumns = originalCols.map(origCol => mergedMapping[origCol] || origCol);
+                    data.columns = newColumns;
+                    console.log(`[${filename}] Updated columns:`, newColumns);
                 }
                 
                 // Update data rows with new column names
@@ -1371,11 +1451,14 @@ function applyColumnNames() {
     });
     
     // Force full re-render by clearing existing containers
+    const removedCount = document.querySelectorAll('.dataset-container[data-filename]').length;
     document.querySelectorAll('.dataset-container[data-filename]').forEach(container => {
         container.remove();
     });
+    console.log('Removed', removedCount, 'dataset containers for re-render');
     
     // Re-render all datasets
+    console.log('Re-rendering all datasets. Total loaded:', loadedDatasets.size);
     updateDataDisplay();
     
     // Close modal
