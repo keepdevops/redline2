@@ -19,7 +19,11 @@ class PaymentConfig:
     
     # Pricing Configuration (hours per dollar)
     # Default: 1 hour = $5, so 0.2 hours per dollar
-    HOURS_PER_DOLLAR = float(os.environ.get('HOURS_PER_DOLLAR', '0.2'))
+    _hours_per_dollar_str = os.environ.get('HOURS_PER_DOLLAR', '0.2').strip()
+    # Remove inline comments if present
+    if '#' in _hours_per_dollar_str:
+        _hours_per_dollar_str = _hours_per_dollar_str.split('#')[0].strip()
+    HOURS_PER_DOLLAR = float(_hours_per_dollar_str)
     
     # Predefined hour packages
     HOUR_PACKAGES = {

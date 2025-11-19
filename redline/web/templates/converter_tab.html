@@ -166,6 +166,31 @@
                         </div>
                     </div>
                 </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="mb-3">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="batchMergeFiles">
+                                <label class="form-check-label" for="batchMergeFiles">
+                                    <i class="fas fa-compress me-1"></i>Merge files into one output file
+                                </label>
+                            </div>
+                            <div id="mergeOptions" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <label for="mergeOutputFilename" class="form-label">Merged Output Filename</label>
+                                        <input type="text" class="form-control" id="mergeOutputFilename" placeholder="merged_data" value="merged_data">
+                                    </div>
+                                    <div class="col-md-6 d-flex align-items-end">
+                                        <button type="button" class="btn btn-outline-primary" id="editColumnsBtn" disabled>
+                                            <i class="fas fa-edit me-1"></i>Edit Column Names
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -196,9 +221,14 @@
                 <div id="convertedFiles">
                     <small class="text-muted">Loading converted files...</small>
                 </div>
-                <button id="refreshConvertedBtn" class="btn btn-outline-secondary btn-sm mt-3">
-                    <i class="fas fa-sync-alt me-2"></i>Refresh
-                </button>
+                <div class="mt-3">
+                    <button id="refreshConvertedBtn" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-sync-alt me-2"></i>Refresh
+                    </button>
+                    <button id="mergeConvertedBtn" class="btn btn-outline-primary btn-sm ms-2" disabled>
+                        <i class="fas fa-compress me-2"></i>Merge Selected
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -233,6 +263,9 @@ $(document).ready(function() {
     loadSupportedFormats();
     loadConvertedFiles();
     
+    // Initialize button states
+    updateBatchButtons();
+    
     // Event handlers
     $('#conversionForm').on('submit', function(e) {
         e.preventDefault();
@@ -255,6 +288,10 @@ $(document).ready(function() {
         loadConvertedFiles();
     });
     
+    $('#mergeConvertedBtn').on('click', function() {
+        mergeConvertedFiles();
+    });
+    
     // Batch conversion event handlers
     $('#batchFileSelect').on('change', function() {
         const selectedFiles = $(this).val() || [];
@@ -271,6 +308,21 @@ $(document).ready(function() {
     
     $('#selectAllBatchBtn').on('click', function() {
         selectAllFiles();
+    });
+    
+    // Merge options event handlers
+    $('#batchMergeFiles').on('change', function() {
+        if ($(this).is(':checked')) {
+            $('#mergeOptions').slideDown();
+        } else {
+            $('#mergeOptions').slideUp();
+        }
+        // Update button state when merge checkbox changes
+        updateBatchButtons();
+    });
+    
+    $('#editColumnsBtn').on('click', function() {
+        showColumnEditorModal();
     });
 });
 
@@ -342,32 +394,55 @@ function loadSupportedFormats() {
         });
 }
 
+let convertedFiles = [];
+let selectedConvertedFiles = [];
+
 function loadConvertedFiles() {
     REDLINE.api.get('/converter/converted-files')
         .then(response => {
             const container = $('#convertedFiles');
             container.empty();
+            convertedFiles = response.files || [];
+            selectedConvertedFiles = [];
             
-            if (response.files && response.files.length > 0) {
-                response.files.forEach(file => {
+            if (convertedFiles.length > 0) {
+                convertedFiles.forEach((file, index) => {
                     const item = $(`
-                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
-                            <div>
-                                <small class="text-primary">${file.name}</small><br>
-                                <small class="text-muted">${REDLINE.utils.formatFileSize(file.size)}</small>
+                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded converted-file-item" data-index="${index}" style="cursor: pointer;">
+                            <div class="form-check">
+                                <input class="form-check-input converted-file-checkbox" type="checkbox" value="${file.name}" id="converted-${index}">
+                                <label class="form-check-label" for="converted-${index}">
+                                    <small class="text-primary">${file.name}</small><br>
+                                    <small class="text-muted">${REDLINE.utils.formatFileSize(file.size)}</small>
+                                </label>
                             </div>
                             <small class="text-muted">${REDLINE.utils.formatDate(file.modified)}</small>
                         </div>
                     `);
                     container.append(item);
                 });
+                
+                // Add click handlers for checkboxes
+                $('.converted-file-checkbox').on('change', function() {
+                    updateMergeConvertedButton();
+                });
             } else {
                 container.html('<small class="text-muted">No converted files</small>');
             }
+            
+            updateMergeConvertedButton();
         })
         .catch(error => {
             $('#convertedFiles').html('<small class="text-danger">Error loading converted files</small>');
         });
+}
+
+function updateMergeConvertedButton() {
+    selectedConvertedFiles = $('.converted-file-checkbox:checked').map(function() {
+        return $(this).val();
+    }).get();
+    
+    $('#mergeConvertedBtn').prop('disabled', selectedConvertedFiles.length < 2);
 }
 
 function updateOutputFilename() {
@@ -517,7 +592,12 @@ function removeFromBatch(index) {
 function updateBatchButtons() {
     $('#clearBatchBtn').prop('disabled', batchFiles.length === 0);
     $('#batchConvertBtn').prop('disabled', batchFiles.length === 0);
+    // Enable Edit Column Names button when files are selected and merge is checked
+    const mergeChecked = $('#batchMergeFiles').is(':checked');
+    $('#editColumnsBtn').prop('disabled', batchFiles.length === 0 || !mergeChecked);
 }
+
+let columnMappings = {};
 
 function batchConvert() {
     if (batchFiles.length === 0) {
@@ -527,6 +607,7 @@ function batchConvert() {
     
     const outputFormat = $('#batchOutputFormat').val();
     const overwrite = $('#batchOverwrite').is(':checked');
+    const mergeFiles = $('#batchMergeFiles').is(':checked');
     
     if (!outputFormat) {
         REDLINE.ui.showToast('Please select output format for batch conversion', 'error');
@@ -542,31 +623,365 @@ function batchConvert() {
         return;
     }
     
-    REDLINE.ui.showLoading('Converting files...');
+    REDLINE.ui.showLoading(mergeFiles ? 'Merging files...' : 'Converting files...');
     console.log('Batch converting with license key:', licenseKey.substring(0, 20) + '...');
     
-    const files = batchFiles.map(file => ({
-        input_file: file.name,
-        output_format: outputFormat,
-        output_filename: `${file.name.replace(/\.[^/.]+$/, '')}_converted${getFormatExtension(outputFormat)}`,
-        overwrite: overwrite
-    }));
+    if (mergeFiles) {
+        // Merge mode: combine all files into one
+        const mergeFilename = $('#mergeOutputFilename').val() || 'merged_data';
+        const files = batchFiles.map(file => file.name);
+        
+        REDLINE.api.post('/converter/batch-merge', {
+            files: files,
+            output_format: outputFormat,
+            output_filename: mergeFilename,
+            column_mappings: window.columnMappings || {},
+            overwrite: overwrite,
+            license_key: licenseKey
+        })
+            .then(response => {
+                REDLINE.ui.hideLoading();
+                showMergeResults(response);
+                REDLINE.ui.showToast(`Successfully merged ${response.loaded_files.length} files into ${response.output_file}`, 'success');
+                loadConvertedFiles();
+            })
+            .catch(error => {
+                REDLINE.ui.hideLoading();
+                REDLINE.ui.showToast('Error merging files: ' + error.message, 'error');
+            });
+    } else {
+        // Normal batch conversion: convert each file separately
+        const files = batchFiles.map(file => ({
+            input_file: file.name,
+            output_format: outputFormat,
+            output_filename: `${file.name.replace(/\.[^/.]+$/, '')}_converted${getFormatExtension(outputFormat)}`,
+            overwrite: overwrite
+        }));
+        
+        REDLINE.api.post('/converter/batch-convert', {
+            files: files,
+            overwrite: overwrite,
+            license_key: licenseKey
+        })
+            .then(response => {
+                REDLINE.ui.hideLoading();
+                showBatchResults(response);
+                REDLINE.ui.showToast(`Batch conversion completed: ${response.successful} successful, ${response.failed} failed`, 'success');
+                loadConvertedFiles();
+            })
+            .catch(error => {
+                REDLINE.ui.hideLoading();
+                REDLINE.ui.showToast('Error in batch conversion: ' + error.message, 'error');
+            });
+    }
+}
+
+function showColumnEditorModal() {
+    // Validate that files are selected
+    if (batchFiles.length === 0) {
+        REDLINE.ui.showToast('Please select files for batch conversion first', 'error');
+        return;
+    }
     
-    REDLINE.api.post('/converter/batch-convert', {
-        files: files,
-        overwrite: overwrite,
-        license_key: licenseKey  // Include license key in request body
-    })
+    // Validate that merge is enabled
+    if (!$('#batchMergeFiles').is(':checked')) {
+        REDLINE.ui.showToast('Please enable "Merge files into one output file" to edit column names', 'error');
+        return;
+    }
+    
+    // Collect all unique columns from selected files
+    const modalHtml = `
+        <div class="modal fade" id="columnEditorModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content" style="background-color: var(--light-color); color: var(--text-primary);">
+                    <div class="modal-header" style="background-color: var(--light-color); border-bottom: 1px solid var(--border-color);">
+                        <h5 class="modal-title" style="color: var(--text-primary);">
+                            <i class="fas fa-edit me-2"></i>Edit Column Names
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" style="background-color: var(--light-color); color: var(--text-primary);">
+                        <p class="text-muted">Column name mappings will be applied before merging files.</p>
+                        <div id="columnMappingsList">
+                            <p class="text-muted">Column mappings will be available after files are loaded.</p>
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="background-color: var(--light-color); border-top: 1px solid var(--border-color);">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="saveColumnMappings">Save Mappings</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if present
+    $('#columnEditorModal').remove();
+    
+    // Add modal to body
+    $('body').append(modalHtml);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('columnEditorModal'));
+    modal.show();
+    
+    // Load column mappings (simplified - in production, load actual file headers)
+    loadColumnMappings();
+    
+    // Save button handler
+    $('#saveColumnMappings').on('click', function() {
+        saveColumnMappings();
+        modal.hide();
+    });
+}
+
+// Global variable to store column mappings
+let columnMappings = {};
+
+function loadColumnMappings() {
+    // Get selected files for batch conversion
+    const selectedFiles = batchFiles.map(f => f.input_file || f.name || f);
+    
+    if (selectedFiles.length === 0) {
+        $('#columnMappingsList').html(`
+            <div class="alert alert-warning">
+                <small>Please select files for batch conversion first.</small>
+            </div>
+        `);
+        return;
+    }
+    
+    REDLINE.ui.showLoading('Loading column information...');
+    
+    // Call API to get columns from selected files
+    REDLINE.api.post('/converter/columns', { files: selectedFiles })
         .then(response => {
             REDLINE.ui.hideLoading();
-            showBatchResults(response);
-            REDLINE.ui.showToast(`Batch conversion completed: ${response.successful} successful, ${response.failed} failed`, 'success');
-            loadConvertedFiles();
+            
+            if (response.error) {
+                $('#columnMappingsList').html(`
+                    <div class="alert alert-danger">
+                        <small>Error: ${response.error}</small>
+                    </div>
+                `);
+                return;
+            }
+            
+            const fileColumns = response.files || {};
+            const allColumns = response.all_columns || [];
+            
+            // Build column mapping UI
+            let mappingsHtml = `
+                <div class="mb-3">
+                    <p class="text-muted small">
+                        <strong>${allColumns.length}</strong> unique columns found across ${selectedFiles.length} file(s).
+                        Edit column names below to standardize them before merging.
+                    </p>
+                </div>
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-sm table-hover">
+                        <thead class="sticky-top" style="background-color: var(--light-color);">
+                            <tr>
+                                <th style="width: 40%;">Original Column Name</th>
+                                <th style="width: 40%;">New Column Name</th>
+                                <th style="width: 20%;">Files</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            // Create mapping rows for each unique column
+            allColumns.forEach(column => {
+                // Find which files have this column
+                const filesWithColumn = Object.keys(fileColumns).filter(filename => {
+                    const fileInfo = fileColumns[filename];
+                    return fileInfo.columns && fileInfo.columns.includes(column);
+                });
+                
+                mappingsHtml += `
+                    <tr>
+                        <td>
+                            <code class="small">${column}</code>
+                        </td>
+                        <td>
+                            <input type="text" 
+                                   class="form-control form-control-sm column-mapping-input" 
+                                   data-original="${column}" 
+                                   value="${column}" 
+                                   placeholder="Enter new name...">
+                        </td>
+                        <td>
+                            <small class="text-muted">${filesWithColumn.length} file(s)</small>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            mappingsHtml += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            $('#columnMappingsList').html(mappingsHtml);
+            
+            // Initialize column mappings with original names
+            columnMappings = {};
+            allColumns.forEach(col => {
+                columnMappings[col] = col; // Default: no change
+            });
+            
+            // Add change handlers
+            $('.column-mapping-input').on('input', function() {
+                const original = $(this).data('original');
+                const newName = $(this).val().trim() || original;
+                columnMappings[original] = newName;
+            });
         })
         .catch(error => {
             REDLINE.ui.hideLoading();
-            REDLINE.ui.showToast('Error in batch conversion: ' + error.message, 'error');
+            $('#columnMappingsList').html(`
+                <div class="alert alert-danger">
+                    <small>Error loading columns: ${error.message}</small>
+                </div>
+            `);
         });
+}
+
+function saveColumnMappings() {
+    // Filter out mappings where original == new (no change)
+    const activeMappings = {};
+    Object.keys(columnMappings).forEach(original => {
+        if (columnMappings[original] !== original) {
+            activeMappings[original] = columnMappings[original];
+        }
+    });
+    
+    // Store mappings globally for use in batch conversion
+    window.columnMappings = activeMappings;
+    
+    const mappingCount = Object.keys(activeMappings).length;
+    if (mappingCount > 0) {
+        REDLINE.ui.showToast(`Column mappings saved (${mappingCount} column(s) renamed)`, 'success');
+    } else {
+        REDLINE.ui.showToast('No column name changes detected', 'info');
+    }
+}
+
+function mergeConvertedFiles() {
+    if (selectedConvertedFiles.length < 2) {
+        REDLINE.ui.showToast('Please select at least 2 files to merge', 'error');
+        return;
+    }
+    
+    // Show modal for merge options
+    const modalHtml = `
+        <div class="modal fade" id="mergeConvertedModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content" style="background-color: var(--light-color); color: var(--text-primary);">
+                    <div class="modal-header" style="background-color: var(--light-color); border-bottom: 1px solid var(--border-color);">
+                        <h5 class="modal-title" style="color: var(--text-primary);">
+                            <i class="fas fa-compress me-2"></i>Merge Converted Files
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body" style="background-color: var(--light-color); color: var(--text-primary);">
+                        <p>Merging ${selectedConvertedFiles.length} file(s):</p>
+                        <ul>
+                            ${selectedConvertedFiles.map(f => `<li>${f}</li>`).join('')}
+                        </ul>
+                        <div class="mb-3">
+                            <label for="mergeConvertedFilename" class="form-label">Output Filename</label>
+                            <input type="text" class="form-control" id="mergeConvertedFilename" value="merged_converted_data" placeholder="merged_converted_data">
+                        </div>
+                        <div class="mb-3">
+                            <label for="mergeConvertedFormat" class="form-label">Output Format</label>
+                            <select class="form-select" id="mergeConvertedFormat">
+                                <option value="csv">CSV</option>
+                                <option value="json">JSON</option>
+                                <option value="parquet">Parquet</option>
+                                <option value="feather">Feather</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="background-color: var(--light-color); border-top: 1px solid var(--border-color);">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="confirmMergeConverted">Merge Files</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    $('#mergeConvertedModal').remove();
+    $('body').append(modalHtml);
+    
+    const modal = new bootstrap.Modal(document.getElementById('mergeConvertedModal'));
+    modal.show();
+    
+    $('#confirmMergeConverted').on('click', function() {
+        const outputFilename = $('#mergeConvertedFilename').val() || 'merged_converted_data';
+        const outputFormat = $('#mergeConvertedFormat').val() || 'csv';
+        
+        modal.hide();
+        
+        // Get license key
+        const licenseKey = (typeof window.getLicenseKey === 'function') 
+            ? window.getLicenseKey() 
+            : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+        if (!licenseKey) {
+            REDLINE.ui.showToast('License key is required', 'error');
+            return;
+        }
+        
+        REDLINE.ui.showLoading('Merging converted files...');
+        
+        REDLINE.api.post('/converter/batch-merge', {
+            files: selectedConvertedFiles,
+            output_format: outputFormat,
+            output_filename: outputFilename,
+            column_mappings: columnMappings,
+            overwrite: false,
+            license_key: licenseKey
+        })
+            .then(response => {
+                REDLINE.ui.hideLoading();
+                showMergeResults(response);
+                REDLINE.ui.showToast(`Successfully merged ${response.loaded_files.length} files into ${response.output_file}`, 'success');
+                loadConvertedFiles();
+            })
+            .catch(error => {
+                REDLINE.ui.hideLoading();
+                REDLINE.ui.showToast('Error merging files: ' + error.message, 'error');
+            });
+    });
+}
+
+function showMergeResults(response) {
+    let resultsHtml = `
+        <div class="alert alert-success" style="background-color: var(--light-color); color: var(--text-primary); border-left: 4px solid var(--success-color);">
+            <h6 style="color: var(--text-primary);"><i class="fas fa-check-circle me-2"></i>Merge Successful</h6>
+            <p class="mb-1" style="color: var(--text-primary);"><strong>Output File:</strong> ${response.output_file}</p>
+            <p class="mb-1" style="color: var(--text-primary);"><strong>Format:</strong> ${response.output_format}</p>
+            <p class="mb-1" style="color: var(--text-primary);"><strong>Total Records:</strong> ${response.total_records}</p>
+            <p class="mb-1" style="color: var(--text-primary);"><strong>Columns:</strong> ${response.columns.join(', ')}</p>
+            <p class="mb-0" style="color: var(--text-primary);"><strong>Files Merged:</strong> ${response.loaded_files.length}</p>
+        </div>
+    `;
+    
+    if (response.errors && response.errors.length > 0) {
+        resultsHtml += '<h6 style="color: var(--text-primary); margin-top: 1rem;">Errors:</h6>';
+        response.errors.forEach(error => {
+            resultsHtml += `
+                <div class="alert alert-warning" style="background-color: var(--light-color); color: var(--text-primary);">
+                    <p class="mb-0" style="color: var(--text-primary);"><strong>${error.input_file}</strong>: ${error.error}</p>
+                </div>
+            `;
+        });
+    }
+    
+    $('#resultsContent').html(resultsHtml);
+    $('#conversionResults').show();
 }
 
 function showConversionResults(results) {

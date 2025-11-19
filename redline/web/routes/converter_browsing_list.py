@@ -10,6 +10,14 @@ import os
 converter_browsing_list_bp = Blueprint('converter_browsing_list', __name__)
 logger = logging.getLogger(__name__)
 
+# System files to exclude from user-facing file lists
+SYSTEM_FILES = {
+    'usage_data.duckdb',
+    'redline_data.duckdb',
+    'data_config.ini',
+    'config.ini'
+}
+
 @converter_browsing_list_bp.route('/files')
 def list_available_files():
     """List files available for conversion."""
@@ -20,6 +28,9 @@ def list_available_files():
         # List files in main data directory
         if os.path.exists(data_dir):
             for filename in os.listdir(data_dir):
+                # Skip system files
+                if filename in SYSTEM_FILES:
+                    continue
                 if filename.endswith(('.csv', '.txt', '.json', '.parquet', '.feather', '.duckdb')):
                     file_path = os.path.join(data_dir, filename)
                     file_stat = os.stat(file_path)
@@ -35,6 +46,9 @@ def list_available_files():
         downloaded_dir = os.path.join(data_dir, 'downloaded')
         if os.path.exists(downloaded_dir):
             for filename in os.listdir(downloaded_dir):
+                # Skip system files
+                if filename in SYSTEM_FILES:
+                    continue
                 if filename.endswith(('.csv', '.txt', '.json', '.parquet', '.feather', '.duckdb')):
                     file_path = os.path.join(downloaded_dir, filename)
                     file_stat = os.stat(file_path)
@@ -64,6 +78,9 @@ def list_converted_files():
         
         if os.path.exists(converted_dir):
             for filename in os.listdir(converted_dir):
+                # Skip system files
+                if filename in SYSTEM_FILES:
+                    continue
                 if filename.endswith(('.csv', '.txt', '.json', '.parquet', '.feather', '.duckdb')):
                     file_path = os.path.join(converted_dir, filename)
                     file_stat = os.stat(file_path)

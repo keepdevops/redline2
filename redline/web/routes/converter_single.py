@@ -53,6 +53,10 @@ def convert_file():
         input_path = find_input_file_path(input_file, data_dir)
         
         if not input_path or not os.path.exists(input_path):
+            # Check if it's a system file
+            from ..utils.converter_helpers import is_system_file
+            if is_system_file(os.path.basename(input_file)):
+                return jsonify({'error': 'System files cannot be converted'}), 403
             return jsonify({'error': 'Input file not found'}), 404
         
         from redline.core.format_converter import FormatConverter

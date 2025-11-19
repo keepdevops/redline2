@@ -146,3 +146,71 @@ def preview_file(filename):
         logger.error(f"Error previewing file {filename}: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@converter_browsing_browse_bp.route('/columns', methods=['POST'])
+def get_file_columns():
+    """Get column names from multiple files for column mapping."""
+    try:
+        data = request.get_json()
+        files = data.get('files', [])
+        
+        if not files:
+            return jsonify({'error': 'No files provided'}), 400
+        
+        from ..utils.converter_helpers import find_input_file_path
+        from redline.core.format_converter import FormatConverter
+        from redline.core.schema import EXT_TO_FORMAT
+        
+        converter = FormatConverter()
+        data_dir = os.path.join(os.getcwd(), 'data')
+        
+        file_columns = {}
+        all_columns = set()
+        
+        for filename in files:
+            try:
+                # Find file path
+                file_path = find_input_file_path(filename, data_dir)
+                
+                if not file_path or not os.path.exists(file_path):
+                    file_columns[filename] = {
+                        'error': 'File not found',
+                        'columns': []
+                    }
+                    continue
+                
+                # Detect format and load columns
+                ext = os.path.splitext(file_path)[1].lower()
+                format_type = EXT_TO_FORMAT.get(ext, 'csv')
+                
+                data_obj = converter.load_file_by_type(file_path, format_type)
+                
+                if isinstance(data_obj, pd.DataFrame):
+                    columns = list(data_obj.columns)
+                    file_columns[filename] = {
+                        'columns': columns,
+                        'count': len(columns)
+                    }
+                    all_columns.update(columns)
+                else:
+                    file_columns[filename] = {
+                        'error': 'File format not supported for column extraction',
+                        'columns': []
+                    }
+                    
+            except Exception as e:
+                logger.error(f"Error getting columns from {filename}: {str(e)}")
+                file_columns[filename] = {
+                    'error': str(e),
+                    'columns': []
+                }
+        
+        return jsonify({
+            'files': file_columns,
+            'all_columns': sorted(list(all_columns)),
+            'unique_column_count': len(all_columns)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting file columns: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+

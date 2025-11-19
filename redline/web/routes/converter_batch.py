@@ -61,12 +61,20 @@ def batch_convert():
                 logger.debug(f"Input file search: {input_file}")
                 
                 if not input_path or not os.path.exists(input_path):
-                    error_msg = f'Input file not found: {input_file}'
-                    logger.warning(error_msg)
-                    errors.append({
-                        'input_file': input_file,
-                        'error': error_msg
-                    })
+                    # Check if it's a system file
+                    from ..utils.converter_helpers import is_system_file
+                    if is_system_file(os.path.basename(input_file)):
+                        errors.append({
+                            'input_file': input_file,
+                            'error': 'System files cannot be converted'
+                        })
+                    else:
+                        error_msg = f'Input file not found: {input_file}'
+                        logger.warning(error_msg)
+                        errors.append({
+                            'input_file': input_file,
+                            'error': error_msg
+                        })
                     continue
                 
                 from redline.core.format_converter import FormatConverter

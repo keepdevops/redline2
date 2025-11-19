@@ -13,6 +13,7 @@ from .converter_cleanup import converter_cleanup_bp
 from .converter_tab import converter_tab_bp
 from .converter_single import converter_single_bp
 from .converter_batch import converter_batch_bp
+from .converter_merge import converter_merge_bp
 from .converter_browsing import converter_browsing_bp
 
 # Main converter blueprint - registers all sub-blueprints
@@ -24,4 +25,5 @@ converter_bp.register_blueprint(converter_cleanup_bp)
 converter_bp.register_blueprint(converter_tab_bp)
 converter_bp.register_blueprint(converter_single_bp)
 converter_bp.register_blueprint(converter_batch_bp)
+converter_bp.register_blueprint(converter_merge_bp)
 converter_bp.register_blueprint(converter_browsing_bp)

@@ -14,8 +14,18 @@ services:
     environment:
       - FLASK_ENV=production
       - REDLINE_ENV=production
-      - GUNICORN_WORKERS=2
+      - GUNICORN_WORKERS=1
       - GUNICORN_THREADS=4
+      - REQUIRE_LICENSE_SERVER=true
+      - LICENSE_SERVER_URL=http://host.docker.internal:5001
+      # Stripe Configuration (load from .env file or set directly)
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - HOURS_PER_DOLLAR=${HOURS_PER_DOLLAR:-5}
+      - PAYMENT_CURRENCY=${PAYMENT_CURRENCY:-usd}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]

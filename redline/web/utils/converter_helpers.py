@@ -5,8 +5,30 @@ Helper utilities for converter operations.
 import os
 import shutil
 import logging
+import pandas as pd
+from typing import List, Dict, Optional, Union
 
 logger = logging.getLogger(__name__)
+
+# System files to exclude from conversion operations
+SYSTEM_FILES = {
+    'usage_data.duckdb',
+    'redline_data.duckdb',
+    'data_config.ini',
+    'config.ini'
+}
+
+def is_system_file(filename: str) -> bool:
+    """
+    Check if a filename is a system file that should be excluded.
+    
+    Args:
+        filename: Name of the file to check
+    
+    Returns:
+        True if the file is a system file, False otherwise
+    """
+    return filename in SYSTEM_FILES
 
 def find_input_file_path(input_file, data_dir=None):
     """
@@ -17,10 +39,16 @@ def find_input_file_path(input_file, data_dir=None):
         data_dir: Base data directory (defaults to cwd/data)
     
     Returns:
-        Absolute path to the input file, or None if not found
+        Absolute path to the input file, or None if not found or is a system file
     """
     if data_dir is None:
         data_dir = os.path.join(os.getcwd(), 'data')
+    
+    # Check if this is a system file
+    filename = os.path.basename(input_file)
+    if is_system_file(filename):
+        logger.warning(f"Attempted to access system file: {filename}")
+        return None
     
     input_path = None
     
@@ -84,4 +112,84 @@ def adjust_output_filename(output_filename, output_format):
         logger.info(f"Adjusted output filename to: {output_filename}")
     
     return output_filename
+
+def align_columns_for_merge(dataframes: List[pd.DataFrame]) -> List[str]:
+    """
+    Get union of all columns from multiple DataFrames.
+    
+    Args:
+        dataframes: List of DataFrames to merge
+    
+    Returns:
+        List of all unique column names
+    """
+    all_columns = set()
+    for df in dataframes:
+        if isinstance(df, pd.DataFrame):
+            all_columns.update(df.columns)
+    return sorted(list(all_columns))
+
+def apply_column_mappings(df: pd.DataFrame, column_mappings: Dict[str, str]) -> pd.DataFrame:
+    """
+    Apply column name mappings to a DataFrame.
+    
+    Args:
+        df: DataFrame to rename columns
+        column_mappings: Dictionary mapping old column names to new names
+    
+    Returns:
+        DataFrame with renamed columns
+    """
+    if not column_mappings:
+        return df
+    
+    # Only rename columns that exist in the DataFrame
+    rename_map = {old: new for old, new in column_mappings.items() if old in df.columns}
+    if rename_map:
+        df = df.rename(columns=rename_map)
+        logger.info(f"Renamed columns: {rename_map}")
+    
+    return df
+
+def merge_dataframes(dataframes: List[pd.DataFrame], 
+                     column_mappings: Optional[Dict[str, str]] = None) -> pd.DataFrame:
+    """
+    Merge multiple DataFrames into one, handling column alignment and mappings.
+    
+    Args:
+        dataframes: List of DataFrames to merge
+        column_mappings: Optional dictionary mapping old column names to new names
+    
+    Returns:
+        Combined DataFrame
+    """
+    if not dataframes:
+        return pd.DataFrame()
+    
+    # Apply column mappings if provided
+    if column_mappings:
+        dataframes = [apply_column_mappings(df.copy(), column_mappings) for df in dataframes]
+    
+    # Get all unique columns
+    all_columns = align_columns_for_merge(dataframes)
+    
+    # Align all DataFrames to have the same columns
+    aligned_dfs = []
+    for df in dataframes:
+        if isinstance(df, pd.DataFrame):
+            # Add missing columns with NaN values
+            for col in all_columns:
+                if col not in df.columns:
+                    df[col] = None
+            # Reorder columns to match
+            df = df[all_columns]
+            aligned_dfs.append(df)
+    
+    # Concatenate all DataFrames
+    if aligned_dfs:
+        merged_df = pd.concat(aligned_dfs, ignore_index=True)
+        logger.info(f"Merged {len(dataframes)} files into {len(merged_df)} rows with {len(all_columns)} columns")
+        return merged_df
+    
+    return pd.DataFrame()
 
