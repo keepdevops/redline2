@@ -802,14 +802,9 @@ function createDatasetHTML(data, filename) {
     // Create a hash for change detection
     const dataHash = JSON.stringify(columnsToUse) + '_' + totalRows;
     
-    let html = `
-        <div class="dataset-container" data-filename="${filename}" data-data-hash="${dataHash}">
-            <div class="dataset-header">
-                <h6 class="dataset-title">📄 ${filename}</h6>
-                <p class="dataset-info">Rows: ${totalRows} | Columns: ${columnsToUse.length}</p>
-            </div>
-            <div class="dataset-content">
-    `;
+    // Initialize HTML variable
+    let html = '';
+    let columnCountText = `Rows: ${totalRows} | Columns: ${columnsToUse.length}`;
     
     if (data.data && data.data.length > 0 && columnsToUse.length > 0) {
         // Use pagination for all files
@@ -823,6 +818,45 @@ function createDatasetHTML(data, filename) {
         // Use data directly from API (already paginated) or slice if needed
         const pageData = data.data;
         
+        // Filter out completely empty columns (columns where all values are null/empty/undefined/whitespace)
+        // Also check if we have full dataset info stored
+        const fullData = loadedDatasets.get(filename);
+        const dataToCheck = (fullData && fullData.data && fullData.data.length > pageData.length) ? fullData.data : pageData;
+        
+        const nonEmptyColumns = columnsToUse.filter(col => {
+            // Check if column has at least one meaningful value
+            return dataToCheck.some(row => {
+                const value = row[col];
+                // Consider empty strings, null, undefined, and whitespace-only strings as empty
+                if (value === null || value === undefined || value === '') {
+                    return false;
+                }
+                // Also check if it's a whitespace-only string
+                if (typeof value === 'string' && value.trim() === '') {
+                    return false;
+                }
+                return true;
+            });
+        });
+        
+        // Use non-empty columns, or fall back to all columns if filtering removes everything
+        const columnsToDisplay = nonEmptyColumns.length > 0 ? nonEmptyColumns : columnsToUse;
+        
+        // Build column count text
+        columnCountText = `Rows: ${totalRows} | Columns: ${columnsToDisplay.length}`;
+        if (columnsToDisplay.length !== columnsToUse.length) {
+            columnCountText += ` (${columnsToUse.length - columnsToDisplay.length} empty hidden)`;
+        }
+        
+        html = `
+        <div class="dataset-container" data-filename="${filename}" data-data-hash="${dataHash}">
+            <div class="dataset-header">
+                <h6 class="dataset-title">📄 ${filename}</h6>
+                <p class="dataset-info">${columnCountText}</p>
+            </div>
+            <div class="dataset-content">
+    `;
+        
         html += '<div class="table-responsive" style="overflow-x: auto;">';
         html += '<table class="table table-striped table-hover table-sm" style="border-collapse: collapse; width: 100%;">';
         
@@ -835,7 +869,7 @@ function createDatasetHTML(data, filename) {
         
         // Headers
         html += '<thead class="table-dark"><tr>';
-        columnsToUse.forEach((col, index) => {
+        columnsToDisplay.forEach((col, index) => {
             const displayCol = (col !== null && col !== undefined && col !== '') ? String(col) : `Column_${index + 1}`;
             const escapedCol = escapeHtml(displayCol);
             html += `<th scope="col" style="background-color: var(--dark-color) !important; color: var(--text-white) !important; padding: 0.75rem !important; font-weight: 600 !important; border: 1px solid var(--border-color) !important;">${escapedCol}</th>`;
@@ -845,14 +879,33 @@ function createDatasetHTML(data, filename) {
         // Data rows
         html += '<tbody>';
         pageData.forEach((row, index) => {
+            // Skip completely empty rows (all values are null/empty/undefined/whitespace)
+            const hasData = columnsToDisplay.some(col => {
+                const value = row[col];
+                if (value === null || value === undefined || value === '') {
+                    return false;
+                }
+                // Also check if it's a whitespace-only string
+                if (typeof value === 'string' && value.trim() === '') {
+                    return false;
+                }
+                return true;
+            });
+            
+            if (!hasData) {
+                return; // Skip empty rows
+            }
+            
             html += '<tr>';
-            columnsToUse.forEach(col => {
+            columnsToDisplay.forEach(col => {
                 const value = row[col];
                 // Format date values using the same function as single view
                 const formattedValue = typeof formatDateValue === 'function' ? formatDateValue(value, col) : value;
                 let displayValue = '';
                 if (formattedValue === null || formattedValue === undefined || formattedValue === '') {
-                    displayValue = '';
+                    displayValue = '&nbsp;'; // Use non-breaking space instead of empty string for better rendering
+                } else if (typeof formattedValue === 'string' && formattedValue.trim() === '') {
+                    displayValue = '&nbsp;'; // Also handle whitespace-only strings
                 } else if (typeof formattedValue === 'number') {
                     displayValue = Number(formattedValue).toLocaleString();
                 } else {
@@ -880,7 +933,18 @@ function createDatasetHTML(data, filename) {
             `;
         }
     } else {
-        html += '<div class="no-data-message">No data found in file</div>';
+        html = `
+        <div class="dataset-container" data-filename="${filename}" data-data-hash="${dataHash}">
+            <div class="dataset-header">
+                <h6 class="dataset-title">📄 ${filename}</h6>
+                <p class="dataset-info">${columnCountText}</p>
+            </div>
+            <div class="dataset-content">
+                <div class="no-data-message">No data found in file</div>
+            </div>
+        </div>
+    `;
+        return html;
     }
     
     html += `
@@ -937,16 +1001,30 @@ function initializeVirtualScrolling(filename, data) {
     }
 }
 
+// Track loading state per file to prevent duplicate requests
+const loadingPages = new Map();
+
 // Load page for a specific file (pagination)
 async function loadPageForFile(filename, page) {
+    // Prevent duplicate simultaneous requests for the same file/page
+    const requestKey = `${filename}_${page}`;
+    if (loadingPages.has(requestKey)) {
+        console.log(`loadPageForFile: Already loading page ${page} for ${filename}, skipping duplicate request`);
+        return;
+    }
+    
     const licenseKey = (typeof window.getLicenseKey === 'function') 
         ? window.getLicenseKey() 
         : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
     
     if (!licenseKey) {
+        console.error('loadPageForFile: No license key found');
         alert('License key is required');
         return;
     }
+    
+    console.log(`loadPageForFile: Loading page ${page} for ${filename}`);
+    loadingPages.set(requestKey, true);
     
     try {
         const response = await fetch('/data/load', {
@@ -964,7 +1042,17 @@ async function loadPageForFile(filename, page) {
         });
         
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+            // Try to get error message from response
+            let errorMsg = `HTTP ${response.status}`;
+            try {
+                const errorData = await response.json();
+                errorMsg = errorData.error || errorData.message || errorMsg;
+            } catch (e) {
+                // If response is not JSON, use status text
+                errorMsg = `${errorMsg}: ${response.statusText}`;
+            }
+            console.error(`loadPageForFile: ${errorMsg} for ${filename} page ${page}`);
+            throw new Error(errorMsg);
         }
         
         const data = await response.json();
@@ -1001,6 +1089,9 @@ async function loadPageForFile(filename, page) {
     } catch (error) {
         console.error(`Error loading page ${page} for ${filename}:`, error);
         alert(`Error loading page: ${error.message}`);
+    } finally {
+        // Clear loading flag
+        loadingPages.delete(requestKey);
     }
 }
 

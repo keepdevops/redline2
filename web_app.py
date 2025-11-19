@@ -234,13 +234,20 @@ def create_app():
             content_type = request.headers.get('Content-Type', '').lower()
             if 'application/json' in content_type:
                 try:
+                    # Use silent=True and force=True to avoid errors if body was already read
                     json_data = request.get_json(silent=True, force=True)
                     if json_data and isinstance(json_data, dict):
                         license_key = json_data.get('license_key')
                         if license_key:
                             logger.debug(f"Found license key in JSON body for {request.path}")
                 except Exception as e:
-                    logger.debug(f"Could not parse JSON body: {str(e)}")
+                    logger.debug(f"Could not parse JSON body for {request.path}: {str(e)}")
+        
+        # Log license key status for debugging pagination issues
+        if request.path == '/data/load' and request.method == 'POST':
+            logger.debug(f"License key check for /data/load: found={bool(license_key)}, method={request.method}, "
+                        f"has_header={bool(request.headers.get('X-License-Key'))}, "
+                        f"content_type={request.headers.get('Content-Type', 'N/A')}")
         
         # For API endpoints, require license key
         # Exception: /api/files can be called from public pages (registration) - return empty list instead of error
@@ -277,11 +284,22 @@ def create_app():
 
                 if not is_valid:
                     from flask import jsonify
-                    logger.warning(f"Access denied for {request.path}: {error_msg}")
+                    logger.warning(f"Access denied for {request.path}: {error_msg} (license_key: {license_key[:20] + '...' if license_key else 'None'})")
+                    # Include more debugging info for pagination requests
+                    debug_info = {}
+                    if request.path == '/data/load' and request.method == 'POST':
+                        debug_info = {
+                            'path': request.path,
+                            'method': request.method,
+                            'has_license_in_header': bool(request.headers.get('X-License-Key')),
+                            'has_license_in_body': bool(request.get_json(silent=True) and request.get_json(silent=True).get('license_key')),
+                            'content_type': request.headers.get('Content-Type', 'N/A')
+                        }
                     return jsonify({
                         'error': error_msg or 'Access denied',
                         'code': 'INSUFFICIENT_HOURS' if 'hours' in (error_msg or '').lower() else 'INVALID_LICENSE',
-                        'license_key_provided': license_key[:20] + '...' if license_key else None
+                        'license_key_provided': license_key[:20] + '...' if license_key else None,
+                        'debug': debug_info
                     }), 403
 
                 # Store license info in g for use in request
