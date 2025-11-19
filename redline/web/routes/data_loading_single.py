@@ -127,13 +127,42 @@ def load_data():
         is_converted_file = 'converted' in data_path.replace(os.sep, '/')
         logger.info(f"File {filename} is_converted_file: {is_converted_file} (path: {data_path})")
         
+        # Get pagination parameters
+        page = data.get('page', 1)
+        per_page = data.get('per_page', 500)
+        
+        # Validate pagination parameters
+        try:
+            page = max(1, int(page))
+            per_page = min(max(1, int(per_page)), 1000)  # Max 1000 rows per page
+        except (ValueError, TypeError):
+            page = 1
+            per_page = 500
+        
+        # Calculate pagination
+        total_rows = len(df)
+        total_pages = (total_rows + per_page - 1) // per_page
+        start_idx = (page - 1) * per_page
+        end_idx = min(start_idx + per_page, total_rows)
+        
+        # Get paginated data
+        paginated_df = df.iloc[start_idx:end_idx]
+        
         return jsonify({
             'columns': list(df.columns),
-            'data': df.head(1000).to_dict('records'),
-            'total_rows': len(df),
+            'data': paginated_df.to_dict('records'),
+            'total_rows': total_rows,
             'filename': filename,
             'is_converted_file': is_converted_file,  # Indicates file is in converted/ directory
-            'file_path': data_path  # Include path for debugging
+            'file_path': data_path,  # Include path for debugging
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': total_rows,
+                'pages': total_pages,
+                'has_next': page < total_pages,
+                'has_prev': page > 1
+            }
         })
         
     except Exception as e:

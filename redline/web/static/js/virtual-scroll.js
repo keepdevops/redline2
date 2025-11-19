@@ -3,7 +3,10 @@
  * Provides high-performance scrolling for large datasets
  */
 
-class VirtualScrollTable {
+// Prevent duplicate declaration if script is loaded twice
+if (typeof window.VirtualScrollTable === 'undefined') {
+    // Define VirtualScrollTable class
+    class VirtualScrollTable {
     constructor(container, options = {}) {
         this.container = $(container);
         this.options = {
@@ -163,10 +166,13 @@ class VirtualScrollTable {
                 requestParams.license_key = licenseKey;
             }
             
+            // Determine HTTP method based on URL or use POST for /data/load
+            const usePost = url.includes('/data/load') || url.includes('/load');
             const response = await $.ajax({
                 url: url,
-                method: 'GET',
-                data: requestParams,
+                method: usePost ? 'POST' : 'GET',
+                data: usePost ? JSON.stringify(requestParams) : requestParams,
+                contentType: usePost ? 'application/json' : 'application/x-www-form-urlencoded',
                 dataType: 'json',
                 headers: licenseKey ? { 'X-License-Key': licenseKey } : {}
             });
@@ -304,32 +310,8 @@ class VirtualScrollTable {
         this.render();
     }
     
-    loadDataFromAPI(url, params = {}) {
-        return new Promise((resolve, reject) => {
-            this.showLoading();
-            
-            // Make API call
-            const queryString = new URLSearchParams(params).toString();
-            const fullUrl = queryString ? `${url}?${queryString}` : url;
-            
-            fetch(fullUrl)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    this.setData(data);
-                    this.hideLoading();
-                    resolve(data);
-                })
-                .catch(error => {
-                    this.hideLoading();
-                    reject(error);
-                });
-        });
-    }
+    // loadDataFromAPI is already defined above using $.ajax with POST support
+    // This duplicate method has been removed to fix 405 Method Not Allowed errors
     
     setData(data) {
         if (data && data.data) {
@@ -405,5 +387,8 @@ class VirtualScrollTable {
     }
 }
 
-// Make VirtualScrollTable available globally
-window.VirtualScrollTable = VirtualScrollTable;
+    // Make VirtualScrollTable available globally
+    if (typeof window !== 'undefined') {
+        window.VirtualScrollTable = VirtualScrollTable;
+    }
+} // End of if (typeof window.VirtualScrollTable === 'undefined')

@@ -115,19 +115,34 @@ def adjust_output_filename(output_filename, output_format):
 
 def align_columns_for_merge(dataframes: List[pd.DataFrame]) -> List[str]:
     """
-    Get union of all columns from multiple DataFrames.
+    Get union of all columns from multiple DataFrames, preserving order from first file.
     
     Args:
         dataframes: List of DataFrames to merge
     
     Returns:
-        List of all unique column names
+        List of all unique column names in order from first file, with additional columns appended
     """
-    all_columns = set()
-    for df in dataframes:
+    if not dataframes:
+        return []
+    
+    # Start with columns from first DataFrame to preserve order
+    first_df = dataframes[0]
+    if not isinstance(first_df, pd.DataFrame):
+        return []
+    
+    ordered_columns = list(first_df.columns)
+    all_columns_set = set(ordered_columns)
+    
+    # Add any additional columns from other DataFrames (preserve their order within each file)
+    for df in dataframes[1:]:
         if isinstance(df, pd.DataFrame):
-            all_columns.update(df.columns)
-    return sorted(list(all_columns))
+            for col in df.columns:
+                if col not in all_columns_set:
+                    ordered_columns.append(col)
+                    all_columns_set.add(col)
+    
+    return ordered_columns
 
 def apply_column_mappings(df: pd.DataFrame, column_mappings: Dict[str, str]) -> pd.DataFrame:
     """

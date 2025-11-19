@@ -7,195 +7,335 @@
 
 {% block extra_css %}
 <style>
-        /* Fix for overlapping widgets */
-        body {
-            position: relative;
-            z-index: 1;
-        }
-        
-        .container-fluid {
-            position: relative;
-            z-index: 1;
-        }
-        
-        .row {
-            position: relative;
-            z-index: 1;
-        }
-        
-        .card {
-            position: relative;
-            z-index: 2;
-            margin-bottom: 20px;
-        }
-        
-        .file-list-item {
-            cursor: pointer;
-            padding: 10px;
-            border: 1px solid var(--border-color);
-            margin-bottom: 5px;
-            border-radius: 4px;
-            transition: background-color 0.2s;
-            position: relative;
-            z-index: 3;
-            background-color: var(--light-color);
-            color: var(--text-primary);
-        }
-        .file-list-item:hover {
-            background-color: var(--secondary-color);
-            color: var(--text-white);
-        }
-        .file-list-item.selected {
-            background-color: var(--primary-color);
-            color: var(--text-white);
-        }
-        .data-table {
-            max-height: 600px;
-            overflow-y: auto;
-            border: 1px solid var(--border-color);
-            position: relative;
-            z-index: 3;
-        }
-        .loading-spinner {
-            text-align: center;
-            padding: 40px;
-            position: relative;
-            z-index: 3;
-            color: var(--text-primary);
-        }
-        .data-info {
-            background-color: var(--light-color) !important;
-            color: var(--text-primary) !important;
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            position: relative;
-            z-index: 3;
-        }
-        .spinner-border {
-            width: 3rem;
-            height: 3rem;
-        }
-        .table th {
-            background-color: #1e293b !important;
-            color: #ffffff !important;
-            font-weight: bold;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            display: table-cell !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-        thead {
-            display: table-header-group !important;
-            visibility: visible !important;
-        }
-        thead.table-dark {
-            display: table-header-group !important;
-            visibility: visible !important;
-        }
-        .modal-content {
-            background-color: var(--light-color);
-            color: var(--text-primary);
-        }
-        .modal-header {
-            border-bottom-color: var(--border-color);
-        }
-        .modal-footer {
-            border-top-color: var(--border-color);
-        }
-        .form-select, .form-control {
-            background-color: var(--light-color) !important;
-            color: var(--text-primary) !important;
-            border-color: var(--border-color) !important;
-        }
-        .form-select:focus, .form-control:focus {
-            background-color: var(--light-color) !important;
-            color: var(--text-primary) !important;
-            border-color: var(--primary-color) !important;
-            box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25) !important;
-        }
-        .form-check-input {
-            background-color: var(--light-color) !important;
-            border-color: var(--border-color) !important;
-            cursor: pointer !important;
-        }
-        .form-check-input:checked {
-            background-color: var(--primary-color) !important;
-            border-color: var(--primary-color) !important;
-        }
-        .form-check-input:not(:disabled):not([readonly]) {
-            cursor: pointer !important;
-        }
-        .form-select:not(:disabled):not([readonly]) {
-            cursor: pointer !important;
-        }
-        .form-label, .form-check-label {
-            cursor: pointer !important;
-            color: var(--text-primary) !important;
-        }
-        .table td {
-            vertical-align: middle;
-            position: relative;
-            z-index: 1;
-            background-color: var(--light-color);
-            color: var(--text-primary);
-        }
-        .table-responsive {
-            max-height: 600px;
-            overflow-y: auto;
-            position: relative;
-            z-index: 3;
-        }
-        
-        /* Ensure proper stacking context */
-        .card {
-            background-color: var(--light-color);
-            color: var(--text-primary);
-            border-color: var(--border-color);
-        }
-        
-        .card-body {
-            position: relative;
-            z-index: 3;
-            background-color: var(--light-color);
-            color: var(--text-primary);
-        }
-        
-        .card-header {
-            position: relative;
-            z-index: 4;
-            background-color: var(--light-color);
-            color: var(--text-primary);
-            border-bottom-color: var(--border-color);
-        }
-        
-        /* Data info should use light background, not dark */
-        .data-info {
-            background-color: var(--light-color) !important;
-            color: var(--text-primary) !important;
-        }
-        
-        /* Fix for any floating elements */
-        .btn-group {
-            position: relative;
-            z-index: 5;
-        }
-        
-        /* Ensure data display doesn't overlap */
-        #dataDisplay {
-            position: relative;
-            z-index: 3;
-            min-height: 200px;
-        }
-        
-        #fileList {
-            position: relative;
-            z-index: 3;
-            min-height: 200px;
-        }
-    </style>
+    /* Navbar and dropdowns should be above all content */
+    .navbar {
+        z-index: 1030 !important;
+    }
+    
+    .dropdown-menu {
+        z-index: 1050 !important;
+    }
+    
+    /* Match multi-view CSS template exactly */
+    .file-selector {
+        background-color: var(--light-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        color: var(--text-primary);
+    }
+    
+    .file-list {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        background: var(--light-color);
+        color: var(--text-primary);
+        position: relative;
+        z-index: 2;
+    }
+    
+    .file-list::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .file-list::-webkit-scrollbar-track {
+        background: var(--light-color);
+        border-radius: 4px;
+    }
+    
+    .file-list::-webkit-scrollbar-thumb {
+        background: var(--secondary-color);
+        border-radius: 4px;
+    }
+    
+    .file-list::-webkit-scrollbar-thumb:hover {
+        background: var(--text-muted);
+    }
+    
+    .file-item {
+        padding: 10px 15px;
+        border-bottom: 1px solid var(--border-color);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        transition: background-color 0.2s;
+        position: relative;
+        z-index: 3;
+        min-height: 50px;
+    }
+    
+    .file-item:hover {
+        background-color: var(--secondary-color);
+        color: var(--text-white);
+    }
+    
+    .file-item.selected {
+        background-color: var(--info-color);
+        color: var(--text-white);
+        border-left: 4px solid var(--info-color);
+    }
+    
+    .file-info {
+        flex: 1;
+        font-size: 14px;
+        min-width: 0;
+        overflow: hidden;
+        position: relative;
+        z-index: 3;
+    }
+    
+    .file-name {
+        font-weight: 500;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+        display: block;
+        margin-bottom: 2px;
+    }
+    
+    .file-size {
+        color: var(--text-muted);
+        font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+        display: block;
+    }
+    
+    .data-display-area {
+        background: var(--light-color);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 20px;
+        min-height: 500px;
+    }
+    
+    .dataset-container {
+        margin-bottom: 30px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .dataset-header {
+        background: var(--light-color);
+        color: var(--text-primary);
+        padding: 15px 20px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: between;
+        align-items: center;
+    }
+    
+    .dataset-title {
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    
+    .dataset-info {
+        color: var(--text-muted);
+        font-size: 14px;
+        margin: 0;
+    }
+    
+    .dataset-content {
+        padding: 0;
+    }
+    
+    .loading-spinner {
+        text-align: center;
+        padding: 40px;
+    }
+    
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+    }
+    
+    .table-responsive {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    /* Virtual scrolling styles */
+    .virtual-scroll-container {
+        height: 500px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        background-color: var(--light-color);
+        margin-bottom: 20px;
+    }
+    
+    .virtual-scroll-header, .virtual-scroll-footer {
+        padding: 10px 15px;
+        background-color: var(--dark-color);
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: var(--text-white);
+    }
+    
+    .virtual-scroll-footer {
+        border-top: 1px solid var(--border-color);
+        border-bottom: none;
+    }
+    
+    .virtual-scroll-viewport {
+        flex-grow: 1;
+        overflow-y: auto;
+        position: relative;
+    }
+    
+    .virtual-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 0;
+    }
+    
+    .virtual-table thead th {
+        position: sticky;
+        top: 0;
+        background-color: var(--dark-color);
+        color: var(--text-white);
+        z-index: 1;
+        padding: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .pagination-info {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+    
+    .table th {
+        background-color: var(--dark-color) !important;
+        color: var(--text-white) !important;
+        font-weight: bold;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        border-color: var(--border-color) !important;
+    }
+    
+    .table td {
+        vertical-align: middle;
+    }
+    
+    .no-data-message {
+        text-align: center;
+        padding: 40px;
+        color: var(--text-muted);
+        font-style: italic;
+    }
+    
+    /* Data info - match multi-view styling */
+    .data-info {
+        background-color: var(--dark-color) !important;
+        color: var(--text-white) !important;
+        padding: 15px 20px;
+        border-bottom: 1px solid var(--border-color);
+        border-radius: 8px 8px 0 0;
+        margin-bottom: 0;
+    }
+    
+    .data-info h6 {
+        font-weight: 600;
+        color: var(--text-white) !important;
+        margin: 0;
+    }
+    
+    .data-info p {
+        color: var(--text-white) !important;
+        margin: 0;
+        font-size: 14px;
+    }
+    
+    /* Ensure table headers have proper contrast */
+    .table thead.table-dark th,
+    thead.table-dark th {
+        background-color: var(--dark-color) !important;
+        color: var(--text-white) !important;
+    }
+    
+    /* Fallback for dark theme where dark-color might be light - use black background */
+    body.theme-dark .table thead.table-dark th,
+    body.theme-dark thead.table-dark th {
+        background-color: #000000 !important;
+        color: #ffffff !important;
+    }
+    
+    thead {
+        display: table-header-group !important;
+        visibility: visible !important;
+    }
+    
+    thead.table-dark {
+        display: table-header-group !important;
+        visibility: visible !important;
+    }
+    
+    .modal-content {
+        background-color: var(--light-color);
+        color: var(--text-primary);
+    }
+    
+    .modal-header {
+        border-bottom-color: var(--border-color);
+    }
+    
+    .modal-footer {
+        border-top-color: var(--border-color);
+    }
+    
+    .form-select, .form-control {
+        background-color: var(--light-color) !important;
+        color: var(--text-primary) !important;
+        border-color: var(--border-color) !important;
+    }
+    
+    .form-select:focus, .form-control:focus {
+        background-color: var(--light-color) !important;
+        color: var(--text-primary) !important;
+        border-color: var(--primary-color) !important;
+        box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--primary-color) 25%, transparent);
+    }
+    
+    .form-check-input {
+        background-color: var(--light-color) !important;
+        border-color: var(--border-color) !important;
+        cursor: pointer !important;
+    }
+    
+    .form-check-input:checked {
+        background-color: var(--primary-color) !important;
+        border-color: var(--primary-color) !important;
+    }
+    
+    .form-check-input:not(:disabled):not([readonly]) {
+        cursor: pointer !important;
+    }
+    
+    .form-select:not(:disabled):not([readonly]) {
+        cursor: pointer !important;
+    }
+    
+    .form-label, .form-check-label {
+        cursor: pointer !important;
+        color: var(--text-primary) !important;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -209,59 +349,58 @@
         </div>
     </div>
     <div class="row">
-        <!-- File List Panel -->
+        <!-- File Selector Panel - Match multi-view exactly -->
         <div class="col-md-4">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">📁 Files</h5>
+            <div class="file-selector">
+                <h5 class="mb-3">📁 Select File to Load</h5>
+                <div class="mb-3">
                     <button class="btn btn-sm btn-outline-primary" onclick="refreshFileList()">
                         <i class="fas fa-sync-alt"></i> Refresh
                     </button>
                 </div>
-                <div class="card-body">
-                    <div id="fileList">
-                        <div class="loading-spinner">
-                            <i class="fas fa-spinner fa-spin"></i> Loading files...
+                
+                <div class="file-list" id="fileList">
+                    <div class="text-center p-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading files...</span>
                         </div>
+                        <p class="mt-2 mb-0">Loading file list...</p>
                     </div>
                 </div>
             </div>
         </div>
         
-        <!-- Data Display Panel -->
+        <!-- Data Display Area - Match multi-view exactly -->
         <div class="col-md-8">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">📊 Data View</h5>
-                    <div class="d-flex align-items-center gap-2">
-                        <!-- Date Format Selector - Always Visible -->
-                        <div class="input-group" style="width: auto;">
-                            <label class="input-group-text" for="dateFormatSelect" style="margin-bottom: 0;">
-                                <i class="fas fa-calendar-alt me-1"></i>Date Format:
-                            </label>
-                            <select id="dateFormatSelect" class="form-select" style="width: auto;">
-                                <option value="auto">Auto (YYYY-MM-DD)</option>
-                                <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                                <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                                <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                                <option value="YYYY/MM/DD">YYYY/MM/DD</option>
-                                <option value="DD-MM-YYYY">DD-MM-YYYY</option>
-                                <option value="MM-DD-YYYY">MM-DD-YYYY</option>
-                                <option value="raw">Raw (No Formatting)</option>
-                            </select>
-                        </div>
-                        <!-- Column Names Editor Button -->
-                        <button class="btn btn-sm btn-outline-info" onclick="showColumnEditor()" title="Edit column names" id="editColumnsBtn">
-                            <i class="fas fa-edit"></i> Edit Columns
-                        </button>
+            <div class="data-display-area">
+                <h5 class="mb-3">📊 Single File Data View</h5>
+                <div class="mb-3 d-flex align-items-center gap-2">
+                    <!-- Date Format Selector - Always Visible -->
+                    <div class="input-group" style="width: auto;">
+                        <label class="input-group-text" for="dateFormatSelect" style="margin-bottom: 0;">
+                            <i class="fas fa-calendar-alt me-1"></i>Date Format:
+                        </label>
+                        <select id="dateFormatSelect" class="form-select" style="width: auto;">
+                            <option value="auto">Auto (YYYY-MM-DD)</option>
+                            <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                            <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                            <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                            <option value="YYYY/MM/DD">YYYY/MM/DD</option>
+                            <option value="DD-MM-YYYY">DD-MM-YYYY</option>
+                            <option value="MM-DD-YYYY">MM-DD-YYYY</option>
+                            <option value="raw">Raw (No Formatting)</option>
+                        </select>
                     </div>
+                    <!-- Column Names Editor Button -->
+                    <button class="btn btn-sm btn-outline-info" onclick="showColumnEditor()" title="Edit column names" id="editColumnsBtn">
+                        <i class="fas fa-edit"></i> Edit Columns
+                    </button>
                 </div>
-                <div class="card-body">
-                    <div id="dataDisplay">
-                        <div class="text-center text-muted">
-                            <i class="fas fa-mouse-pointer fa-2x mb-3"></i>
-                            <p>Click on a file to load its data</p>
-                        </div>
+                <div id="dataDisplay">
+                    <div class="no-data-message">
+                        <i class="fas fa-database fa-3x mb-3"></i>
+                        <h6>No file loaded</h6>
+                        <p>Click on a file from the left panel to view data</p>
                     </div>
                 </div>
             </div>
@@ -277,6 +416,9 @@
 window.currentFile = null;
 window.currentData = null;
 window.currentColumns = null;
+window.currentPage = 1;
+window.pageSize = 500;
+window.virtualScrollTable = null;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -361,12 +503,12 @@ function refreshFileList() {
         });
 }
 
-// Display file list (like tkinter file listbox)
+// Display file list - match multi-view structure exactly
 function displayFileList(files) {
     const fileListDiv = document.getElementById('fileList');
     
     if (files.length === 0) {
-        fileListDiv.innerHTML = '<div class="text-center text-muted">No files found</div>';
+        fileListDiv.innerHTML = '<div class="text-center p-3 text-muted">No files found</div>';
         return;
     }
     
@@ -374,14 +516,15 @@ function displayFileList(files) {
     files.forEach(file => {
         const fileSize = formatFileSize(file.size || 0);
         const modifiedDate = new Date(file.modified * 1000).toLocaleDateString();
+        const isSelected = window.currentFile === file.name;
         
         html += `
-            <div class="file-list-item d-flex justify-content-between align-items-center" onclick="event.stopPropagation();">
-                <div class="flex-grow-1" onclick="loadFileData('${file.name}')" style="cursor: pointer;">
-                    <div class="fw-bold">${file.name}</div>
-                    <small class="text-muted">${fileSize} • ${modifiedDate}</small>
+            <div class="file-item ${isSelected ? 'selected' : ''}" data-filename="${file.name}" onclick="loadFileData('${file.name}')">
+                <div class="file-info">
+                    <div class="file-name">${file.name}</div>
+                    <div class="file-size">${fileSize} • ${modifiedDate}</div>
                 </div>
-                <button class="btn btn-sm btn-outline-danger ms-2" onclick="deleteFile('${file.name}', event)" title="Delete file">
+                <button class="btn btn-sm btn-outline-danger ms-2" onclick="deleteFile('${file.name}', event)" title="Delete file" style="flex-shrink: 0;">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
@@ -434,9 +577,10 @@ async function deleteFile(filename, event) {
             window.currentFile = null;
             window.currentData = null;
             document.getElementById('dataDisplay').innerHTML = `
-                <div class="text-center text-muted">
-                    <i class="fas fa-mouse-pointer fa-2x mb-3"></i>
-                    <p>Click on a file to load its data</p>
+                <div class="no-data-message">
+                    <i class="fas fa-database fa-3x mb-3"></i>
+                    <h6>No file loaded</h6>
+                    <p>Click on a file from the left panel to view data</p>
                 </div>
             `;
             document.getElementById('dataActions').style.display = 'none';
@@ -456,14 +600,24 @@ async function deleteFile(filename, event) {
 }
 
 // Load file data (like tkinter refresh_data)
-function loadFileData(filename) {
-    console.log('Loading data for file:', filename);
+function loadFileData(filename, page = 1) {
+    console.log('Loading data for file:', filename, 'page:', page);
     
-    // Update selected file
-    document.querySelectorAll('.file-list-item').forEach(item => {
+    // Reset page if loading new file
+    if (window.currentFile !== filename) {
+        window.currentPage = 1;
+        window.currentFile = filename;
+    } else {
+        window.currentPage = page;
+    }
+    
+    // Update selected file - match multi-view structure
+    document.querySelectorAll('.file-item').forEach(item => {
         item.classList.remove('selected');
     });
-    event.target.closest('.file-list-item').classList.add('selected');
+    document.querySelectorAll(`[data-filename="${filename}"]`).forEach(item => {
+        item.classList.add('selected');
+    });
     
     // Show loading spinner
     const dataDisplay = document.getElementById('dataDisplay');
@@ -491,7 +645,7 @@ function loadFileData(filename) {
         return;
     }
     
-    // Load data
+    // Load data with pagination
     fetch('/data/load', {
         method: 'POST',
         headers: {
@@ -500,7 +654,9 @@ function loadFileData(filename) {
         },
         body: JSON.stringify({ 
             filename: filename,
-            license_key: licenseKey
+            license_key: licenseKey,
+            page: page,
+            per_page: window.pageSize || 500
         })
     })
     .then(response => {
@@ -635,6 +791,21 @@ function loadFileData(filename) {
     });
 }
 
+// Listen for theme changes and re-render table if needed
+$(document).on('themeChanged', function(event, theme) {
+    // If we have a current file loaded, re-render it with new theme colors
+    if (window.currentFile && window.currentData) {
+        console.log('Theme changed to:', theme, '- re-rendering table with new colors');
+        // Re-render the table with updated colors
+        displayDataTable({
+            filename: window.currentFile,
+            columns: window.currentColumns || (window.currentData.length > 0 ? Object.keys(window.currentData[0]) : []),
+            data: window.currentData,
+            total_rows: window.currentData.length
+        });
+    }
+});
+
 // Display data table (like tkinter data_tree)
 function displayDataTable(data) {
     console.log('displayDataTable called with:', data);
@@ -647,6 +818,9 @@ function displayDataTable(data) {
         return;
     }
 
+    // Clear the display first to ensure old headers are removed
+    dataDisplay.innerHTML = '';
+
     // Validate data structure
     if (!data) {
         console.error('displayDataTable: No data received');
@@ -654,21 +828,40 @@ function displayDataTable(data) {
         return;
     }
     
-    // Ensure columns array exists
+    // Ensure columns array exists - always extract fresh columns from data
     console.log('displayDataTable: Checking columns. data.columns:', data.columns, 'Type:', typeof data.columns, 'Is array:', Array.isArray(data.columns));
-    if (!data.columns || !Array.isArray(data.columns)) {
-        console.log('displayDataTable: Columns missing or not array, attempting extraction');
-        if (data.data && Array.isArray(data.data) && data.data.length > 0) {
-            // Extract columns from first row
-            data.columns = Object.keys(data.data[0]);
-            console.log('displayDataTable: Extracted columns from first row:', data.columns);
-        } else {
-            data.columns = [];
-            console.warn('displayDataTable: No data to extract columns from');
+    
+    // Always extract columns from the actual data to ensure they're current
+    let columnsToUse = [];
+    if (data.columns && Array.isArray(data.columns) && data.columns.length > 0) {
+        // Use provided columns but verify they match the data
+        columnsToUse = data.columns;
+        console.log('displayDataTable: Using provided columns:', columnsToUse);
+        
+        // Verify columns match data keys
+        if (data.data && data.data.length > 0) {
+            const dataKeys = Object.keys(data.data[0]);
+            const missingInData = columnsToUse.filter(col => !dataKeys.includes(col));
+            const missingInColumns = dataKeys.filter(key => !columnsToUse.includes(key));
+            
+            if (missingInData.length > 0 || missingInColumns.length > 0) {
+                console.warn('displayDataTable: Column mismatch detected. Missing in data:', missingInData, 'Missing in columns:', missingInColumns);
+                // Use data keys as source of truth
+                columnsToUse = dataKeys;
+                console.log('displayDataTable: Updated to use data keys:', columnsToUse);
+            }
         }
+    } else if (data.data && Array.isArray(data.data) && data.data.length > 0) {
+        // Extract columns from first row
+        columnsToUse = Object.keys(data.data[0]);
+        console.log('displayDataTable: Extracted columns from first row:', columnsToUse);
     } else {
-        console.log('displayDataTable: Using existing columns array:', data.columns);
+        columnsToUse = [];
+        console.warn('displayDataTable: No data to extract columns from');
     }
+    
+    // Update data.columns to match what we're actually using
+    data.columns = columnsToUse;
     
     // Ensure total_rows exists
     const totalRows = data.total_rows !== undefined ? data.total_rows : (data.data ? data.data.length : 0);
@@ -678,40 +871,126 @@ function displayDataTable(data) {
     const columnCount = (data.columns && Array.isArray(data.columns)) ? data.columns.length : 0;
     console.log('displayDataTable: Final columnCount:', columnCount, 'columns:', data.columns);
     
-    // Data info
+    // Detect if file is merged (check filename for "merged" pattern)
+    const isMergedFile = filename.toLowerCase().includes('merged');
+    
+    // Determine display method: virtual scrolling for merged files or files >10k rows
+    const useVirtualScrolling = isMergedFile || totalRows > 10000;
+    
+    // Declare totalPages at function scope for use in event handlers
+    let totalPages = 1;
+    
+    // Data info - use theme colors
     let html = `
         <div class="data-info">
             <h6>📄 ${filename}</h6>
             <p class="mb-0"><strong>Rows:</strong> ${totalRows} | <strong>Columns:</strong> ${columnCount}</p>
+            ${useVirtualScrolling ? '<p class="mb-0"><small><i class="fas fa-info-circle"></i> Using virtual scrolling for optimal performance</small></p>' : ''}
         </div>
     `;
     
-    if (data.data && data.data.length > 0 && columnCount > 0) {
+    if (useVirtualScrolling) {
+        // Use virtual scrolling for merged files or large files
+        html += '<div id="virtualScrollContainer"></div>';
+        dataDisplay.innerHTML = html;
+        
+        // Check if VirtualScrollTable is available
+        if (typeof VirtualScrollTable === 'undefined' && typeof window.VirtualScrollTable === 'undefined') {
+            console.error('VirtualScrollTable is not available. Falling back to pagination.');
+            // Fall back to regular pagination
+            useVirtualScrolling = false;
+            // Re-render with pagination
+            displayDataTable(data);
+            return;
+        }
+        
+        // Initialize virtual scroll table
+        const container = $('#virtualScrollContainer');
+        if (window.virtualScrollTable) {
+            window.virtualScrollTable.destroy();
+        }
+        
+        // Use window.VirtualScrollTable (should be set by the script)
+        if (!window.VirtualScrollTable) {
+            console.error('window.VirtualScrollTable is not available. Falling back to pagination.');
+            useVirtualScrolling = false;
+            displayDataTable(data);
+            return;
+        }
+        
+        window.virtualScrollTable = new window.VirtualScrollTable(container, {
+            rowHeight: 30,
+            visibleRows: 20,
+            buffer: 5,
+            pageSize: 500
+        });
+        
+        // Load data from API with pagination
+        const licenseKey = (typeof window.getLicenseKey === 'function') 
+            ? window.getLicenseKey() 
+            : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+        
+        window.virtualScrollTable.loadDataFromAPI(`/data/load`, {
+            filename: filename,
+            license_key: licenseKey
+        });
+        
+    } else if (data.data && data.data.length > 0 && columnCount > 0) {
+        // Use pagination for regular files (<10k rows)
+        const currentPage = window.currentPage || 1;
+        const pageSize = window.pageSize || 500;
+        const startIdx = (currentPage - 1) * pageSize;
+        const endIdx = Math.min(startIdx + pageSize, data.data.length);
+        totalPages = Math.ceil(totalRows / pageSize);  // Update function-scope variable
+        const pageData = data.data.slice(startIdx, endIdx);
         // Create table with proper Bootstrap styling
         html += '<div class="table-responsive" style="overflow-x: auto;">';
         html += '<table class="table table-striped table-hover table-sm" style="border-collapse: collapse; width: 100%;">';
         
-        // Headers - use actual column names
-        console.log('Creating table headers. Columns:', data.columns, 'Column count:', columnCount);
+        // Headers - use columnsToUse that was determined at function start
+        console.log('Creating table headers. Columns:', columnsToUse, 'Column count:', columnCount);
         
-        // Determine columns to use
-        let columnsToUse = [];
-        if (data.columns && Array.isArray(data.columns) && data.columns.length > 0) {
-            columnsToUse = data.columns;
-            console.log('Using columns from data.columns:', columnsToUse);
-        } else if (data.data && data.data.length > 0) {
-            // Fallback: extract columns from first row
-            columnsToUse = Object.keys(data.data[0]);
-            console.log('Extracted columns from first row:', columnsToUse);
+        // columnsToUse is already determined at the start of the function
+        // This ensures we always use the correct, up-to-date columns
+        
+        // Get computed CSS variable values for proper contrast
+        // Read from body element which has the theme class applied
+        const bodyStyle = getComputedStyle(document.body);
+        
+        // Get actual computed values from body (which has theme class)
+        let headerBgColor = bodyStyle.getPropertyValue('--dark-color').trim();
+        let headerTextColor = bodyStyle.getPropertyValue('--text-white').trim();
+        let borderColor = bodyStyle.getPropertyValue('--border-color').trim();
+        
+        // Check if we're in dark theme
+        const isDarkTheme = document.body.classList.contains('theme-dark') || 
+                           document.body.classList.contains('dark') ||
+                           (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        
+        // In dark theme, --dark-color is actually light (#f9fafb), so we need a dark color for headers
+        // For headers, we always want dark/black background with white text for contrast
+        // Use a standard dark color that works for all themes
+        if (isDarkTheme) {
+            // Dark theme: use black background for headers (not the light --dark-color value)
+            headerBgColor = '#000000'; // Pure black for dark mode headers
         } else {
-            console.warn('No columns found and no data to extract from');
+            // Light themes: use the theme's dark-color, but ensure it's dark
+            if (!headerBgColor || headerBgColor === '' || headerBgColor === '#fff' || headerBgColor === '#ffffff' || headerBgColor === '#f9fafb') {
+                headerBgColor = '#212529'; // Bootstrap dark
+            }
         }
         
-        // Use CSS variables for theme-aware colors
-        const root = getComputedStyle(document.documentElement);
-        const darkColor = root.getPropertyValue('--dark-color').trim() || '#1e293b';
-        const whiteColor = root.getPropertyValue('--text-white').trim() || '#ffffff';
-        console.log('Using theme colors - dark:', darkColor, 'white:', whiteColor);
+        // Always use white text for headers for maximum contrast
+        if (!headerTextColor || headerTextColor === '' || headerTextColor === '#000' || headerTextColor === '#000000') {
+            headerTextColor = '#ffffff';
+        }
+        
+        // Fallback for border color
+        if (!borderColor || borderColor === '') {
+            borderColor = isDarkTheme ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)';
+        }
+        
+        console.log('Using header colors - bg:', headerBgColor, 'text:', headerTextColor, 'isDarkTheme:', isDarkTheme);
         
         // HTML escape function to prevent < > from being interpreted as HTML tags
         function escapeHtml(text) {
@@ -720,18 +999,20 @@ function displayDataTable(data) {
             return div.innerHTML;
         }
         
-        html += `<thead class="table-dark" style="display: table-header-group !important; visibility: visible !important; opacity: 1 !important; height: auto !important; min-height: 40px !important; background-color: ${darkColor} !important;"><tr style="display: table-row !important;">`;
+        // Use Bootstrap table-dark with computed colors to ensure visibility
+        html += `<thead class="table-dark"><tr>`;
         if (columnsToUse.length > 0) {
             columnsToUse.forEach((col, index) => {
                 // Fix: Handle undefined/null column names and HTML escape them
                 const displayCol = (col !== null && col !== undefined && col !== '') ? String(col) : `Column_${index + 1}`;
                 const escapedCol = escapeHtml(displayCol);  // Escape HTML to prevent < > from being interpreted as tags
-                console.log(`Adding header ${index}: "${displayCol}" (escaped: "${escapedCol}") with background: ${darkColor}, color: ${whiteColor}`);
-                html += `<th scope="col" style="background-color: ${darkColor} !important; color: ${whiteColor} !important; padding: 0.75rem !important; font-weight: 600 !important; display: table-cell !important; visibility: visible !important; opacity: 1 !important; border: 1px solid rgba(255,255,255,0.2) !important; min-height: 40px !important; height: auto !important; text-align: left !important; white-space: nowrap !important;">${escapedCol}</th>`;
+                console.log(`Adding header ${index}: "${displayCol}" (escaped: "${escapedCol}")`);
+                // Use computed color values (not CSS variables) in inline styles for proper rendering
+                html += `<th scope="col" style="background-color: ${headerBgColor} !important; color: ${headerTextColor} !important; padding: 0.75rem !important; font-weight: 600 !important; border: 1px solid ${borderColor} !important;">${escapedCol}</th>`;
             });
         } else {
             console.error('No columns available to display!');
-            html += `<th scope="col" style="background-color: ${darkColor} !important; color: ${whiteColor} !important; display: table-cell !important; visibility: visible !important;">No Columns</th>`;
+            html += `<th scope="col" style="background-color: ${headerBgColor} !important; color: ${headerTextColor} !important;">No Columns</th>`;
         }
         html += '</tr></thead>';
         
@@ -739,7 +1020,7 @@ function displayDataTable(data) {
         html += '<tbody>';
         // Use the same columns array for data rows
         const columnsForRows = columnsToUse.length > 0 ? columnsToUse : (data.columns || []);
-        data.data.slice(0, 100).forEach((row, index) => { // Limit to 100 rows like tkinter
+        pageData.forEach((row, index) => {
             html += '<tr>';
             columnsForRows.forEach(col => {
                 const value = row[col];
@@ -761,14 +1042,49 @@ function displayDataTable(data) {
         html += '</tbody></table>';
         html += '</div>';
         
-        if (data.data.length > 100) {
-            html += `<p class="text-muted mt-2">Showing first 100 of ${data.data.length} rows</p>`;
+        // Pagination controls
+        if (totalPages > 1) {
+            html += `
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary" id="prevPageBtn" ${currentPage === 1 ? 'disabled' : ''}>
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </button>
+                        <span class="mx-3">
+                            Page ${currentPage} of ${totalPages} (Showing ${startIdx + 1}-${endIdx} of ${totalRows} rows)
+                        </span>
+                        <button class="btn btn-sm btn-outline-primary" id="nextPageBtn" ${currentPage === totalPages ? 'disabled' : ''}>
+                            Next <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else if (totalRows > pageSize) {
+            html += `<p class="text-muted mt-2">Showing all ${totalRows} rows</p>`;
         }
     } else {
         html += '<div class="text-center text-muted">No data found in file</div>';
     }
     
     dataDisplay.innerHTML = html;
+    
+    // Bind pagination event handlers for regular files
+    if (!useVirtualScrolling && totalPages > 1) {
+        const calculatedTotalPages = totalPages;  // Capture for closure
+        $('#prevPageBtn').on('click', function() {
+            if (window.currentPage > 1) {
+                window.currentPage--;
+                loadFileData(filename, window.currentPage);
+            }
+        });
+        
+        $('#nextPageBtn').on('click', function() {
+            if (window.currentPage < calculatedTotalPages) {
+                window.currentPage++;
+                loadFileData(filename, window.currentPage);
+            }
+        });
+    }
 }
 
 // formatDateValue() is now loaded from redline/web/static/js/date-formatter.js
