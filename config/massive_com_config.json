@@ -1,0 +1,28 @@
+{
+  "name": "Massive.com",
+  "base_url": "https://api.massive.com/v1",
+  "endpoint": "stocks/aggregates",
+  "api_key": "YOUR_MASSIVE_API_KEY_HERE",
+  "api_key_param": "api_key",
+  "ticker_param": "ticker",
+  "start_date_param": "start_date",
+  "end_date_param": "end_date",
+  "date_format": "YYYY-MM-DD",
+  "response_format": "json",
+  "data_path": "data",
+  "column_mapping": {
+    "open": "open",
+    "high": "high",
+    "low": "low",
+    "close": "close",
+    "volume": "volume",
+    "date": "date"
+  },
+  "rate_limit_per_minute": 60,
+  "timeout": 30,
+  "headers": {
+    "Authorization": "Bearer YOUR_MASSIVE_API_KEY_HERE"
+  },
+  "additional_params": {}
+}
+

@@ -136,7 +136,7 @@ Create a simple HTML file for your splash page:
 </head>
 <body>
     <div class="container">
-i        <h1>REDFINDAT</h1><
+        <h1>REDFINDAT</h1><
         <p class="tagline">REDFINDAT</p>
         <p class="description">
             Transform, analyze, and manage financial data with ease. 

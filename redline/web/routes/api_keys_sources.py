@@ -152,6 +152,51 @@ def get_api_sources():
                     'Manual download often needed',
                     'End-of-day data only'
                 ]
+            },
+            'massive': {
+                'name': 'Massive.com',
+                'website': 'https://massive.com',
+                'signup_url': 'https://massive.com',
+                'free_tier': '5 calls per minute',
+                'features': [
+                    'Real-time stock data',
+                    'Historical data',
+                    'Trade-level data',
+                    'Quote-level data',
+                    'Fundamental data',
+                    'SQL query interface',
+                    'WebSocket streaming',
+                    'All U.S. exchanges',
+                    'Dark pool data',
+                    'OTC market data',
+                    'Options, indices, currencies, futures'
+                ],
+                'coverage': 'All U.S. exchanges, dark pools, OTC markets',
+                'data_types': ['OHLCV', 'trades', 'quotes', 'fundamentals', 'options', 'indices'],
+                'rate_limit': 'Free: 5 calls/min, Paid: <100 calls/sec',
+                'daily_limit': 'Varies by plan',
+                'signup_steps': [
+                    'Visit Massive.com website',
+                    'Sign up for an account',
+                    'Navigate to API Keys section',
+                    'Generate a new API key',
+                    'Copy your API key',
+                    'Paste it in REDLINE settings'
+                ],
+                'pros': [
+                    'Comprehensive market data',
+                    'Real-time and historical',
+                    'Multiple access methods (REST, WebSocket, SQL)',
+                    'High quality, standardized data',
+                    'All U.S. exchanges coverage',
+                    'Dark pool and OTC data',
+                    'SQL interface for custom queries'
+                ],
+                'cons': [
+                    'API key required',
+                    'Free tier has low rate limits (5/min)',
+                    'Paid plans required for production use'
+                ]
             }
         }
         

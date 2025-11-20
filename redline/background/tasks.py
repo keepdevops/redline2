@@ -127,6 +127,14 @@ def _process_data_download_impl(ticker: str, start_date: str, end_date: str,
         elif source == 'alpha_vantage':
             from redline.downloaders.alpha_vantage_downloader import AlphaVantageDownloader
             downloader = AlphaVantageDownloader()
+        elif source == 'massive':
+            from redline.downloaders.massive_downloader import MassiveDownloader
+            import os
+            api_key = options.get('api_key') if options else None
+            api_key = api_key or os.environ.get('MASSIVE_API_KEY')
+            if not api_key:
+                raise ValueError("Massive.com API key is required")
+            downloader = MassiveDownloader(api_key=api_key)
         else:
             raise ValueError(f"Unsupported source: {source}")
         

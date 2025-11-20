@@ -11,14 +11,21 @@ from datetime import datetime
 from .base_downloader import BaseDownloader
 from .yahoo_downloader import YahooDownloader
 from .stooq_downloader import StooqDownloader
+import os
 
 logger = logging.getLogger(__name__)
 
 class MultiSourceDownloader(BaseDownloader):
     """Multi-source data downloader with fallback capabilities."""
     
-    def __init__(self, output_dir: str = "data"):
-        """Initialize multi-source downloader."""
+    def __init__(self, output_dir: str = "data", massive_api_key: str = None):
+        """
+        Initialize multi-source downloader.
+        
+        Args:
+            output_dir: Output directory for downloaded files
+            massive_api_key: Optional Massive.com API key. If provided, Massive.com will be added as primary source.
+        """
         super().__init__("Multi-Source", None)
         self.output_dir = output_dir
         self.logger = logging.getLogger(__name__)
@@ -37,6 +44,19 @@ class MultiSourceDownloader(BaseDownloader):
             'yahoo': {'attempts': 0, 'successes': 0, 'failures': 0},
             'stooq': {'attempts': 0, 'successes': 0, 'failures': 0}
         }
+        
+        # Add Massive.com if API key is available
+        massive_key = massive_api_key or os.environ.get('MASSIVE_API_KEY')
+        if massive_key:
+            try:
+                from .massive_downloader import MassiveDownloader
+                self.downloaders['massive'] = MassiveDownloader(api_key=massive_key, output_dir=output_dir)
+                self.source_stats['massive'] = {'attempts': 0, 'successes': 0, 'failures': 0}
+                # Set Massive.com as primary source
+                self.source_priority = ['massive', 'yahoo', 'stooq']
+                self.logger.info("Massive.com downloader added as primary source")
+            except Exception as e:
+                self.logger.warning(f"Failed to initialize Massive.com downloader: {str(e)}")
     
     def download_single_ticker(self, ticker: str, start_date: str = None, end_date: str = None, 
                              preferred_source: str = None) -> pd.DataFrame:
@@ -47,7 +67,7 @@ class MultiSourceDownloader(BaseDownloader):
             ticker: Stock ticker symbol
             start_date: Start date (YYYY-MM-DD)
             end_date: End date (YYYY-MM-DD)
-            preferred_source: Preferred source ('yahoo', 'stooq')
+            preferred_source: Preferred source ('massive', 'yahoo', 'stooq')
             
         Returns:
             DataFrame with historical data

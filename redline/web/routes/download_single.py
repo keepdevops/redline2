@@ -90,6 +90,39 @@ def download_data():
                 start_date=start_date,
                 end_date=end_date
             )
+        elif source == 'massive':
+            from redline.downloaders.massive_downloader import MassiveDownloader
+            # Get API key from request, saved config, or environment
+            api_key = data.get('api_key')
+            if not api_key:
+                # Try to load from saved API keys
+                try:
+                    from ...utils.config_paths import get_api_keys_file
+                    api_keys_file = str(get_api_keys_file())
+                    if os.path.exists(api_keys_file):
+                        import json
+                        with open(api_keys_file, 'r') as f:
+                            saved_keys = json.load(f)
+                            api_key = saved_keys.get('massive')
+                except Exception as e:
+                    logger.debug(f"Could not load saved API keys: {e}")
+            
+            # Fallback to environment variable
+            if not api_key:
+                api_key = os.environ.get('MASSIVE_API_KEY')
+            
+            if not api_key:
+                return jsonify({'error': 'Massive.com API key is required. Please configure it in Settings > API Keys or set MASSIVE_API_KEY environment variable.'}), 400
+            try:
+                downloader = MassiveDownloader(api_key=api_key)
+                result = downloader.download_single_ticker(
+                    ticker=ticker,
+                    start_date=start_date,
+                    end_date=end_date
+                )
+            except Exception as e:
+                logger.error(f"Error initializing Massive.com downloader: {str(e)}")
+                return jsonify({'error': f'Massive.com initialization error: {str(e)}'}), 400
         elif source.startswith('custom_'):
             # Custom API - load configuration
             from redline.downloaders.generic_api_downloader import GenericAPIDownloader

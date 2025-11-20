@@ -84,6 +84,31 @@ def batch_download():
                     'error_count': len(errors)
                 }), 400
             downloader = FinnhubDownloader(api_key=api_key)
+        elif source == 'massive':
+            from redline.downloaders.massive_downloader import MassiveDownloader
+            # Get API key from request or environment
+            api_key = data.get('api_key') or os.environ.get('MASSIVE_API_KEY')
+            if not api_key:
+                errors.append({'ticker': 'ALL', 'error': 'Massive.com API key is required. Please select an API key or set MASSIVE_API_KEY environment variable.'})
+                return jsonify({
+                    'success': False,
+                    'results': [],
+                    'errors': errors,
+                    'success_count': 0,
+                    'error_count': len(errors)
+                }), 400
+            try:
+                downloader = MassiveDownloader(api_key=api_key)
+            except Exception as e:
+                logger.error(f"Error initializing Massive.com downloader: {str(e)}")
+                errors.append({'ticker': 'ALL', 'error': f'Massive.com initialization error: {str(e)}'})
+                return jsonify({
+                    'success': False,
+                    'results': [],
+                    'errors': errors,
+                    'success_count': 0,
+                    'error_count': len(errors)
+                }), 400
         elif source.startswith('custom_'):
             # Custom API - load configuration
             from redline.downloaders.generic_api_downloader import GenericAPIDownloader
