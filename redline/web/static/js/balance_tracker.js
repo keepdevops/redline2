@@ -249,8 +249,20 @@
                 return response.json();
             })
             .then(data => {
-                if (data.success || (data.hours_remaining !== undefined)) {
+                // Ensure data has required fields with defaults
+                if (!data.purchased_hours && data.purchased_hours !== 0) {
+                    data.purchased_hours = 0.0;
+                }
+                if (!data.hours_remaining && data.hours_remaining !== 0) {
+                    data.hours_remaining = 0.0;
+                }
+                if (!data.used_hours && data.used_hours !== 0) {
+                    data.used_hours = 0.0;
+                }
+                
+                if (data.success || (data.hours_remaining !== undefined) || data.error) {
                     // Accept both {success: true, ...} and {hours_remaining: ...} formats
+                    // Also handle error responses that include balance fields
                     currentBalance = data;
                     // Always update timestamp when fetching from server
                     updateBalanceDisplay(data, true);
@@ -259,6 +271,11 @@
                     window.dispatchEvent(new CustomEvent('balanceUpdated', { 
                         detail: { balance: data } 
                     }));
+                    
+                    // Log error if present but still display balance
+                    if (data.error && !silent) {
+                        console.warn('Balance loaded with error:', data.error);
+                    }
                 } else {
                     if (!silent) {
                         console.error('Failed to load balance:', data.error || data);

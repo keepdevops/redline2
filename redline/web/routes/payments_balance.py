@@ -43,18 +43,36 @@ def get_balance():
                     if not validation_result.get('valid'):
                         error_msg = validation_result.get('error', 'Invalid license')
                         if 'inactive' in error_msg.lower():
-                            return jsonify({'error': 'License is inactive'}), 403
+                            return jsonify({
+                                'error': 'License is inactive',
+                                'success': False,
+                                'hours_remaining': 0.0,
+                                'used_hours': 0.0,
+                                'purchased_hours': 0.0
+                            }), 403
                 except:
                     # If response is not JSON, check status code
                     if validate_response.status_code == 400:
-                        return jsonify({'error': 'License validation failed'}), 403
+                        return jsonify({
+                            'error': 'License validation failed',
+                            'success': False,
+                            'hours_remaining': 0.0,
+                            'used_hours': 0.0,
+                            'purchased_hours': 0.0
+                        }), 403
         except requests.exceptions.ConnectionError:
             # License server unavailable - skip validation if not required
             if not require_license_server:
                 logger.debug(f"License server unavailable, skipping validation for {license_key}")
                 # Continue to get balance anyway
             else:
-                return jsonify({'error': 'License server unavailable'}), 503
+                return jsonify({
+                    'error': 'License server unavailable',
+                    'success': False,
+                    'hours_remaining': 0.0,
+                    'used_hours': 0.0,
+                    'purchased_hours': 0.0
+                }), 503
         except Exception as e:
             logger.warning(f"Could not validate license: {str(e)}")
             # Continue to get balance anyway
@@ -93,9 +111,21 @@ def get_balance():
                         logger.debug(f"Failed to get usage stats: {str(e)}")
                     
                     return jsonify(result), 200
-                return jsonify({'success': False, 'error': 'License server unavailable'}), 503
+                return jsonify({
+                    'success': False, 
+                    'error': 'License server unavailable',
+                    'hours_remaining': 0.0,
+                    'used_hours': 0.0,
+                    'purchased_hours': 0.0
+                }), 503
             else:
-                return jsonify({'success': False, 'error': 'License server unavailable'}), 503
+                return jsonify({
+                    'success': False, 
+                    'error': 'License server unavailable',
+                    'hours_remaining': 0.0,
+                    'used_hours': 0.0,
+                    'purchased_hours': 0.0
+                }), 503
         
         # Handle non-200 responses - for dev licenses, return default
         if response.status_code != 200:
@@ -166,19 +196,43 @@ def get_balance():
                     'purchased_hours': 0.0,
                     'message': 'License not found on server - using local tracking'
                 }), 200
-            return jsonify({'success': False, 'error': 'License not found'}), 404
+            return jsonify({
+                'success': False, 
+                'error': 'License not found',
+                'hours_remaining': 0.0,
+                'used_hours': 0.0,
+                'purchased_hours': 0.0
+            }), 404
         else:
             # Try to return a helpful error message
             try:
                 error_data = response.json()
                 error_msg = error_data.get('error', 'Failed to retrieve balance')
-                return jsonify({'success': False, 'error': error_msg}), response.status_code
+                return jsonify({
+                    'success': False, 
+                    'error': error_msg,
+                    'hours_remaining': 0.0,
+                    'used_hours': 0.0,
+                    'purchased_hours': 0.0
+                }), response.status_code
             except:
-                return jsonify({'success': False, 'error': f'Failed to retrieve balance (status: {response.status_code})'}), 500
+                return jsonify({
+                    'success': False, 
+                    'error': f'Failed to retrieve balance (status: {response.status_code})',
+                    'hours_remaining': 0.0,
+                    'used_hours': 0.0,
+                    'purchased_hours': 0.0
+                }), 500
         
     except Exception as e:
         logger.error(f"Error getting balance: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({
+            'error': str(e),
+            'success': False,
+            'hours_remaining': 0.0,
+            'used_hours': 0.0,
+            'purchased_hours': 0.0
+        }), 500
 
 @payments_balance_bp.route('/history', methods=['GET'])
 def get_history():

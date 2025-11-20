@@ -361,13 +361,30 @@
         fetch(`${API_BASE}/balance?license_key=${encodeURIComponent(currentLicenseKey)}`)
             .then(response => response.json())
             .then(data => {
-                if (data.success) {
+                // Ensure data has required fields with defaults
+                if (!data.purchased_hours && data.purchased_hours !== 0) {
+                    data.purchased_hours = 0.0;
+                }
+                if (!data.hours_remaining && data.hours_remaining !== 0) {
+                    data.hours_remaining = 0.0;
+                }
+                if (!data.used_hours && data.used_hours !== 0) {
+                    data.used_hours = 0.0;
+                }
+                
+                if (data.success || (data.hours_remaining !== undefined)) {
                     balance = data;
                     displayBalance();
                 } else {
                     if (!silent) {
                         document.getElementById('balanceInfo').innerHTML = 
                             `<p class="text-danger">${data.error || 'Failed to load balance'}</p>`;
+                    } else {
+                        // Even on error, try to display balance if fields are present
+                        if (data.hours_remaining !== undefined) {
+                            balance = data;
+                            displayBalance();
+                        }
                     }
                 }
             })
