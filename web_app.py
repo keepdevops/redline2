@@ -437,6 +437,14 @@ def create_app():
     app.register_blueprint(payments_bp, url_prefix='/payments')
     app.register_blueprint(user_data_bp, url_prefix='/user-data')
     
+    # Apply rate limits to specific routes after blueprint registration
+    if limiter:
+        from redline.web.routes.payments_balance import get_balance
+        # Apply custom rate limit to balance endpoint
+        get_balance = limiter.limit("1000 per hour")(get_balance)
+        # Update the route with the rate-limited function
+        payments_bp.view_functions['get_balance'] = get_balance
+    
     # Error handlers
     @app.errorhandler(404)
     def not_found(error):

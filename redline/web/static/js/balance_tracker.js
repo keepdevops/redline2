@@ -280,11 +280,33 @@
                     if (!silent) {
                         console.error('Failed to load balance:', data.error || data);
                     }
-                    // Show error in display
-                    const balanceHoursEl = document.getElementById('balanceHours');
-                    if (balanceHoursEl) {
-                        balanceHoursEl.textContent = 'Error';
-                        balanceHoursEl.className = 'balance-hours text-danger';
+                    // Show error in display - but keep showing cached data if available
+                    if (currentBalance) {
+                        // If we have cached balance, show it with error indicator
+                        const balanceHoursEl = document.getElementById('balanceHours');
+                        if (balanceHoursEl) {
+                            balanceHoursEl.textContent = currentBalance.hours_remaining?.toFixed(2) || 'Error';
+                            balanceHoursEl.className = 'balance-hours text-warning';
+                        }
+                        // Update time to show it's stale
+                        const balanceTimeEl = document.getElementById('balanceTime');
+                        if (balanceTimeEl && lastBalanceUpdate) {
+                            const elapsed = (Date.now() - lastBalanceUpdate) / 1000;
+                            balanceTimeEl.textContent = formatTimeElapsed(elapsed) + ' (stale)';
+                            balanceTimeEl.className = 'text-warning';
+                        }
+                    } else {
+                        // No cached data - show error
+                        const balanceHoursEl = document.getElementById('balanceHours');
+                        if (balanceHoursEl) {
+                            balanceHoursEl.textContent = 'Error';
+                            balanceHoursEl.className = 'balance-hours text-danger';
+                        }
+                        // Clear time display
+                        const balanceTimeEl = document.getElementById('balanceTime');
+                        if (balanceTimeEl) {
+                            balanceTimeEl.textContent = '';
+                        }
                     }
                 }
             })
@@ -293,11 +315,38 @@
                 if (!silent) {
                     console.error('Failed to load balance:', error);
                 }
-                // Show error in display
-                const balanceHoursEl = document.getElementById('balanceHours');
-                if (balanceHoursEl) {
-                    balanceHoursEl.textContent = 'Error';
-                    balanceHoursEl.className = 'balance-hours text-danger';
+                // Show error in display - but keep showing cached data if available
+                if (currentBalance) {
+                    // If we have cached balance, show it with error indicator
+                    const balanceHoursEl = document.getElementById('balanceHours');
+                    if (balanceHoursEl) {
+                        balanceHoursEl.textContent = currentBalance.hours_remaining?.toFixed(2) || 'Error';
+                        balanceHoursEl.className = 'balance-hours text-warning';
+                    }
+                    // Update time to show it's stale
+                    const balanceTimeEl = document.getElementById('balanceTime');
+                    if (balanceTimeEl && lastBalanceUpdate) {
+                        const elapsed = (Date.now() - lastBalanceUpdate) / 1000;
+                        balanceTimeEl.textContent = formatTimeElapsed(elapsed) + ' (stale)';
+                        balanceTimeEl.className = 'text-warning';
+                    }
+                } else {
+                    // No cached data - show error
+                    const balanceHoursEl = document.getElementById('balanceHours');
+                    if (balanceHoursEl) {
+                        balanceHoursEl.textContent = 'Error';
+                        balanceHoursEl.className = 'balance-hours text-danger';
+                    }
+                    // Clear time display
+                    const balanceTimeEl = document.getElementById('balanceTime');
+                    if (balanceTimeEl) {
+                        balanceTimeEl.textContent = '';
+                    }
+                    // Clear used hours
+                    const usedHoursEl = document.getElementById('usedHours');
+                    if (usedHoursEl) {
+                        usedHoursEl.textContent = '';
+                    }
                 }
             });
     }
