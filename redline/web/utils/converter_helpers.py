@@ -113,36 +113,51 @@ def adjust_output_filename(output_filename, output_format):
     
     return output_filename
 
-def align_columns_for_merge(dataframes: List[pd.DataFrame]) -> List[str]:
+def align_columns_for_merge(dataframes: List[pd.DataFrame], 
+                             preferred_order: Optional[List[str]] = None) -> List[str]:
     """
-    Get union of all columns from multiple DataFrames, preserving order from first file.
+    Get union of all columns from multiple DataFrames, with optional preferred order.
     
     Args:
         dataframes: List of DataFrames to merge
+        preferred_order: Optional list of column names in desired order
     
     Returns:
-        List of all unique column names in order from first file, with additional columns appended
+        List of all unique column names in preferred order (if provided), 
+        otherwise preserving order from first file, with additional columns appended
     """
     if not dataframes:
         return []
     
-    # Start with columns from first DataFrame to preserve order
-    first_df = dataframes[0]
-    if not isinstance(first_df, pd.DataFrame):
-        return []
-    
-    ordered_columns = list(first_df.columns)
-    all_columns_set = set(ordered_columns)
-    
-    # Add any additional columns from other DataFrames (preserve their order within each file)
-    for df in dataframes[1:]:
+    # Get all unique columns across all DataFrames
+    all_columns_set = set()
+    for df in dataframes:
         if isinstance(df, pd.DataFrame):
-            for col in df.columns:
-                if col not in all_columns_set:
-                    ordered_columns.append(col)
-                    all_columns_set.add(col)
+            all_columns_set.update(df.columns)
     
-    return ordered_columns
+    if preferred_order:
+        # Use preferred order, add missing columns at end
+        ordered = [col for col in preferred_order if col in all_columns_set]
+        remaining = sorted([col for col in all_columns_set if col not in preferred_order])
+        return ordered + remaining
+    else:
+        # Default: preserve order from first file
+        first_df = dataframes[0]
+        if not isinstance(first_df, pd.DataFrame):
+            return []
+        
+        ordered_columns = list(first_df.columns)
+        all_columns_set = set(ordered_columns)
+        
+        # Add any additional columns from other DataFrames
+        for df in dataframes[1:]:
+            if isinstance(df, pd.DataFrame):
+                for col in df.columns:
+                    if col not in all_columns_set:
+                        ordered_columns.append(col)
+                        all_columns_set.add(col)
+        
+        return ordered_columns
 
 def apply_column_mappings(df: pd.DataFrame, column_mappings: Dict[str, str]) -> pd.DataFrame:
     """
@@ -167,13 +182,15 @@ def apply_column_mappings(df: pd.DataFrame, column_mappings: Dict[str, str]) -> 
     return df
 
 def merge_dataframes(dataframes: List[pd.DataFrame], 
-                     column_mappings: Optional[Dict[str, str]] = None) -> pd.DataFrame:
+                     column_mappings: Optional[Dict[str, str]] = None,
+                     column_order: Optional[List[str]] = None) -> pd.DataFrame:
     """
     Merge multiple DataFrames into one, handling column alignment and mappings.
     
     Args:
         dataframes: List of DataFrames to merge
         column_mappings: Optional dictionary mapping old column names to new names
+        column_order: Optional list of column names in desired order
     
     Returns:
         Combined DataFrame
@@ -185,8 +202,8 @@ def merge_dataframes(dataframes: List[pd.DataFrame],
     if column_mappings:
         dataframes = [apply_column_mappings(df.copy(), column_mappings) for df in dataframes]
     
-    # Get all unique columns
-    all_columns = align_columns_for_merge(dataframes)
+    # Get all unique columns (with preferred order if provided)
+    all_columns = align_columns_for_merge(dataframes, preferred_order=column_order)
     
     # Align all DataFrames to have the same columns
     aligned_dfs = []

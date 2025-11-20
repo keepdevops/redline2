@@ -18,12 +18,21 @@ MAX_PAGE_SIZE = 1000
 def rate_limit(limit_string):
     """Decorator for rate limiting - gracefully handles missing limiter.
     
-    This decorator stores the limit string and applies it when the limiter
-    is available. Flask-Limiter will handle the actual rate limiting.
+    This decorator applies rate limits when the limiter is available.
+    Flask-Limiter will handle the actual rate limiting.
     """
     def decorator(func):
-        # Store limit string as function attribute for later use
-        func._rate_limit = limit_string
+        try:
+            from flask import current_app
+            # Try to get limiter from app context
+            if current_app and hasattr(current_app, 'config'):
+                limiter = current_app.config.get('limiter')
+                if limiter:
+                    return limiter.limit(limit_string)(func)
+        except (RuntimeError, AttributeError):
+            # App context not available or limiter not set
+            pass
+        # If limiter not available, return function unchanged
         return func
     return decorator
 

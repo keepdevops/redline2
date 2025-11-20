@@ -223,7 +223,7 @@ python web_app.py   # Web interface
 pip install redline-financial
 
 # Install specific version
-pip install redline-financial==1.0.0
+pip install redline-financial==2.1.0
 
 # Upgrade to latest
 pip install --upgrade redline-financial

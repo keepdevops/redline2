@@ -10,13 +10,14 @@ import os
 import requests
 
 from redline.payment.config import PaymentConfig
+from redline.web.utils.api_helpers import rate_limit
 
 payments_balance_bp = Blueprint('payments_balance', __name__)
 logger = logging.getLogger(__name__)
 
-# Rate limit will be applied via decorator after app initialization
-# Using a simple pass-through for now - limiter applies limits via middleware
+# Rate limit: 1000 per hour (balance is polled frequently)
 @payments_balance_bp.route('/balance', methods=['GET'])
+@rate_limit("1000 per hour")
 def get_balance():
     """Get remaining hours balance for a license"""
     try:

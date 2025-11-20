@@ -40,12 +40,9 @@ def perform_statistical_analysis(df):
             }
         }
         
-        # Additional analysis - check for close price column (like Tkinter)
-        close_col = None
-        if 'close' in df.columns:
-            close_col = 'close'
-        elif '<CLOSE>' in df.columns:
-            close_col = '<CLOSE>'
+        # Additional analysis - check for close price column (flexible detection)
+        from ..utils.analysis_helpers import detect_price_column
+        close_col = detect_price_column(df)
         
         if close_col:
             close_stats = {

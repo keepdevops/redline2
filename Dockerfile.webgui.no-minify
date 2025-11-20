@@ -75,7 +75,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     GUNICORN_TIMEOUT=120 \
     REQUIRE_LICENSE_SERVER=false \
     LICENSE_SERVER_URL=http://localhost:5001 \
-    REDLINE_VERSION=2.0.0
+    REDLINE_VERSION=2.1.0
 
 # Install runtime dependencies only
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
@@ -125,7 +125,7 @@ CMD ["gunicorn", \
 
 # Labels for metadata
 LABEL maintainer="REDLINE Team <keepdevops@gmail.com>" \
-      version="2.0.0-bytecode-no-minify" \
+      version="2.1.0-bytecode-no-minify" \
       description="REDLINE Financial Analysis - Bytecode Optimized Version WITHOUT JavaScript/CSS Minification (for development/debugging)" \
       architecture="multi-platform" \
       performance="optimized" \

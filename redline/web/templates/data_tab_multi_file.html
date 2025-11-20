@@ -819,11 +819,21 @@ function createDatasetHTML(data, filename) {
         const pageData = data.data;
         
         // Filter out completely empty columns (columns where all values are null/empty/undefined/whitespace)
-        // Also check if we have full dataset info stored
+        // Also filter out columns with empty/null/whitespace names
         const fullData = loadedDatasets.get(filename);
         const dataToCheck = (fullData && fullData.data && fullData.data.length > pageData.length) ? fullData.data : pageData;
         
-        const nonEmptyColumns = columnsToUse.filter(col => {
+        // First, filter out columns with problematic names (empty, null, or just commas/whitespace)
+        const validColumns = columnsToUse.filter(col => {
+            if (col === null || col === undefined) return false;
+            const colStr = String(col).trim();
+            // Filter out empty strings, whitespace-only, or columns that are just commas
+            if (colStr === '' || colStr === ',' || /^[, ]+$/.test(colStr)) return false;
+            return true;
+        });
+        
+        // Then filter out columns where all values are empty
+        const nonEmptyColumns = validColumns.filter(col => {
             // Check if column has at least one meaningful value
             return dataToCheck.some(row => {
                 const value = row[col];
@@ -831,21 +841,25 @@ function createDatasetHTML(data, filename) {
                 if (value === null || value === undefined || value === '') {
                     return false;
                 }
-                // Also check if it's a whitespace-only string
-                if (typeof value === 'string' && value.trim() === '') {
-                    return false;
+                // Also check if it's a whitespace-only string or just commas
+                if (typeof value === 'string') {
+                    const trimmed = value.trim();
+                    if (trimmed === '' || trimmed === ',' || /^[, ]+$/.test(trimmed)) {
+                        return false;
+                    }
                 }
                 return true;
             });
         });
         
-        // Use non-empty columns, or fall back to all columns if filtering removes everything
-        const columnsToDisplay = nonEmptyColumns.length > 0 ? nonEmptyColumns : columnsToUse;
+        // Use non-empty columns, or fall back to valid columns if filtering removes everything
+        const columnsToDisplay = nonEmptyColumns.length > 0 ? nonEmptyColumns : validColumns;
         
         // Build column count text
+        const emptyHidden = columnsToUse.length - columnsToDisplay.length;
         columnCountText = `Rows: ${totalRows} | Columns: ${columnsToDisplay.length}`;
-        if (columnsToDisplay.length !== columnsToUse.length) {
-            columnCountText += ` (${columnsToUse.length - columnsToDisplay.length} empty hidden)`;
+        if (emptyHidden > 0) {
+            columnCountText += ` (${emptyHidden} empty hidden)`;
         }
         
         html = `
@@ -885,9 +899,12 @@ function createDatasetHTML(data, filename) {
                 if (value === null || value === undefined || value === '') {
                     return false;
                 }
-                // Also check if it's a whitespace-only string
-                if (typeof value === 'string' && value.trim() === '') {
-                    return false;
+                // Also check if it's a whitespace-only string or just commas
+                if (typeof value === 'string') {
+                    const trimmed = value.trim();
+                    if (trimmed === '' || trimmed === ',' || /^[, ]+$/.test(trimmed)) {
+                        return false;
+                    }
                 }
                 return true;
             });
@@ -903,9 +920,15 @@ function createDatasetHTML(data, filename) {
                 const formattedValue = typeof formatDateValue === 'function' ? formatDateValue(value, col) : value;
                 let displayValue = '';
                 if (formattedValue === null || formattedValue === undefined || formattedValue === '') {
-                    displayValue = '&nbsp;'; // Use non-breaking space instead of empty string for better rendering
-                } else if (typeof formattedValue === 'string' && formattedValue.trim() === '') {
-                    displayValue = '&nbsp;'; // Also handle whitespace-only strings
+                    displayValue = '&nbsp;';
+                } else if (typeof formattedValue === 'string') {
+                    const trimmed = formattedValue.trim();
+                    // If it's just whitespace or commas, show as empty
+                    if (trimmed === '' || trimmed === ',' || /^[, ]+$/.test(trimmed)) {
+                        displayValue = '&nbsp;';
+                    } else {
+                        displayValue = String(formattedValue);
+                    }
                 } else if (typeof formattedValue === 'number') {
                     displayValue = Number(formattedValue).toLocaleString();
                 } else {

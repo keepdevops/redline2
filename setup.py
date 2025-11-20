@@ -29,7 +29,7 @@ def read_long_description():
 
 setup(
     name="redline-financial",
-    version="1.0.0",
+    version="2.1.0",
     author="REDLINE Development Team",
     author_email="support@redline.example.com",
     description="Professional financial data analysis platform with GUI and web interface",

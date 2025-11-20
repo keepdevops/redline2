@@ -446,10 +446,14 @@ def create_app():
     def internal_error(error):
         return render_template('500.html'), 500
     
-    # Health check endpoint
+    # Health check endpoint - very high rate limit (health checks are frequent)
     @app.route('/health')
     def health():
         return jsonify({'status': 'healthy', 'service': 'redline-web'})
+    
+    # Apply high rate limit to health endpoint if limiter exists
+    if limiter:
+        health = limiter.limit("10000 per hour")(health)
     
     logger.info("REDLINE Web application created successfully")
     

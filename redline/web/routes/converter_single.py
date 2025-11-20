@@ -96,6 +96,7 @@ def convert_file():
         remove_duplicates = data.get('remove_duplicates', False)
         handle_missing = data.get('handle_missing', 'none')
         clean_column_names = data.get('clean_column_names', False)
+        column_order = data.get('column_order')
         
         original_rows = len(data_obj) if isinstance(data_obj, pd.DataFrame) else 0
         cleaning_stats = {}
@@ -106,12 +107,16 @@ def convert_file():
                 from redline.core.data_cleaner import DataCleaner
                 cleaner = DataCleaner()
                 df_before = len(data_obj)
-                # Determine subset for duplicate detection
+                # Determine subset for duplicate detection (flexible column detection)
+                from ..utils.analysis_helpers import detect_ticker_column, detect_timestamp_column
+                ticker_col = detect_ticker_column(data_obj)
+                timestamp_col = detect_timestamp_column(data_obj)
+                
                 subset = None
-                if 'ticker' in data_obj.columns and 'timestamp' in data_obj.columns:
-                    subset = ['ticker', 'timestamp']
-                elif 'timestamp' in data_obj.columns:
-                    subset = ['timestamp']
+                if ticker_col and timestamp_col:
+                    subset = [ticker_col, timestamp_col]
+                elif timestamp_col:
+                    subset = [timestamp_col]
                 data_obj = cleaner.remove_duplicates(data_obj, subset=subset)
                 duplicates_removed = df_before - len(data_obj)
                 cleaning_stats['duplicates_removed'] = duplicates_removed
@@ -132,6 +137,24 @@ def convert_file():
                 from redline.web.utils.data_helpers import clean_dataframe_columns
                 data_obj = clean_dataframe_columns(data_obj)
                 logger.info("Cleaned column names")
+            
+            # Reorder columns if specified
+            if column_order:
+                # Parse column_order if it's a string (comma-separated)
+                if isinstance(column_order, str):
+                    column_order = [col.strip() for col in column_order.split(',') if col.strip()]
+                
+                if column_order:
+                    # Get all columns
+                    all_columns = list(data_obj.columns)
+                    # Use preferred order, add missing columns at end
+                    ordered = [col for col in column_order if col in all_columns]
+                    remaining = [col for col in all_columns if col not in column_order]
+                    final_order = ordered + remaining
+                    
+                    # Reorder DataFrame columns
+                    data_obj = data_obj[final_order]
+                    logger.info(f"Reordered columns to: {final_order}")
         
         # Ensure output directory exists
         os.makedirs(os.path.dirname(output_path), exist_ok=True)

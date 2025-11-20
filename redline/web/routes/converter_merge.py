@@ -25,6 +25,7 @@ def batch_merge():
         output_format = data.get('output_format')
         output_filename = data.get('output_filename', 'merged_data')
         column_mappings = data.get('column_mappings', {})
+        column_order = data.get('column_order')
         overwrite = data.get('overwrite', False)
         
         if not files:
@@ -112,7 +113,11 @@ def batch_merge():
         
         # Merge DataFrames
         try:
-            merged_df = merge_dataframes(dataframes, column_mappings)
+            # Parse column_order if it's a string (comma-separated)
+            if column_order and isinstance(column_order, str):
+                column_order = [col.strip() for col in column_order.split(',') if col.strip()]
+            
+            merged_df = merge_dataframes(dataframes, column_mappings, column_order=column_order)
             
             if merged_df.empty:
                 return jsonify({

@@ -1,0 +1,21 @@
+# Cloudflare Pages Redirects File
+# Place this as `_redirects` in your Pages build output directory
+# Routes API requests to Cloudflare Worker
+
+/api/*  https://redline-api-proxy.YOUR_SUBDOMAIN.workers.dev/api/:splat  200
+/data/*  https://redline-api-proxy.YOUR_SUBDOMAIN.workers.dev/data/:splat  200
+/payments/*  https://redline-api-proxy.YOUR_SUBDOMAIN.workers.dev/payments/:splat  200
+/download/*  https://redline-api-proxy.YOUR_SUBDOMAIN.workers.dev/download/:splat  200
+/analysis/*  https://redline-api-proxy.YOUR_SUBDOMAIN.workers.dev/analysis/:splat  200
+/converter/*  https://redline-api-proxy.YOUR_SUBDOMAIN.workers.dev/converter/:splat  200
+/settings/*  https://redline-api-proxy.YOUR_SUBDOMAIN.workers.dev/settings/:splat  200
+/tasks/*  https://redline-api-proxy.YOUR_SUBDOMAIN.workers.dev/tasks/:splat  200
+/api-keys/*  https://redline-api-proxy.YOUR_SUBDOMAIN.workers.dev/api-keys/:splat  200
+/user-data/*  https://redline-api-proxy.YOUR_SUBDOMAIN.workers.dev/user-data/:splat  200
+/health  https://redline-api-proxy.YOUR_SUBDOMAIN.workers.dev/health  200
+/status  https://redline-api-proxy.YOUR_SUBDOMAIN.workers.dev/status  200
+/register  https://redline-api-proxy.YOUR_SUBDOMAIN.workers.dev/register  200
+
+# Note: Replace YOUR_SUBDOMAIN with your actual Cloudflare account subdomain
+# Or use custom domain routes configured in Cloudflare Dashboard
+

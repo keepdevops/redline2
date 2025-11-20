@@ -88,12 +88,16 @@ def clean_data():
         # Remove duplicates
         if remove_duplicates:
             df_before = len(df)
-            # Determine subset for duplicate detection
+            # Determine subset for duplicate detection (flexible column detection)
+            from ..utils.analysis_helpers import detect_ticker_column, detect_timestamp_column
+            ticker_col = detect_ticker_column(df)
+            timestamp_col = detect_timestamp_column(df)
+            
             subset = None
-            if 'ticker' in df.columns and 'timestamp' in df.columns:
-                subset = ['ticker', 'timestamp']
-            elif 'timestamp' in df.columns:
-                subset = ['timestamp']
+            if ticker_col and timestamp_col:
+                subset = [ticker_col, timestamp_col]
+            elif timestamp_col:
+                subset = [timestamp_col]
             df = cleaner.remove_duplicates(df, subset=subset)
             duplicates_removed = df_before - len(df)
             stats['duplicates_removed'] = duplicates_removed
