@@ -124,7 +124,7 @@
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-hover">
-                            <thead>
+                            <thead class="table-dark">
                                 <tr>
                                     <th>Time</th>
                                     <th>Action</th>
@@ -181,6 +181,42 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Fix table header visibility in dark mode */
+    .table thead th {
+        background-color: var(--dark-color) !important;
+        color: var(--text-white) !important;
+        border-bottom: 2px solid var(--border-color) !important;
+    }
+    
+    /* Dark theme: ensure headers have dark background with white text */
+    body.theme-dark .table thead th,
+    body.theme-dark .table thead.table-dark th {
+        background-color: #212529 !important;
+        color: #ffffff !important;
+        border-bottom-color: rgba(255, 255, 255, 0.2) !important;
+    }
+    
+    /* Fallback for when --dark-color is light in dark theme */
+    body.theme-dark .table thead th {
+        background-color: #000000 !important;
+        color: #ffffff !important;
+    }
+    
+    /* Ensure table headers are always visible */
+    .table thead {
+        display: table-header-group !important;
+        visibility: visible !important;
+    }
+    
+    .table thead th {
+        display: table-cell !important;
+        visibility: visible !important;
+    }
+</style>
 {% endblock %}
 
 {% block extra_js %}
