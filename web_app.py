@@ -444,6 +444,12 @@ def create_app():
         get_balance = limiter.limit("1000 per hour")(get_balance)
         # Update the route with the rate-limited function
         payments_bp.view_functions['get_balance'] = get_balance
+        
+        # Apply generous rate limit to /api/files endpoint (read-only, frequently accessed)
+        from redline.web.routes.api_files_list import api_list_files, api_files_list_bp
+        api_list_files = limiter.limit("500 per hour")(api_list_files)
+        # Update the route with the rate-limited function
+        api_files_list_bp.view_functions['api_list_files'] = api_list_files
     
     # Error handlers
     @app.errorhandler(404)

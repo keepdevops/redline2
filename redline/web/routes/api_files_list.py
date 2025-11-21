@@ -6,6 +6,7 @@ Handles file listing and metadata
 from flask import Blueprint, jsonify
 import logging
 import os
+from ..utils.api_helpers import rate_limit
 
 api_files_list_bp = Blueprint('api_files_list', __name__)
 logger = logging.getLogger(__name__)
@@ -23,6 +24,7 @@ SYSTEM_FILES = {
 }
 
 @api_files_list_bp.route('/files')
+@rate_limit("200 per hour")  # More generous limit for file listing (read-only operation)
 def api_list_files():
     """List available data files via API."""
     try:
