@@ -227,40 +227,53 @@ function refreshDashboard() {
         const fileCount = files && files.files ? files.files.length : 0;
         $('#totalFiles').text(fileCount);
         
-        // Calculate total records from database if available
+        // Calculate total records and tickers from database if available
+        let dbInfo = null;
         try {
             const dbStatus = await fetch('/settings/database-status', {
                 headers: licenseKey ? { 'X-License-Key': licenseKey } : {}
-            }).catch(() => null);
+            }).catch((err) => {
+                console.error('Failed to fetch database status:', err);
+                return null;
+            });
             if (dbStatus && dbStatus.ok) {
-                const dbInfo = await dbStatus.json();
-                if (dbInfo.available && dbInfo.table_count > 0) {
-                    $('#totalRecords').text(dbInfo.table_count + ' tables');
+                dbInfo = await dbStatus.json();
+                console.log('Database status response:', dbInfo);
+                if (dbInfo.available && dbInfo.total_records !== undefined) {
+                    // Format number with commas for readability
+                    const recordCount = dbInfo.total_records || 0;
+                    $('#totalRecords').text(recordCount.toLocaleString());
                 } else {
+                    console.warn('Database not available or total_records undefined:', dbInfo);
                     $('#totalRecords').text('0');
                 }
             } else {
+                console.warn('Database status request failed:', dbStatus);
                 $('#totalRecords').text('0');
             }
         } catch (e) {
-            console.warn('Database status check failed:', e);
+            console.error('Database status check failed:', e);
             $('#totalRecords').text('0');
         }
         
-        // Get unique tickers from files
+        // Get unique tickers from database or files
         try {
-            let uniqueTickers = new Set();
-            if (files && files.files) {
-                // Try to get ticker info from file names or load data
-                for (let file of files.files) {
-                    // Extract ticker from filename (common patterns: TICKER_date.csv, etc.)
-                    const match = file.name.match(/([A-Z]+)_/);
-                    if (match) {
-                        uniqueTickers.add(match[1]);
+            // First try to get ticker count from database
+            if (dbInfo && dbInfo.available && dbInfo.total_tickers !== undefined && dbInfo.total_tickers > 0) {
+                $('#totalTickers').text(dbInfo.total_tickers);
+            } else {
+                // Fallback to extracting from filenames
+                let uniqueTickers = new Set();
+                if (files && files.files) {
+                    for (let file of files.files) {
+                        const match = file.name.match(/([A-Z]+)_/);
+                        if (match) {
+                            uniqueTickers.add(match[1]);
+                        }
                     }
                 }
+                $('#totalTickers').text(uniqueTickers.size || '0');
             }
-            $('#totalTickers').text(uniqueTickers.size || '0');
         } catch (e) {
             console.warn('Ticker extraction failed:', e);
             $('#totalTickers').text('0');

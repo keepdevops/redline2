@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: redfindat-splash
+    env: static
+    buildCommand: ""
+    staticPublishPath: ./splash
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
