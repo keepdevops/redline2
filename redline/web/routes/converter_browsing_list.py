@@ -15,7 +15,10 @@ SYSTEM_FILES = {
     'usage_data.duckdb',
     'redline_data.duckdb',
     'data_config.ini',
-    'config.ini'
+    'config.ini',
+    'api_keys.json',      # API keys configuration (sensitive)
+    'custom_apis.json',    # Custom API configurations (sensitive)
+    'licenses.json'        # License information (sensitive)
 }
 
 @converter_browsing_list_bp.route('/files')
@@ -31,7 +34,7 @@ def list_available_files():
                 # Skip system files
                 if filename in SYSTEM_FILES:
                     continue
-                if filename.endswith(('.csv', '.txt', '.json', '.parquet', '.feather', '.duckdb')):
+                if filename.endswith(('.csv', '.txt', '.json', '.parquet', '.feather', '.duckdb', '.npz', '.h5', '.arrow')):
                     file_path = os.path.join(data_dir, filename)
                     file_stat = os.stat(file_path)
                     files.append({
@@ -49,7 +52,7 @@ def list_available_files():
                 # Skip system files
                 if filename in SYSTEM_FILES:
                     continue
-                if filename.endswith(('.csv', '.txt', '.json', '.parquet', '.feather', '.duckdb')):
+                if filename.endswith(('.csv', '.txt', '.json', '.parquet', '.feather', '.duckdb', '.npz', '.h5', '.arrow')):
                     file_path = os.path.join(downloaded_dir, filename)
                     file_stat = os.stat(file_path)
                     files.append({
@@ -81,7 +84,7 @@ def list_converted_files():
                 # Skip system files
                 if filename in SYSTEM_FILES:
                     continue
-                if filename.endswith(('.csv', '.txt', '.json', '.parquet', '.feather', '.duckdb')):
+                if filename.endswith(('.csv', '.txt', '.json', '.parquet', '.feather', '.duckdb', '.npz', '.h5', '.arrow')):
                     file_path = os.path.join(converted_dir, filename)
                     file_stat = os.stat(file_path)
                     files.append({

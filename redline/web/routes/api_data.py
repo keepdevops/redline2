@@ -155,6 +155,39 @@ def get_file_quick_stats(filename: str):
                 df = conn.execute(f'SELECT * FROM {table_name} LIMIT 1000').fetchdf()
             finally:
                 conn.close()
+        elif format_type == 'tensorflow' or format_type == 'npz':
+            import numpy as np
+            loaded = np.load(file_path)
+            if 'data' in loaded:
+                df = pd.DataFrame(loaded['data'])
+            else:
+                # Get first array from the npz file
+                first_key = list(loaded.keys())[0]
+                df = pd.DataFrame(loaded[first_key])
+        elif format_type == 'keras' or format_type == 'h5':
+            try:
+                import tensorflow as tf
+                model = tf.keras.models.load_model(file_path)
+                # For Keras models, return model info instead of DataFrame
+                return jsonify({
+                    'filename': filename,
+                    'file_path': file_path,
+                    'format': format_type,
+                    'type': 'keras_model',
+                    'message': 'Keras model loaded. Use Analysis tab for model operations.',
+                    'model_summary': str(model.summary()) if hasattr(model, 'summary') else 'Model loaded successfully'
+                })
+            except ImportError:
+                return jsonify({'error': 'TensorFlow is required to load .h5 files'}), 400
+        elif format_type == 'pyarrow' or format_type == 'arrow':
+            try:
+                import pyarrow as pa
+                with pa.ipc.open_file(file_path) as reader:
+                    df = reader.read_all().to_pandas()
+            except ImportError:
+                return jsonify({'error': 'PyArrow is required to load .arrow files'}), 400
+            except Exception as e:
+                return jsonify({'error': f'Error loading Arrow file: {str(e)}'}), 400
         else:
             return jsonify({'error': f'Unsupported format: {format_type}'}), 400
 

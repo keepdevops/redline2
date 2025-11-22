@@ -15,7 +15,10 @@ SYSTEM_FILES = {
     'usage_data.duckdb',
     'redline_data.duckdb',
     'data_config.ini',
-    'config.ini'
+    'config.ini',
+    'api_keys.json',      # API keys configuration (sensitive)
+    'custom_apis.json',    # Custom API configurations (sensitive)
+    'licenses.json'        # License information (sensitive)
 }
 
 def is_system_file(filename: str) -> bool:
@@ -97,7 +100,13 @@ def adjust_output_filename(output_filename, output_format):
         'parquet': '.parquet',
         'feather': '.feather',
         'duckdb': '.duckdb',
-        'txt': '.txt'
+        'txt': '.txt',
+        'tensorflow': '.npz',
+        'npz': '.npz',
+        'keras': '.h5',
+        'h5': '.h5',
+        'pyarrow': '.arrow',
+        'arrow': '.arrow'
     }
     
     # Get the expected extension for the output format

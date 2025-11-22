@@ -56,11 +56,26 @@ def browse_filesystem():
                     'items': []
                 })
                 
+            # System files to exclude from file browser
+            SYSTEM_FILES = {
+                'usage_data.duckdb',
+                'redline_data.duckdb',
+                'data_config.ini',
+                'config.ini',
+                'api_keys.json',      # API keys configuration (sensitive)
+                'custom_apis.json',    # Custom API configurations (sensitive)
+                'licenses.json'        # License information (sensitive)
+            }
+            
             for item_name in sorted(dir_contents):
                 item_path = os.path.join(abs_path, item_name)
                 
                 # Skip hidden files/folders
                 if item_name.startswith('.'):
+                    continue
+                
+                # Skip system files
+                if item_name in SYSTEM_FILES:
                     continue
                 
                 try:

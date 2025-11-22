@@ -80,6 +80,25 @@ def _load_data_file(filename, file_path_hint=None):
         conn = duckdb.connect(data_path)
         df = conn.execute("SELECT * FROM tickers_data").fetchdf()
         conn.close()
+    elif format_type in ('tensorflow', 'npz'):
+        import numpy as np
+        loaded = np.load(data_path)
+        if 'data' in loaded:
+            df = pd.DataFrame(loaded['data'])
+        else:
+            first_key = list(loaded.keys())[0]
+            df = pd.DataFrame(loaded[first_key])
+    elif format_type in ('keras', 'h5'):
+        raise ValueError('Keras model files (.h5) cannot be used for scikit-learn operations. Use the Analysis tab for model operations.')
+    elif format_type in ('pyarrow', 'arrow'):
+        try:
+            import pyarrow as pa
+            with pa.ipc.open_file(data_path) as reader:
+                df = reader.read_all().to_pandas()
+        except ImportError:
+            raise ImportError('PyArrow is required to load .arrow files')
+        except Exception as e:
+            raise Exception(f'Error loading Arrow file: {str(e)}')
     else:
         df = converter.load_file_by_type(data_path, format_type)
     

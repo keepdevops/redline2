@@ -34,8 +34,16 @@ def batch_merge():
         if not output_format:
             return jsonify({'error': 'Output format is required'}), 400
         
+        # Normalize format names (npz -> tensorflow for consistency)
+        format_mapping = {
+            'npz': 'tensorflow',
+            'h5': 'keras',
+            'arrow': 'pyarrow'
+        }
+        normalized_format = format_mapping.get(output_format.lower(), output_format.lower())
+        
         data_dir = os.path.join(os.getcwd(), 'data')
-        output_filename = adjust_output_filename(output_filename, output_format)
+        output_filename = adjust_output_filename(output_filename, normalized_format)
         output_path = os.path.join(data_dir, 'converted', output_filename)
         
         if os.path.exists(output_path) and not overwrite:
@@ -82,6 +90,15 @@ def batch_merge():
                 ext = os.path.splitext(input_path)[1].lower()
                 format_type = EXT_TO_FORMAT.get(ext, 'csv')
                 
+                # Skip system/config files that shouldn't be merged
+                filename = os.path.basename(input_path)
+                if filename in ['custom_apis.json', 'api_keys.json', 'data_config.ini', 'config.ini']:
+                    errors.append({
+                        'input_file': input_file,
+                        'error': f'Skipping system/config file: {filename}'
+                    })
+                    continue
+                
                 data_obj = converter.load_file_by_type(input_path, format_type)
                 if data_obj is None or (hasattr(data_obj, 'empty') and data_obj.empty):
                     errors.append({
@@ -126,7 +143,35 @@ def batch_merge():
             
             # Save merged file
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            converter.save_file_by_type(merged_df, output_path, output_format)
+            
+            # Check if numpy is available for npz/tensorflow format
+            if normalized_format in ('tensorflow', 'npz'):
+                try:
+                    import numpy as np
+                except ImportError:
+                    return jsonify({
+                        'error': 'NumPy is required for .npz format but is not available',
+                        'suggestion': 'Please install numpy: pip install numpy'
+                    }), 500
+            
+            try:
+                converter.save_file_by_type(merged_df, output_path, normalized_format)
+            except Exception as save_error:
+                logger.error(f"Error saving file to {output_path}: {str(save_error)}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                return jsonify({
+                    'error': f'Failed to save merged file: {str(save_error)}',
+                    'output_format': normalized_format,
+                    'errors': errors
+                }), 500
+            
+            if not os.path.exists(output_path):
+                return jsonify({
+                    'error': 'File was not created after save operation',
+                    'output_path': output_path,
+                    'errors': errors
+                }), 500
             
             file_stat = os.stat(output_path)
             
@@ -134,7 +179,7 @@ def batch_merge():
                 'success': True,
                 'message': f'Successfully merged {len(loaded_files)} files',
                 'output_file': output_filename,
-                'output_format': output_format,
+                'output_format': normalized_format,
                 'file_size': file_stat.st_size,
                 'total_records': len(merged_df),
                 'columns': list(merged_df.columns),

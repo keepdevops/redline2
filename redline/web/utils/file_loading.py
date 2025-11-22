@@ -67,6 +67,29 @@ def load_single_file_parallel(file_path: str) -> Optional[pd.DataFrame]:
             conn = duckdb.connect(file_path)
             data = conn.execute("SELECT * FROM tickers_data").fetchdf()
             conn.close()
+        elif format_type in ('tensorflow', 'npz'):
+            import numpy as np
+            loaded = np.load(file_path)
+            if 'data' in loaded:
+                data = pd.DataFrame(loaded['data'])
+            else:
+                first_key = list(loaded.keys())[0]
+                data = pd.DataFrame(loaded[first_key])
+        elif format_type in ('keras', 'h5'):
+            # Keras models can't be converted to DataFrame
+            logger.warning(f"Keras model file {file_path} cannot be loaded as DataFrame")
+            data = pd.DataFrame({'message': ['Keras model file - use Analysis tab for model operations']})
+        elif format_type in ('pyarrow', 'arrow'):
+            try:
+                import pyarrow as pa
+                with pa.ipc.open_file(file_path) as reader:
+                    data = reader.read_all().to_pandas()
+            except ImportError:
+                logger.warning("PyArrow not available for .arrow files")
+                data = pd.DataFrame({'message': ['PyArrow required to load .arrow files']})
+            except Exception as e:
+                logger.error(f"Error loading Arrow file: {str(e)}")
+                data = pd.DataFrame({'error': [str(e)]})
         else:
             # Fallback to loader for unsupported formats
             loader = DataLoader()
@@ -197,7 +220,24 @@ def load_file_by_format(file_path: str, format_type: str) -> pd.DataFrame:
                     # If all separators fail, try reading as fixed-width
                     return pd.read_fwf(file_path)
         elif format_type == 'json':
-            return pd.read_json(file_path)
+            # Handle JSON files that might be scalar objects (like api_keys.json)
+            # or empty objects (like custom_apis.json)
+            try:
+                import json
+                with open(file_path, 'r') as f:
+                    json_data = json.load(f)
+                
+                # If it's an empty object or scalar values, return empty DataFrame
+                if not json_data or (isinstance(json_data, dict) and not any(isinstance(v, (list, dict)) for v in json_data.values())):
+                    return pd.DataFrame()
+                
+                # Try to read as DataFrame
+                return pd.read_json(file_path)
+            except ValueError as e:
+                # Handle "If using all scalar values, you must pass an index" error
+                if "scalar values" in str(e):
+                    return pd.DataFrame()
+                raise
         elif format_type == 'parquet':
             return pd.read_parquet(file_path)
         elif format_type == 'feather':

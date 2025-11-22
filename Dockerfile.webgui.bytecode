@@ -91,14 +91,12 @@ RUN echo "🔨 Minifying JavaScript and CSS assets..." && \
     fi && \
     echo "✅ JavaScript and CSS minification complete"
 
-# Pre-compile Python bytecode with optimization
-# -b flag: write bytecode files alongside source (not in __pycache__)
-# -OO: optimize bytecode (remove docstrings, assert statements)
-RUN PYTHONOPTIMIZE=2 python -OO -m compileall -b . && \
-    echo "✅ Compiled $(find . -name '*.pyc' | wc -l) bytecode files" && \
-    find . -name "*.py" -not -path "./web_app.py" -not -path "./main.py" -delete && \
-    find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true && \
-    echo "✅ Removed source files, kept essential entry points"
+# Skip bytecode compilation - causes issues with TensorFlow, Celery, and other packages
+# that require docstrings. Keep source files for production.
+# Alternative: Use Python's built-in .pyc generation at runtime (PYTHONDONTWRITEBYTECODE=0)
+RUN echo "⚠️  Bytecode compilation skipped to avoid TensorFlow/Celery compatibility issues" && \
+    echo "✅ Source files preserved for production (Python will generate .pyc at runtime)" && \
+    find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
 
 # ============================================
 # Stage 2: Runtime - Minimal production image

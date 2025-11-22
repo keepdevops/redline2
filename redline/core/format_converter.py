@@ -333,22 +333,28 @@ class FormatConverter:
                     self.logger.info(f"Saved Keras model: {file_path}")
                 else:
                     raise ValueError(f"Cannot save {type(data)} to Keras format")
-            elif format == 'tensorflow' and NUMPY_AVAILABLE:
+            elif format in ('tensorflow', 'npz'):
+                if not NUMPY_AVAILABLE:
+                    raise ImportError("NumPy is required for .npz format but is not available. Please install numpy: pip install numpy")
                 if isinstance(data, pd.DataFrame):
-                    np.savez(file_path, data=data.to_numpy())
-                    self.logger.info(f"Saved TensorFlow NPZ: {file_path}")
+                    try:
+                        np.savez(file_path, data=data.to_numpy())
+                        self.logger.info(f"Saved TensorFlow NPZ: {file_path}")
+                    except Exception as e:
+                        self.logger.error(f"Error saving NPZ file: {str(e)}")
+                        raise Exception(f"Failed to save .npz file: {str(e)}")
                 else:
-                    raise ValueError(f"Cannot save {type(data)} to TensorFlow format")
+                    raise ValueError(f"Cannot save {type(data)} to TensorFlow/NPZ format")
             elif format == 'pyarrow' and PYARROW_AVAILABLE:
                 if isinstance(data, pd.DataFrame):
                     table = pa.Table.from_pandas(data)
                     with pa.OSFile(file_path, 'wb') as sink:
-                        with pa.ipc.new_stream(sink, table.schema) as writer:
+                        with pa.ipc.new_file(sink, table.schema) as writer:
                             writer.write_table(table)
                     self.logger.info(f"Saved PyArrow format: {file_path}")
                 elif isinstance(data, pa.Table):
                     with pa.OSFile(file_path, 'wb') as sink:
-                        with pa.ipc.new_stream(sink, data.schema) as writer:
+                        with pa.ipc.new_file(sink, data.schema) as writer:
                             writer.write_table(data)
                     self.logger.info(f"Saved PyArrow format: {file_path}")
                 else:

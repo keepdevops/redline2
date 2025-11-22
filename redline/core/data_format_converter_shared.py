@@ -81,14 +81,49 @@ class FormatConverter:
         if filetype == 'csv':
             return pd.read_csv(file_path)
         elif filetype == 'json':
+            # Handle JSON files that might be scalar objects (like api_keys.json)
+            # or empty objects (like custom_apis.json)
             try:
-                return pd.read_json(file_path, lines=True)
-            except Exception:
-                return pd.read_json(file_path)
+                import json
+                with open(file_path, 'r') as f:
+                    json_data = json.load(f)
+                
+                # If it's an empty object or scalar values, return empty DataFrame
+                if not json_data or (isinstance(json_data, dict) and not any(isinstance(v, (list, dict)) for v in json_data.values())):
+                    return pd.DataFrame()
+                
+                # Try to read as DataFrame
+                try:
+                    return pd.read_json(file_path, lines=True)
+                except Exception:
+                    return pd.read_json(file_path)
+            except ValueError as e:
+                # Handle "If using all scalar values, you must pass an index" error
+                if "scalar values" in str(e):
+                    return pd.DataFrame()
+                raise
         elif filetype == 'txt':
-            df = pd.read_csv(file_path, delimiter='\t')
-            if df.shape[1] == 1:
+            # Try multiple delimiters for TXT files
+            try:
+                # First try comma-separated (most common for Stooq format)
                 df = pd.read_csv(file_path, delimiter=',')
+            except Exception:
+                try:
+                    # Try tab-separated
+                    df = pd.read_csv(file_path, delimiter='\t')
+                except Exception:
+                    # Try other common separators
+                    for sep in [';', ' ', '|']:
+                        try:
+                            df = pd.read_csv(file_path, sep=sep)
+                            break
+                        except Exception:
+                            continue
+                    else:
+                        # If all separators fail, try fixed-width
+                        df = pd.read_fwf(file_path)
+            
+            # Standardize columns if method exists
             from redline.core.data_loader_shared import DataLoader
             if hasattr(DataLoader, '_standardize_txt_columns'):
                 loader = DataLoader()
@@ -151,8 +186,14 @@ class FormatConverter:
             conn.execute("CREATE TABLE IF NOT EXISTS tickers_data AS SELECT * FROM temp_df")
             conn.unregister('temp_df')
             conn.close()
-        elif filetype == 'tensorflow' and np:
-            np.savez(file_path, data=df.to_numpy())
+        elif filetype in ('tensorflow', 'npz'):
+            if not np:
+                raise ImportError("NumPy is required for .npz format but is not available. Please install numpy: pip install numpy")
+            try:
+                np.savez(file_path, data=df.to_numpy())
+            except Exception as e:
+                logger.error(f"Error saving NPZ file: {str(e)}")
+                raise Exception(f"Failed to save .npz file: {str(e)}")
         elif filetype == 'polars' and pl:
             if not isinstance(df, pl.DataFrame):
                 try:
