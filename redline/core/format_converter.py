@@ -32,6 +32,20 @@ except ImportError:
     duckdb = None
     DUCKDB_AVAILABLE = False
 
+try:
+    import tensorflow as tf
+    TENSORFLOW_AVAILABLE = True
+except ImportError:
+    tf = None
+    TENSORFLOW_AVAILABLE = False
+
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    np = None
+    NUMPY_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 class FormatConverter:
@@ -297,7 +311,6 @@ class FormatConverter:
                         self.logger.info(f"Saving {len(data)} rows to TXT: {file_path}")
                         if data.empty:
                             self.logger.warning("DataFrame is empty, creating empty TXT file")
-                        # Try CSV format first (common for .txt files)
                         data.to_csv(file_path, index=False, sep='\t')
                         self.logger.info(f"Successfully saved TXT file: {file_path}")
                     elif POLARS_AVAILABLE and isinstance(data, pl.DataFrame):
@@ -310,12 +323,45 @@ class FormatConverter:
                         raise ValueError(f"Cannot save {type(data)} to TXT format")
                 except Exception as e:
                     self.logger.error(f"Error saving TXT file: {str(e)}")
-                    self.logger.error(f"File path: {file_path}")
-                    self.logger.error(f"Data type: {type(data)}")
-                    if hasattr(data, 'shape'):
-                        self.logger.error(f"Data shape: {data.shape}")
                     raise Exception(f"Failed to save TXT file: {str(e)}")
-                
+            elif format == 'keras' and TENSORFLOW_AVAILABLE:
+                if isinstance(data, pd.DataFrame):
+                    from tensorflow.keras import Sequential, Input
+                    from tensorflow.keras.layers import Dense
+                    model = Sequential([Input(shape=(len(data.columns),)), Dense(32, activation='relu'), Dense(1)])
+                    model.save(file_path)
+                    self.logger.info(f"Saved Keras model: {file_path}")
+                else:
+                    raise ValueError(f"Cannot save {type(data)} to Keras format")
+            elif format == 'tensorflow' and NUMPY_AVAILABLE:
+                if isinstance(data, pd.DataFrame):
+                    np.savez(file_path, data=data.to_numpy())
+                    self.logger.info(f"Saved TensorFlow NPZ: {file_path}")
+                else:
+                    raise ValueError(f"Cannot save {type(data)} to TensorFlow format")
+            elif format == 'pyarrow' and PYARROW_AVAILABLE:
+                if isinstance(data, pd.DataFrame):
+                    table = pa.Table.from_pandas(data)
+                    with pa.OSFile(file_path, 'wb') as sink:
+                        with pa.ipc.new_stream(sink, table.schema) as writer:
+                            writer.write_table(table)
+                    self.logger.info(f"Saved PyArrow format: {file_path}")
+                elif isinstance(data, pa.Table):
+                    with pa.OSFile(file_path, 'wb') as sink:
+                        with pa.ipc.new_stream(sink, data.schema) as writer:
+                            writer.write_table(data)
+                    self.logger.info(f"Saved PyArrow format: {file_path}")
+                else:
+                    raise ValueError(f"Cannot save {type(data)} to PyArrow format")
+            elif format == 'polars' and POLARS_AVAILABLE:
+                if isinstance(data, pd.DataFrame):
+                    pl.from_pandas(data).write_parquet(file_path)
+                    self.logger.info(f"Saved Polars format: {file_path}")
+                elif isinstance(data, pl.DataFrame):
+                    data.write_parquet(file_path)
+                    self.logger.info(f"Saved Polars format: {file_path}")
+                else:
+                    raise ValueError(f"Cannot save {type(data)} to Polars format")
             else:
                 raise ValueError(f"Unsupported format: {format}")
                 
@@ -367,18 +413,25 @@ class FormatConverter:
                     result = conn.execute("SELECT * FROM tickers_data").fetchdf()
                     return result
                 except Exception as e:
-                    # Ensure connection is closed even on error
                     try:
                         conn.close()
                     except:
                         pass
                     raise e
                 finally:
-                    # Always close the connection
                     try:
                         conn.close()
                     except Exception as close_error:
                         self.logger.warning(f"Error closing DuckDB connection: {close_error}")
+            elif format == 'keras' and TENSORFLOW_AVAILABLE:
+                return tf.keras.models.load_model(file_path)
+            elif format == 'tensorflow' and NUMPY_AVAILABLE:
+                loaded = np.load(file_path)
+                return pd.DataFrame(loaded['data']) if 'data' in loaded else pd.DataFrame(loaded[list(loaded.keys())[0]])
+            elif format == 'pyarrow' and PYARROW_AVAILABLE:
+                return pa.ipc.open_file(file_path).read_all().to_pandas()
+            elif format == 'polars' and POLARS_AVAILABLE:
+                return pl.read_parquet(file_path).to_pandas()
             else:
                 raise ValueError(f"Unsupported format: {format}")
                 
@@ -454,7 +507,14 @@ class FormatConverter:
     
     def get_supported_formats(self) -> List[str]:
         """Get list of supported file formats."""
-        return ['csv', 'parquet', 'feather', 'json', 'duckdb', 'txt']
+        formats = ['csv', 'parquet', 'feather', 'json', 'duckdb', 'txt']
+        if TENSORFLOW_AVAILABLE:
+            formats.extend(['keras', 'tensorflow'])
+        if PYARROW_AVAILABLE:
+            formats.append('pyarrow')
+        if POLARS_AVAILABLE:
+            formats.append('polars')
+        return formats
     
     def detect_format_from_extension(self, file_path: str) -> str:
         """

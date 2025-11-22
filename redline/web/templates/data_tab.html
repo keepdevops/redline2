@@ -3,6 +3,29 @@
 
 {% block title %}Data Tab - REDLINE{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Table headers use theme variables - same for all themes including dark */
+    .table thead th,
+    .table thead.table-dark th {
+        background-color: var(--dark-color) !important;
+        color: var(--text-white) !important;
+        border-bottom: 2px solid var(--border-color) !important;
+    }
+    
+    /* Ensure table headers are always visible */
+    .table thead {
+        display: table-header-group !important;
+        visibility: visible !important;
+    }
+    
+    .table thead th {
+        display: table-cell !important;
+        visibility: visible !important;
+    }
+</style>
+{% endblock %}
+
 {% block page_title %}Data Viewing & Filtering{% endblock %}
 {% block page_subtitle %}View, filter, and manage your financial data{% endblock %}
 
@@ -153,38 +176,87 @@ function loadFileList() {
     
     // Use jQuery ajax - the override in base.html will automatically add the license key
     // But we also include it explicitly here as a backup
+    // Don't set dataType to 'json' to avoid parsing errors on HTML responses
     $.ajax({
         url: '/api/files',
         method: 'GET',
         headers: {
-            'X-License-Key': licenseKey  // Explicit header (jQuery override will also add it)
+            'X-License-Key': licenseKey,  // Explicit header (jQuery override will also add it)
+            'Accept': 'application/json'  // Request JSON, but handle HTML gracefully
         },
         data: {
             license_key: licenseKey  // Also in query params as backup
         },
-        dataType: 'json',
-        success: function(response) {
-            console.log('✅ Files loaded:', response.files.length);
-            const select = $('#fileSelect');
-            select.empty();
-            select.append('<option value="">Select a file to load...</option>');
-            
-            if (response.files && response.files.length > 0) {
-                response.files.forEach(file => {
-                    const fileSize = formatFileSize(file.size || 0);
-                    select.append(`<option value="${file.name}">${file.name} (${fileSize})</option>`);
-                });
+        // Don't set dataType - let jQuery auto-detect, but handle both JSON and HTML
+        success: function(response, textStatus, xhr) {
+            // Check if response is actually JSON
+            if (typeof response === 'object' && response.files) {
+                console.log('✅ Files loaded:', response.files.length);
+                const select = $('#fileSelect');
+                select.empty();
+                select.append('<option value="">Select a file to load...</option>');
+                
+                if (response.files && response.files.length > 0) {
+                    response.files.forEach(file => {
+                        const fileSize = formatFileSize(file.size || 0);
+                        select.append(`<option value="${file.name}">${file.name} (${fileSize})</option>`);
+                    });
+                } else {
+                    select.append('<option value="">No files found</option>');
+                }
             } else {
-                select.append('<option value="">No files found</option>');
+                // Response is not JSON, treat as error
+                throw new Error('Invalid response format');
             }
         },
         error: function(xhr, status, error) {
             console.error('❌ Error loading files:', error);
-            console.error('Response:', xhr.responseText);
+            console.error('Status:', xhr.status);
+            console.error('Response type:', xhr.getResponseHeader('Content-Type'));
+            console.error('Response text (first 200 chars):', xhr.responseText ? xhr.responseText.substring(0, 200) : 'No response');
+            
             let errorMsg = 'Error loading files';
-            if (xhr.responseJSON && xhr.responseJSON.error) {
-                errorMsg = xhr.responseJSON.error;
+            
+            // Handle rate limiting (429)
+            if (xhr.status === 429) {
+                const retryAfter = xhr.getResponseHeader('Retry-After');
+                if (retryAfter) {
+                    const minutes = Math.ceil(parseInt(retryAfter) / 60);
+                    errorMsg = `Too many requests - please wait ${minutes} minute(s)`;
+                } else {
+                    errorMsg = 'Too many requests - please wait a moment';
+                }
             }
+            // Check if response is HTML (error page) instead of JSON
+            else if (xhr.responseText && (xhr.responseText.trim().startsWith('<!') || xhr.responseText.includes('<html'))) {
+                // Response is HTML, not JSON
+                if (xhr.status === 404) {
+                    errorMsg = 'API endpoint not found';
+                } else if (xhr.status >= 500) {
+                    errorMsg = 'Server error - please try again later';
+                } else if (xhr.status === 429) {
+                    errorMsg = 'Too many requests - please wait';
+                } else {
+                    errorMsg = 'Error: ' + xhr.status + ' ' + (xhr.statusText || 'Unknown error');
+                }
+            }
+            // Try to parse JSON error if available (jQuery might have parsed it)
+            else {
+                try {
+                    const jsonResponse = typeof xhr.responseJSON !== 'undefined' ? xhr.responseJSON : JSON.parse(xhr.responseText);
+                    if (jsonResponse && jsonResponse.error) {
+                        errorMsg = jsonResponse.error;
+                    }
+                } catch (e) {
+                    // Not JSON, use status-based message
+                    if (xhr.status === 0) {
+                        errorMsg = 'Network error - check connection';
+                    } else if (status === 'parsererror') {
+                        errorMsg = 'Invalid response from server';
+                    }
+                }
+            }
+            
             $('#fileSelect').empty().append(`<option value="">${errorMsg}</option>`);
         }
     });

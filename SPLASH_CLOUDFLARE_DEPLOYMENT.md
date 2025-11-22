@@ -184,3 +184,5 @@ Your splash page is now live on Cloudflare Pages!
 - Verify "Launch Application" button works
 - Check video displays correctly (if added)
 
+
+

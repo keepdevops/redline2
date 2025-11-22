@@ -27,10 +27,10 @@
                     <div class="row">
                         <div class="col-md-6">
                             <h6><i class="fas fa-download text-primary me-2"></i>1. Download Data</h6>
-                            <p class="text-muted">Use the Download tab to fetch financial data from Yahoo Finance, Stooq, Alpha Vantage, or Finnhub.</p>
+                            <p class="text-muted">Use the Download tab to fetch financial data from Yahoo Finance, Stooq, Alpha Vantage, Finnhub, or Massive.com (with API key).</p>
                             
                             <h6><i class="fas fa-eye text-success me-2"></i>2. View Data</h6>
-                            <p class="text-muted">Navigate to the Data tab to view, filter, and browse datasets with virtual scrolling for large files.</p>
+                            <p class="text-muted">Navigate to the Data tab to view, filter, and browse datasets. Use pagination for large files or multi-file views with date formatting and column editing.</p>
                         </div>
                         <div class="col-md-6">
                             <h6><i class="fas fa-exchange-alt text-info me-2"></i>3. Convert Formats</h6>
@@ -76,11 +76,14 @@
                             <div class="feature-item mb-3">
                                 <h6><i class="fas fa-database text-primary me-2"></i>Data Management</h6>
                                 <ul class="list-unstyled text-muted">
-                                    <li>• Download from Yahoo Finance, Stooq, Alpha Vantage, Finnhub</li>
+                                    <li>• Download from Yahoo Finance, Stooq, Alpha Vantage, Finnhub, Massive.com</li>
                                     <li>• Support for CSV, Parquet, Feather, JSON, DuckDB, TXT</li>
-                                    <li>• Virtual scrolling for large datasets</li>
-                                    <li>• File system browser and upload</li>
-                                    <li>• Enhanced financial field detection</li>
+                                    <li>• Pagination and virtual scrolling for large datasets</li>
+                                    <li>• Multi-file data view with pagination per file</li>
+                                    <li>• Date format selection and column editing</li>
+                                    <li>• Flexible column detection (works with any column names)</li>
+                                    <li>• Column reordering in converter (single and batch)</li>
+                                    <li>• Empty column/row filtering</li>
                                 </ul>
                             </div>
                         </div>
@@ -88,11 +91,12 @@
                             <div class="feature-item mb-3">
                                 <h6><i class="fas fa-chart-line text-success me-2"></i>Analysis Tools</h6>
                                 <ul class="list-unstyled text-muted">
-                                    <li>• Financial analysis (OHLCV)</li>
+                                    <li>• Financial analysis (OHLCV) with flexible column detection</li>
                                     <li>• Statistical analysis</li>
                                     <li>• Correlation analysis</li>
                                     <li>• Trend and volume analysis</li>
                                     <li>• Price movement analysis</li>
+                                    <li>• Works with any column name format (case-insensitive, pattern matching)</li>
                                 </ul>
                             </div>
                         </div>
@@ -197,18 +201,24 @@
                                 <code>POST /api/upload</code> - Upload file<br>
                                 <code>POST /data/load-from-path</code> - Load from file path<br>
                                 <code>GET /data/browse</code> - Browse file system<br>
-                                <code>POST /data/stooq/download</code> - Download Stooq data
+                                <code>POST /download/single</code> - Download single ticker (Yahoo, Stooq, Massive.com)<br>
+                                <code>POST /download/batch</code> - Batch download multiple tickers<br>
+                                <code>POST /data/load</code> - Load data with pagination<br>
+                                <code>POST /data/multi/load</code> - Load multiple files with pagination
                             </div>
                         </div>
                         <div class="col-md-6">
                             <h6>Analysis & System</h6>
                             <div class="code-block mb-3">
-                                <code>POST /analysis/analyze</code> - Run analysis<br>
-                                <code>POST /converter/convert</code> - Convert format<br>
+                                <code>POST /analysis/financial</code> - Financial analysis (flexible column detection)<br>
+                                <code>POST /analysis/statistical</code> - Statistical analysis<br>
+                                <code>POST /converter/convert</code> - Convert format (with column reordering)<br>
+                                <code>POST /converter/merge</code> - Batch merge with column reordering<br>
                                 <code>GET /api/status</code> - System status<br>
                                 <code>GET /api/themes</code> - Available themes<br>
                                 <code>POST /api/theme</code> - Set theme<br>
-                                <code>GET /api/health</code> - Health check
+                                <code>GET /api/health</code> - Health check<br>
+                                <code>GET /payments/balance</code> - Get account balance
                             </div>
                         </div>
                     </div>
@@ -317,7 +327,7 @@
                         <div class="col-md-4">
                             <h6>Account & System</h6>
                             <ul class="list-unstyled text-muted">
-                                <li><i class="fas fa-info-circle me-1"></i>Version: 2.0.0</li>
+                                <li><i class="fas fa-info-circle me-1"></i>Version: 2.1.0</li>
                                 <li><i class="fas fa-calendar me-1"></i>Last Updated: <span id="lastUpdated"></span></li>
                                 <li><i class="fas fa-globe me-1"></i>Browser: <span id="browserInfo"></span></li>
                                 <li><i class="fas fa-palette me-1"></i>Theme: <span id="currentTheme"></span></li>

@@ -45,6 +45,9 @@ scikit-learn>=1.7.2  # Updated for security patches
 matplotlib>=3.10.7  # Updated for security patches
 seaborn>=0.13.2  # Updated for security patches
 
+# ML Format Support (Optional - enables Keras .h5 and TensorFlow .npz formats)
+tensorflow>=2.18.0  # Enables Keras and TensorFlow format support
+
 # Development Dependencies (optional)
 pytest>=9.0.1  # Updated for security patches
 black>=25.11.0  # Updated for security patches

@@ -137,13 +137,19 @@ def analyze_data():
         # Convert all numpy types in the result
         cleaned_result = convert_numpy_types(analysis_result)
         
-        return jsonify({
+        response_data = {
             'filename': filename,
             'analysis_type': analysis_type,
             'result': cleaned_result,
             'data_shape': df.shape,
             'columns': list(df.columns)
-        })
+        }
+        
+        # Include file_path hint for chart data loading
+        if data_path:
+            response_data['file_path'] = data_path
+        
+        return jsonify(response_data)
         
     except ValueError as ve:
         logger.error(f"Value error in analysis: {str(ve)}")

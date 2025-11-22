@@ -116,24 +116,35 @@ python web_app.py   # Web interface
 
 ### **📊 Data Management**
 - **Multi-format Support**: CSV, JSON, Parquet, Feather, DuckDB, TXT
-- **Virtual Scrolling**: Handle 10M+ rows efficiently
+- **Pagination & Virtual Scrolling**: Handle 10M+ rows efficiently with pagination for multi-file views
+- **Multi-File Data View**: View and manage multiple files simultaneously with pagination per file
+- **Date Format Selection**: Choose from multiple date formats in single and multi-file views
+- **Column Editing**: Rename columns directly in data view (single file and global editing)
+- **Column Reordering**: Specify column order in converter (single and batch operations)
+- **Flexible Column Detection**: Analysis works with any column name format (case-insensitive, pattern matching)
+- **Empty Column/Row Filtering**: Automatically filter out empty columns and rows
 - **Real-time Filtering**: Advanced filtering with SQL-like queries
-- **Batch Processing**: Process multiple files simultaneously
+- **Batch Processing**: Process multiple files simultaneously with column alignment
 
 ### **📥 Data Sources**
 - **Yahoo Finance**: Free, reliable financial data
 - **Stooq.com**: High-quality historical data
+- **Massive.com**: Professional data with REST API and WebSocket support (15-min delayed and real-time feeds)
+- **Alpha Vantage & Finnhub**: Additional data sources with API key support
 - **Multi-source**: Fallback mechanisms for data availability
 - **Custom APIs**: Extensible data source framework
 
 ### **📈 Analysis Tools**
+- **Financial Analysis**: OHLCV analysis with flexible column detection (works with any column names)
 - **Statistical Analysis**: Mean, median, std dev, min/max
 - **Trend Analysis**: Price trends, volume analysis
 - **Correlation Analysis**: Asset relationships
 - **Quality Metrics**: Missing values, outliers detection
+- **Smart Column Detection**: Automatically detects price, volume, ticker, and timestamp columns regardless of naming
 
 ### **🔄 Format Conversion**
-- **Batch Conversion**: Convert multiple files at once
+- **Batch Conversion**: Convert multiple files at once with column alignment
+- **Column Reordering**: Specify preferred column order for single and batch conversions
 - **Data Cleaning**: Remove duplicates, fill missing values
 - **Schema Validation**: Automatic data structure validation
 - **Performance Optimization**: 10x smaller file sizes with Parquet

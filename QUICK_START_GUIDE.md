@@ -58,26 +58,41 @@ python web_app.py
 ### **Step 3: Download Your First Data (2 minutes)**
 
 1. **Click the "Download" tab**
-2. **Enter a ticker symbol**: `AAPL` (Apple)
-3. **Select date range**: `2Y` (2 years)
-4. **Click "Download"**
-5. **Wait for completion** (progress bar will show)
+2. **Select data source**: Yahoo Finance (default), Stooq, or Massive.com (requires API key)
+3. **Enter a ticker symbol**: `AAPL` (Apple)
+4. **Select date range**: `2Y` (2 years)
+5. **Click "Download"**
+6. **Wait for completion** (progress bar will show)
 
 ### **Step 4: Load and Explore Data (1 minute)**
 
 1. **Click the "Data" tab**
-2. **Click "Load Data" button**
-3. **Select your downloaded file** (usually in `data/downloaded/`)
-4. **Explore the data** - scroll, filter, analyze!
+2. **Click "Load Data" button** (single file) or **"Load Selected Files"** (multi-file view)
+3. **Select your downloaded file(s)** (usually in `data/downloaded/`)
+4. **Explore the data**:
+   - Use pagination for large files or multi-file views
+   - Change date format using the dropdown
+   - Edit column names directly in the view
+   - Filter empty columns/rows automatically
 
 ---
 
 ## 🎯 **What You Just Did**
 
-✅ **Downloaded real financial data** from Yahoo Finance  
-✅ **Loaded data into REDLINE** for analysis  
-✅ **Explored the interface** and data structure  
-✅ **Set up your workspace** for future analysis  
+✅ **Downloaded real financial data** from Yahoo Finance, Stooq, or Massive.com  
+✅ **Loaded data into REDLINE** for analysis (single or multi-file view)  
+✅ **Explored the interface** with pagination, date formatting, and column editing  
+✅ **Set up your workspace** for future analysis
+
+## 🆕 **New Features in Version 2.1.0**
+
+- **Massive.com Integration**: Download data via REST API or WebSocket (15-min delayed or real-time)
+- **Multi-File Data View**: View multiple files simultaneously with pagination per file
+- **Date Format Selection**: Choose from multiple date formats in data views
+- **Column Editing**: Rename columns directly (single file or global editing for multiple files)
+- **Column Reordering**: Specify column order in converter (single and batch operations)
+- **Flexible Column Detection**: Analysis works with any column name format automatically
+- **Empty Column/Row Filtering**: Automatically filters out empty columns and rows  
 
 ---
 

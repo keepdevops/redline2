@@ -17,7 +17,7 @@ def converter_tab():
 def get_formats():
     """Get supported input and output formats."""
     try:
-        from redline.core.format_converter import FormatConverter
+        from redline.core.format_converter import FormatConverter, TENSORFLOW_AVAILABLE, PYARROW_AVAILABLE, POLARS_AVAILABLE
         converter = FormatConverter()
         
         formats = converter.get_supported_formats()
@@ -66,6 +66,14 @@ def get_formats():
                 'writable': True
             }
         }
+        
+        if TENSORFLOW_AVAILABLE:
+            format_info['keras'] = {'name': 'Keras', 'description': 'Keras/TensorFlow model', 'extension': '.h5', 'readable': True, 'writable': True}
+            format_info['tensorflow'] = {'name': 'TensorFlow', 'description': 'TensorFlow NumPy format', 'extension': '.npz', 'readable': True, 'writable': True}
+        if PYARROW_AVAILABLE:
+            format_info['pyarrow'] = {'name': 'Apache Arrow', 'description': 'Fast columnar format', 'extension': '.arrow', 'readable': True, 'writable': True}
+        if POLARS_AVAILABLE:
+            format_info['polars'] = {'name': 'Polars', 'description': 'Polars DataFrame (Parquet)', 'extension': '.parquet', 'readable': True, 'writable': True}
         
         return jsonify({
             'formats': format_info,

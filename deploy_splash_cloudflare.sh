@@ -70,3 +70,5 @@ echo "   • Easy custom domain setup"
 echo "   • Perfect for static sites"
 echo ""
 
+
+

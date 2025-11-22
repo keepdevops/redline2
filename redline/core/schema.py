@@ -14,8 +14,10 @@ EXT_TO_FORMAT = {
     '.duckdb': 'duckdb',
     '.parquet': 'parquet',
     '.feather': 'feather',
-    '.txt': 'txt'
-    # Removed: '.h5': 'keras' - not implemented
+    '.txt': 'txt',
+    '.h5': 'keras',
+    '.npz': 'tensorflow',
+    '.arrow': 'pyarrow'
 }
 
 # File dialog information mapping
@@ -25,9 +27,11 @@ FORMAT_DIALOG_INFO = {
     'json':    ('.json',    'JSON Files', '*.json'),
     'duckdb':  ('.duckdb',  'DuckDB Files', '*.duckdb'),
     'parquet': ('.parquet', 'Parquet Files', '*.parquet'),
-    'feather': ('.feather', 'Feather Files', '*.feather')
-    # Removed: 'keras': ('.h5', 'Keras Model', '*.h5') - not implemented
-    # Removed: 'tensorflow': ('.npz', 'NumPy Zip', '*.npz') - not implemented
+    'feather': ('.feather', 'Feather Files', '*.feather'),
+    'keras':   ('.h5',      'Keras Model', '*.h5'),
+    'tensorflow': ('.npz',  'TensorFlow NumPy', '*.npz'),
+    'pyarrow': ('.arrow',   'Apache Arrow', '*.arrow'),
+    'polars':  ('.parquet', 'Polars DataFrame', '*.parquet')
 }
 
 # Stooq format columns for validation

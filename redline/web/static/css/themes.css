@@ -219,7 +219,7 @@
     --danger-color: #ef4444;
     --info-color: #06b6d4;
     --light-color: #1f2937;
-    --dark-color: #f9fafb;
+    --dark-color: #0f172a;
     --purple-color: #8b5cf6;
     --pink-color: #ec4899;
     --indigo-color: #6366f1;
@@ -348,7 +348,8 @@ body.theme-dark {
 .theme-forest .table,
 .theme-sunset .table,
 .theme-monochrome .table,
-.theme-grayscale .table {
+.theme-grayscale .table,
+.theme-dark .table {
     background-color: var(--light-color);
     color: var(--text-primary);
 }
@@ -542,39 +543,11 @@ body.theme-dark {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--dark-color) 100%);
 }
 
-.theme-dark .stats-card {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--dark-color) 100%);
-}
+/* Dark theme now uses same defaults as other themes for stats-card */
+
 
 /* Removed conflicting form-control styles - using the ones defined later with white backgrounds */
-
-.theme-dark .table {
-    color: var(--text-primary) !important;
-}
-
-.theme-dark .alert-info {
-    background-color: var(--light-color) !important;
-    color: var(--text-primary) !important;
-    border-left-color: var(--info-color) !important;
-}
-
-.theme-dark .alert-success {
-    background-color: var(--light-color) !important;
-    color: var(--text-primary) !important;
-    border-left-color: var(--success-color) !important;
-}
-
-.theme-dark .alert-danger {
-    background-color: var(--light-color) !important;
-    color: var(--text-primary) !important;
-    border-left-color: var(--danger-color) !important;
-}
-
-.theme-dark .alert-warning {
-    background-color: var(--light-color) !important;
-    color: var(--text-primary) !important;
-    border-left-color: var(--warning-color) !important;
-}
+/* Dark theme now uses same defaults as other themes - removed duplicate rules */
 
 /* Dark Theme - Modal Styles - Maximum specificity to override Bootstrap 5.3.0 */
 body.theme-dark .modal.show .modal-dialog .modal-content,
@@ -776,7 +749,8 @@ body.theme-dark .form-check-label,
 .theme-forest .alert-success,
 .theme-sunset .alert-success,
 .theme-monochrome .alert-success,
-.theme-grayscale .alert-success {
+.theme-grayscale .alert-success,
+.theme-dark .alert-success {
     background-color: var(--light-color) !important;
     color: var(--text-primary) !important;
     border-left-color: var(--success-color) !important;
@@ -788,7 +762,8 @@ body.theme-dark .form-check-label,
 .theme-forest .alert-danger,
 .theme-sunset .alert-danger,
 .theme-monochrome .alert-danger,
-.theme-grayscale .alert-danger {
+.theme-grayscale .alert-danger,
+.theme-dark .alert-danger {
     background-color: var(--light-color) !important;
     color: var(--text-primary) !important;
     border-left-color: var(--danger-color) !important;
@@ -800,7 +775,8 @@ body.theme-dark .form-check-label,
 .theme-forest .alert-info,
 .theme-sunset .alert-info,
 .theme-monochrome .alert-info,
-.theme-grayscale .alert-info {
+.theme-grayscale .alert-info,
+.theme-dark .alert-info {
     background-color: var(--light-color) !important;
     color: var(--text-primary) !important;
     border-left-color: var(--info-color) !important;
@@ -812,7 +788,8 @@ body.theme-dark .form-check-label,
 .theme-forest .alert-warning,
 .theme-sunset .alert-warning,
 .theme-monochrome .alert-warning,
-.theme-grayscale .alert-warning {
+.theme-grayscale .alert-warning,
+.theme-dark .alert-warning {
     background-color: var(--light-color) !important;
     color: var(--text-primary) !important;
     border-left-color: var(--warning-color) !important;

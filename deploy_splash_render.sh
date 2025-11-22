@@ -57,3 +57,5 @@ echo "   • Splash page: https://redfindat.com (if DNS configured)"
 echo "   • App: https://app.redfindat.com"
 echo ""
 
+
+

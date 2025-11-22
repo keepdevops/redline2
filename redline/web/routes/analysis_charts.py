@@ -120,3 +120,5 @@ def get_chart_data():
         logger.error(f"Error getting chart data: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+
+

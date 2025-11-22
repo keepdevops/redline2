@@ -308,3 +308,5 @@ def generate_volume_chart():
             plt.close('all')
         return jsonify({'error': str(e)}), 500
 
+
+

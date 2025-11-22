@@ -14,20 +14,25 @@
 
 ---
 
-## 🆕 **What's New in Version 2.0**
+## 🆕 **What's New in Version 2.1.0**
 
 ### **✨ Data Management Enhancements**
-- **Data Cleaning**: Remove duplicates, handle missing values, clean column names
-- **Date Format Selection**: Choose from multiple date formats (YYYY-MM-DD, MM/DD/YYYY, DD/MM/YYYY, etc.)
-- **Column Editing**: Rename columns directly in the data view
-- **API Key Masking**: Automatic masking of sensitive API keys in data views
-- **Custom API Support**: Configure and use your own data source APIs
+- **Massive.com Integration**: Download data from Massive.com via REST API and WebSocket (15-min delayed and real-time feeds)
+- **Multi-File Data View**: View multiple files simultaneously with pagination per file
+- **Date Format Selection**: Choose from multiple date formats (YYYY-MM-DD, MM/DD/YYYY, DD/MM/YYYY, etc.) in single and multi-file views
+- **Column Editing**: Rename columns directly in data view (single file and global editing for multi-file)
+- **Column Reordering**: Specify column order in converter (single conversion and batch merge)
+- **Flexible Column Detection**: Analysis works with any column name format (case-insensitive, pattern matching)
+- **Empty Column/Row Filtering**: Automatically filter out empty columns and rows in multi-file view
+- **API Key Management**: Configure API keys for external data sources (Yahoo, Stooq, Alpha Vantage, Finnhub, Massive.com)
 
 ### **📊 Enhanced Features**
 - **Smart Data Loading**: Automatically detects and fixes malformed CSV headers
-- **Virtual Scrolling**: Efficiently handle large datasets without performance issues
-- **Batch Operations**: Process multiple files simultaneously
+- **Pagination**: Efficient pagination for large datasets and multi-file views
+- **Virtual Scrolling**: Still available for single-file views
+- **Batch Operations**: Process multiple files simultaneously with column alignment
 - **Theme Customization**: 8 themes with live color customization
+- **Balance Tracking**: Real-time balance display with usage tracking
 - **Subscription Service**: Cloud-based access with license key management
 
 ---

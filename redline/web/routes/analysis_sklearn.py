@@ -351,3 +351,5 @@ def scale_features():
         logger.error(f"Error scaling features: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+
+

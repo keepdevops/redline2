@@ -1111,6 +1111,8 @@ thead.table-dark th {
     margin-bottom: 2rem;
 }
 
+/* Dark theme now uses same defaults as other themes for stats-card */
+
 .stats-number {
     font-size: 2.5rem;
     font-weight: 700;

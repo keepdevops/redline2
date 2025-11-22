@@ -54,3 +54,5 @@ echo "   • Service URL: https://redline-backend.onrender.com"
 echo "   • Custom Domain: https://app.redfindat.com (after DNS setup)"
 echo ""
 
+
+

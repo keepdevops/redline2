@@ -64,9 +64,26 @@
                 </div>
                 
                 <div class="mt-3">
-                    <button id="exportAnalysisBtn" class="btn btn-success">
+                    <button id="exportAnalysisBtn" class="btn btn-success me-2">
                         <i class="fas fa-download me-2"></i>Export Analysis
                     </button>
+                    <button id="generateBackendChartBtn" class="btn btn-info me-2" style="display: none;">
+                        <i class="fas fa-chart-area me-2"></i>Generate Backend Chart
+                    </button>
+                    <button id="prepareMLDataBtn" class="btn btn-warning me-2" style="display: none;">
+                        <i class="fas fa-brain me-2"></i>Prepare ML Data
+                    </button>
+                    <div class="btn-group me-2" role="group" style="display: none;" id="mlFeaturesGroup">
+                        <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                            <i class="fas fa-robot me-2"></i>ML Features
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" id="detectOutliersBtn"><i class="fas fa-exclamation-triangle me-2"></i>Detect Outliers</a></li>
+                            <li><a class="dropdown-item" href="#" id="clusterDataBtn"><i class="fas fa-project-diagram me-2"></i>Cluster Data</a></li>
+                            <li><a class="dropdown-item" href="#" id="predictValuesBtn"><i class="fas fa-crystal-ball me-2"></i>Predict Values</a></li>
+                            <li><a class="dropdown-item" href="#" id="scaleFeaturesBtn"><i class="fas fa-balance-scale me-2"></i>Scale Features</a></li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -116,6 +133,31 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Additional Features -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-magic me-2"></i>Additional Features
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6><i class="fas fa-chart-area text-primary me-2"></i>Backend Visualization</h6>
+                    <small class="text-muted">Generate high-quality charts using matplotlib/seaborn. Available after running analysis.</small>
+                </div>
+                
+                <div class="mb-3">
+                    <h6><i class="fas fa-brain text-warning me-2"></i>ML Data Preparation</h6>
+                    <small class="text-muted">Prepare data for machine learning training in NumPy or TensorFlow format.</small>
+                </div>
+                
+                <div class="mb-3">
+                    <h6><i class="fas fa-robot text-danger me-2"></i>Scikit-learn Features</h6>
+                    <small class="text-muted">Outlier detection, clustering, predictions, and feature scaling using scikit-learn.</small>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -142,6 +184,35 @@ $(document).ready(function() {
     
     $('#exportAnalysisBtn').on('click', function() {
         exportAnalysis();
+    });
+    
+    $('#generateBackendChartBtn').on('click', function() {
+        generateBackendChart();
+    });
+    
+    $('#prepareMLDataBtn').on('click', function() {
+        prepareMLData();
+    });
+    
+    // ML Features dropdown handlers
+    $('#detectOutliersBtn').on('click', function(e) {
+        e.preventDefault();
+        detectOutliers();
+    });
+    
+    $('#clusterDataBtn').on('click', function(e) {
+        e.preventDefault();
+        clusterData();
+    });
+    
+    $('#predictValuesBtn').on('click', function(e) {
+        e.preventDefault();
+        predictValues();
+    });
+    
+    $('#scaleFeaturesBtn').on('click', function(e) {
+        e.preventDefault();
+        scaleFeatures();
     });
 });
 
@@ -285,14 +356,25 @@ function runAnalysis() {
         });
 }
 
+let chartInstances = {}; // Store chart instances for cleanup
+
 function displayAnalysisResults(response) {
     const result = response.result;
+    
+    // Destroy existing charts
+    Object.values(chartInstances).forEach(chart => {
+        if (chart && typeof chart.destroy === 'function') {
+            chart.destroy();
+        }
+    });
+    chartInstances = {};
+    
     let resultsHtml = '';
     
     if (response.analysis_type === 'basic') {
         resultsHtml = displayBasicAnalysis(result);
     } else if (response.analysis_type === 'financial') {
-        resultsHtml = displayFinancialAnalysis(result);
+        resultsHtml = displayFinancialAnalysis(result, response.filename);
     } else if (response.analysis_type === 'statistical') {
         resultsHtml = displayStatisticalAnalysis(result);
     } else if (response.analysis_type === 'correlation') {
@@ -301,6 +383,37 @@ function displayAnalysisResults(response) {
     
     $('#resultsContent').html(resultsHtml);
     $('#analysisResults').show();
+    
+    // Show/hide action buttons based on analysis type
+    if (response.analysis_type === 'financial') {
+        $('#generateBackendChartBtn').show().text('Generate Price Chart');
+        $('#prepareMLDataBtn').show();
+        $('#mlFeaturesGroup').show();
+    } else if (response.analysis_type === 'correlation') {
+        $('#generateBackendChartBtn').show().text('Generate Heatmap');
+        $('#prepareMLDataBtn').show();
+        $('#mlFeaturesGroup').show();
+    } else if (response.analysis_type === 'statistical') {
+        $('#generateBackendChartBtn').show().text('Generate Distribution Chart');
+        $('#prepareMLDataBtn').show();
+        $('#mlFeaturesGroup').show();
+    } else {
+        $('#generateBackendChartBtn').hide();
+        $('#prepareMLDataBtn').hide();
+        $('#mlFeaturesGroup').hide();
+    }
+    
+    // Store current analysis response for button actions
+    window.currentAnalysisResponse = response;
+    
+    // Initialize charts after HTML is rendered
+    setTimeout(() => {
+        if (response.analysis_type === 'financial') {
+            loadPriceChart(response.filename, response.file_path);
+        } else if (response.analysis_type === 'correlation') {
+            createCorrelationChart(result);
+        }
+    }, 100);
 }
 
 function displayBasicAnalysis(result) {
@@ -364,8 +477,18 @@ function displayBasicAnalysis(result) {
     return html;
 }
 
-function displayFinancialAnalysis(result) {
+function displayFinancialAnalysis(result, filename) {
     let html = '<h6 class="mb-3" style="color: var(--text-primary);">Financial Analysis</h6>';
+    
+    // Add price chart canvas
+    html += `
+        <div class="card mb-3" style="background-color: var(--light-color); color: var(--text-primary);">
+            <div class="card-body">
+                <h6 style="color: var(--text-primary);">Price Trend Chart</h6>
+                <canvas id="priceChart" style="max-height: 300px;"></canvas>
+            </div>
+        </div>
+    `;
     
     if (result.price_analysis && Object.keys(result.price_analysis).length > 0) {
         html += `
@@ -517,6 +640,18 @@ function displayCorrelationAnalysis(result) {
         html += `</ul></div>`;
     }
     
+    // Add correlation heatmap chart
+    if (result.correlation_matrix && Object.keys(result.correlation_matrix).length > 0) {
+        html += `
+            <div class="card mb-3" style="background-color: var(--light-color); color: var(--text-primary);">
+                <div class="card-body">
+                    <h6 style="color: var(--text-primary);">Correlation Heatmap</h6>
+                    <canvas id="correlationChart" style="max-height: 400px;"></canvas>
+                </div>
+            </div>
+        `;
+    }
+    
     // Correlation matrix
     if (result.correlation_matrix) {
         html += '<h6 class="mb-3" style="color: var(--text-primary);">Correlation Matrix</h6>';
@@ -552,6 +687,510 @@ function displayCorrelationAnalysis(result) {
     }
     
     return html;
+}
+
+function loadPriceChart(filename, filePath) {
+    // Get sample price data for charting
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    REDLINE.api.post('/analysis/chart-data', {
+        filename: filename,
+        file_path: filePath,
+        chart_type: 'price',
+        license_key: licenseKey
+    })
+    .then(response => {
+        if (response.data && response.data.length > 0) {
+            createPriceChart(response.data, response.labels);
+        }
+    })
+    .catch(error => {
+        console.log('Chart data not available:', error);
+    });
+}
+
+function createPriceChart(data, labels) {
+    const canvas = document.getElementById('priceChart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const chartData = {
+        labels: labels || data.map((_, i) => i),
+        datasets: [{
+            label: 'Price',
+            data: data,
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            tension: 0.1,
+            fill: true
+        }]
+    };
+    
+    if (chartInstances.priceChart) {
+        chartInstances.priceChart.destroy();
+    }
+    
+    chartInstances.priceChart = chartHelper.createLineChart('priceChart', chartData, {
+        plugins: {
+            legend: { display: true }
+        },
+        scales: {
+            y: { beginAtZero: false }
+        }
+    });
+}
+
+function createCorrelationChart(result) {
+    const canvas = document.getElementById('correlationChart');
+    if (!canvas || !result.correlation_matrix) return;
+    
+    // Convert correlation matrix to chart data
+    const columns = Object.keys(result.correlation_matrix);
+    if (columns.length < 2) return;
+    
+    const labels = columns;
+    const datasets = columns.map((col, idx) => {
+        const correlations = result.correlation_matrix[col];
+        const data = columns.map(c => correlations[c] || 0);
+        
+        // Generate color based on index
+        const hue = (idx * 360 / columns.length) % 360;
+        return {
+            label: col,
+            data: data,
+            backgroundColor: `hsla(${hue}, 70%, 50%, 0.6)`,
+            borderColor: `hsl(${hue}, 70%, 50%)`,
+            borderWidth: 1
+        };
+    });
+    
+    const ctx = canvas.getContext('2d');
+    if (chartInstances.correlationChart) {
+        chartInstances.correlationChart.destroy();
+    }
+    
+    chartInstances.correlationChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: labels, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { min: -1, max: 1, title: { display: true, text: 'Correlation' } },
+                x: { title: { display: true, text: 'Columns' } }
+            },
+            plugins: {
+                legend: { display: true, position: 'right' },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y.toFixed(3);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function generateBackendChart() {
+    if (!window.currentAnalysisResponse) {
+        REDLINE.ui.showToast('No analysis data available', 'error');
+        return;
+    }
+    
+    const response = window.currentAnalysisResponse;
+    const filename = response.filename;
+    const filePath = response.file_path;
+    const analysisType = response.analysis_type;
+    
+    REDLINE.ui.showLoading('Generating chart...');
+    
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    let endpoint = '';
+    let chartData = { filename: filename, file_path: filePath, license_key: licenseKey };
+    
+    if (analysisType === 'financial') {
+        endpoint = '/analysis/price-chart';
+    } else if (analysisType === 'correlation') {
+        endpoint = '/analysis/correlation-heatmap';
+    } else if (analysisType === 'statistical') {
+        endpoint = '/analysis/distribution-chart';
+    } else {
+        REDLINE.ui.hideLoading();
+        REDLINE.ui.showToast('Chart generation not available for this analysis type', 'error');
+        return;
+    }
+    
+    REDLINE.api.post(endpoint, chartData)
+        .then(response => {
+            REDLINE.ui.hideLoading();
+            if (response.image) {
+                // Display chart in modal or inline
+                displayBackendChart(response.image, analysisType);
+            } else {
+                REDLINE.ui.showToast('Chart generated but no image returned', 'error');
+            }
+        })
+        .catch(error => {
+            REDLINE.ui.hideLoading();
+            const errorMsg = error.message || error.error || 'Unknown error';
+            REDLINE.ui.showToast('Error generating chart: ' + errorMsg, 'error');
+        });
+}
+
+function displayBackendChart(imageData, analysisType) {
+    const chartTitle = analysisType === 'financial' ? 'Price Chart' 
+                        : analysisType === 'correlation' ? 'Correlation Heatmap'
+                        : 'Distribution Chart';
+    
+    const chartHtml = `
+        <div class="card mb-3" style="background-color: var(--light-color); color: var(--text-primary);">
+            <div class="card-header">
+                <h6 style="color: var(--text-primary);">${chartTitle} (Backend Generated)</h6>
+            </div>
+            <div class="card-body">
+                <img src="${imageData}" class="img-fluid" alt="${chartTitle}" style="max-width: 100%; height: auto;">
+            </div>
+        </div>
+    `;
+    
+    // Append to results or show in modal
+    $('#resultsContent').prepend(chartHtml);
+    REDLINE.ui.showToast('Chart generated successfully', 'success');
+}
+
+function prepareMLData() {
+    if (!window.currentAnalysisResponse) {
+        REDLINE.ui.showToast('No analysis data available', 'error');
+        return;
+    }
+    
+    const response = window.currentAnalysisResponse;
+    const filename = response.filename;
+    const filePath = response.file_path;
+    
+    const format = prompt('Select format:\n1. numpy\n2. tensorflow\n\nEnter format (1 or 2):', '1');
+    if (!format) return;
+    
+    const formatType = format === '2' ? 'tensorflow' : 'numpy';
+    
+    REDLINE.ui.showLoading('Preparing ML data...');
+    
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    REDLINE.api.post('/analysis/prepare-ml-data', {
+        filename: filename,
+        file_path: filePath,
+        format: formatType,
+        license_key: licenseKey
+    })
+    .then(response => {
+        REDLINE.ui.hideLoading();
+        displayMLDataResult(response);
+    })
+    .catch(error => {
+        REDLINE.ui.hideLoading();
+        const errorMsg = error.message || error.error || 'Unknown error';
+        REDLINE.ui.showToast('Error preparing ML data: ' + errorMsg, 'error');
+    });
+}
+
+function displayMLDataResult(response) {
+    const result = response.result;
+    let resultHtml = `
+        <div class="card mb-3" style="background-color: var(--light-color); color: var(--text-primary);">
+            <div class="card-header">
+                <h6 style="color: var(--text-primary);">ML Data Preparation Result</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Format:</strong> ${result.format}</p>
+    `;
+    
+    if (result.shape) {
+        resultHtml += `<p><strong>Shape:</strong> ${result.shape}</p>`;
+    }
+    if (result.dtype) {
+        resultHtml += `<p><strong>Data Type:</strong> ${result.dtype}</p>`;
+    }
+    if (result.sample_size) {
+        resultHtml += `<p><strong>Sample Size:</strong> ${result.sample_size}</p>`;
+    }
+    if (result.message) {
+        resultHtml += `<p><strong>Status:</strong> ${result.message}</p>`;
+    }
+    if (result.data_preview && result.data_preview.length > 0) {
+        resultHtml += `<p><strong>Data Preview (first 10 values):</strong></p>`;
+        resultHtml += `<pre style="background-color: var(--dark-color); color: var(--text-white); padding: 10px; border-radius: 5px;">${JSON.stringify(result.data_preview, null, 2)}</pre>`;
+    }
+    
+    resultHtml += `
+            </div>
+        </div>
+    `;
+    
+    $('#resultsContent').prepend(resultHtml);
+    REDLINE.ui.showToast('ML data prepared successfully', 'success');
+}
+
+function detectOutliers() {
+    if (!window.currentAnalysisResponse) {
+        REDLINE.ui.showToast('No analysis data available', 'error');
+        return;
+    }
+    
+    const response = window.currentAnalysisResponse;
+    const contamination = prompt('Enter contamination rate (0.01 to 0.5, default 0.1 = 10%):', '0.1');
+    if (!contamination) return;
+    
+    REDLINE.ui.showLoading('Detecting outliers...');
+    
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    REDLINE.api.post('/analysis/detect-outliers', {
+        filename: response.filename,
+        file_path: response.file_path,
+        contamination: parseFloat(contamination),
+        license_key: licenseKey
+    })
+    .then(response => {
+        REDLINE.ui.hideLoading();
+        displayOutlierResult(response);
+    })
+    .catch(error => {
+        REDLINE.ui.hideLoading();
+        REDLINE.ui.showToast('Error detecting outliers: ' + (error.message || error.error), 'error');
+    });
+}
+
+function displayOutlierResult(response) {
+    let resultHtml = `
+        <div class="card mb-3" style="background-color: var(--light-color); color: var(--text-primary);">
+            <div class="card-header">
+                <h6 style="color: var(--text-primary);">Outlier Detection Results</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Total Rows:</strong> ${response.total_rows}</p>
+                <p><strong>Outliers Found:</strong> ${response.outlier_count} (${response.outlier_percentage}%)</p>
+                <p><strong>Contamination Rate:</strong> ${response.contamination}</p>
+                <p><strong>Columns Analyzed:</strong> ${response.columns_analyzed.join(', ')}</p>
+    `;
+    
+    if (response.outlier_preview && response.outlier_preview.length > 0) {
+        resultHtml += `<p><strong>Outlier Preview:</strong></p>`;
+        resultHtml += `<div class="table-responsive"><table class="table table-sm">`;
+        resultHtml += `<thead><tr>${response.columns_analyzed.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>`;
+        response.outlier_preview.forEach(row => {
+            resultHtml += `<tr>${response.columns_analyzed.map(c => `<td>${row[c] || 'N/A'}</td>`).join('')}</tr>`;
+        });
+        resultHtml += `</tbody></table></div>`;
+    }
+    
+    resultHtml += `</div></div>`;
+    $('#resultsContent').prepend(resultHtml);
+    REDLINE.ui.showToast('Outlier detection completed', 'success');
+}
+
+function clusterData() {
+    if (!window.currentAnalysisResponse) {
+        REDLINE.ui.showToast('No analysis data available', 'error');
+        return;
+    }
+    
+    const response = window.currentAnalysisResponse;
+    const nClusters = prompt('Enter number of clusters (2-10, default 3):', '3');
+    if (!nClusters) return;
+    
+    REDLINE.ui.showLoading('Clustering data...');
+    
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    REDLINE.api.post('/analysis/cluster-data', {
+        filename: response.filename,
+        file_path: response.file_path,
+        n_clusters: parseInt(nClusters),
+        license_key: licenseKey
+    })
+    .then(response => {
+        REDLINE.ui.hideLoading();
+        displayClusterResult(response);
+    })
+    .catch(error => {
+        REDLINE.ui.hideLoading();
+        REDLINE.ui.showToast('Error clustering data: ' + (error.message || error.error), 'error');
+    });
+}
+
+function displayClusterResult(response) {
+    let resultHtml = `
+        <div class="card mb-3" style="background-color: var(--light-color); color: var(--text-primary);">
+            <div class="card-header">
+                <h6 style="color: var(--text-primary);">Clustering Results (K-Means)</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Number of Clusters:</strong> ${response.n_clusters}</p>
+                <p><strong>Total Rows:</strong> ${response.total_rows}</p>
+                <p><strong>Columns Analyzed:</strong> ${response.columns_analyzed.join(', ')}</p>
+                <h6 class="mt-3">Cluster Statistics:</h6>
+    `;
+    
+    Object.entries(response.cluster_stats).forEach(([cluster, stats]) => {
+        resultHtml += `
+            <div class="mb-2">
+                <strong>Cluster ${cluster}:</strong> ${stats.count} rows (${stats.percentage}%)
+                <ul>
+                    ${Object.entries(stats.means).map(([col, val]) => `<li>${col}: ${val.toFixed(2)}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    });
+    
+    resultHtml += `</div></div>`;
+    $('#resultsContent').prepend(resultHtml);
+    REDLINE.ui.showToast('Clustering completed', 'success');
+}
+
+function predictValues() {
+    if (!window.currentAnalysisResponse) {
+        REDLINE.ui.showToast('No analysis data available', 'error');
+        return;
+    }
+    
+    const response = window.currentAnalysisResponse;
+    REDLINE.ui.showLoading('Training model and making predictions...');
+    
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    REDLINE.api.post('/analysis/predict', {
+        filename: response.filename,
+        file_path: response.file_path,
+        license_key: licenseKey
+    })
+    .then(response => {
+        REDLINE.ui.hideLoading();
+        displayPredictionResult(response);
+    })
+    .catch(error => {
+        REDLINE.ui.hideLoading();
+        REDLINE.ui.showToast('Error making predictions: ' + (error.message || error.error), 'error');
+    });
+}
+
+function displayPredictionResult(response) {
+    let resultHtml = `
+        <div class="card mb-3" style="background-color: var(--light-color); color: var(--text-primary);">
+            <div class="card-header">
+                <h6 style="color: var(--text-primary);">Prediction Results (Linear Regression)</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Target Column:</strong> ${response.target_column}</p>
+                <p><strong>Feature Columns:</strong> ${response.feature_columns.join(', ')}</p>
+                <p><strong>Model Type:</strong> ${response.model_type}</p>
+                <h6 class="mt-3">Model Metrics:</h6>
+                <ul>
+                    <li><strong>R² Score:</strong> ${response.metrics.r2_score}</li>
+                    <li><strong>Mean Squared Error:</strong> ${response.metrics.mean_squared_error}</li>
+                    <li><strong>Training Samples:</strong> ${response.metrics.training_samples}</li>
+                    <li><strong>Test Samples:</strong> ${response.metrics.test_samples}</li>
+                </ul>
+                <h6 class="mt-3">Feature Importance:</h6>
+                <ul>
+                    ${Object.entries(response.feature_importance).map(([col, val]) => 
+                        `<li><strong>${col}:</strong> ${val.toFixed(4)}</li>`
+                    ).join('')}
+                </ul>
+                <h6 class="mt-3">Predictions Preview:</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr><th>Actual</th><th>Predicted</th></tr></thead>
+                        <tbody>
+                            ${response.predictions_preview.actual.map((actual, i) => 
+                                `<tr><td>${actual.toFixed(2)}</td><td>${response.predictions_preview.predicted[i].toFixed(2)}</td></tr>`
+                            ).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    $('#resultsContent').prepend(resultHtml);
+    REDLINE.ui.showToast('Predictions completed', 'success');
+}
+
+function scaleFeatures() {
+    if (!window.currentAnalysisResponse) {
+        REDLINE.ui.showToast('No analysis data available', 'error');
+        return;
+    }
+    
+    const response = window.currentAnalysisResponse;
+    const method = prompt('Select scaling method:\n1. Standard (StandardScaler)\n2. MinMax (MinMaxScaler)\n\nEnter 1 or 2:', '1');
+    if (!method) return;
+    
+    const methodType = method === '2' ? 'minmax' : 'standard';
+    
+    REDLINE.ui.showLoading('Scaling features...');
+    
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    REDLINE.api.post('/analysis/scale-features', {
+        filename: response.filename,
+        file_path: response.file_path,
+        method: methodType,
+        license_key: licenseKey
+    })
+    .then(response => {
+        REDLINE.ui.hideLoading();
+        displayScalingResult(response);
+    })
+    .catch(error => {
+        REDLINE.ui.hideLoading();
+        REDLINE.ui.showToast('Error scaling features: ' + (error.message || error.error), 'error');
+    });
+}
+
+function displayScalingResult(response) {
+    let resultHtml = `
+        <div class="card mb-3" style="background-color: var(--light-color); color: var(--text-primary);">
+            <div class="card-header">
+                <h6 style="color: var(--text-primary);">Feature Scaling Results (${response.method === 'standard' ? 'StandardScaler' : 'MinMaxScaler'})</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Method:</strong> ${response.method}</p>
+                <p><strong>Columns Scaled:</strong> ${response.columns_scaled.join(', ')}</p>
+                <h6 class="mt-3">Scaled Data Preview:</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr>${response.columns_scaled.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+                        <tbody>
+                            ${response.scaled_preview.map(row => 
+                                `<tr>${response.columns_scaled.map(c => `<td>${row[c]?.toFixed(4) || 'N/A'}</td>`).join('')}</tr>`
+                            ).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    $('#resultsContent').prepend(resultHtml);
+    REDLINE.ui.showToast('Feature scaling completed', 'success');
 }
 
 function exportAnalysis() {

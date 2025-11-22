@@ -7,12 +7,12 @@
 services:
   # REDLINE Web Application (Development)
   redline-web:
-    image: keepdevops/redline:20251119-no-minify
-    # Or build from uncompiled Dockerfile:
-    # build:
-    #   context: .
-    #   dockerfile: Dockerfile.webgui.uncompiled
-    # image: redline-webgui:dev
+    # Build from uncompiled Dockerfile (uses requirements.txt for all dependencies):
+    # Includes: TensorFlow, Polars, PyArrow, Scikit-learn, Matplotlib, Seaborn, etc.
+    build:
+      context: .
+      dockerfile: Dockerfile.webgui.uncompiled
+    image: redline-webgui:dev
     container_name: redline-web-dev
     ports:
       - "8080:8080"
@@ -104,12 +104,12 @@ services:
 
   # Celery Worker (Development - Optional)
   celery-worker:
-    image: keepdevops/redline:20251119-no-minify
-    # Or build from uncompiled:
-    # build:
-    #   context: .
-    #   dockerfile: Dockerfile.webgui.uncompiled
-    # image: redline-webgui:dev
+    # Build from uncompiled Dockerfile (uses requirements.txt for all dependencies):
+    # Includes: TensorFlow, Polars, PyArrow, Scikit-learn, Matplotlib, Seaborn, etc.
+    build:
+      context: .
+      dockerfile: Dockerfile.webgui.uncompiled
+    image: redline-webgui:dev
     container_name: redline-celery-worker-dev
     volumes:
       - redline-dev-data:/app/data
@@ -160,5 +160,7 @@ networks:
   redline-dev-network:
     driver: bridge
     name: redline-dev-network
+
+
 
 
