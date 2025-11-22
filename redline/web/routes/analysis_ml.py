@@ -79,9 +79,17 @@ def prepare_ml_data():
             conn.close()
         elif format_type_file in ('tensorflow', 'npz'):
             import numpy as np
-            loaded = np.load(data_path)
+            # Use allow_pickle=True for .npz files that may contain object arrays
+            loaded = np.load(data_path, allow_pickle=True)
             if 'data' in loaded:
-                df = pd.DataFrame(loaded['data'])
+                data_array = loaded['data']
+                # Restore column names if they were saved
+                if 'columns' in loaded:
+                    columns = loaded['columns'].tolist()
+                    df = pd.DataFrame(data_array, columns=columns)
+                else:
+                    # Fallback: create generic column names
+                    df = pd.DataFrame(data_array, columns=[f'col_{i}' for i in range(data_array.shape[1])])
             else:
                 first_key = list(loaded.keys())[0]
                 df = pd.DataFrame(loaded[first_key])
@@ -303,9 +311,17 @@ def prepare_rl_state():
             conn.close()
         elif format_type_file in ('tensorflow', 'npz'):
             import numpy as np
-            loaded = np.load(data_path)
+            # Use allow_pickle=True for .npz files that may contain object arrays
+            loaded = np.load(data_path, allow_pickle=True)
             if 'data' in loaded:
-                df = pd.DataFrame(loaded['data'])
+                data_array = loaded['data']
+                # Restore column names if they were saved
+                if 'columns' in loaded:
+                    columns = loaded['columns'].tolist()
+                    df = pd.DataFrame(data_array, columns=columns)
+                else:
+                    # Fallback: create generic column names
+                    df = pd.DataFrame(data_array, columns=[f'col_{i}' for i in range(data_array.shape[1])])
             else:
                 first_key = list(loaded.keys())[0]
                 df = pd.DataFrame(loaded[first_key])

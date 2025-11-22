@@ -552,7 +552,23 @@ function convertFile() {
         })
         .catch(error => {
             REDLINE.ui.hideLoading();
-            REDLINE.ui.showToast('Error converting file: ' + error.message, 'error');
+            // Extract error message from response
+            let errorMessage = error.message || 'Unknown error';
+            if (error.response && error.response.data) {
+                const errorData = error.response.data;
+                if (errorData.error) {
+                    errorMessage = errorData.error;
+                    // Special handling for "Output file already exists"
+                    if (errorMessage === 'Output file already exists' && errorData.suggestion) {
+                        errorMessage = `${errorMessage}. ${errorData.suggestion}`;
+                        // Auto-check overwrite checkbox if user wants to retry
+                        console.log('Output file exists. User can check "Overwrite existing file" to retry.');
+                    } else if (errorData.details) {
+                        errorMessage = `${errorMessage}: ${errorData.details}`;
+                    }
+                }
+            }
+            REDLINE.ui.showToast('Error converting file: ' + errorMessage, 'error');
         });
 }
 

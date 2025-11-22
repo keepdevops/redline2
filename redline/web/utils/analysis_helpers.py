@@ -310,6 +310,20 @@ def detect_price_column(df):
             if col in numeric_cols:
                 return col
     
+    # Priority 1.5: For generic column names (col_0, col_1, etc.), try to infer from position
+    # Typical financial data structure: TICKER, DATE, TIME, OPEN, HIGH, LOW, CLOSE, VOL
+    # CLOSE is usually the 7th column (index 6) or 4th numeric column
+    if all(str(col).startswith('col_') for col in df.columns):
+        # Count numeric columns and try position-based detection
+        numeric_col_list = [col for col in df.columns if col in numeric_cols]
+        # CLOSE is typically the 4th numeric column (after OPEN, HIGH, LOW)
+        if len(numeric_col_list) >= 4:
+            # Try the 4th numeric column as CLOSE
+            close_candidate = numeric_col_list[3]
+            values = pd.to_numeric(df[close_candidate], errors='coerce').dropna()
+            if len(values) > 0 and values.min() > 0 and 0.01 < values.mean() < 1000000:
+                return close_candidate
+    
     # Priority 2: Heuristic - find numeric column with characteristics of price data
     # Price data typically: positive values, moderate variance, not too large
     best_col = None

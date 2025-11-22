@@ -113,12 +113,35 @@ def analyze_data():
             conn.close()
         elif format_type in ('tensorflow', 'npz'):
             import numpy as np
-            loaded = np.load(data_path)
+            # Use allow_pickle=True for .npz files that may contain object arrays
+            loaded = np.load(data_path, allow_pickle=True)
             if 'data' in loaded:
-                df = pd.DataFrame(loaded['data'])
+                data_array = loaded['data']
+                # Restore column names if they were saved
+                if 'columns' in loaded:
+                    columns = loaded['columns'].tolist()
+                    df = pd.DataFrame(data_array, columns=columns)
+                else:
+                    # Fallback: create generic column names
+                    df = pd.DataFrame(data_array, columns=[f'col_{i}' for i in range(data_array.shape[1])])
+                
+                # Convert object columns to numeric where possible (important for .npz files with mixed types)
+                for col in df.columns:
+                    if df[col].dtype == 'object':
+                        # Try to convert to numeric
+                        numeric_series = pd.to_numeric(df[col], errors='coerce')
+                        # If most values converted successfully, use numeric type
+                        if numeric_series.notna().sum() > len(df) * 0.5:  # More than 50% numeric
+                            df[col] = numeric_series
             else:
                 first_key = list(loaded.keys())[0]
                 df = pd.DataFrame(loaded[first_key])
+                # Convert object columns to numeric where possible
+                for col in df.columns:
+                    if df[col].dtype == 'object':
+                        numeric_series = pd.to_numeric(df[col], errors='coerce')
+                        if numeric_series.notna().sum() > len(df) * 0.5:
+                            df[col] = numeric_series
         elif format_type in ('keras', 'h5'):
             # Keras models can't be analyzed as DataFrames
             return jsonify({'error': 'Keras model files (.h5) cannot be analyzed as data. Use the Analysis tab for model operations.'}), 400

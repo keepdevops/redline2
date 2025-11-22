@@ -338,7 +338,10 @@ class FormatConverter:
                     raise ImportError("NumPy is required for .npz format but is not available. Please install numpy: pip install numpy")
                 if isinstance(data, pd.DataFrame):
                     try:
-                        np.savez(file_path, data=data.to_numpy())
+                        # Save data array and column names to preserve DataFrame structure
+                        np.savez(file_path, 
+                                data=data.to_numpy(),
+                                columns=np.array(data.columns.tolist(), dtype=object))
                         self.logger.info(f"Saved TensorFlow NPZ: {file_path}")
                     except Exception as e:
                         self.logger.error(f"Error saving NPZ file: {str(e)}")
@@ -432,8 +435,38 @@ class FormatConverter:
             elif format == 'keras' and TENSORFLOW_AVAILABLE:
                 return tf.keras.models.load_model(file_path)
             elif format == 'tensorflow' and NUMPY_AVAILABLE:
-                loaded = np.load(file_path)
-                return pd.DataFrame(loaded['data']) if 'data' in loaded else pd.DataFrame(loaded[list(loaded.keys())[0]])
+                # Use allow_pickle=True for .npz files that may contain object arrays
+                loaded = np.load(file_path, allow_pickle=True)
+                if 'data' in loaded:
+                    data_array = loaded['data']
+                    # Restore column names if they were saved
+                    if 'columns' in loaded:
+                        columns = loaded['columns'].tolist()
+                        df = pd.DataFrame(data_array, columns=columns)
+                    else:
+                        # Fallback: create generic column names
+                        df = pd.DataFrame(data_array, columns=[f'col_{i}' for i in range(data_array.shape[1])])
+                    
+                    # Convert object columns to numeric where possible (important for .npz files with mixed types)
+                    for col in df.columns:
+                        if df[col].dtype == 'object':
+                            # Try to convert to numeric
+                            numeric_series = pd.to_numeric(df[col], errors='coerce')
+                            # If most values converted successfully, use numeric type
+                            if numeric_series.notna().sum() > len(df) * 0.5:  # More than 50% numeric
+                                df[col] = numeric_series
+                    
+                    return df
+                else:
+                    first_key = list(loaded.keys())[0]
+                    df = pd.DataFrame(loaded[first_key])
+                    # Convert object columns to numeric where possible
+                    for col in df.columns:
+                        if df[col].dtype == 'object':
+                            numeric_series = pd.to_numeric(df[col], errors='coerce')
+                            if numeric_series.notna().sum() > len(df) * 0.5:
+                                df[col] = numeric_series
+                    return df
             elif format == 'pyarrow' and PYARROW_AVAILABLE:
                 return pa.ipc.open_file(file_path).read_all().to_pandas()
             elif format == 'polars' and POLARS_AVAILABLE:

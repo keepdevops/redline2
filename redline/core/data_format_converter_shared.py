@@ -190,7 +190,10 @@ class FormatConverter:
             if not np:
                 raise ImportError("NumPy is required for .npz format but is not available. Please install numpy: pip install numpy")
             try:
-                np.savez(file_path, data=df.to_numpy())
+                # Save data array and column names to preserve DataFrame structure
+                np.savez(file_path, 
+                        data=df.to_numpy(),
+                        columns=np.array(df.columns.tolist(), dtype=object))
             except Exception as e:
                 logger.error(f"Error saving NPZ file: {str(e)}")
                 raise Exception(f"Failed to save .npz file: {str(e)}")
