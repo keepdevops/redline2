@@ -1199,10 +1199,16 @@ function exportAnalysis() {
         return;
     }
     
-    const format = prompt('Enter export format (json, csv):', 'json');
-    if (!format) return;
+    // Show format selection dialog
+    const formatOptions = ['json', 'csv', 'parquet', 'feather', 'duckdb', 'txt', 'npz', 'arrow'];
+    const format = prompt(`Enter export format:\n${formatOptions.join(', ')}`, 'json');
+    if (!format || !formatOptions.includes(format.toLowerCase())) {
+        REDLINE.ui.showToast('Invalid format selected', 'error');
+        return;
+    }
     
-    const filename = prompt('Enter export filename:', `analysis_${currentAnalysisData.analysis_type}_${Date.now()}.${format}`);
+    const baseFilename = `analysis_${currentAnalysisData.analysis_type}_${Date.now()}`;
+    const filename = prompt('Enter export filename (without extension):', baseFilename);
     if (!filename) return;
     
     REDLINE.ui.showLoading('Exporting analysis...');
@@ -1210,17 +1216,18 @@ function exportAnalysis() {
     const exportData = {
         analysis_result: currentAnalysisData.result,
         filename: filename,
-        format: format
+        format: format.toLowerCase()
     };
     
     REDLINE.api.post('/analysis/export-analysis', exportData)
         .then(response => {
             REDLINE.ui.hideLoading();
-            REDLINE.ui.showToast('Analysis exported successfully', 'success');
+            REDLINE.ui.showToast(`Analysis exported successfully: ${response.export_filename}`, 'success');
         })
         .catch(error => {
             REDLINE.ui.hideLoading();
-            REDLINE.ui.showToast('Error exporting analysis: ' + error.message, 'error');
+            const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
+            REDLINE.ui.showToast('Error exporting analysis: ' + errorMsg, 'error');
         });
 }
 </script>
