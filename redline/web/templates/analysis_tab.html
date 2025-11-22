@@ -64,9 +64,25 @@
                 </div>
                 
                 <div class="mt-3">
-                    <button id="exportAnalysisBtn" class="btn btn-success me-2">
-                        <i class="fas fa-download me-2"></i>Export Analysis
-                    </button>
+                    <div class="btn-group me-2">
+                        <button id="exportAnalysisBtn" class="btn btn-success">
+                            <i class="fas fa-download me-2"></i>Export Analysis
+                        </button>
+                        <button type="button" class="btn btn-success dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="visually-hidden">Toggle Dropdown</span>
+                        </button>
+                        <ul class="dropdown-menu" id="exportFormatMenu">
+                            <li><h6 class="dropdown-header">Export Format</h6></li>
+                            <li><a class="dropdown-item" href="#" data-format="json"><i class="fas fa-file-code me-2"></i>JSON (.json)</a></li>
+                            <li><a class="dropdown-item" href="#" data-format="csv"><i class="fas fa-file-csv me-2"></i>CSV (.csv)</a></li>
+                            <li><a class="dropdown-item" href="#" data-format="parquet"><i class="fas fa-file me-2"></i>Parquet (.parquet)</a></li>
+                            <li><a class="dropdown-item" href="#" data-format="feather"><i class="fas fa-file me-2"></i>Feather (.feather)</a></li>
+                            <li><a class="dropdown-item" href="#" data-format="duckdb"><i class="fas fa-database me-2"></i>DuckDB (.duckdb)</a></li>
+                            <li><a class="dropdown-item" href="#" data-format="txt"><i class="fas fa-file-alt me-2"></i>TXT (.txt)</a></li>
+                            <li><a class="dropdown-item" href="#" data-format="npz"><i class="fas fa-file me-2"></i>NPZ/TensorFlow (.npz)</a></li>
+                            <li><a class="dropdown-item" href="#" data-format="arrow"><i class="fas fa-file me-2"></i>Arrow (.arrow)</a></li>
+                        </ul>
+                    </div>
                     <button id="generateBackendChartBtn" class="btn btn-info me-2" style="display: none;">
                         <i class="fas fa-chart-area me-2"></i>Generate Backend Chart
                     </button>
@@ -182,8 +198,24 @@ $(document).ready(function() {
         }
     });
     
-    $('#exportAnalysisBtn').on('click', function() {
-        exportAnalysis();
+    // Export analysis with format selection
+    $('#exportAnalysisBtn').on('click', function(e) {
+        e.preventDefault();
+        // If dropdown is available, show it; otherwise use default format
+        if ($('#exportFormatMenu').is(':visible')) {
+            // Dropdown will handle the click
+            return;
+        }
+        exportAnalysis('json'); // Default format
+    });
+    
+    // Handle format selection from dropdown
+    $('#exportFormatMenu .dropdown-item').on('click', function(e) {
+        e.preventDefault();
+        const format = $(this).data('format');
+        if (format) {
+            exportAnalysis(format);
+        }
     });
     
     $('#generateBackendChartBtn').on('click', function() {
@@ -874,32 +906,122 @@ function prepareMLData() {
     const response = window.currentAnalysisResponse;
     const filename = response.filename;
     const filePath = response.file_path;
+    const columns = response.columns || [];
     
-    const format = prompt('Select format:\n1. numpy\n2. tensorflow\n\nEnter format (1 or 2):', '1');
-    if (!format) return;
+    // Show feature selection modal
+    showMLFeatureSelectionModal(columns, filename, filePath);
+}
+
+function showMLFeatureSelectionModal(columns, filename, filePath) {
+    // Get numeric columns (default selection)
+    const numericColumns = columns.filter((col, idx) => {
+        // Try to detect numeric columns (heuristic: check if column name suggests numeric)
+        const colLower = col.toLowerCase();
+        return !colLower.includes('ticker') && !colLower.includes('date') && 
+               !colLower.includes('time') && !colLower.includes('timestamp');
+    });
     
-    const formatType = format === '2' ? 'tensorflow' : 'numpy';
+    // Create modal HTML
+    const modalHtml = `
+        <div class="modal fade" id="mlFeatureModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Select Features for ML Training</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Output Format:</label>
+                            <select class="form-select" id="mlFormatSelect">
+                                <option value="numpy">NumPy</option>
+                                <option value="tensorflow">TensorFlow</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Select Features (check to include):</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="selectAllFeatures">
+                                <label class="form-check-label" for="selectAllFeatures">
+                                    <strong>Select All</strong>
+                                </label>
+                            </div>
+                            <div style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; padding: 10px; margin-top: 10px;">
+                                ${columns.map((col, idx) => `
+                                    <div class="form-check">
+                                        <input class="form-check-input feature-checkbox" type="checkbox" 
+                                               value="${col}" id="feature_${idx}" 
+                                               ${numericColumns.includes(col) ? 'checked' : ''}>
+                                        <label class="form-check-label" for="feature_${idx}">
+                                            ${col}
+                                        </label>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="prepareMLDataBtn">Prepare ML Data</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
     
-    REDLINE.ui.showLoading('Preparing ML data...');
+    // Remove existing modal if any
+    $('#mlFeatureModal').remove();
     
-    const licenseKey = (typeof window.getLicenseKey === 'function') 
-        ? window.getLicenseKey() 
-        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    // Add modal to page
+    $('body').append(modalHtml);
     
-    REDLINE.api.post('/analysis/prepare-ml-data', {
-        filename: filename,
-        file_path: filePath,
-        format: formatType,
-        license_key: licenseKey
-    })
-    .then(response => {
-        REDLINE.ui.hideLoading();
-        displayMLDataResult(response);
-    })
-    .catch(error => {
-        REDLINE.ui.hideLoading();
-        const errorMsg = error.message || error.error || 'Unknown error';
-        REDLINE.ui.showToast('Error preparing ML data: ' + errorMsg, 'error');
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('mlFeatureModal'));
+    modal.show();
+    
+    // Select all checkbox handler
+    $('#selectAllFeatures').on('change', function() {
+        $('.feature-checkbox').prop('checked', $(this).is(':checked'));
+    });
+    
+    // Prepare ML Data button handler
+    $('#prepareMLDataBtn').off('click').on('click', function() {
+        const selectedFeatures = $('.feature-checkbox:checked').map(function() {
+            return $(this).val();
+        }).get();
+        
+        if (selectedFeatures.length === 0) {
+            REDLINE.ui.showToast('Please select at least one feature', 'error');
+            return;
+        }
+        
+        const formatType = $('#mlFormatSelect').val();
+        
+        modal.hide();
+        $('#mlFeatureModal').remove();
+        
+        REDLINE.ui.showLoading('Preparing ML data...');
+        
+        const licenseKey = (typeof window.getLicenseKey === 'function') 
+            ? window.getLicenseKey() 
+            : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+        
+        REDLINE.api.post('/analysis/prepare-ml-data', {
+            filename: filename,
+            file_path: filePath,
+            format: formatType,
+            features: selectedFeatures,
+            license_key: licenseKey
+        })
+        .then(response => {
+            REDLINE.ui.hideLoading();
+            displayMLDataResult(response);
+        })
+        .catch(error => {
+            REDLINE.ui.hideLoading();
+            const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
+            REDLINE.ui.showToast('Error preparing ML data: ' + errorMsg, 'error');
+        });
     });
 }
 
@@ -1068,6 +1190,10 @@ function predictValues() {
     }
     
     const response = window.currentAnalysisResponse;
+    
+    // Ask if user wants to save weights
+    const saveWeights = confirm('Save training weights to feather file?');
+    
     REDLINE.ui.showLoading('Training model and making predictions...');
     
     const licenseKey = (typeof window.getLicenseKey === 'function') 
@@ -1075,6 +1201,7 @@ function predictValues() {
         : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
     
     REDLINE.api.post('/analysis/predict', {
+        save_weights: saveWeights,
         filename: response.filename,
         file_path: response.file_path,
         license_key: licenseKey
@@ -1123,12 +1250,21 @@ function displayPredictionResult(response) {
                         </tbody>
                     </table>
                 </div>
+                ${response.weights_saved ? `
+                    <div class="alert alert-success mt-3">
+                        <strong>✓ Weights Saved:</strong> ${response.weights_filename}<br>
+                        <small>Saved to: data/models/</small>
+                    </div>
+                ` : ''}
             </div>
         </div>
     `;
     
     $('#resultsContent').prepend(resultHtml);
-    REDLINE.ui.showToast('Predictions completed', 'success');
+    const toastMsg = response.weights_saved 
+        ? `Prediction completed. Weights saved: ${response.weights_filename}`
+        : 'Prediction completed';
+    REDLINE.ui.showToast(toastMsg, 'success');
 }
 
 function scaleFeatures() {
@@ -1193,25 +1329,40 @@ function displayScalingResult(response) {
     REDLINE.ui.showToast('Feature scaling completed', 'success');
 }
 
-function exportAnalysis() {
+function exportAnalysis(format = null) {
     if (!currentAnalysisData) {
         REDLINE.ui.showToast('No analysis data to export', 'error');
         return;
     }
     
-    // Show format selection dialog
-    const formatOptions = ['json', 'csv', 'parquet', 'feather', 'duckdb', 'txt', 'npz', 'arrow'];
-    const format = prompt(`Enter export format:\n${formatOptions.join(', ')}`, 'json');
-    if (!format || !formatOptions.includes(format.toLowerCase())) {
-        REDLINE.ui.showToast('Invalid format selected', 'error');
-        return;
+    // If format not provided, show selection dialog
+    if (!format) {
+        const formatOptions = ['json', 'csv', 'parquet', 'feather', 'duckdb', 'txt', 'npz', 'arrow'];
+        const selectedFormat = prompt(`Enter export format:\n${formatOptions.join(', ')}`, 'json');
+        if (!selectedFormat || !formatOptions.includes(selectedFormat.toLowerCase())) {
+            REDLINE.ui.showToast('Invalid format selected', 'error');
+            return;
+        }
+        format = selectedFormat.toLowerCase();
     }
     
+    // Format display names
+    const formatNames = {
+        'json': 'JSON',
+        'csv': 'CSV',
+        'parquet': 'Parquet',
+        'feather': 'Feather',
+        'duckdb': 'DuckDB',
+        'txt': 'TXT',
+        'npz': 'NPZ/TensorFlow',
+        'arrow': 'Arrow'
+    };
+    
     const baseFilename = `analysis_${currentAnalysisData.analysis_type}_${Date.now()}`;
-    const filename = prompt('Enter export filename (without extension):', baseFilename);
+    const filename = prompt(`Enter export filename for ${formatNames[format]} format (without extension):`, baseFilename);
     if (!filename) return;
     
-    REDLINE.ui.showLoading('Exporting analysis...');
+    REDLINE.ui.showLoading(`Exporting analysis as ${formatNames[format]}...`);
     
     const exportData = {
         analysis_result: currentAnalysisData.result,

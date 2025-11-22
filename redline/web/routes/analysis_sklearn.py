@@ -305,7 +305,34 @@ def predict_values():
         # Get feature importance (coefficients)
         feature_importance = dict(zip(feature_columns, model.coef_.tolist()))
         
-        return jsonify({
+        # Save model weights in feather format
+        weights_saved = False
+        weights_path = None
+        save_weights = data.get('save_weights', False)
+        
+        if save_weights:
+            try:
+                from datetime import datetime
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                weights_dir = os.path.join(os.getcwd(), 'data', 'models')
+                os.makedirs(weights_dir, exist_ok=True)
+                
+                # Create DataFrame with model weights
+                weights_data = {
+                    'feature': feature_columns + ['intercept'],
+                    'weight': model.coef_.tolist() + [float(model.intercept_)]
+                }
+                weights_df = pd.DataFrame(weights_data)
+                
+                weights_filename = f"model_weights_{filename.replace('.', '_')}_{timestamp}.feather"
+                weights_path = os.path.join(weights_dir, weights_filename)
+                weights_df.to_feather(weights_path)
+                weights_saved = True
+                logger.info(f"Model weights saved to: {weights_path}")
+            except Exception as e:
+                logger.error(f"Error saving model weights: {str(e)}")
+        
+        response_data = {
             'filename': filename,
             'target_column': target_column,
             'feature_columns': feature_columns,
@@ -321,7 +348,14 @@ def predict_values():
                 'actual': y_test.head(10).tolist(),
                 'predicted': y_pred[:10].tolist()
             }
-        })
+        }
+        
+        if weights_saved:
+            response_data['weights_saved'] = True
+            response_data['weights_path'] = weights_path
+            response_data['weights_filename'] = os.path.basename(weights_path)
+        
+        return jsonify(response_data)
         
     except Exception as e:
         logger.error(f"Error making predictions: {str(e)}")

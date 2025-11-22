@@ -112,6 +112,26 @@ def prepare_ml_data():
         
         df = clean_dataframe_columns(df)
         
+        # Get selected features if provided
+        selected_features = data.get('features', [])
+        if selected_features:
+            # Validate that all selected features exist
+            missing_features = [f for f in selected_features if f not in df.columns]
+            if missing_features:
+                return jsonify({'error': f'Features not found in data: {missing_features}'}), 400
+            # Filter DataFrame to only selected features
+            df = df[selected_features]
+            logger.info(f"Using selected features: {selected_features}")
+        else:
+            # Default: use all numeric columns
+            import numpy as np
+            numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+            if numeric_cols:
+                df = df[numeric_cols]
+                logger.info(f"Using all numeric columns: {numeric_cols}")
+            else:
+                return jsonify({'error': 'No numeric columns found for ML training'}), 400
+        
         # Prepare training data using DataAdapter
         try:
             prepared_data = adapter.prepare_training_data([df], format_type)
