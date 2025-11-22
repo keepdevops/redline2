@@ -334,18 +334,73 @@ def scale_features():
         # Convert back to DataFrame for preview
         df_scaled = pd.DataFrame(X_scaled, columns=columns, index=df.index)
         
-        # Get statistics
-        original_stats = X.describe().to_dict()
-        scaled_stats = df_scaled.describe().to_dict()
-        
-        return jsonify({
-            'filename': filename,
-            'method': method,
-            'columns_scaled': columns,
-            'original_stats': {k: {col: float(v[col]) for col in columns} for k, v in original_stats.items()},
-            'scaled_stats': {k: {col: float(v[col]) for col in columns} for k, v in scaled_stats.items()},
-            'scaled_preview': df_scaled.head(10).to_dict(orient='records')
-        })
+        # Get statistics - convert to JSON-serializable format
+        try:
+            original_desc = X.describe()
+            scaled_desc = df_scaled.describe()
+            
+            # Build stats dictionaries manually to avoid issues with column names
+            original_stats = {}
+            scaled_stats = {}
+            
+            for stat_name in ['count', 'mean', 'std', 'min', '25%', '50%', '75%', 'max']:
+                if stat_name in original_desc.index:
+                    original_stats[stat_name] = {}
+                    for col in columns:
+                        if col in original_desc.columns:
+                            try:
+                                val = original_desc.loc[stat_name, col]
+                                original_stats[stat_name][col] = float(val) if not pd.isna(val) else 0.0
+                            except (KeyError, TypeError):
+                                original_stats[stat_name][col] = 0.0
+                
+                if stat_name in scaled_desc.index:
+                    scaled_stats[stat_name] = {}
+                    for col in columns:
+                        if col in scaled_desc.columns:
+                            try:
+                                val = scaled_desc.loc[stat_name, col]
+                                scaled_stats[stat_name][col] = float(val) if not pd.isna(val) else 0.0
+                            except (KeyError, TypeError):
+                                scaled_stats[stat_name][col] = 0.0
+            
+            # Convert preview to JSON-serializable format
+            preview = df_scaled.head(10).to_dict(orient='records')
+            for record in preview:
+                for key, value in record.items():
+                    if hasattr(value, 'item'):  # numpy scalar
+                        record[key] = value.item()
+                    elif isinstance(value, (np.integer, np.floating)):
+                        record[key] = float(value) if isinstance(value, np.floating) else int(value)
+                    elif pd.isna(value):
+                        record[key] = None
+            
+            return jsonify({
+                'filename': filename,
+                'method': method,
+                'columns_scaled': columns,
+                'original_stats': original_stats,
+                'scaled_stats': scaled_stats,
+                'scaled_preview': preview
+            })
+        except Exception as stats_error:
+            logger.error(f"Error converting statistics to JSON: {str(stats_error)}", exc_info=True)
+            # Return basic response without detailed stats
+            preview = df_scaled.head(10).to_dict(orient='records')
+            for record in preview:
+                for key, value in record.items():
+                    if hasattr(value, 'item'):
+                        record[key] = value.item()
+                    elif isinstance(value, (np.integer, np.floating)):
+                        record[key] = float(value) if isinstance(value, np.floating) else int(value)
+            
+            return jsonify({
+                'filename': filename,
+                'method': method,
+                'columns_scaled': columns,
+                'message': 'Features scaled successfully (stats conversion had issues)',
+                'scaled_preview': preview
+            })
         
     except Exception as e:
         logger.error(f"Error scaling features: {str(e)}")

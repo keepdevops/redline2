@@ -86,25 +86,123 @@ def prepare_ml_data():
         df = clean_dataframe_columns(df)
         
         # Prepare training data using DataAdapter
-        prepared_data = adapter.prepare_training_data([df], format_type)
+        try:
+            prepared_data = adapter.prepare_training_data([df], format_type)
+            
+            # Check if preparation was successful
+            if not prepared_data or len(prepared_data) == 0:
+                logger.warning("prepare_training_data returned empty result")
+                # Fallback: convert DataFrame directly to numpy
+                import numpy as np
+                if np is None:
+                    return jsonify({'error': 'NumPy is not available'}), 500
+                prepared_data = [df.select_dtypes(include=[np.number]).to_numpy()]
+        except AttributeError as e:
+            logger.error(f"DataAdapter method not found: {str(e)}")
+            return jsonify({'error': f'ML preparation method not available: {str(e)}'}), 500
+        except Exception as e:
+            logger.error(f"Error in prepare_training_data: {str(e)}")
+            # Fallback: convert DataFrame directly to numpy
+            try:
+                import numpy as np
+                if np is None:
+                    return jsonify({'error': 'NumPy is not available'}), 500
+                logger.info("Using fallback: converting DataFrame directly to numpy")
+                prepared_data = [df.select_dtypes(include=[np.number]).to_numpy()]
+            except Exception as fallback_error:
+                logger.error(f"Fallback conversion also failed: {str(fallback_error)}")
+                return jsonify({'error': f'Error preparing training data: {str(e)}. Fallback failed: {str(fallback_error)}'}), 500
         
         # Convert to JSON-serializable format
         if format_type == 'numpy':
             import numpy as np
-            result = {
-                'format': 'numpy',
-                'shape': prepared_data[0].shape if len(prepared_data) > 0 else None,
-                'dtype': str(prepared_data[0].dtype) if len(prepared_data) > 0 else None,
-                'sample_size': len(prepared_data),
-                'data_preview': prepared_data[0][:10].tolist() if len(prepared_data) > 0 and len(prepared_data[0]) > 0 else []
-            }
+            try:
+                if not prepared_data or len(prepared_data) == 0:
+                    return jsonify({'error': 'No data prepared for conversion'}), 500
+                
+                data_array = prepared_data[0]
+                if data_array is None or (hasattr(data_array, '__len__') and len(data_array) == 0):
+                    return jsonify({'error': 'Prepared data is empty'}), 500
+                
+                # Convert numpy types to native Python types for JSON serialization
+                import numpy as np
+                shape = list(data_array.shape) if hasattr(data_array, 'shape') else None
+                if shape:
+                    shape = [int(s) for s in shape]  # Convert numpy int64 to Python int
+                
+                dtype = str(data_array.dtype) if hasattr(data_array, 'dtype') else None
+                sample_size = int(len(data_array)) if hasattr(data_array, '__len__') else 0
+                
+                # Convert preview data to native Python types
+                data_preview = []
+                if hasattr(data_array, '__len__') and len(data_array) > 0:
+                    preview = data_array[:10]
+                    if hasattr(preview, 'tolist'):
+                        data_preview = preview.tolist()
+                    else:
+                        data_preview = [float(x) if isinstance(x, (np.integer, np.floating)) else x for x in preview]
+                
+                result = {
+                    'format': 'numpy',
+                    'shape': shape,
+                    'dtype': dtype,
+                    'sample_size': sample_size,
+                    'data_preview': data_preview
+                }
+            except Exception as e:
+                logger.error(f"Error converting numpy data: {str(e)}")
+                return jsonify({'error': f'Error converting to numpy format: {str(e)}'}), 500
         elif format_type == 'tensorflow':
-            result = {
-                'format': 'tensorflow',
-                'type': 'Dataset',
-                'sample_size': 1,
-                'message': 'TensorFlow Dataset created successfully'
-            }
+            try:
+                import tensorflow as tf
+                if tf is None:
+                    return jsonify({'error': 'TensorFlow is not installed'}), 500
+                
+                # Always use numeric columns only for TensorFlow (avoids mixed types error)
+                import numpy as np
+                if np is None:
+                    return jsonify({'error': 'NumPy is not available'}), 500
+                
+                # Select only numeric columns to avoid mixed types error
+                numeric_df = df.select_dtypes(include=[np.number])
+                if numeric_df.empty:
+                    return jsonify({'error': 'No numeric columns found in data'}), 400
+                
+                # Convert to numpy array with consistent dtype
+                numpy_data = numeric_df.to_numpy(dtype=np.float32)  # Use float32 for TensorFlow
+                tf_dataset = tf.data.Dataset.from_tensor_slices(numpy_data)
+                
+                # Get dataset info
+                dataset_size = 0
+                try:
+                    cardinality = tf_dataset.cardinality().numpy()
+                    if cardinality == -1:  # Unknown cardinality
+                        dataset_size = int(len(df))
+                    else:
+                        dataset_size = int(cardinality)
+                except:
+                    dataset_size = int(len(df))
+                
+                # Convert element_spec to string safely
+                element_spec_str = None
+                try:
+                    if hasattr(tf_dataset, 'element_spec'):
+                        element_spec_str = str(tf_dataset.element_spec)
+                except:
+                    pass
+                
+                result = {
+                    'format': 'tensorflow',
+                    'type': 'Dataset',
+                    'sample_size': dataset_size,
+                    'element_spec': element_spec_str,
+                    'message': 'TensorFlow Dataset created successfully'
+                }
+            except ImportError:
+                return jsonify({'error': 'TensorFlow is not installed. Install with: pip install tensorflow'}), 500
+            except Exception as e:
+                logger.error(f"Error creating TensorFlow dataset: {str(e)}")
+                return jsonify({'error': f'Error creating TensorFlow dataset: {str(e)}'}), 500
         else:
             return jsonify({'error': f'Unsupported format: {format_type}'}), 400
         
