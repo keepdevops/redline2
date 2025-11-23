@@ -378,7 +378,12 @@ function displayDataInTable(data, columns) {
         headers.forEach(header => {
             const value = data[i][header];
             // Format date values (YYYYMMDD -> YYYY-MM-DD)
-            const formattedValue = formatDateValue(value, header);
+            let formattedValue = formatDateValue(value, header);
+            // Format time values (HHMMSS -> HH:MM:SS)
+            // Use original value, not date-formatted value, for time formatting
+            if (typeof formatTimeValue === 'function') {
+                formattedValue = formatTimeValue(value, header);
+            }
             tableHtml += `<td>${formattedValue !== null && formattedValue !== undefined ? formattedValue : ''}</td>`;
         });
         tableHtml += '</tr>';

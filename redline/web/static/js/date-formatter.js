@@ -9,6 +9,62 @@
  * @param {string} header - Optional column header name (used for date detection)
  * @returns {string} - Formatted date string or original value if not a date
  */
+/**
+ * Format time value (HHMMSS format to HH:MM:SS)
+ * Handles formats like: 90500, 90,500, 090500, etc.
+ */
+function formatTimeValue(value, header) {
+    if (value === null || value === undefined || value === '') {
+        return '';
+    }
+    
+    // Check if header indicates this is a time column
+    const isTimeColumn = header && (
+        header.toLowerCase().includes('time') ||
+        header === '<TIME>' ||
+        header === 'TIME'
+    );
+    
+    if (!isTimeColumn) {
+        return value;
+    }
+    
+    // Debug logging (can be removed later)
+    if (typeof console !== 'undefined' && console.log) {
+        console.log('formatTimeValue called:', { value: value, header: header, type: typeof value });
+    }
+    
+    // Convert to string, remove commas, dots, spaces, and any non-numeric characters
+    let timeStr = String(value).trim();
+    // Remove all non-numeric characters (commas, dots, spaces, etc.)
+    timeStr = timeStr.replace(/[^0-9]/g, '');
+    
+    // Handle different time formats
+    if (timeStr.length === 5) {
+        // 5 digits (e.g., "90500" -> "09:05:00")
+        timeStr = '0' + timeStr; // Pad with leading zero
+    }
+    
+    if (timeStr.length === 6) {
+        // HHMMSS format (e.g., "090500" -> "09:05:00")
+        const hours = timeStr.substring(0, 2);
+        const minutes = timeStr.substring(2, 4);
+        const seconds = timeStr.substring(4, 6);
+        return hours + ':' + minutes + ':' + seconds;
+    } else if (timeStr.length === 4) {
+        // HHMM format (e.g., "0905" -> "09:05")
+        return timeStr.substring(0, 2) + ':' + timeStr.substring(2, 4);
+    } else if (timeStr.length === 2) {
+        // HH format (e.g., "09" -> "09:00:00")
+        return timeStr + ':00:00';
+    } else if (timeStr.length === 0) {
+        return '';
+    }
+    
+    // If it doesn't match expected format, return as-is
+    return value;
+}
+
 function formatDateValue(value, header) {
     if (value === null || value === undefined || value === '') {
         return '';

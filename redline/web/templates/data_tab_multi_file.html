@@ -552,12 +552,9 @@
                             <option value="raw">Raw (No Formatting)</option>
                         </select>
                     </div>
-                    <!-- View Mode Toggle -->
+                    <!-- View Mode Toggle - Side-by-Side Only -->
                     <div class="btn-group" role="group">
-                        <button class="btn btn-sm btn-outline-primary" id="viewStackedBtn" onclick="setViewMode('stacked')" title="Stacked View">
-                            <i class="fas fa-list"></i> Stacked
-                        </button>
-                        <button class="btn btn-sm btn-outline-primary" id="viewSideBySideBtn" onclick="setViewMode('side-by-side')" title="Side-by-Side View">
+                        <button class="btn btn-sm btn-outline-primary active" id="viewSideBySideBtn" onclick="setViewMode('side-by-side')" title="Side-by-Side View">
                             <i class="fas fa-columns"></i> Side-by-Side
                         </button>
                     </div>
@@ -1227,7 +1224,12 @@ function createDatasetHTML(data, filename) {
             columnsToDisplay.forEach(col => {
                 const value = row[col];
                 // Format date values using the same function as single view
-                const formattedValue = typeof formatDateValue === 'function' ? formatDateValue(value, col) : value;
+                let formattedValue = typeof formatDateValue === 'function' ? formatDateValue(value, col) : value;
+                // Format time values if formatTimeValue function is available
+                // Use original value, not date-formatted value, for time formatting
+                if (typeof formatTimeValue === 'function') {
+                    formattedValue = formatTimeValue(value, col);
+                }
                 let displayValue = '';
                 if (formattedValue === null || formattedValue === undefined || formattedValue === '') {
                     displayValue = '&nbsp;';
@@ -1900,7 +1902,7 @@ function applyColumnNames() {
 }
 
 // ==================== View Mode Toggle ====================
-let currentViewMode = localStorage.getItem('multiViewMode') || 'stacked';
+let currentViewMode = localStorage.getItem('multiViewMode') || 'side-by-side';
 
 // Make function globally accessible
 window.setViewMode = function(mode) {
@@ -1910,13 +1912,11 @@ window.setViewMode = function(mode) {
     
     const dataDisplay = document.getElementById('dataDisplay');
     const dataDisplayArea = dataDisplay ? dataDisplay.parentElement : null;
-    const stackedBtn = document.getElementById('viewStackedBtn');
     const sideBySideBtn = document.getElementById('viewSideBySideBtn');
     
     console.log('Elements found:', {
         dataDisplay: !!dataDisplay,
         dataDisplayArea: !!dataDisplayArea,
-        stackedBtn: !!stackedBtn,
         sideBySideBtn: !!sideBySideBtn
     });
     
@@ -1930,10 +1930,10 @@ window.setViewMode = function(mode) {
     
     const dataDisplaySideBySide = document.getElementById('dataDisplaySideBySide');
     
-    if (mode === 'side-by-side') {
+    // Only side-by-side mode is supported now
+    if (mode === 'side-by-side' || mode === 'stacked') {
         dataDisplayArea.classList.add('view-side-by-side');
         dataDisplayArea.classList.remove('view-stacked');
-        if (stackedBtn) stackedBtn.classList.remove('active');
         if (sideBySideBtn) sideBySideBtn.classList.add('active');
         // Show side-by-side panel, hide stacked panel
         if (dataDisplay) {
@@ -2089,42 +2089,15 @@ window.setViewMode = function(mode) {
             initResizableColumns();
             initSynchronizedScrolling();
         }, 50);
-    } else {
-        dataDisplayArea.classList.add('view-stacked');
-        dataDisplayArea.classList.remove('view-side-by-side');
-        if (stackedBtn) stackedBtn.classList.add('active');
-        if (sideBySideBtn) sideBySideBtn.classList.remove('active');
-        // Show stacked panel, hide side-by-side panel
-        if (dataDisplay) {
-            dataDisplay.style.display = 'block';
-            dataDisplay.style.visibility = 'visible';
-            dataDisplay.classList.remove('d-none');
-        }
-        if (dataDisplaySideBySide) {
-            dataDisplaySideBySide.style.display = 'none';
-            dataDisplaySideBySide.style.visibility = 'hidden';
-            dataDisplaySideBySide.classList.add('d-none');
-        }
-        removeResizeHandles();
-        removeSynchronizedScrolling();
     }
 };
 
 // Initialize view mode on page load and add event listeners
 document.addEventListener('DOMContentLoaded', function() {
-    // Set initial button states
-    const stackedBtn = document.getElementById('viewStackedBtn');
+    // Set initial button states (only side-by-side now)
     const sideBySideBtn = document.getElementById('viewSideBySideBtn');
     
-    // Add event listeners as backup to onclick
-    if (stackedBtn) {
-        stackedBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            console.log('Stacked button clicked via event listener');
-            setViewMode('stacked');
-        });
-    }
-    
+    // Add event listener as backup to onclick
     if (sideBySideBtn) {
         sideBySideBtn.addEventListener('click', function(e) {
             e.preventDefault();
@@ -2133,15 +2106,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    if (currentViewMode === 'side-by-side') {
-        if (stackedBtn) stackedBtn.classList.remove('active');
-        if (sideBySideBtn) sideBySideBtn.classList.add('active');
-        setViewMode('side-by-side');
-    } else {
-        if (stackedBtn) stackedBtn.classList.add('active');
-        if (sideBySideBtn) sideBySideBtn.classList.remove('active');
-        setViewMode('stacked');
-    }
+    // Always use side-by-side mode
+    if (sideBySideBtn) sideBySideBtn.classList.add('active');
+    setViewMode('side-by-side');
 });
 
 // ==================== Zoom Controls ====================
