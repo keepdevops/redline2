@@ -1262,20 +1262,46 @@ function createDatasetHTML(data, filename) {
         html += '</tbody></table>';
         html += '</div>';
         
-        // Pagination controls
+        // Pagination controls with smart page numbers
         if (totalPages > 1) {
+            // Generate page numbers with ellipsis
+            const pageNumbers = generatePageNumbers(currentPage, totalPages);
+            const pageButtons = pageNumbers.map(p => {
+                if (p === '...') {
+                    return '<span class="mx-1">...</span>';
+                } else if (p === currentPage) {
+                    return `<button class="btn btn-sm btn-primary" disabled>${p}</button>`;
+                } else {
+                    return `<button class="btn btn-sm btn-outline-primary" onclick="loadPageForFile('${filename}', ${p}, ${pageSize})">${p}</button>`;
+                }
+            }).join('');
+            
             html += `
-                <div class="d-flex justify-content-between align-items-center mt-3">
+                <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
                     <div class="pagination-info">
                         Showing ${startIdx + 1}-${endIdx} of ${totalRows} rows (Page ${currentPage} of ${totalPages})
                     </div>
                     <div class="btn-group" role="group">
-                        <button class="btn btn-sm btn-outline-primary" onclick="loadPageForFile('${filename}', ${currentPage - 1}, ${pageSize})" ${currentPage === 1 ? 'disabled' : ''}>
-                            <i class="fas fa-chevron-left"></i> Previous
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadPageForFile('${filename}', 1, ${pageSize})" ${currentPage === 1 ? 'disabled' : ''} title="First page">
+                            <i class="fas fa-angle-double-left"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-primary" onclick="loadPageForFile('${filename}', ${currentPage + 1}, ${pageSize})" ${currentPage === totalPages ? 'disabled' : ''}>
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadPageForFile('${filename}', ${currentPage - 1}, ${pageSize})" ${currentPage === 1 ? 'disabled' : ''} title="Previous page">
+                            <i class="fas fa-chevron-left"></i> Prev
+                        </button>
+                        ${pageButtons}
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadPageForFile('${filename}', ${currentPage + 1}, ${pageSize})" ${currentPage === totalPages ? 'disabled' : ''} title="Next page">
                             Next <i class="fas fa-chevron-right"></i>
                         </button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadPageForFile('${filename}', ${totalPages}, ${pageSize})" ${currentPage === totalPages ? 'disabled' : ''} title="Last page">
+                            <i class="fas fa-angle-double-right"></i>
+                        </button>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="small mb-0">Jump to:</label>
+                        <input type="number" min="1" max="${totalPages}" value="${currentPage}" 
+                               class="form-control form-control-sm" style="width: 70px;" 
+                               onchange="jumpToPage('${filename}', this.value, ${pageSize}, ${totalPages})"
+                               onkeypress="if(event.key==='Enter') jumpToPage('${filename}', this.value, ${pageSize}, ${totalPages})">
                     </div>
                 </div>
             `;
@@ -1354,6 +1380,31 @@ const loadingPages = new Map();
 
 // Load page for a specific file (pagination)
 async function loadPageForFile(filename, page, perPage = 1000) {
+    // Validate and normalize pagination parameters
+    try {
+        // Ensure page is a valid integer
+        page = parseInt(page, 10);
+        if (isNaN(page) || page < 1) {
+            page = 1;
+        }
+    } catch (e) {
+        console.warn(`loadPageForFile: Invalid page parameter '${page}', using 1`);
+        page = 1;
+    }
+    
+    try {
+        // Ensure perPage is a valid integer
+        perPage = parseInt(perPage, 10);
+        if (isNaN(perPage) || perPage < 1) {
+            perPage = 1000;
+        } else if (perPage > 1000) {
+            perPage = 1000; // Enforce max
+        }
+    } catch (e) {
+        console.warn(`loadPageForFile: Invalid perPage parameter '${perPage}', using 1000`);
+        perPage = 1000;
+    }
+    
     // Prevent duplicate simultaneous requests for the same file/page
     const requestKey = `${filename}_${page}`;
     if (loadingPages.has(requestKey)) {
@@ -1371,7 +1422,7 @@ async function loadPageForFile(filename, page, perPage = 1000) {
         return;
     }
     
-    console.log(`loadPageForFile: Loading page ${page} for ${filename}`);
+    console.log(`loadPageForFile: Loading page ${page} for ${filename} (${perPage} rows per page)`);
     loadingPages.set(requestKey, true);
     
     try {
@@ -1461,11 +1512,54 @@ async function loadPageForFile(filename, page, perPage = 1000) {
         }
     } catch (error) {
         console.error(`Error loading page ${page} for ${filename}:`, error);
-        alert(`Error loading page: ${error.message}`);
+        // Provide more user-friendly error messages
+        let errorMessage = 'Error loading page';
+        if (error.message) {
+            // Check for common error patterns
+            if (error.message.includes('pattern') || error.message.includes('match')) {
+                errorMessage = 'Invalid pagination parameters. Please try refreshing the page.';
+            } else if (error.message.includes('404')) {
+                errorMessage = 'File not found. Please reload the data.';
+            } else if (error.message.includes('429')) {
+                errorMessage = 'Too many requests. Please wait a moment and try again.';
+            } else {
+                errorMessage = `Error loading page: ${error.message}`;
+            }
+        }
+        alert(errorMessage);
     } finally {
         // Clear loading flag
         loadingPages.delete(requestKey);
     }
+}
+
+// Generate smart page numbers with ellipsis (e.g., 1 ... 10 11 12 ... 36)
+function generatePageNumbers(currentPage, totalPages) {
+    const pages = [];
+    if (totalPages <= 10) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+        pages.push(1);
+        let start = Math.max(2, currentPage - 2);
+        let end = Math.min(totalPages - 1, currentPage + 2);
+        if (start <= 3) { end = Math.min(7, totalPages - 1); start = 2; }
+        if (end >= totalPages - 2) { start = Math.max(2, totalPages - 6); end = totalPages - 1; }
+        if (start > 2) pages.push('...');
+        for (let i = start; i <= end; i++) pages.push(i);
+        if (end < totalPages - 1) pages.push('...');
+        pages.push(totalPages);
+    }
+    return pages;
+}
+
+// Jump to specific page
+function jumpToPage(filename, page, perPage, maxPages) {
+    const pageNum = parseInt(page, 10);
+    if (isNaN(pageNum) || pageNum < 1 || pageNum > maxPages) {
+        alert(pageNum > maxPages ? `Page cannot exceed ${maxPages}` : 'Please enter a valid page number');
+        return;
+    }
+    loadPageForFile(filename, pageNum, perPage);
 }
 
 // Clear all loaded data

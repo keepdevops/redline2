@@ -188,12 +188,38 @@ def load_data():
         page = data.get('page', 1)
         per_page = data.get('per_page', 500)
         
-        # Validate pagination parameters
+        # Validate pagination parameters - handle various input types
         try:
-            page = max(1, int(page))
-            per_page = min(max(1, int(per_page)), 1000)  # Max 1000 rows per page
-        except (ValueError, TypeError):
+            # Convert to string first to handle edge cases, then to int
+            if page is None:
+                page = 1
+            else:
+                # Handle string inputs like "1", "2", etc.
+                page_str = str(page).strip()
+                # Remove any non-numeric characters (except negative sign, but we'll clamp to 1+)
+                page_str = ''.join(c for c in page_str if c.isdigit() or c == '-')
+                if page_str and page_str != '-':
+                    page = max(1, int(page_str))
+                else:
+                    page = 1
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.warning(f"Invalid page parameter '{data.get('page')}', defaulting to 1: {str(e)}")
             page = 1
+        
+        try:
+            if per_page is None:
+                per_page = 500
+            else:
+                # Handle string inputs like "500", "1000", etc.
+                per_page_str = str(per_page).strip()
+                # Remove any non-numeric characters
+                per_page_str = ''.join(c for c in per_page_str if c.isdigit() or c == '-')
+                if per_page_str and per_page_str != '-':
+                    per_page = min(max(1, int(per_page_str)), 1000)  # Max 1000 rows per page
+                else:
+                    per_page = 500
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.warning(f"Invalid per_page parameter '{data.get('per_page')}', defaulting to 500: {str(e)}")
             per_page = 500
         
         # Calculate pagination
