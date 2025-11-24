@@ -15,7 +15,16 @@ logger = logging.getLogger(__name__)
 
 def get_stooq_data_dir() -> str:
     """Get the Stooq data directory path within REDLINE data directory."""
-    base_dir = os.getcwd()
+    # Use absolute path to ensure we're in the container, not host machine
+    # Check if we're in a container (common container paths)
+    if os.path.exists('/app'):
+        base_dir = '/app'
+    elif os.path.exists('/workspace'):
+        base_dir = '/workspace'
+    else:
+        # Fallback to current working directory, but use absolute path
+        base_dir = os.path.abspath(os.getcwd())
+    
     data_dir = os.path.join(base_dir, 'data', 'stooq')
     os.makedirs(data_dir, exist_ok=True)
     return data_dir

@@ -5,15 +5,59 @@ Generates charts using matplotlib/seaborn and returns as base64 images
 
 from flask import Blueprint, request, jsonify
 import logging
-import pandas as pd
-import numpy as np
 import os
 import base64
 import io
-from ..utils.analysis_helpers import clean_dataframe_columns, detect_price_column, detect_volume_column, detect_date_columns
+import pandas as pd
+import numpy as np
+from ..utils.analysis_helpers import detect_price_column, detect_volume_column, detect_date_columns, _load_data_file
+from ..utils.data_helpers import clean_dataframe_columns
 
 analysis_visualization_bp = Blueprint('analysis_visualization', __name__)
 logger = logging.getLogger(__name__)
+
+
+def _generate_text_chart(values, title, xlabel, ylabel, width=80, height=20):
+    """Generate ASCII art text chart from numeric values."""
+    if len(values) == 0:
+        return f"{title}\nNo data available"
+    
+    # Normalize values to fit in height
+    min_val = float(min(values))
+    max_val = float(max(values))
+    val_range = max_val - min_val if max_val != min_val else 1
+    
+    # Create chart grid
+    chart_lines = []
+    chart_lines.append(f"\n{title}")
+    chart_lines.append(f"{'=' * width}")
+    chart_lines.append(f"{xlabel} → | {ylabel}")
+    chart_lines.append(f"{'-' * width}")
+    
+    # Calculate step for x-axis
+    step = max(1, len(values) // width)
+    
+    # Build chart row by row (from top to bottom)
+    for row in range(height, -1, -1):
+        line = ""
+        threshold = min_val + (val_range * row / height)
+        
+        for i in range(0, len(values), step):
+            val = values[i] if i < len(values) else values[-1]
+            if val >= threshold:
+                line += "*"
+            else:
+                line += " "
+        
+        # Add y-axis label
+        y_val = min_val + (val_range * row / height)
+        line = f"{y_val:8.2f} | {line}"
+        chart_lines.append(line)
+    
+    chart_lines.append(f"{'-' * width}")
+    chart_lines.append(f"Min: {min_val:.2f}, Max: {max_val:.2f}, Points: {len(values)}")
+    
+    return "\n".join(chart_lines)
 
 # Optional dependencies
 try:
@@ -33,131 +77,51 @@ except ImportError:
     SEABORN_AVAILABLE = False
 
 
-def _load_data_file(filename, file_path_hint=None):
-    """Load data file (shared helper)."""
-    from redline.core.format_converter import FormatConverter
-    from redline.core.schema import EXT_TO_FORMAT
-    
-    converter = FormatConverter()
-    data_dir = os.path.join(os.getcwd(), 'data')
-    data_path = None
-    
-    if file_path_hint and os.path.exists(file_path_hint):
-        data_path = file_path_hint
-    else:
-        search_paths = [
-            os.path.join(data_dir, filename),
-            os.path.join(data_dir, 'stooq', filename),
-            os.path.join(data_dir, 'downloaded', filename),
-            os.path.join(data_dir, 'uploads', filename)
-        ]
-        
-        converted_dir = os.path.join(data_dir, 'converted')
-        if os.path.exists(converted_dir):
-            for root, dirs, files in os.walk(converted_dir):
-                if filename in files:
-                    search_paths.append(os.path.join(root, filename))
-        
-        for path in search_paths:
-            if os.path.exists(path):
-                data_path = path
-                break
-    
-    if not data_path or not os.path.exists(data_path):
-        raise FileNotFoundError(f'File not found: {filename}')
-    
-    ext = os.path.splitext(data_path)[1].lower()
-    format_type = EXT_TO_FORMAT.get(ext, 'csv')
-    
-    if format_type == 'csv':
-        df = pd.read_csv(data_path)
-    elif format_type == 'parquet':
-        df = pd.read_parquet(data_path)
-    elif format_type == 'feather':
-        df = pd.read_feather(data_path)
-    elif format_type == 'json':
-        df = pd.read_json(data_path)
-    elif format_type == 'duckdb':
-        import duckdb
-        conn = duckdb.connect(data_path)
-        df = conn.execute("SELECT * FROM tickers_data").fetchdf()
-        conn.close()
-    elif format_type in ('tensorflow', 'npz'):
-        import numpy as np
-        # Use allow_pickle=True for .npz files that may contain object arrays
-        loaded = np.load(data_path, allow_pickle=True)
-        if 'data' in loaded:
-            data_array = loaded['data']
-            # Restore column names if they were saved
-            if 'columns' in loaded:
-                columns = loaded['columns'].tolist()
-                df = pd.DataFrame(data_array, columns=columns)
-            else:
-                # Fallback: create generic column names
-                df = pd.DataFrame(data_array, columns=[f'col_{i}' for i in range(data_array.shape[1])])
-            
-            # Convert object columns to numeric where possible (important for .npz files with mixed types)
-            for col in df.columns:
-                if df[col].dtype == 'object':
-                    # Try to convert to numeric
-                    numeric_series = pd.to_numeric(df[col], errors='coerce')
-                    # If most values converted successfully, use numeric type
-                    if numeric_series.notna().sum() > len(df) * 0.5:  # More than 50% numeric
-                        df[col] = numeric_series
-        else:
-            first_key = list(loaded.keys())[0]
-            df = pd.DataFrame(loaded[first_key])
-            # Convert object columns to numeric where possible
-            for col in df.columns:
-                if df[col].dtype == 'object':
-                    numeric_series = pd.to_numeric(df[col], errors='coerce')
-                    if numeric_series.notna().sum() > len(df) * 0.5:
-                        df[col] = numeric_series
-    elif format_type in ('keras', 'h5'):
-        raise ValueError('Keras model files (.h5) cannot be used for visualization. Use the Analysis tab for model operations.')
-    elif format_type in ('pyarrow', 'arrow'):
-        try:
-            import pyarrow as pa
-            with pa.ipc.open_file(data_path) as reader:
-                df = reader.read_all().to_pandas()
-        except ImportError:
-            raise ImportError('PyArrow is required to load .arrow files')
-        except Exception as e:
-            raise Exception(f'Error loading Arrow file: {str(e)}')
-    else:
-        df = converter.load_file_by_type(data_path, format_type)
-    
-    if not isinstance(df, pd.DataFrame):
-        raise ValueError('Invalid data format')
-    
-    return clean_dataframe_columns(df)
-
-
 @analysis_visualization_bp.route('/price-chart', methods=['POST'])
 def generate_price_chart():
     """Generate price trend chart."""
-    if not MATPLOTLIB_AVAILABLE:
-        return jsonify({'error': 'matplotlib not available'}), 500
-    
     try:
         data = request.get_json()
         filename = data.get('filename')
         file_path_hint = data.get('file_path')
+        output_format = data.get('format', 'png').lower()  # Support 'png' or 'txt'
         
         if not filename:
             return jsonify({'error': 'No filename provided'}), 400
         
         df = _load_data_file(filename, file_path_hint)
+        
+        if df.empty:
+            return jsonify({'error': 'Loaded data is empty'}), 400
+        
         price_col = detect_price_column(df)
         
         if not price_col:
-            return jsonify({'error': 'No price column found'}), 400
+            available_cols = ', '.join(df.columns.tolist()[:10])  # Show first 10 columns
+            return jsonify({
+                'error': 'No price column found',
+                'available_columns': df.columns.tolist(),
+                'hint': f'Available columns: {available_cols}{"..." if len(df.columns) > 10 else ""}'
+            }), 400
         
         # Sample data for performance (max 1000 points)
         sample_size = min(1000, len(df))
         sample_df = df.sample(n=sample_size).sort_index() if len(df) > sample_size else df
         
         prices = pd.to_numeric(sample_df[price_col], errors='coerce').dropna()
+        
+        # Generate text chart if requested
+        if output_format == 'txt':
+            chart_text = _generate_text_chart(prices.values, 'Price Trend', 'Index', 'Price')
+            return jsonify({
+                'text': chart_text,
+                'format': 'txt',
+                'filename': filename
+            })
+        
+        # Generate PNG chart (default)
+        if not MATPLOTLIB_AVAILABLE:
+            return jsonify({'error': 'matplotlib not available'}), 500
         
         # Create chart
         plt.figure(figsize=(10, 6))
@@ -202,12 +166,22 @@ def generate_correlation_heatmap():
             return jsonify({'error': 'No filename provided'}), 400
         
         df = _load_data_file(filename, file_path_hint)
+        
+        if df.empty:
+            return jsonify({'error': 'Loaded data is empty'}), 400
+        
         date_cols = detect_date_columns(df)
         numeric_cols = [col for col in df.select_dtypes(include=[np.number]).columns 
                        if col not in date_cols]
         
         if len(numeric_cols) < 2:
-            return jsonify({'error': 'Not enough numeric columns for correlation'}), 400
+            available_cols = ', '.join(df.columns.tolist()[:10])
+            return jsonify({
+                'error': 'Not enough numeric columns for correlation',
+                'available_columns': df.columns.tolist(),
+                'numeric_columns_found': len(numeric_cols),
+                'hint': f'Available columns: {available_cols}{"..." if len(df.columns) > 10 else ""}'
+            }), 400
         
         # Calculate correlation
         corr_matrix = df[numeric_cols].corr()
@@ -255,13 +229,21 @@ def generate_distribution_chart():
         
         df = _load_data_file(filename, file_path_hint)
         
+        if df.empty:
+            return jsonify({'error': 'Loaded data is empty'}), 400
+        
         # Auto-detect column if not provided
         if not column:
             price_col = detect_price_column(df)
             column = price_col if price_col else df.select_dtypes(include=[np.number]).columns[0] if len(df.select_dtypes(include=[np.number]).columns) > 0 else None
         
         if not column or column not in df.columns:
-            return jsonify({'error': f'Column not found: {column}'}), 400
+            available_cols = ', '.join(df.columns.tolist()[:10])
+            return jsonify({
+                'error': f'Column not found: {column}',
+                'available_columns': df.columns.tolist(),
+                'hint': f'Available columns: {available_cols}{"..." if len(df.columns) > 10 else ""}'
+            }), 400
         
         values = pd.to_numeric(df[column], errors='coerce').dropna()
         
@@ -312,10 +294,19 @@ def generate_volume_chart():
             return jsonify({'error': 'No filename provided'}), 400
         
         df = _load_data_file(filename, file_path_hint)
+        
+        if df.empty:
+            return jsonify({'error': 'Loaded data is empty'}), 400
+        
         volume_col = detect_volume_column(df)
         
         if not volume_col:
-            return jsonify({'error': 'No volume column found'}), 400
+            available_cols = ', '.join(df.columns.tolist()[:10])  # Show first 10 columns
+            return jsonify({
+                'error': 'No volume column found',
+                'available_columns': df.columns.tolist(),
+                'hint': f'Available columns: {available_cols}{"..." if len(df.columns) > 10 else ""}'
+            }), 400
         
         # Sample data for performance
         sample_size = min(500, len(df))

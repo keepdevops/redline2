@@ -41,7 +41,7 @@ def load_data():
         # 5. data/converted directory (recursively - for converted files)
         search_paths = [
             os.path.join(data_dir, filename),
-            os.path.join(data_dir, 'stooq', filename),
+            os.path.join(data_dir, 'stooq', filename),  # Already included
             os.path.join(data_dir, 'downloaded', filename),
             os.path.join(data_dir, 'uploads', filename)
         ]
@@ -80,11 +80,68 @@ def load_data():
                 logger.info(f"Found file at: {data_path}")
                 break
         
+        # If file not found locally, check S3/R2
+        if not data_path:
+            use_s3 = os.environ.get('USE_S3_STORAGE', 'false').lower() == 'true'
+            has_s3_creds = all([
+                os.environ.get('S3_ACCESS_KEY'),
+                os.environ.get('S3_SECRET_KEY'),
+                os.environ.get('S3_BUCKET')
+            ])
+            
+            if use_s3 and has_s3_creds:
+                # Get license key for user-specific S3/R2 files
+                license_key = request.headers.get('X-License-Key') or (data.get('license_key') if isinstance(data, dict) else None)
+                
+                if license_key:
+                    try:
+                        import boto3
+                        from botocore.exceptions import ClientError
+                        import hashlib
+                        import tempfile
+                        
+                        # Configure S3 client
+                        endpoint_url = os.environ.get('S3_ENDPOINT_URL')
+                        s3_client = boto3.client(
+                            's3',
+                            aws_access_key_id=os.environ.get('S3_ACCESS_KEY'),
+                            aws_secret_access_key=os.environ.get('S3_SECRET_KEY'),
+                            region_name=os.environ.get('S3_REGION', 'us-east-1'),
+                            endpoint_url=endpoint_url if endpoint_url else None
+                        )
+                        bucket = os.environ.get('S3_BUCKET')
+                        
+                        # Get user's S3 prefix
+                        key_hash = hashlib.sha256(license_key.encode()).hexdigest()[:16]
+                        s3_key = f"users/{key_hash}/files/{filename}"
+                        
+                        # Try to download from S3/R2
+                        try:
+                            # Create temporary file
+                            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1])
+                            temp_path = temp_file.name
+                            temp_file.close()
+                            
+                            # Download from S3/R2
+                            s3_client.download_file(bucket, s3_key, temp_path)
+                            data_path = temp_path
+                            logger.info(f"Downloaded file from S3/R2: {s3_key} to {temp_path}")
+                            
+                        except ClientError as e:
+                            if e.response['Error']['Code'] == 'NoSuchKey':
+                                logger.warning(f"File not found in S3/R2: {s3_key}")
+                            else:
+                                logger.error(f"Error downloading from S3/R2: {str(e)}")
+                    except ImportError:
+                        logger.debug("boto3 not available, skipping S3/R2 check")
+                    except Exception as e:
+                        logger.warning(f"Error checking S3/R2: {str(e)}")
+        
         if not data_path:
             logger.warning(f"File not found: {filename}. Searched in: {', '.join(search_paths[:4])}")
             return jsonify({
                 'error': 'File not found',
-                'message': f'File "{filename}" not found in data directories',
+                'message': f'File "{filename}" not found in data directories or S3/R2',
                 'searched_paths': search_paths[:4]  # Don't include all converted paths
             }), 404
         

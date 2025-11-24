@@ -1118,7 +1118,7 @@ function createDatasetHTML(data, filename) {
         // Get pagination info from API response if available, otherwise calculate from data
         const pagination = data.pagination || {};
         const currentPage = pagination.page || 1;
-        const pageSize = pagination.per_page || 500;
+        const pageSize = pagination.per_page || 1000;
         const totalPages = pagination.pages || Math.ceil(totalRows / pageSize);
         const startIdx = pagination.page ? (currentPage - 1) * pageSize : 0;
         const endIdx = pagination.page ? Math.min(startIdx + pageSize, totalRows) : Math.min(pageSize, data.data.length);
@@ -1223,12 +1223,21 @@ function createDatasetHTML(data, filename) {
             html += '<tr>';
             columnsToDisplay.forEach(col => {
                 const value = row[col];
-                // Format date values using the same function as single view
-                let formattedValue = typeof formatDateValue === 'function' ? formatDateValue(value, col) : value;
-                // Format time values if formatTimeValue function is available
-                // Use original value, not date-formatted value, for time formatting
-                if (typeof formatTimeValue === 'function') {
+                let formattedValue = value;
+                
+                // Check if this is a time column first
+                const isTimeColumn = col && (
+                    col.toLowerCase().includes('time') ||
+                    col === '<TIME>' ||
+                    col === 'TIME'
+                );
+                
+                if (isTimeColumn && typeof formatTimeValue === 'function') {
+                    // Format time values (HHMMSS -> HH:MM:SS)
                     formattedValue = formatTimeValue(value, col);
+                } else if (typeof formatDateValue === 'function') {
+                    // Format date values using the same function as single view
+                    formattedValue = formatDateValue(value, col);
                 }
                 let displayValue = '';
                 if (formattedValue === null || formattedValue === undefined || formattedValue === '') {
@@ -1261,8 +1270,12 @@ function createDatasetHTML(data, filename) {
                         Showing ${startIdx + 1}-${endIdx} of ${totalRows} rows (Page ${currentPage} of ${totalPages})
                     </div>
                     <div class="btn-group" role="group">
-                        <button class="btn btn-sm btn-outline-primary" onclick="loadPageForFile('${filename}', ${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>
-                        <button class="btn btn-sm btn-outline-primary" onclick="loadPageForFile('${filename}', ${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadPageForFile('${filename}', ${currentPage - 1}, ${pageSize})" ${currentPage === 1 ? 'disabled' : ''}>
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadPageForFile('${filename}', ${currentPage + 1}, ${pageSize})" ${currentPage === totalPages ? 'disabled' : ''}>
+                            Next <i class="fas fa-chevron-right"></i>
+                        </button>
                     </div>
                 </div>
             `;
@@ -1319,7 +1332,7 @@ function initializeVirtualScrolling(filename, data) {
             rowHeight: 30,
             visibleRows: 20,
             buffer: 5,
-            pageSize: 500
+            pageSize: 1000
         });
         
         // Load data from API
@@ -1340,7 +1353,7 @@ function initializeVirtualScrolling(filename, data) {
 const loadingPages = new Map();
 
 // Load page for a specific file (pagination)
-async function loadPageForFile(filename, page, perPage = 500) {
+async function loadPageForFile(filename, page, perPage = 1000) {
     // Prevent duplicate simultaneous requests for the same file/page
     const requestKey = `${filename}_${page}`;
     if (loadingPages.has(requestKey)) {
@@ -1416,10 +1429,35 @@ async function loadPageForFile(filename, page, perPage = 500) {
         loadedDatasets.set(filename, data);
         
         // Re-render just this dataset with updated page data
-        const container = document.querySelector(`[data-filename="${filename}"]`);
+        // Check both stacked and side-by-side panels
+        const dataDisplay = document.getElementById('dataDisplay');
+        const dataDisplaySideBySide = document.getElementById('dataDisplaySideBySide');
+        
+        // Find container in either panel
+        let container = null;
+        if (dataDisplaySideBySide && dataDisplaySideBySide.style.display !== 'none') {
+            container = dataDisplaySideBySide.querySelector(`.dataset-container[data-filename="${filename}"]`);
+        }
+        if (!container && dataDisplay) {
+            container = dataDisplay.querySelector(`.dataset-container[data-filename="${filename}"]`);
+        }
+        
         if (container) {
             const newHtml = createDatasetHTML(data, filename);
-            container.outerHTML = newHtml;
+            // Use innerHTML to replace just the content, preserving the container
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = newHtml;
+            const newContainer = tempDiv.querySelector('.dataset-container');
+            if (newContainer) {
+                container.replaceWith(newContainer);
+            } else {
+                // Fallback to outerHTML if structure doesn't match
+                container.outerHTML = newHtml;
+            }
+        } else {
+            // Container not found, re-render entire display
+            console.warn(`Container not found for ${filename}, re-rendering entire display`);
+            updateDataDisplay();
         }
     } catch (error) {
         console.error(`Error loading page ${page} for ${filename}:`, error);

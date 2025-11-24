@@ -417,6 +417,7 @@ def create_app():
     from redline.web.routes.api import api_bp
     from redline.web.routes.data_routes import data_bp
     from redline.web.routes.analysis import analysis_bp
+    from redline.web.routes.ml import ml_bp
     from redline.web.routes.download import download_bp
     from redline.web.routes.converter import converter_bp
     from redline.web.routes.settings import settings_bp
@@ -424,11 +425,13 @@ def create_app():
     from redline.web.routes.api_keys import api_keys_bp
     from redline.web.routes.payments import payments_bp
     from redline.web.routes.user_data import user_data_bp
+    from redline.web.routes.s3_upload import s3_upload_bp
     
     app.register_blueprint(main_bp)
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(data_bp, url_prefix='/data')
     app.register_blueprint(analysis_bp, url_prefix='/analysis')
+    app.register_blueprint(ml_bp, url_prefix='/ml')
     app.register_blueprint(download_bp, url_prefix='/download')
     app.register_blueprint(converter_bp, url_prefix='/converter')
     app.register_blueprint(settings_bp, url_prefix='/settings')
@@ -436,6 +439,7 @@ def create_app():
     app.register_blueprint(api_keys_bp, url_prefix='/api-keys')
     app.register_blueprint(payments_bp, url_prefix='/payments')
     app.register_blueprint(user_data_bp, url_prefix='/user-data')
+    app.register_blueprint(s3_upload_bp, url_prefix='/s3-upload')
     
     # Apply rate limits to specific routes after blueprint registration
     if limiter:

@@ -45,23 +45,11 @@ class GenericAPIDownloader(BaseDownloader):
         rate_limit_per_minute = api_config.get('rate_limit_per_minute', 60)
         self.min_request_interval = 60.0 / rate_limit_per_minute
         self.last_request_time = 0
-        self.rate_limit_lock = threading.Lock()
+        # rate_limit_lock will be initialized by base class _rate_limit() method
         
         # Custom headers
         if api_config.get('headers'):
             self.session.headers.update(api_config['headers'])
-    
-    def _rate_limit(self):
-        """Enforce rate limiting between requests."""
-        with self.rate_limit_lock:
-            elapsed = time.time() - self.last_request_time
-            if elapsed < self.min_request_interval:
-                time.sleep(self.min_request_interval - elapsed)
-            self.last_request_time = time.time()
-    
-    def _apply_rate_limit(self):
-        """Apply rate limiting (alias for compatibility with base class)."""
-        self._rate_limit()
     
     def _format_date(self, date_str: str) -> Any:
         """Format date according to API requirements."""

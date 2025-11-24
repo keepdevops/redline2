@@ -107,7 +107,96 @@ const api = {
         return fetch(url, finalOptions)
             .then(response => {
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    // Safari-compatible error handling - use Promise chains instead of async/await
+                    // Read response body once and parse it
+                    return response.text().then(function(text) {
+                        // Try to parse as JSON first
+                        let errorMessage = null;
+                        let errorData = null;
+                        let jsonParsed = false;
+                        
+                        if (text && text.trim().length > 0 && !text.trim().startsWith('<')) {
+                            // Not HTML, try to parse as JSON
+                            if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+                                try {
+                                    errorData = JSON.parse(text);
+                                    jsonParsed = true;
+                                    if (errorData && typeof errorData === 'object') {
+                                        if (errorData.error) {
+                                            errorMessage = errorData.error;
+                                        } else if (errorData.message) {
+                                            errorMessage = errorData.message;
+                                        } else {
+                                            // Try to find any string value in the error object
+                                            for (var key in errorData) {
+                                                if (errorData.hasOwnProperty(key) && typeof errorData[key] === 'string' && errorData[key].length > 0) {
+                                                    errorMessage = errorData[key];
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                } catch (parseError) {
+                                    // Not valid JSON, use text as error message
+                                    errorMessage = text.substring(0, 200);
+                                }
+                            } else {
+                                // Plain text error
+                                errorMessage = text.substring(0, 200);
+                            }
+                        }
+                        
+                        // If we still don't have an error message, use fallback
+                        if (!errorMessage) {
+                            // Use status text or fallback message
+                            if (response.statusText) {
+                                errorMessage = response.statusText + ' (' + response.status + ')';
+                            } else {
+                                // Create user-friendly messages for common status codes
+                                var statusMessages = {
+                                    400: 'Bad request - please check your input',
+                                    401: 'Unauthorized - please check your credentials',
+                                    403: 'Access forbidden - insufficient permissions',
+                                    404: 'Resource not found',
+                                    429: 'Too many requests - please wait before trying again',
+                                    500: 'Server error - please try again later',
+                                    502: 'Bad gateway - service temporarily unavailable',
+                                    503: 'Service unavailable - please try again later'
+                                };
+                                errorMessage = statusMessages[response.status] || 'HTTP error (' + response.status + ')';
+                            }
+                        }
+                        
+                        // Create error object with status code and message
+                        var error = new Error(errorMessage);
+                        error.status = response.status;
+                        error.statusText = response.statusText;
+                        
+                        // Add Retry-After header if present (for 429 errors)
+                        var retryAfter = response.headers.get('Retry-After');
+                        if (retryAfter) {
+                            error.retryAfter = retryAfter;
+                        }
+                        
+                        // Try to extract additional fields from JSON response if available
+                        if (jsonParsed && errorData && typeof errorData === 'object') {
+                            // Copy useful fields from error response
+                            if (errorData.retry_after !== undefined) {
+                                error.retryAfter = errorData.retry_after;
+                            }
+                            if (errorData.ticker) {
+                                error.ticker = errorData.ticker;
+                            }
+                            if (errorData.source) {
+                                error.source = errorData.source;
+                            }
+                            if (errorData.suggestion) {
+                                error.suggestion = errorData.suggestion;
+                            }
+                        }
+                        
+                        throw error;
+                    });
                 }
                 return response.json();
             })
@@ -404,9 +493,30 @@ const fileManager = {
             headers: headers,
             body: formData
         })
-        .then(response => {
+        .then(async response => {
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                // Use same error handling as main API call
+                let errorMessage = `HTTP error! status: ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    if (errorData && typeof errorData === 'object') {
+                        if (errorData.error) {
+                            errorMessage = errorData.error;
+                        } else if (errorData.message) {
+                            errorMessage = errorData.message;
+                        }
+                    } else if (typeof errorData === 'string') {
+                        errorMessage = errorData;
+                    }
+                } catch (e) {
+                    // JSON parsing failed, use status text
+                    if (response.statusText) {
+                        errorMessage = `${response.statusText} (${response.status})`;
+                    }
+                }
+                const error = new Error(errorMessage);
+                error.status = response.status;
+                throw error;
             }
             return response.json();
         });

@@ -14,6 +14,7 @@ from redline.web.utils.download_helpers import (
     get_default_date_range,
     save_downloaded_data
 )
+from redline.downloaders.exceptions import RateLimitError
 
 download_single_bp = Blueprint('download_single', __name__)
 logger = logging.getLogger(__name__)
@@ -188,13 +189,74 @@ def download_data():
                 'columns': list(result.columns)
             })
         else:
-            # Check if it's a rate limiting issue
+            # No data found - return 404 with helpful message
             error_msg = f'No data found for {ticker}'
+            # Provide more context based on source
             if source == 'yahoo':
-                error_msg += '. This might be due to rate limiting. Please try again in a few minutes.'
-            return jsonify({'error': error_msg}), 429  # Use 429 for rate limiting
+                error_msg += '. Please verify the ticker symbol is correct. Yahoo Finance may not have data for this ticker, or it may be delisted.'
+            elif source == 'stooq':
+                error_msg += '. Please verify the ticker symbol is correct. Stooq may not have data for this ticker.'
+            else:
+                error_msg += '. Please verify the ticker symbol is correct and try a different data source if available.'
+            
+            return jsonify({
+                'error': error_msg,
+                'ticker': ticker,
+                'source': source,
+                'suggestion': 'Try checking the ticker symbol or using a different data source.'
+            }), 404
+            
+    except RateLimitError as e:
+        # Rate limit error from downloader - return proper 429 response
+        logger.warning(f"Rate limit exceeded for {ticker} from {source}: {e.message}")
+        retry_after = e.retry_after or 300  # Default to 5 minutes if not specified
+        
+        return jsonify({
+            'error': f'Rate limit exceeded for {source}. {e.message}',
+            'retry_after': retry_after,
+            'source': e.source or source
+        }), 429
             
     except Exception as e:
-        logger.error(f"Error downloading data for {ticker}: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        error_msg = str(e)
+        logger.error(f"Error downloading data for {ticker}: {error_msg}")
+        
+        # Check if exception indicates rate limiting (fallback for other error types)
+        error_lower = error_msg.lower()
+        if 'rate limit' in error_lower or 'too many requests' in error_lower or '429' in error_lower:
+            return jsonify({
+                'error': f'Rate limit exceeded for {source}. Please wait a few minutes before trying again. You can also try a different data source.',
+                'retry_after': 300  # Suggest 5 minutes
+            }), 429
+        
+        # Check for Stooq bandwidth limit errors
+        if source.lower() == 'stooq' and ('bandwidth' in error_lower and 'limit' in error_lower):
+            return jsonify({
+                'error': 'Stooq daily bandwidth limit exceeded. Please try again tomorrow or use manual download. Files downloaded to your Downloads folder will automatically appear in Data View.',
+                'source': 'stooq',
+                'suggestion': 'Use manual download from Stooq website - files will auto-copy from Downloads folder'
+            }), 429
+        
+        # Check if it's a yfinance/curl library error
+        if ('yfinance' in error_lower or 'impersonating' in error_lower or 
+            'curl' in error_lower or 'setopt' in error_lower or 'curl_cffi' in error_lower):
+            # Provide helpful message about Yahoo Finance issues
+            if 'temporary issue' in error_msg.lower() or 'try again' in error_msg.lower():
+                # Error message already has helpful guidance
+                helpful_msg = error_msg
+            else:
+                helpful_msg = f'Yahoo Finance connection error: {error_msg}. This may be a temporary issue with Yahoo Finance. Please try again in a few moments or use a different data source (e.g., Stooq).'
+            
+            return jsonify({
+                'error': helpful_msg,
+                'ticker': ticker,
+                'source': source,
+                'suggestion': 'Try using Stooq as an alternative data source, or wait a few moments and try again.'
+            }), 503  # Service Unavailable - temporary issue
+        
+        return jsonify({
+            'error': error_msg,
+            'ticker': ticker,
+            'source': source
+        }), 500
 

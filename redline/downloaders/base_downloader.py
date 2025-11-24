@@ -8,6 +8,7 @@ import logging
 import pandas as pd
 import requests
 import time
+import threading
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional, Union
 from datetime import datetime, timedelta
@@ -43,6 +44,12 @@ class BaseDownloader(ABC):
             'total_data_points': 0,
             'last_request_time': None
         }
+        
+        # Rate limiting attributes (initialized by child classes if needed)
+        # Child classes can set: last_request_time, min_request_interval, rate_limit_lock
+        self.last_request_time = 0
+        self.min_request_interval = None  # Will use rate_limit_delay if not set
+        self.rate_limit_lock = None  # Will be created on first use if needed
     
     @abstractmethod
     def download_single_ticker(self, ticker: str, start_date: str = None, end_date: str = None) -> pd.DataFrame:
@@ -139,12 +146,36 @@ class BaseDownloader(ABC):
         
         return all_results
     
+    def _rate_limit(self):
+        """
+        Enforce rate limiting between requests.
+        Uses threading locks for thread safety and time.time() for precision.
+        Child classes can override min_request_interval for custom rate limits.
+        """
+        # Initialize lock if not already created
+        if self.rate_limit_lock is None:
+            self.rate_limit_lock = threading.Lock()
+        
+        # Use min_request_interval if set by child class, otherwise use rate_limit_delay
+        interval = self.min_request_interval if self.min_request_interval is not None else self.rate_limit_delay
+        
+        with self.rate_limit_lock:
+            current_time = time.time()
+            time_since_last_request = current_time - self.last_request_time
+            
+            if time_since_last_request < interval:
+                sleep_time = interval - time_since_last_request
+                self.logger.info(f"{self.name} rate limiting: sleeping for {sleep_time:.2f} seconds")
+                time.sleep(sleep_time)
+            
+            self.last_request_time = time.time()
+    
     def _apply_rate_limit(self):
-        """Apply rate limiting between requests."""
-        if self.stats['last_request_time']:
-            elapsed = (datetime.now() - self.stats['last_request_time']).total_seconds()
-            if elapsed < self.rate_limit_delay:
-                time.sleep(self.rate_limit_delay - elapsed)
+        """
+        Apply rate limiting between requests.
+        Calls _rate_limit() for consistency. Maintains backward compatibility.
+        """
+        self._rate_limit()
     
     def _make_request(self, url: str, params: Dict[str, Any] = None, headers: Dict[str, str] = None) -> requests.Response:
         """

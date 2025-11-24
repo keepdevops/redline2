@@ -68,7 +68,7 @@ class StooqDownloader(BaseDownloader):
                     
                     # Make request with Stooq-specific headers
                     headers = {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Safari/537.36',
                         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                         'Accept-Language': 'en-US,en;q=0.5',
                         'Accept-Encoding': 'gzip, deflate',
@@ -77,6 +77,17 @@ class StooqDownloader(BaseDownloader):
                     }
                     
                     response = self._make_request(url, headers=headers)
+                    
+                    # Check for bandwidth limit errors
+                    if response.status_code == 200:
+                        response_text_lower = response.text.lower()
+                        if 'bandwidth' in response_text_lower and 'limit' in response_text_lower:
+                            error_msg = "Stooq daily bandwidth limit exceeded. Please try again tomorrow or use manual download."
+                            self.logger.error(error_msg)
+                            print(f"\n⚠️  {error_msg}")
+                            print("   You can manually download from: https://stooq.com/q/d/l/?s={ticker}")
+                            print("   Files will auto-copy from your Downloads folder.\n")
+                            return pd.DataFrame()
                     
                     if response.status_code == 200:
                         # Try to parse as CSV
@@ -93,6 +104,12 @@ class StooqDownloader(BaseDownloader):
                         except Exception as e:
                             self.logger.warning(f"Failed to parse CSV from {url}: {str(e)}")
                             continue
+                    elif response.status_code == 429:
+                        # Rate limiting
+                        error_msg = "Stooq rate limit exceeded. Please wait a few minutes before trying again."
+                        self.logger.warning(error_msg)
+                        print(f"\n⚠️  {error_msg}\n")
+                        return pd.DataFrame()
                     
                 except Exception as e:
                     self.logger.warning(f"Failed to access {url}: {str(e)}")

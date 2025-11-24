@@ -26,8 +26,14 @@ SYSTEM_FILES = {
 @api_files_list_bp.route('/files')
 @rate_limit("200 per hour")  # More generous limit for file listing (read-only operation)
 def api_list_files():
-    """List available data files via API."""
+    """List available data files via API. Includes local and S3/R2 files."""
     try:
+        from flask import request
+        import hashlib
+        
+        # Get license key for user-specific S3/R2 files
+        license_key = request.headers.get('X-License-Key') or request.args.get('license_key')
+        
         data_dir = os.path.join(os.getcwd(), 'data')
         files = []
         
@@ -44,7 +50,9 @@ def api_list_files():
                         'name': filename,
                         'size': file_stat.st_size,
                         'modified': file_stat.st_mtime,
-                        'path': file_path
+                        'path': file_path,
+                        'storage': 'local',
+                        'location': 'root'
                     })
         
         # Get files from downloaded directory
@@ -62,8 +70,31 @@ def api_list_files():
                         'size': file_stat.st_size,
                         'modified': file_stat.st_mtime,
                         'path': file_path,
+                        'storage': 'local',
                         'location': 'downloaded'
                     })
+        
+        # Get files from stooq directory (for Stooq downloads)
+        stooq_dir = os.path.join(data_dir, 'stooq')
+        if os.path.exists(stooq_dir):
+            try:
+                for filename in os.listdir(stooq_dir):
+                    # Skip system files
+                    if filename in SYSTEM_FILES:
+                        continue
+                    file_path = os.path.join(stooq_dir, filename)
+                    if os.path.isfile(file_path) and not filename.startswith('.'):
+                        file_stat = os.stat(file_path)
+                        files.append({
+                            'name': filename,
+                            'size': file_stat.st_size,
+                            'modified': file_stat.st_mtime,
+                            'path': file_path,
+                            'storage': 'local',
+                            'location': 'stooq'
+                        })
+            except Exception as e:
+                logger.warning(f"Error reading stooq directory: {str(e)}")
 
         # Get files from converted/export directory (recursively including subdirectories)
         converted_dir = os.path.join(data_dir, 'converted')
@@ -85,11 +116,79 @@ def api_list_files():
                                 'size': file_stat.st_size,
                                 'modified': file_stat.st_mtime,
                                 'path': file_path,
+                                'storage': 'local',
                                 'location': rel_path
                             })
         
+        # Get files from S3/R2 if configured
+        use_s3 = os.environ.get('USE_S3_STORAGE', 'false').lower() == 'true'
+        has_s3_creds = all([
+            os.environ.get('S3_ACCESS_KEY'),
+            os.environ.get('S3_SECRET_KEY'),
+            os.environ.get('S3_BUCKET')
+        ])
+        
+        if use_s3 and has_s3_creds and license_key:
+            try:
+                import boto3
+                from botocore.exceptions import ClientError
+                
+                # Configure S3 client
+                endpoint_url = os.environ.get('S3_ENDPOINT_URL')
+                s3_client = boto3.client(
+                    's3',
+                    aws_access_key_id=os.environ.get('S3_ACCESS_KEY'),
+                    aws_secret_access_key=os.environ.get('S3_SECRET_KEY'),
+                    region_name=os.environ.get('S3_REGION', 'us-east-1'),
+                    endpoint_url=endpoint_url if endpoint_url else None
+                )
+                bucket = os.environ.get('S3_BUCKET')
+                
+                # Get user's S3 prefix
+                key_hash = hashlib.sha256(license_key.encode()).hexdigest()[:16]
+                s3_prefix = f"users/{key_hash}/files/"
+                
+                # List objects in S3/R2
+                try:
+                    paginator = s3_client.get_paginator('list_objects_v2')
+                    pages = paginator.paginate(Bucket=bucket, Prefix=s3_prefix)
+                    
+                    for page in pages:
+                        if 'Contents' in page:
+                            for obj in page['Contents']:
+                                # Get filename from S3 key
+                                s3_key = obj['Key']
+                                filename = os.path.basename(s3_key)
+                                
+                                # Skip if already in local files (avoid duplicates)
+                                if not any(f['name'] == filename and f['storage'] == 'local' for f in files):
+                                    # Get file URL
+                                    if endpoint_url:
+                                        endpoint = endpoint_url.rstrip('/')
+                                        file_url = f"{endpoint}/{bucket}/{s3_key}"
+                                    else:
+                                        region = os.environ.get('S3_REGION', 'us-east-1')
+                                        file_url = f"https://{bucket}.s3.{region}.amazonaws.com/{s3_key}"
+                                    
+                                    files.append({
+                                        'name': filename,
+                                        'size': obj['Size'],
+                                        'modified': obj['LastModified'].timestamp(),
+                                        'path': s3_key,
+                                        'file_url': file_url,
+                                        'storage': 'r2' if endpoint_url and 'r2.cloudflarestorage.com' in endpoint_url else 's3',
+                                        'location': 'cloud'
+                                    })
+                except ClientError as e:
+                    logger.warning(f"Error listing S3/R2 files: {str(e)}")
+                    
+            except ImportError:
+                logger.debug("boto3 not available, skipping S3/R2 file listing")
+            except Exception as e:
+                logger.warning(f"Error accessing S3/R2: {str(e)}")
+        
         # Sort by modification time (newest first)
-        files.sort(key=lambda x: x['modified'], reverse=True)
+        files.sort(key=lambda x: x.get('modified', 0), reverse=True)
         
         return jsonify({'files': files})
         

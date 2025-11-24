@@ -23,11 +23,16 @@ def test_button_clicks():
 def status():
     """Get application status."""
     try:
+        # Get actual supported formats from FormatConverter
+        from redline.core.format_converter import FormatConverter
+        converter = FormatConverter()
+        supported_formats = converter.get_supported_formats()
+        
         status_data = {
             'status': 'running',
             'data_loader': 'available',
             'database': 'available',
-            'supported_formats': ['csv', 'txt', 'parquet', 'feather', 'json', 'duckdb'],
+            'supported_formats': supported_formats,
             'version': '1.1.0'
         }
         

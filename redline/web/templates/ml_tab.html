@@ -1,0 +1,1013 @@
+{% extends "base.html" %}
+
+{% block title %}Machine Learning - REDLINE{% endblock %}
+
+{% block page_title %}Machine Learning{% endblock %}
+{% block page_subtitle %}Prepare data, train models, and perform ML operations{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <!-- ML Operations Form -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-brain me-2"></i>Select Data for ML Operations
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="mlForm">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label for="mlFile" class="form-label">Data File</label>
+                                <select class="form-select" id="mlFile" required>
+                                    <option value="">Select data file...</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-primary" id="prepareMLDataBtn">
+                                    <i class="fas fa-brain me-2"></i>Prepare ML Data
+                                </button>
+                                <button type="button" class="btn btn-warning" id="detectOutliersBtn">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>Detect Outliers
+                                </button>
+                                <button type="button" class="btn btn-info" id="clusterDataBtn">
+                                    <i class="fas fa-project-diagram me-2"></i>Cluster Data
+                                </button>
+                                <button type="button" class="btn btn-success" id="predictValuesBtn">
+                                    <i class="fas fa-crystal-ball me-2"></i>Predict Values
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="scaleFeaturesBtn">
+                                    <i class="fas fa-balance-scale me-2"></i>Scale Features
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ML Results -->
+        <div id="mlResults" class="card" style="display: none;">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-line me-2"></i>ML Results
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="resultsContent">
+                    <!-- Results will be displayed here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- ML Operations Info -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>ML Operations
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6><i class="fas fa-brain text-warning me-2"></i>Prepare ML Data</h6>
+                    <small class="text-muted">Prepare data for machine learning training in NumPy or TensorFlow format. Select features and output format.</small>
+                </div>
+                
+                <div class="mb-3">
+                    <h6><i class="fas fa-exclamation-triangle text-danger me-2"></i>Detect Outliers</h6>
+                    <small class="text-muted">Identify outliers in your dataset using Isolation Forest algorithm. Configure contamination rate.</small>
+                </div>
+                
+                <div class="mb-3">
+                    <h6><i class="fas fa-project-diagram text-info me-2"></i>Cluster Data</h6>
+                    <small class="text-muted">Group similar data points using K-Means clustering. Specify number of clusters.</small>
+                </div>
+                
+                <div class="mb-3">
+                    <h6><i class="fas fa-crystal-ball text-success me-2"></i>Predict Values</h6>
+                    <small class="text-muted">Train a Linear Regression model and make predictions. Optionally save training weights.</small>
+                </div>
+                
+                <div class="mb-3">
+                    <h6><i class="fas fa-balance-scale text-secondary me-2"></i>Scale Features</h6>
+                    <small class="text-muted">Normalize features using StandardScaler or MinMaxScaler for better model performance.</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Stats -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-tachometer-alt me-2"></i>Quick Stats
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="quickStats">
+                    <small class="text-muted">Select a file to view quick statistics</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ML Feature Selection Modal -->
+<div class="modal fade" id="mlFeatureSelectionModal" tabindex="-1" aria-labelledby="mlFeatureSelectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="mlFeatureSelectionModalLabel">Select Features for ML Training</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="mlOutputFormat" class="form-label">Output Format</label>
+                    <select class="form-select" id="mlOutputFormat">
+                        <option value="numpy">NumPy Array (.npz)</option>
+                        <option value="tensorflow">TensorFlow Dataset</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="mlSelectAllFeatures">
+                        <label class="form-check-label" for="mlSelectAllFeatures">
+                            Select All Numeric Features
+                        </label>
+                    </div>
+                </div>
+                <div id="mlFeatureCheckboxes" class="row row-cols-2 row-cols-md-3 g-2" style="max-height: 300px; overflow-y: auto;">
+                    <!-- Feature checkboxes will be loaded here by JS -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmMLFeaturesBtn">Prepare ML Data</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Feature Scaling Selection Modal -->
+<div class="modal fade" id="scaleFeatureSelectionModal" tabindex="-1" aria-labelledby="scaleFeatureSelectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="scaleFeatureSelectionModalLabel">Select Features to Scale</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="scaleMethod" class="form-label">Scaling Method</label>
+                    <select class="form-select" id="scaleMethod">
+                        <option value="standard">Standard (StandardScaler) - Mean 0, Std 1</option>
+                        <option value="minmax">MinMax (MinMaxScaler) - Range 0 to 1</option>
+                    </select>
+                    <small class="form-text text-muted">
+                        <strong>Standard:</strong> Centers data around 0 with unit variance<br>
+                        <strong>MinMax:</strong> Scales data to range between 0 and 1
+                    </small>
+                </div>
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="scaleSelectAllFeatures">
+                        <label class="form-check-label" for="scaleSelectAllFeatures">
+                            Select All Numeric Features
+                        </label>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <small class="text-muted">Select which numeric features/columns to scale:</small>
+                </div>
+                <div id="scaleFeatureCheckboxes" class="row row-cols-2 row-cols-md-3 g-2" style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; padding: 10px; border-radius: 5px;">
+                    <!-- Feature checkboxes will be loaded here by JS -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmScaleFeaturesBtn">Scale Features</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentMLData = null;
+let currentMLResponse = null;
+
+$(document).ready(function() {
+    // Safari compatibility: Ensure REDLINE is available
+    if (typeof REDLINE === 'undefined' || !REDLINE.api) {
+        console.error('REDLINE API not available. Waiting for it to load...');
+        setTimeout(function() {
+            if (typeof REDLINE !== 'undefined' && REDLINE.api) {
+                loadAvailableFiles();
+            } else {
+                console.error('REDLINE API still not available after timeout');
+                alert('Error: REDLINE API not loaded. Please refresh the page.');
+            }
+        }, 1000);
+    } else {
+        loadAvailableFiles();
+    }
+    
+    // Event handlers - Safari compatible
+    $('#mlFile').on('change', function() {
+        var self = this;
+        var selectedFile = $(self).val();
+        
+        if (selectedFile && selectedFile !== '' && selectedFile !== null) {
+            // Set basic file info immediately
+            var fileOption = $('#mlFile option[value="' + selectedFile + '"]');
+            var filePath = fileOption.length > 0 ? (fileOption.data('path') || '') : '';
+            currentMLData = {
+                filename: selectedFile,
+                file_path: filePath,
+                columns: [] // Will be populated by loadFileColumns
+            };
+            
+            // Load stats and columns asynchronously
+            loadQuickStats(selectedFile);
+            loadFileColumns(selectedFile).then(function() {
+                console.log('File columns loaded for:', selectedFile);
+            }).catch(function(error) {
+                console.error('Error loading file columns on change:', error);
+            });
+        } else {
+            // Clear currentMLData if no file selected
+            currentMLData = null;
+        }
+    });
+    
+    $('#prepareMLDataBtn').on('click', function() {
+        prepareMLData();
+    });
+    
+    $('#detectOutliersBtn').on('click', function() {
+        detectOutliers();
+    });
+    
+    $('#clusterDataBtn').on('click', function() {
+        clusterData();
+    });
+    
+    $('#predictValuesBtn').on('click', function() {
+        predictValues();
+    });
+    
+    $('#scaleFeaturesBtn').on('click', function() {
+        scaleFeatures();
+    });
+    
+    // ML Feature Selection Modal handlers
+    $('#mlSelectAllFeatures').on('change', function() {
+        $('.ml-feature-checkbox').prop('checked', $(this).is(':checked'));
+    });
+    
+    $('#confirmMLFeaturesBtn').on('click', function() {
+        confirmMLFeatures();
+    });
+    
+    // Feature Scaling Modal handlers
+    $('#scaleSelectAllFeatures').on('change', function() {
+        $('.scale-feature-checkbox').prop('checked', $(this).is(':checked'));
+    });
+    
+    $('#confirmScaleFeaturesBtn').on('click', function() {
+        confirmScaleFeatures();
+    });
+});
+
+function loadAvailableFiles() {
+    // Safari compatibility check
+    if (typeof REDLINE === 'undefined' || !REDLINE.ui || !REDLINE.api) {
+        console.error('REDLINE not available in loadAvailableFiles');
+        setTimeout(loadAvailableFiles, 500);
+        return;
+    }
+    
+    REDLINE.ui.showLoading('Loading available files...');
+    
+    REDLINE.api.get('/api/files')
+        .then(function(response) {
+            console.log('loadAvailableFiles - Response:', response);
+            var select = $('#mlFile');
+            if (select.length === 0) {
+                console.error('loadAvailableFiles - Dropdown not found!');
+                REDLINE.ui.hideLoading();
+                return;
+            }
+            
+            select.empty();
+            select.append('<option value="">Select data file...</option>');
+            
+            if (response.files && response.files.length > 0) {
+                console.log('loadAvailableFiles - Loading', response.files.length, 'files');
+                for (var i = 0; i < response.files.length; i++) {
+                    var file = response.files[i];
+                    if (file.name && typeof file.name === 'string') {
+                        var fileSize = file.size ? REDLINE.utils.formatFileSize(file.size) : 'Unknown size';
+                        var safePath = file.path ? file.path : '';
+                        var optionHtml = '<option value="' + file.name + '" data-path="' + safePath + '">' + file.name + ' (' + fileSize + ')</option>';
+                        select.append(optionHtml);
+                        console.log('loadAvailableFiles - Added file:', file.name);
+                    }
+                }
+                console.log('loadAvailableFiles - Total options:', select.find('option').length);
+            } else {
+                console.warn('loadAvailableFiles - No files found');
+                select.append('<option value="" disabled>No files available</option>');
+            }
+            
+            REDLINE.ui.hideLoading();
+        })
+        .catch(function(error) {
+            REDLINE.ui.hideLoading();
+            console.error('Error loading files:', error);
+            var errorMessage = error.message || error.error || 'Unknown error occurred';
+            REDLINE.ui.showToast('Error loading files: ' + errorMessage, 'error');
+        });
+}
+
+function loadQuickStats(filename) {
+    // Safari-compatible: use var instead of const, traditional function syntax
+    var fileOption = $('#mlFile option[value="' + filename + '"]');
+    var filePath = fileOption.length > 0 ? (fileOption.data('path') || '') : '';
+    
+    REDLINE.api.post('/api/data/quick-stats', {
+        filename: filename,
+        file_path: filePath
+    })
+    .then(function(response) {
+        // Safari-compatible: use string concatenation
+        var statsHtml = '<p><strong>Rows:</strong> ' + (response && response.rows ? response.rows : 'N/A') + '</p>';
+        statsHtml += '<p><strong>Columns:</strong> ' + (response && response.columns ? response.columns : 'N/A') + '</p>';
+        
+        if (response && response.columns_list && response.columns_list.length > 0) {
+            statsHtml += '<p><strong>Column Names:</strong></p><ul>';
+            // Safari-compatible: use for loop instead of forEach
+            var maxCols = Math.min(10, response.columns_list.length);
+            for (var i = 0; i < maxCols; i++) {
+                statsHtml += '<li>' + response.columns_list[i] + '</li>';
+            }
+            if (response.columns_list.length > 10) {
+                statsHtml += '<li><em>... and ' + (response.columns_list.length - 10) + ' more</em></li>';
+            }
+            statsHtml += '</ul>';
+        }
+        
+        $('#quickStats').html(statsHtml);
+    })
+    .catch(function(error) {
+        console.error('Error loading quick stats:', error);
+        $('#quickStats').html('<small class="text-muted">Unable to load statistics</small>');
+    });
+}
+
+function loadFileColumns(filename) {
+    // Safari-compatible: use var instead of const, traditional function syntax
+    var fileOption = $('#mlFile option[value="' + filename + '"]');
+    var filePath = fileOption.length > 0 ? (fileOption.data('path') || '') : '';
+    
+    return REDLINE.api.post('/api/data/quick-stats', {
+        filename: filename,
+        file_path: filePath
+    })
+    .then(function(response) {
+        // Safari-compatible: check response structure
+        var columns = (response && response.columns_list) ? response.columns_list : 
+                     (response && response.columns) ? response.columns : [];
+        
+        // Debug logging
+        if (typeof console !== 'undefined' && console.log) {
+            console.log('loadFileColumns response:', {
+                hasColumnsList: !!(response && response.columns_list),
+                hasColumns: !!(response && response.columns),
+                columnsLength: columns.length,
+                responseKeys: response ? Object.keys(response) : []
+            });
+        }
+        
+        // Update currentMLData with columns
+        if (currentMLData && currentMLData.filename === filename) {
+            currentMLData.file_path = (response && response.file_path) ? response.file_path : filePath;
+            currentMLData.columns = columns;
+        } else {
+            currentMLData = {
+                filename: filename,
+                file_path: (response && response.file_path) ? response.file_path : filePath,
+                columns: columns
+            };
+        }
+        return currentMLData;
+    })
+    .catch(function(error) {
+        console.error('Error loading file columns:', error);
+        // Try to set basic info even if stats fail
+        if (filename) {
+            if (currentMLData && currentMLData.filename === filename) {
+                currentMLData.file_path = filePath;
+                currentMLData.columns = [];
+            } else {
+                currentMLData = {
+                    filename: filename,
+                    file_path: filePath,
+                    columns: []
+                };
+            }
+        }
+        return currentMLData;
+    });
+}
+
+function prepareMLData() {
+    // Use same approach as Analysis tab - direct value check
+    var filename = $('#mlFile').val();
+    if (!filename || filename === '') {
+        REDLINE.ui.showToast('Please select a file first', 'error');
+        return;
+    }
+    
+    // Get file path from selected option (same as Analysis tab)
+    var opt = $('#mlFile option:selected');
+    var filePath = opt.data('path') || null;
+    
+    // Load columns first, then show modal
+    REDLINE.ui.showToast('Loading file information...', 'info');
+    loadFileColumns(filename).then(function() {
+        // Verify columns were loaded
+        if (!currentMLData || !currentMLData.columns || currentMLData.columns.length === 0) {
+            REDLINE.ui.showToast('Failed to load file columns. Please try selecting the file again.', 'error');
+            return;
+        }
+        
+        // Show feature selection modal
+        showMLFeatureSelectionModal(currentMLData.columns, filename, filePath);
+    }).catch(function(error) {
+        console.error('Error loading columns:', error);
+        REDLINE.ui.showToast('Failed to load file columns. Please try selecting the file again.', 'error');
+    });
+}
+
+function showMLFeatureSelectionModal(columns, filename, filePath) {
+    // Safari compatible: use var instead of const
+    // Get numeric columns (default selection)
+    var numericColumns = [];
+    for (var i = 0; i < columns.length; i++) {
+        var col = columns[i];
+        var colLower = col.toLowerCase();
+        if (colLower.indexOf('ticker') === -1 && 
+            colLower.indexOf('date') === -1 && 
+            colLower.indexOf('time') === -1 && 
+            colLower.indexOf('timestamp') === -1) {
+            numericColumns.push(col);
+        }
+    }
+    
+    // Populate feature checkboxes - Safari compatible
+    var checkboxesHtml = '';
+    for (var idx = 0; idx < columns.length; idx++) {
+        var col = columns[idx];
+        var isNumeric = numericColumns.indexOf(col) !== -1;
+        var checkedAttr = isNumeric ? ' checked' : '';
+        var colEscaped = col.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        
+        checkboxesHtml += '<div class="col">';
+        checkboxesHtml += '<div class="form-check">';
+        checkboxesHtml += '<input class="form-check-input ml-feature-checkbox" type="checkbox" ';
+        checkboxesHtml += 'value="' + colEscaped + '" id="ml_feature_' + idx + '"';
+        checkboxesHtml += checkedAttr + '>';
+        checkboxesHtml += '<label class="form-check-label" for="ml_feature_' + idx + '" ';
+        checkboxesHtml += 'style="color: #212529 !important; display: inline-block !important; margin-left: 5px !important; visibility: visible !important; opacity: 1 !important; font-weight: normal;">';
+        checkboxesHtml += col;
+        checkboxesHtml += '</label>';
+        checkboxesHtml += '</div>';
+        checkboxesHtml += '</div>';
+    }
+    
+    $('#mlFeatureCheckboxes').html(checkboxesHtml);
+    
+    // Debug: Log what was created
+    console.log('ML Feature checkboxes created:', $('#mlFeatureCheckboxes').find('label').length, 'labels');
+    
+    // Set "Select All" checkbox state
+    $('#mlSelectAllFeatures').prop('checked', numericColumns.length === columns.length);
+    
+    // Show modal
+    var modal = new bootstrap.Modal(document.getElementById('mlFeatureSelectionModal'));
+    modal.show();
+    
+    // Force label visibility after modal is shown (Safari fix)
+    setTimeout(function() {
+        $('#mlFeatureCheckboxes .form-check-label').css({
+            'color': '#212529',
+            'display': 'inline-block',
+            'visibility': 'visible',
+            'opacity': '1',
+            'font-weight': 'normal'
+        });
+        // Also ensure text content is set
+        $('#mlFeatureCheckboxes .form-check-label').each(function() {
+            var label = $(this);
+            if (!label.text() || label.text().trim() === '') {
+                var checkbox = label.prev('input');
+                if (checkbox.length) {
+                    label.text(checkbox.val());
+                }
+            }
+        });
+    }, 100);
+    
+    // Store current file info for confirmation
+    window.currentMLFileInfo = { filename: filename, filePath: filePath, columns: columns };
+}
+
+function confirmMLFeatures() {
+    const selectedFeatures = $('.ml-feature-checkbox:checked').map(function() {
+        return $(this).val();
+    }).get();
+    
+    if (selectedFeatures.length === 0) {
+        REDLINE.ui.showToast('Please select at least one feature', 'error');
+        return;
+    }
+    
+    const formatType = $('#mlOutputFormat').val();
+    const fileInfo = window.currentMLFileInfo;
+    
+    // Hide modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('mlFeatureSelectionModal'));
+    modal.hide();
+    
+    REDLINE.ui.showLoading('Preparing ML data...');
+    
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    REDLINE.api.post('/analysis/prepare-ml-data', {
+        filename: fileInfo.filename,
+        file_path: fileInfo.file_path,
+        format: formatType,
+        selected_features: selectedFeatures,
+        license_key: licenseKey
+    })
+    .then(response => {
+        REDLINE.ui.hideLoading();
+        currentMLResponse = response;
+        displayMLDataResult(response);
+        $('#mlResults').show();
+    })
+    .catch(error => {
+        REDLINE.ui.hideLoading();
+        const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
+        REDLINE.ui.showToast('Error preparing ML data: ' + errorMsg, 'error');
+    });
+}
+
+function displayMLDataResult(response) {
+    const result = response.result;
+    let resultHtml = `
+        <div class="card mb-3" style="background-color: var(--light-color); color: var(--text-primary);">
+            <div class="card-header">
+                <h6 style="color: var(--text-primary);">ML Data Preparation Result</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Format:</strong> ${result.format}</p>
+    `;
+    
+    if (result.shape) {
+        resultHtml += `<p><strong>Shape:</strong> ${result.shape}</p>`;
+    }
+    if (result.dtype) {
+        resultHtml += `<p><strong>Data Type:</strong> ${result.dtype}</p>`;
+    }
+    if (result.sample_size) {
+        resultHtml += `<p><strong>Sample Size:</strong> ${result.sample_size}</p>`;
+    }
+    if (result.message) {
+        resultHtml += `<p><strong>Status:</strong> ${result.message}</p>`;
+    }
+    if (result.data_preview && result.data_preview.length > 0) {
+        resultHtml += `<p><strong>Data Preview (first 10 values):</strong></p>`;
+        resultHtml += `<pre style="background-color: var(--dark-color); color: var(--text-white); padding: 10px; border-radius: 5px;">${JSON.stringify(result.data_preview, null, 2)}</pre>`;
+    }
+    
+    resultHtml += `
+            </div>
+        </div>
+    `;
+    
+    $('#resultsContent').prepend(resultHtml);
+    REDLINE.ui.showToast('ML data prepared successfully', 'success');
+}
+
+function detectOutliers() {
+    // Use same approach as Analysis tab
+    var filename = $('#mlFile').val();
+    if (!filename || filename === '') {
+        REDLINE.ui.showToast('Please select a file first', 'error');
+        return;
+    }
+    
+    // Get file path from selected option (same as Analysis tab)
+    var opt = $('#mlFile option:selected');
+    var filePath = opt.data('path') || null;
+    
+    const contamination = prompt('Enter contamination rate (0.01 to 0.5, default 0.1 = 10%):', '0.1');
+    if (!contamination) return;
+    
+    REDLINE.ui.showLoading('Detecting outliers...');
+    
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    REDLINE.api.post('/analysis/detect-outliers', {
+        filename: filename,
+        file_path: filePath,
+        contamination: parseFloat(contamination),
+        license_key: licenseKey
+    })
+    .then(response => {
+        REDLINE.ui.hideLoading();
+        currentMLResponse = response;
+        displayOutlierResult(response);
+        $('#mlResults').show();
+    })
+    .catch(error => {
+        REDLINE.ui.hideLoading();
+        REDLINE.ui.showToast('Error detecting outliers: ' + (error.message || error.error), 'error');
+    });
+}
+
+function displayOutlierResult(response) {
+    let resultHtml = `
+        <div class="card mb-3" style="background-color: var(--light-color); color: var(--text-primary);">
+            <div class="card-header">
+                <h6 style="color: var(--text-primary);">Outlier Detection Results</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Total Rows:</strong> ${response.total_rows}</p>
+                <p><strong>Outliers Found:</strong> ${response.outlier_count} (${response.outlier_percentage}%)</p>
+                <p><strong>Contamination Rate:</strong> ${response.contamination}</p>
+                <p><strong>Columns Analyzed:</strong> ${response.columns_analyzed.join(', ')}</p>
+    `;
+    
+    if (response.outlier_preview && response.outlier_preview.length > 0) {
+        resultHtml += `<p><strong>Outlier Preview:</strong></p>`;
+        resultHtml += `<div class="table-responsive"><table class="table table-sm">`;
+        resultHtml += `<thead><tr>${response.columns_analyzed.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>`;
+        response.outlier_preview.forEach(row => {
+            resultHtml += `<tr>${response.columns_analyzed.map(c => `<td>${row[c] || 'N/A'}</td>`).join('')}</tr>`;
+        });
+        resultHtml += `</tbody></table></div>`;
+    }
+    
+    resultHtml += `</div></div>`;
+    $('#resultsContent').prepend(resultHtml);
+    REDLINE.ui.showToast('Outlier detection completed', 'success');
+}
+
+function clusterData() {
+    // Use same approach as Analysis tab
+    var filename = $('#mlFile').val();
+    if (!filename || filename === '') {
+        REDLINE.ui.showToast('Please select a file first', 'error');
+        return;
+    }
+    
+    // Get file path from selected option (same as Analysis tab)
+    var opt = $('#mlFile option:selected');
+    var filePath = opt.data('path') || null;
+    
+    const nClusters = prompt('Enter number of clusters (2-10, default 3):', '3');
+    if (!nClusters) return;
+    
+    REDLINE.ui.showLoading('Clustering data...');
+    
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    REDLINE.api.post('/analysis/cluster-data', {
+        filename: filename,
+        file_path: filePath,
+        n_clusters: parseInt(nClusters),
+        license_key: licenseKey
+    })
+    .then(response => {
+        REDLINE.ui.hideLoading();
+        currentMLResponse = response;
+        displayClusterResult(response);
+        $('#mlResults').show();
+    })
+    .catch(error => {
+        REDLINE.ui.hideLoading();
+        REDLINE.ui.showToast('Error clustering data: ' + (error.message || error.error), 'error');
+    });
+}
+
+function displayClusterResult(response) {
+    let resultHtml = `
+        <div class="card mb-3" style="background-color: var(--light-color); color: var(--text-primary);">
+            <div class="card-header">
+                <h6 style="color: var(--text-primary);">Clustering Results (K-Means)</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Number of Clusters:</strong> ${response.n_clusters}</p>
+                <p><strong>Total Rows:</strong> ${response.total_rows}</p>
+                <p><strong>Columns Analyzed:</strong> ${response.columns_analyzed.join(', ')}</p>
+                <h6 class="mt-3">Cluster Statistics:</h6>
+    `;
+    
+    Object.entries(response.cluster_stats).forEach(([cluster, stats]) => {
+        resultHtml += `
+            <div class="mb-2">
+                <strong>Cluster ${cluster}:</strong> ${stats.count} rows (${stats.percentage}%)
+                <ul>
+                    ${Object.entries(stats.means).map(([col, val]) => `<li>${col}: ${val.toFixed(2)}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    });
+    
+    resultHtml += `</div></div>`;
+    $('#resultsContent').prepend(resultHtml);
+    REDLINE.ui.showToast('Clustering completed', 'success');
+}
+
+function predictValues() {
+    // Use same approach as Analysis tab
+    var filename = $('#mlFile').val();
+    if (!filename || filename === '') {
+        REDLINE.ui.showToast('Please select a file first', 'error');
+        return;
+    }
+    
+    // Get file path from selected option (same as Analysis tab)
+    var opt = $('#mlFile option:selected');
+    var filePath = opt.data('path') || null;
+    
+    // Ask if user wants to save weights
+    const saveWeights = confirm('Save training weights to feather file?');
+    
+    REDLINE.ui.showLoading('Training model and making predictions...');
+    
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    REDLINE.api.post('/analysis/predict', {
+        save_weights: saveWeights,
+        filename: filename,
+        file_path: filePath,
+        license_key: licenseKey
+    })
+    .then(response => {
+        REDLINE.ui.hideLoading();
+        currentMLResponse = response;
+        displayPredictionResult(response);
+        $('#mlResults').show();
+    })
+    .catch(error => {
+        REDLINE.ui.hideLoading();
+        REDLINE.ui.showToast('Error making predictions: ' + (error.message || error.error), 'error');
+    });
+}
+
+function displayPredictionResult(response) {
+    let resultHtml = `
+        <div class="card mb-3" style="background-color: var(--light-color); color: var(--text-primary);">
+            <div class="card-header">
+                <h6 style="color: var(--text-primary);">Prediction Results (Linear Regression)</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Target Column:</strong> ${response.target_column}</p>
+                <p><strong>Feature Columns:</strong> ${response.feature_columns.join(', ')}</p>
+                <p><strong>Model Type:</strong> ${response.model_type}</p>
+                <h6 class="mt-3">Model Metrics:</h6>
+                <ul>
+                    <li><strong>R² Score:</strong> ${response.metrics.r2_score}</li>
+                    <li><strong>Mean Squared Error:</strong> ${response.metrics.mean_squared_error}</li>
+                    <li><strong>Training Samples:</strong> ${response.metrics.training_samples}</li>
+                    <li><strong>Test Samples:</strong> ${response.metrics.test_samples}</li>
+                </ul>
+                <h6 class="mt-3">Feature Importance:</h6>
+                <ul>
+                    ${Object.entries(response.feature_importance).map(([col, val]) => 
+                        `<li><strong>${col}:</strong> ${val.toFixed(4)}</li>`
+                    ).join('')}
+                </ul>
+                <h6 class="mt-3">Predictions Preview:</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr><th>Actual</th><th>Predicted</th></tr></thead>
+                        <tbody>
+                            ${response.predictions_preview.actual.map((actual, i) => 
+                                `<tr><td>${actual.toFixed(2)}</td><td>${response.predictions_preview.predicted[i].toFixed(2)}</td></tr>`
+                            ).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                ${response.weights_saved ? `
+                    <div class="alert alert-success mt-3">
+                        <strong>✓ Weights Saved:</strong> ${response.weights_filename}<br>
+                        <small>Saved to: data/models/</small>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+    
+    $('#resultsContent').prepend(resultHtml);
+    const toastMsg = response.weights_saved 
+        ? `Prediction completed. Weights saved: ${response.weights_filename}`
+        : 'Prediction completed';
+    REDLINE.ui.showToast(toastMsg, 'success');
+}
+
+function scaleFeatures() {
+    // Use same approach as Analysis tab
+    var filename = $('#mlFile').val();
+    if (!filename || filename === '') {
+        REDLINE.ui.showToast('Please select a file first', 'error');
+        return;
+    }
+    
+    // Get file path from selected option (same as Analysis tab)
+    var opt = $('#mlFile option:selected');
+    var filePath = opt.data('path') || null;
+    
+    // Load columns first, then show modal
+    REDLINE.ui.showToast('Loading file information...', 'info');
+    loadFileColumns(filename).then(function() {
+        // Verify columns were loaded
+        if (!currentMLData || !currentMLData.columns || currentMLData.columns.length === 0) {
+            REDLINE.ui.showToast('Failed to load file columns. Please try selecting the file again.', 'error');
+            return;
+        }
+        
+        // Show feature selection modal
+        showScaleFeatureSelectionModal(currentMLData.columns, filename, filePath);
+    }).catch(function(error) {
+        console.error('Error loading columns:', error);
+        REDLINE.ui.showToast('Failed to load file columns. Please try selecting the file again.', 'error');
+    });
+}
+
+function showScaleFeatureSelectionModal(columns, filename, filePath) {
+    // Safari compatible: use var instead of const
+    // Get numeric columns (default selection) - exclude date/time columns
+    var numericColumns = [];
+    for (var i = 0; i < columns.length; i++) {
+        var col = columns[i];
+        var colLower = col.toLowerCase();
+        if (colLower.indexOf('ticker') === -1 && 
+            colLower.indexOf('date') === -1 && 
+            colLower.indexOf('time') === -1 && 
+            colLower.indexOf('timestamp') === -1) {
+            numericColumns.push(col);
+        }
+    }
+    
+    // Populate feature checkboxes - Safari compatible
+    var checkboxesHtml = '';
+    for (var idx = 0; idx < columns.length; idx++) {
+        var col = columns[idx];
+        var isNumeric = numericColumns.indexOf(col) !== -1;
+        var checkedAttr = isNumeric ? ' checked' : '';
+        var colEscaped = col.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        
+        checkboxesHtml += '<div class="col">';
+        checkboxesHtml += '<div class="form-check">';
+        checkboxesHtml += '<input class="form-check-input scale-feature-checkbox" type="checkbox" ';
+        checkboxesHtml += 'value="' + colEscaped + '" id="scale_feature_' + idx + '"';
+        checkboxesHtml += checkedAttr + '>';
+        checkboxesHtml += '<label class="form-check-label" for="scale_feature_' + idx + '" ';
+        checkboxesHtml += 'title="' + colEscaped + '" style="color: #212529 !important; display: inline-block !important; margin-left: 5px !important; visibility: visible !important; opacity: 1 !important; font-weight: normal;">';
+        checkboxesHtml += col;
+        checkboxesHtml += '</label>';
+        checkboxesHtml += '</div>';
+        checkboxesHtml += '</div>';
+    }
+    
+    $('#scaleFeatureCheckboxes').html(checkboxesHtml);
+    
+    // Debug: Log what was created
+    console.log('Scale Feature checkboxes created:', $('#scaleFeatureCheckboxes').find('label').length, 'labels');
+    
+    // Set "Select All" checkbox state
+    $('#scaleSelectAllFeatures').prop('checked', numericColumns.length === columns.length);
+    
+    // Show modal
+    var modal = new bootstrap.Modal(document.getElementById('scaleFeatureSelectionModal'));
+    modal.show();
+    
+    // Force label visibility after modal is shown (Safari fix)
+    setTimeout(function() {
+        $('#scaleFeatureCheckboxes .form-check-label').css({
+            'color': '#212529',
+            'display': 'inline-block',
+            'visibility': 'visible',
+            'opacity': '1',
+            'font-weight': 'normal'
+        });
+        // Also ensure text content is set
+        $('#scaleFeatureCheckboxes .form-check-label').each(function() {
+            var label = $(this);
+            if (!label.text() || label.text().trim() === '') {
+                var checkbox = label.prev('input');
+                if (checkbox.length) {
+                    label.text(checkbox.val());
+                }
+            }
+        });
+    }, 100);
+    
+    // Store current file info for confirmation
+    window.currentScaleFileInfo = { filename: filename, filePath: filePath, columns: columns };
+}
+
+function confirmScaleFeatures() {
+    const selectedFeatures = $('.scale-feature-checkbox:checked').map(function() {
+        return $(this).val();
+    }).get();
+    
+    if (selectedFeatures.length === 0) {
+        REDLINE.ui.showToast('Please select at least one feature to scale', 'error');
+        return;
+    }
+    
+    const methodType = $('#scaleMethod').val();
+    const fileInfo = window.currentScaleFileInfo;
+    
+    // Hide modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('scaleFeatureSelectionModal'));
+    modal.hide();
+    
+    REDLINE.ui.showLoading('Scaling features...');
+    
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    REDLINE.api.post('/analysis/scale-features', {
+        filename: fileInfo.filename,
+        file_path: fileInfo.file_path,
+        method: methodType,
+        columns: selectedFeatures,
+        license_key: licenseKey
+    })
+    .then(response => {
+        REDLINE.ui.hideLoading();
+        currentMLResponse = response;
+        displayScalingResult(response);
+        $('#mlResults').show();
+    })
+    .catch(error => {
+        REDLINE.ui.hideLoading();
+        REDLINE.ui.showToast('Error scaling features: ' + (error.message || error.error), 'error');
+    });
+}
+
+function displayScalingResult(response) {
+    let resultHtml = `
+        <div class="card mb-3" style="background-color: var(--light-color); color: var(--text-primary);">
+            <div class="card-header">
+                <h6 style="color: var(--text-primary);">Feature Scaling Results (${response.method === 'standard' ? 'StandardScaler' : 'MinMaxScaler'})</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Method:</strong> ${response.method}</p>
+                <p><strong>Columns Scaled:</strong> ${response.columns_scaled.join(', ')}</p>
+                <h6 class="mt-3">Scaled Data Preview:</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr>${response.columns_scaled.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+                        <tbody>
+                            ${response.scaled_preview.map(row => 
+                                `<tr>${response.columns_scaled.map(c => `<td>${row[c]?.toFixed(4) || 'N/A'}</td>`).join('')}</tr>`
+                            ).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    $('#resultsContent').prepend(resultHtml);
+    REDLINE.ui.showToast('Feature scaling completed', 'success');
+}
+</script>
+{% endblock %}
+

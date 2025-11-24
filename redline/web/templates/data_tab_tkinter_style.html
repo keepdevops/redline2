@@ -1024,8 +1024,22 @@ function displayDataTable(data) {
             html += '<tr>';
             columnsForRows.forEach(col => {
                 const value = row[col];
-                // Format date values and numeric values properly
-                const formattedValue = formatDateValue(value, col);
+                let formattedValue = value;
+                
+                // Check if this is a time column first
+                const isTimeColumn = col && (
+                    col.toLowerCase().includes('time') ||
+                    col === '<TIME>' ||
+                    col === 'TIME'
+                );
+                
+                if (isTimeColumn && typeof formatTimeValue === 'function') {
+                    // Format time values (HHMMSS -> HH:MM:SS)
+                    formattedValue = formatTimeValue(value, col);
+                } else if (typeof formatDateValue === 'function') {
+                    // Format date values and numeric values properly
+                    formattedValue = formatDateValue(value, col);
+                }
                 let displayValue = '';
                 if (formattedValue === null || formattedValue === undefined || formattedValue === '') {
                     displayValue = '';

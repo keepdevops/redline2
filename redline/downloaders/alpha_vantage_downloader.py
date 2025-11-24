@@ -33,24 +33,7 @@ class AlphaVantageDownloader(BaseDownloader):
         # Rate limiting - Alpha Vantage allows 5 calls per minute for free
         self.last_request_time = 0
         self.min_request_interval = 12.0  # 12 seconds between requests (5 per minute)
-        self.rate_limit_lock = None
-        
-        # Import threading for rate limiting
-        import threading
-        self.rate_limit_lock = threading.Lock()
-    
-    def _rate_limit(self):
-        """Enforce rate limiting between requests."""
-        with self.rate_limit_lock:
-            current_time = time.time()
-            time_since_last_request = current_time - self.last_request_time
-            
-            if time_since_last_request < self.min_request_interval:
-                sleep_time = self.min_request_interval - time_since_last_request
-                self.logger.info(f"Alpha Vantage rate limiting: sleeping for {sleep_time:.2f} seconds")
-                time.sleep(sleep_time)
-            
-            self.last_request_time = time.time()
+        # rate_limit_lock will be initialized by base class _rate_limit() method
     
     def download_single_ticker(self, ticker: str, start_date: str = None, end_date: str = None) -> pd.DataFrame:
         """

@@ -14,8 +14,13 @@ services:
       - redline-dev-data:/app/data
       - redline-dev-logs:/app/logs
       - redline-dev-config:/app/config
+      # Mount Downloads folder for M3 Apple Silicon (bypasses security restrictions)
+      # Files are automatically copied from Downloads to data/stooq inside container
+      - ~/Downloads:/app/data/downloads:ro  # Read-only mount
       # Mount source code for live development (uncomment for development)
       # - .:/app
+    env_file:
+      - .env
     environment:
       - FLASK_ENV=development
       - FLASK_DEBUG=1
@@ -24,7 +29,16 @@ services:
       - PYTHONDONTWRITEBYTECODE=0
       - GUNICORN_WORKERS=1
       - GUNICORN_THREADS=2
+      - LICENSE_SERVER_URL=http://host.docker.internal:5001
+      - REQUIRE_LICENSE_SERVER=false
     restart: unless-stopped
+    # Start file watcher in background (auto-copies Downloads to data/stooq)
+    # Uses simple polling version (no watchdog dependency needed)
+    command: >
+      sh -c "
+        python3 /app/redline/scripts/watch_downloads_simple.py > /app/logs/file_watcher.log 2>&1 &
+        exec gunicorn --bind 0.0.0.0:8080 --workers 1 --threads 2 --timeout 120 web_app:app
+      "
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s

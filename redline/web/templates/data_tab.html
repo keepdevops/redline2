@@ -377,13 +377,23 @@ function displayDataInTable(data, columns) {
         tableHtml += '<tr>';
         headers.forEach(header => {
             const value = data[i][header];
-            // Format date values (YYYYMMDD -> YYYY-MM-DD)
-            let formattedValue = formatDateValue(value, header);
-            // Format time values (HHMMSS -> HH:MM:SS)
-            // Use original value, not date-formatted value, for time formatting
-            if (typeof formatTimeValue === 'function') {
+            let formattedValue = value;
+            
+            // Check if this is a time column first
+            const isTimeColumn = header && (
+                header.toLowerCase().includes('time') ||
+                header === '<TIME>' ||
+                header === 'TIME'
+            );
+            
+            if (isTimeColumn && typeof formatTimeValue === 'function') {
+                // Format time values (HHMMSS -> HH:MM:SS)
                 formattedValue = formatTimeValue(value, header);
+            } else if (typeof formatDateValue === 'function') {
+                // Format date values (YYYYMMDD -> YYYY-MM-DD)
+                formattedValue = formatDateValue(value, header);
             }
+            
             tableHtml += `<td>${formattedValue !== null && formattedValue !== undefined ? formattedValue : ''}</td>`;
         });
         tableHtml += '</tr>';

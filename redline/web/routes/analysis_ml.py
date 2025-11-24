@@ -1,13 +1,13 @@
 """
 ML Data Preparation routes for REDLINE Web GUI
-Exposes DataAdapter functionality for ML/RL training data preparation
+Handles ML/RL training data preparation in numpy and tensorflow formats
 """
 
 from flask import Blueprint, request, jsonify
 import logging
 import pandas as pd
 import os
-from ..utils.analysis_helpers import clean_dataframe_columns
+from ..utils.data_helpers import clean_dataframe_columns
 
 analysis_ml_bp = Blueprint('analysis_ml', __name__)
 logger = logging.getLogger(__name__)
@@ -27,10 +27,8 @@ def prepare_ml_data():
         
         from redline.core.format_converter import FormatConverter
         from redline.core.schema import EXT_TO_FORMAT
-        from redline.core.data_adapter_shared import DataAdapter
         
         converter = FormatConverter()
-        adapter = DataAdapter()
         
         # Find file (same logic as analysis endpoint)
         data_dir = os.path.join(os.getcwd(), 'data')
@@ -93,6 +91,22 @@ def prepare_ml_data():
             else:
                 first_key = list(loaded.keys())[0]
                 df = pd.DataFrame(loaded[first_key])
+        elif format_type_file == 'txt':
+            # Handle TXT files (Stooq format or tab-separated)
+            try:
+                # Try reading as CSV first (Stooq format uses commas)
+                df = pd.read_csv(data_path)
+            except:
+                # Try different separators for TXT files
+                for sep in ['\t', ';', ' ', '|']:
+                    try:
+                        df = pd.read_csv(data_path, sep=sep)
+                        break
+                    except:
+                        continue
+                else:
+                    # If all separators fail, try reading as fixed-width
+                    df = pd.read_fwf(data_path)
         elif format_type_file in ('keras', 'h5'):
             return jsonify({'error': 'Keras model files (.h5) cannot be used for ML data preparation. Use the Analysis tab for model operations.'}), 400
         elif format_type_file in ('pyarrow', 'arrow'):
@@ -132,33 +146,22 @@ def prepare_ml_data():
             else:
                 return jsonify({'error': 'No numeric columns found for ML training'}), 400
         
-        # Prepare training data using DataAdapter
+        # Prepare training data
+        import numpy as np
+        if np is None:
+            return jsonify({'error': 'NumPy is not available'}), 500
+        
         try:
-            prepared_data = adapter.prepare_training_data([df], format_type)
+            # Convert DataFrame to numpy array
+            prepared_data = [df.select_dtypes(include=[np.number]).to_numpy()]
             
             # Check if preparation was successful
             if not prepared_data or len(prepared_data) == 0:
-                logger.warning("prepare_training_data returned empty result")
-                # Fallback: convert DataFrame directly to numpy
-                import numpy as np
-                if np is None:
-                    return jsonify({'error': 'NumPy is not available'}), 500
-                prepared_data = [df.select_dtypes(include=[np.number]).to_numpy()]
-        except AttributeError as e:
-            logger.error(f"DataAdapter method not found: {str(e)}")
-            return jsonify({'error': f'ML preparation method not available: {str(e)}'}), 500
+                logger.warning("Data preparation returned empty result")
+                return jsonify({'error': 'No numeric data available for ML training'}), 400
         except Exception as e:
-            logger.error(f"Error in prepare_training_data: {str(e)}")
-            # Fallback: convert DataFrame directly to numpy
-            try:
-                import numpy as np
-                if np is None:
-                    return jsonify({'error': 'NumPy is not available'}), 500
-                logger.info("Using fallback: converting DataFrame directly to numpy")
-                prepared_data = [df.select_dtypes(include=[np.number]).to_numpy()]
-            except Exception as fallback_error:
-                logger.error(f"Fallback conversion also failed: {str(fallback_error)}")
-                return jsonify({'error': f'Error preparing training data: {str(e)}. Fallback failed: {str(fallback_error)}'}), 500
+            logger.error(f"Error preparing training data: {str(e)}")
+            return jsonify({'error': f'Error preparing training data: {str(e)}'}), 500
         
         # Convert to JSON-serializable format
         if format_type == 'numpy':
@@ -279,10 +282,8 @@ def prepare_rl_state():
         
         from redline.core.format_converter import FormatConverter
         from redline.core.schema import EXT_TO_FORMAT
-        from redline.core.data_adapter_shared import DataAdapter
         
         converter = FormatConverter()
-        adapter = DataAdapter()
         
         # Find and load file (same logic as above)
         data_dir = os.path.join(os.getcwd(), 'data')
@@ -345,6 +346,22 @@ def prepare_rl_state():
             else:
                 first_key = list(loaded.keys())[0]
                 df = pd.DataFrame(loaded[first_key])
+        elif format_type_file == 'txt':
+            # Handle TXT files (Stooq format or tab-separated)
+            try:
+                # Try reading as CSV first (Stooq format uses commas)
+                df = pd.read_csv(data_path)
+            except:
+                # Try different separators for TXT files
+                for sep in ['\t', ';', ' ', '|']:
+                    try:
+                        df = pd.read_csv(data_path, sep=sep)
+                        break
+                    except:
+                        continue
+                else:
+                    # If all separators fail, try reading as fixed-width
+                    df = pd.read_fwf(data_path)
         elif format_type_file in ('keras', 'h5'):
             return jsonify({'error': 'Keras model files (.h5) cannot be used for ML data preparation. Use the Analysis tab for model operations.'}), 400
         elif format_type_file in ('pyarrow', 'arrow'):
@@ -364,8 +381,32 @@ def prepare_rl_state():
         
         df = clean_dataframe_columns(df)
         
-        # Prepare RL state using DataAdapter
-        rl_state = adapter.prepare_rl_state(df, portfolio, format_type)
+        # Prepare RL state
+        import numpy as np
+        if np is None:
+            return jsonify({'error': 'NumPy is not available'}), 500
+        
+        try:
+            # Extract close prices for RL state
+            if 'close' not in df.columns:
+                return jsonify({'error': 'Close column not found in data'}), 400
+            
+            state = df[['close']].to_numpy()
+            
+            # Convert to tensorflow tensor if requested
+            if format_type == 'tensorflow':
+                try:
+                    import tensorflow as tf
+                    if tf is None:
+                        return jsonify({'error': 'TensorFlow is not installed'}), 500
+                    rl_state = tf.convert_to_tensor(state, dtype=tf.float32)
+                except ImportError:
+                    return jsonify({'error': 'TensorFlow is not installed. Install with: pip install tensorflow'}), 500
+            else:
+                rl_state = state
+        except Exception as e:
+            logger.error(f"Error preparing RL state: {str(e)}")
+            return jsonify({'error': f'Error preparing RL state: {str(e)}'}), 500
         
         # Convert to JSON-serializable format
         if format_type == 'numpy':

@@ -5,13 +5,20 @@ Downloads historical data from Yahoo Finance using yfinance library.
 """
 
 import logging
+import os
 import pandas as pd
-import yfinance as yf
 import time
-import threading
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any
 from .base_downloader import BaseDownloader
+from .exceptions import RateLimitError
+
+# Set environment variable BEFORE importing yfinance
+# Disable browser impersonation to avoid compatibility issues
+os.environ['CURL_IMPERSONATE'] = '0'  # Disable impersonation
+
+# Now import yfinance (it will respect CURL_IMPERSONATE=0)
+import yfinance as yf
 
 logger = logging.getLogger(__name__)
 
@@ -27,20 +34,11 @@ class YahooDownloader(BaseDownloader):
         # Rate limiting - increased delay to avoid rate limiting
         self.last_request_time = 0
         self.min_request_interval = 5.0  # 5 seconds between requests to avoid rate limiting
-        self.rate_limit_lock = threading.Lock()
-    
-    def _rate_limit(self):
-        """Enforce rate limiting between requests."""
-        with self.rate_limit_lock:
-            current_time = time.time()
-            time_since_last_request = current_time - self.last_request_time
-            
-            if time_since_last_request < self.min_request_interval:
-                sleep_time = self.min_request_interval - time_since_last_request
-                self.logger.info(f"Rate limiting: sleeping for {sleep_time:.2f} seconds")
-                time.sleep(sleep_time)
-            
-            self.last_request_time = time.time()
+        # rate_limit_lock will be initialized by base class _rate_limit() method
+        
+        # Browser impersonation is disabled at module level (before yfinance import)
+        # CURL_IMPERSONATE=0 is set to prevent browser impersonation errors
+        self.logger.debug("Browser impersonation disabled via CURL_IMPERSONATE=0 (set at module level)")
     
     def download_single_ticker(self, ticker: str, start_date: str = None, end_date: str = None) -> pd.DataFrame:
         """
@@ -63,18 +61,82 @@ class YahooDownloader(BaseDownloader):
             end_dt = datetime.strptime(end_date, '%Y-%m-%d') if end_date else None
             
             # Download data using yfinance
+            # Browser impersonation is disabled via CURL_IMPERSONATE=0 environment variable
+            # yfinance will use curl_cffi with standard HTTP requests
             ticker_obj = yf.Ticker(ticker)
             
-            if start_dt and end_dt:
-                data = ticker_obj.history(start=start_dt, end=end_dt)
-            elif start_dt:
-                data = ticker_obj.history(start=start_dt)
-            else:
-                # Default to 1 year if no dates provided
-                data = ticker_obj.history(period="1y")
+            try:
+                # Download historical data
+                if start_dt and end_dt:
+                    data = ticker_obj.history(start=start_dt, end=end_dt)
+                elif start_dt:
+                    data = ticker_obj.history(start=start_dt)
+                else:
+                    # Default to 1 year if no dates provided
+                    data = ticker_obj.history(period="1y")
+            except Exception as history_error:
+                # Check if this is a rate limit error from yfinance
+                error_msg = str(history_error)
+                error_lower = error_msg.lower()
+                
+                # Detect rate limiting indicators
+                is_rate_limit = (
+                    "too many requests" in error_lower or
+                    "rate limit" in error_lower or
+                    "429" in error_msg or
+                    "throttled" in error_lower or
+                    "exceeded" in error_lower and "request" in error_lower
+                )
+                
+                # Detect yfinance library errors (not "no data" errors)
+                is_yfinance_error = (
+                    "impersonating" in error_lower or
+                    "user-agent" in error_lower or
+                    "not supported" in error_lower or
+                    "yfinance" in error_lower or
+                    "curl_cffi" in error_lower or
+                    "setopt" in error_lower
+                )
+                
+                # Check for HTTPError with 429 status
+                if hasattr(history_error, 'response'):
+                    try:
+                        if hasattr(history_error.response, 'status_code'):
+                            if history_error.response.status_code == 429:
+                                is_rate_limit = True
+                    except:
+                        pass
+                
+                if is_rate_limit:
+                    self.logger.warning(f"Rate limited for {ticker} from Yahoo Finance")
+                    # Increase delay for next request
+                    self.min_request_interval = min(self.min_request_interval * 1.5, 30.0)
+                    # Raise RateLimitError with retry information
+                    retry_after = int(self.min_request_interval * 12)  # Suggest waiting ~12x the interval
+                    raise RateLimitError(
+                        f'Rate limit exceeded for Yahoo Finance while downloading {ticker}',
+                        retry_after=retry_after,
+                        source='yahoo'
+                    )
+                elif is_yfinance_error:
+                    # yfinance library error - raise with descriptive message
+                    self.logger.error(f"yfinance library error for {ticker}: {error_msg}")
+                    # Raise exception so route can return 503, not 404
+                    raise Exception(f'yfinance library error: {error_msg}. This may be a temporary issue with Yahoo Finance. Please try again in a few moments or use a different data source (e.g., Stooq).')
+                elif 'curl' in error_lower or 'setopt' in error_lower or 'curl_cffi' in error_lower:
+                    # curl_cffi errors (like "Failed to setopt") - also yfinance issues
+                    self.logger.error(f"curl_cffi error for {ticker}: {error_msg}")
+                    raise Exception(f'Yahoo Finance connection error: {error_msg}. This may be a temporary issue. Please try again in a few moments or use a different data source (e.g., Stooq).')
+                else:
+                    # Re-raise other errors
+                    raise
             
+            # Check if data is empty - this could indicate rate limiting or no data
             if data.empty:
-                self.logger.warning(f"No data found for ticker {ticker}")
+                # Check if this might be due to rate limiting
+                # Yahoo Finance sometimes returns empty data when rate limited
+                # We'll log a warning but return empty DataFrame (let route handler decide)
+                self.logger.warning(f"No data found for ticker {ticker} - this might be due to rate limiting")
                 return pd.DataFrame()
             
             # Standardize the data
@@ -83,14 +145,22 @@ class YahooDownloader(BaseDownloader):
             self.logger.info(f"Downloaded {len(standardized_data)} records for {ticker}")
             return standardized_data
             
+        except RateLimitError:
+            # Re-raise RateLimitError to be handled by route
+            raise
         except Exception as e:
+            # Check if this is a yfinance/curl error that should be propagated
             error_msg = str(e)
-            if "Too Many Requests" in error_msg or "rate limit" in error_msg.lower():
-                self.logger.warning(f"Rate limited for {ticker} from Yahoo Finance. Please wait before trying again.")
-                # Increase delay for next request
-                self.min_request_interval = min(self.min_request_interval * 1.5, 30.0)
-            else:
-                self.logger.error(f"Error downloading {ticker} from Yahoo Finance: {error_msg}")
+            error_lower = error_msg.lower()
+            
+            # If it's a yfinance/curl error, re-raise so route can return 503
+            if ('yfinance' in error_lower or 'impersonating' in error_lower or 
+                'curl' in error_lower or 'setopt' in error_lower or 'curl_cffi' in error_lower):
+                self.logger.error(f"yfinance/curl error for {ticker}: {error_msg}")
+                raise  # Re-raise so route can handle it properly
+            
+            # For other errors, log and return empty DataFrame
+            self.logger.error(f"Error downloading {ticker} from Yahoo Finance: {error_msg}")
             return pd.DataFrame()
     
     def standardize_yahoo_data(self, data: pd.DataFrame, ticker: str) -> pd.DataFrame:
@@ -248,6 +318,16 @@ class YahooDownloader(BaseDownloader):
                 self.stats['total_requests'] += 1
                 self.stats['last_request_time'] = datetime.now()
                 
+            except RateLimitError as e:
+                # Rate limit error - propagate to caller
+                self.logger.warning(f"Rate limited while downloading {ticker}: {e.message}")
+                failed_tickers.append(ticker)
+                self.stats['failed_requests'] += 1
+                self.stats['total_requests'] += 1
+                # If this is the first rate limit error, raise it to stop batch processing
+                # Otherwise, continue with other tickers
+                if len(failed_tickers) == 1:
+                    raise
             except Exception as e:
                 self.logger.error(f"Failed to download {ticker}: {str(e)}")
                 failed_tickers.append(ticker)

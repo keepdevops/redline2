@@ -8,6 +8,7 @@ from .yahoo_downloader import YahooDownloader
 from .stooq_downloader import StooqDownloader
 from .multi_source import MultiSourceDownloader
 from .generic_api_downloader import GenericAPIDownloader
+from .exceptions import RateLimitError
 
 # Conditionally export Massive.com downloader if available
 try:
@@ -21,7 +22,8 @@ try:
             'MultiSourceDownloader',
             'GenericAPIDownloader',
             'MassiveDownloader',
-            'MassiveWebSocketClient'
+            'MassiveWebSocketClient',
+            'RateLimitError'
         ]
     except ImportError:
         __all__ = [
@@ -30,7 +32,8 @@ try:
             'StooqDownloader',
             'MultiSourceDownloader',
             'GenericAPIDownloader',
-            'MassiveDownloader'
+            'MassiveDownloader',
+            'RateLimitError'
         ]
 except ImportError:
     __all__ = [
@@ -38,6 +41,7 @@ except ImportError:
         'YahooDownloader',
         'StooqDownloader',
         'MultiSourceDownloader',
-        'GenericAPIDownloader'
+        'GenericAPIDownloader',
+        'RateLimitError'
     ]
 

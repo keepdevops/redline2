@@ -29,15 +29,28 @@
                             <div class="mb-3">
                                 <label for="source" class="form-label">Data Source</label>
                                 <select class="form-select" id="source" required>
-                                    <option value="yahoo">Yahoo Finance (Free)</option>
-                                    <option value="stooq">Stooq (Free)</option>
+                                    <option value="yahoo">Yahoo Finance (Free) - Recommended</option>
+                                    <option value="stooq">Stooq (Free) - Manual Download Required</option>
                                     <option value="alpha_vantage">Alpha Vantage (API Key Required)</option>
                                     <option value="finnhub">Finnhub (API Key Required)</option>
                                     <optgroup label="Custom APIs" id="customApisGroup"></optgroup>
                                 </select>
                                 <div class="form-text" id="stooqBrowserHelp" style="display: none;">
-                                    <i class="fas fa-external-link-alt me-1"></i>
-                                    <a href="https://stooq.com/db/h/" target="_blank" class="text-decoration-none">Open Stooq Database Browser</a> to browse and download data manually
+                                    <div class="alert alert-info mb-2">
+                                        <strong><i class="fas fa-info-circle me-1"></i>Stooq Manual Download Required</strong>
+                                        <p class="mb-1 mt-2">Stooq requires manual browser interaction:</p>
+                                        <ol class="mb-1">
+                                            <li>Enter the 4-letter verification code shown on screen</li>
+                                            <li>Click on the folder containing stocks you want</li>
+                                            <li>Download will start automatically</li>
+                                            <li>Upload the downloaded file using the Data tab</li>
+                                        </ol>
+                                        <p class="mb-0"><a href="https://stooq.com/db/h/" target="_blank" class="text-decoration-none"><i class="fas fa-external-link-alt me-1"></i>Open Stooq Database Browser</a></p>
+                                    </div>
+                                    <p class="text-muted small mb-0">
+                                        <i class="fas fa-lightbulb me-1"></i>
+                                        <strong>Tip:</strong> For automated downloads, use Yahoo Finance instead (no manual steps required).
+                                    </p>
                                 </div>
                                 <div class="form-text" id="apiKeyHelp" style="display: none;">
                                     <i class="fas fa-key me-1"></i>
@@ -280,6 +293,9 @@ if (typeof REDLINE === 'undefined') {
     };
 }
 
+// Track if Stooq download is in progress
+var stooqDownloadInProgress = false;
+
 $(document).ready(function() {
     // Set default dates
     const today = new Date();
@@ -487,6 +503,12 @@ function downloadData() {
     const endDate = $('#endDate').val();
     const interval = $('#interval').val();
     
+    // Check if Stooq download is already in progress
+    if (source === 'stooq' && stooqDownloadInProgress) {
+        REDLINE.ui.showToast('A Stooq download is already in progress. Please wait for it to complete.', 'warning');
+        return;
+    }
+    
     if (!ticker) {
         REDLINE.ui.showToast('Please enter a ticker symbol', 'error');
         return;
@@ -501,6 +523,13 @@ function downloadData() {
         return;
     }
     console.log('Downloading with license key:', licenseKey.substring(0, 20) + '...');
+    
+    // Set Stooq download flag if source is Stooq
+    if (source === 'stooq') {
+        stooqDownloadInProgress = true;
+        // Disable download button
+        $('#downloadBtn').prop('disabled', true).text('Downloading...');
+    }
     
     REDLINE.ui.showLoading('Downloading data...');
     
@@ -529,13 +558,77 @@ function downloadData() {
     REDLINE.api.post('/download/download', downloadData)
         .then(response => {
             REDLINE.ui.hideLoading();
+            
+            // Reset Stooq download flag
+            if (source === 'stooq') {
+                stooqDownloadInProgress = false;
+                $('#downloadBtn').prop('disabled', false).text('Download');
+            }
+            
             showDownloadResults([response]);
             REDLINE.ui.showToast(`Successfully downloaded ${response.records} records for ${ticker}`, 'success');
             loadDownloadHistory();
         })
         .catch(error => {
             REDLINE.ui.hideLoading();
-            REDLINE.ui.showToast('Error downloading data: ' + error.message, 'error');
+            
+            // Reset Stooq download flag on error
+            if (source === 'stooq') {
+                stooqDownloadInProgress = false;
+                $('#downloadBtn').prop('disabled', false).text('Download');
+            }
+            
+            // Handle different error types with better messaging
+            let errorMessage = error.message || 'Unknown error occurred';
+            
+            // Only enhance generic error messages, preserve descriptive ones
+            const isGenericError = errorMessage.includes('HTTP error! status:') || 
+                                   errorMessage.includes('HTTP error (') ||
+                                   errorMessage === 'Unknown error occurred';
+            
+            if (error.status === 429) {
+                // Rate limiting error
+                if (isGenericError) {
+                    // Only replace if it's a generic message
+                    let retryMessage = 'Please wait a few minutes before trying again.';
+                    if (error.retryAfter) {
+                        const seconds = parseInt(error.retryAfter);
+                        const minutes = Math.ceil(seconds / 60);
+                        retryMessage = `Please wait ${minutes} minute(s) before trying again.`;
+                    } else if (error.message && error.message.includes('retry_after')) {
+                        // Check if retry_after is in the message
+                        const match = error.message.match(/retry_after[:\s]+(\d+)/i);
+                        if (match) {
+                            const minutes = Math.ceil(parseInt(match[1]) / 60);
+                            retryMessage = `Please wait ${minutes} minute(s) before trying again.`;
+                        }
+                    }
+                    errorMessage = `Rate limit exceeded. ${retryMessage} You can also try a different data source.`;
+                }
+                // If errorMessage is already descriptive (from API), use it as-is
+            } else if (error.status === 404) {
+                // Not found error - provide helpful guidance
+                if (isGenericError) {
+                    errorMessage = 'No data found for this ticker. Please check the ticker symbol and try again, or use a different data source.';
+                }
+            } else if (error.status === 403) {
+                // Forbidden error
+                if (isGenericError) {
+                    errorMessage = 'Access denied. Please check your license key or permissions.';
+                }
+            } else if (error.status === 503) {
+                // Service unavailable - usually yfinance/library errors
+                if (isGenericError) {
+                    errorMessage = 'Yahoo Finance is temporarily unavailable. This may be due to a library issue. Please try again in a few moments or use a different data source (e.g., Stooq).';
+                }
+            } else if (error.status === 500) {
+                // Server error
+                if (isGenericError) {
+                    errorMessage = 'Server error occurred. Please try again later or contact support if the problem persists.';
+                }
+            }
+            
+            REDLINE.ui.showToast('Error downloading data: ' + errorMessage, 'error');
         });
 }
 
@@ -552,6 +645,14 @@ function batchDownload() {
         return;
     }
     
+    const source = $('#source').val();
+    
+    // Check if Stooq download is already in progress
+    if (source === 'stooq' && stooqDownloadInProgress) {
+        REDLINE.ui.showToast('A Stooq download is already in progress. Please wait for it to complete.', 'warning');
+        return;
+    }
+    
     // Get license key - use global function if available, otherwise fallback
     const licenseKey = (typeof window.getLicenseKey === 'function') 
         ? window.getLicenseKey() 
@@ -562,9 +663,15 @@ function batchDownload() {
     }
     console.log('Downloading with license key:', licenseKey.substring(0, 20) + '...');
     
-    const source = $('#source').val();
     const startDate = $('#startDate').val();
     const endDate = $('#endDate').val();
+    
+    // Set Stooq download flag if source is Stooq
+    if (source === 'stooq') {
+        stooqDownloadInProgress = true;
+        // Disable batch download button
+        $('#batchDownloadBtn').prop('disabled', true).text('Downloading...');
+    }
     
     REDLINE.ui.showLoading(`Downloading data for ${tickers.length} tickers...`);
     
@@ -594,13 +701,68 @@ function batchDownload() {
     REDLINE.api.post('/download/batch-download', batchData)
         .then(response => {
             REDLINE.ui.hideLoading();
+            
+            // Reset Stooq download flag
+            if (source === 'stooq') {
+                stooqDownloadInProgress = false;
+                $('#batchDownloadBtn').prop('disabled', false).text('Batch Download');
+            }
+            
             showBatchResults(response);
             REDLINE.ui.showToast(`Batch download completed: ${response.successful} successful, ${response.failed} failed`, 'success');
             loadDownloadHistory();
         })
         .catch(error => {
             REDLINE.ui.hideLoading();
-            REDLINE.ui.showToast('Error in batch download: ' + error.message, 'error');
+            
+            // Reset Stooq download flag on error
+            if (source === 'stooq') {
+                stooqDownloadInProgress = false;
+                $('#batchDownloadBtn').prop('disabled', false).text('Batch Download');
+            }
+            
+            // Handle different error types with better messaging
+            let errorMessage = error.message || 'Unknown error occurred';
+            
+            // Only enhance generic error messages, preserve descriptive ones
+            const isGenericError = errorMessage.includes('HTTP error! status:') || 
+                                   errorMessage.includes('HTTP error (') ||
+                                   errorMessage === 'Unknown error occurred';
+            
+            if (error.status === 429) {
+                // Rate limiting error
+                if (isGenericError) {
+                    let retryMessage = 'Please wait a few minutes before trying again.';
+                    if (error.retryAfter) {
+                        const seconds = parseInt(error.retryAfter);
+                        const minutes = Math.ceil(seconds / 60);
+                        retryMessage = `Please wait ${minutes} minute(s) before trying again.`;
+                    }
+                    errorMessage = `Rate limit exceeded. ${retryMessage} You can also try a different data source.`;
+                }
+            } else if (error.status === 404) {
+                // Not found error
+                if (isGenericError) {
+                    errorMessage = 'No data found for one or more tickers. Please check the ticker symbols and try again.';
+                }
+            } else if (error.status === 403) {
+                // Forbidden error
+                if (isGenericError) {
+                    errorMessage = 'Access denied. Please check your license key or permissions.';
+                }
+            } else if (error.status === 503) {
+                // Service unavailable - usually yfinance/library errors
+                if (isGenericError) {
+                    errorMessage = 'Yahoo Finance is temporarily unavailable. This may be due to a library issue. Please try again in a few moments or use a different data source (e.g., Stooq).';
+                }
+            } else if (error.status === 500) {
+                // Server error
+                if (isGenericError) {
+                    errorMessage = 'Server error occurred. Please try again later or contact support if the problem persists.';
+                }
+            }
+            
+            REDLINE.ui.showToast('Error in batch download: ' + errorMessage, 'error');
         });
 }
 

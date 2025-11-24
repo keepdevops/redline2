@@ -62,13 +62,10 @@ body:not([class*="theme-"]) {
 
 /* Navigation */
 .navbar {
-        /* Fallback for older browsers */
-    /* Fallback for older browsers */
-
-    box-shadow: 0 2px 4px rgba(30, 41, 59, 0.1);
-
-    /* Modern browsers with color-mix support */
-    box-shadow: 0 2px 4px color-mix(in srgb, var(--dark-color) 10%, transparent);
+    box-shadow: 0 2px 4px /* Fallback for older browsers */
+        rgba(30, 41, 59, 0.1);
+        /* Modern browsers with color-mix support */
+        color-mix(in srgb, var(--dark-color) 10%, transparent);
     z-index: 1030;
 }
 
@@ -83,13 +80,10 @@ body:not([class*="theme-"]) {
     border-right: 1px solid var(--border-color);
     min-height: calc(100vh - var(--header-height));
     padding: 0;
-        /* Fallback for older browsers */
-    /* Fallback for older browsers */
-
-    box-shadow: 2px 0 4px rgba(30, 41, 59, 0.1);
-
-    /* Modern browsers with color-mix support */
-    box-shadow: 0 2px 4px color-mix(in srgb, var(--dark-color) 10%, transparent);
+    box-shadow: 2px 0 4px /* Fallback for older browsers */
+        rgba(30, 41, 59, 0.1);
+        /* Modern browsers with color-mix support */
+        color-mix(in srgb, var(--dark-color) 10%, transparent);
 }
 
 .sidebar-content {
@@ -159,25 +153,19 @@ body:not([class*="theme-"]) {
 }
 
 .card:hover {
-        /* Fallback for older browsers */
-    /* Fallback for older browsers */
-
-    box-shadow: 0 8px 15px rgba(30, 41, 59, 0.15);
-
-    /* Modern browsers with color-mix support */
-    box-shadow: 0 8px 15px color-mix(in srgb, var(--dark-color) 15%, transparent);
+    box-shadow: 0 8px 15px /* Fallback for older browsers */
+        rgba(30, 41, 59, 0.15);
+        /* Modern browsers with color-mix support */
+        color-mix(in srgb, var(--dark-color) 15%, transparent);
     transform: translateY(-2px);
 }
 
 /* Navigation */
 .navbar {
-        /* Fallback for older browsers */
-    /* Fallback for older browsers */
-
-    box-shadow: 0 2px 4px rgba(30, 41, 59, 0.1);
-
-    /* Modern browsers with color-mix support */
-    box-shadow: 0 2px 4px color-mix(in srgb, var(--dark-color) 10%, transparent);
+    box-shadow: 0 2px 4px /* Fallback for older browsers */
+        rgba(30, 41, 59, 0.1);
+        /* Modern browsers with color-mix support */
+        color-mix(in srgb, var(--dark-color) 10%, transparent);
     z-index: 1030;
 }
 
@@ -192,13 +180,10 @@ body:not([class*="theme-"]) {
     border-right: 1px solid var(--border-color);
     min-height: calc(100vh - var(--header-height));
     padding: 0;
-        /* Fallback for older browsers */
-    /* Fallback for older browsers */
-
-    box-shadow: 2px 0 4px rgba(30, 41, 59, 0.1);
-
-    /* Modern browsers with color-mix support */
-    box-shadow: 0 2px 4px color-mix(in srgb, var(--dark-color) 10%, transparent);
+    box-shadow: 2px 0 4px /* Fallback for older browsers */
+        rgba(30, 41, 59, 0.1);
+        /* Modern browsers with color-mix support */
+        color-mix(in srgb, var(--dark-color) 10%, transparent);
 }
     
     .sidebar-content {
@@ -376,14 +361,11 @@ body:not([class*="theme-"]) {
         color: var(--text-primary);
         /* Fallback for older browsers */
         box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
-    /* Modern browsers with color-mix support */
-            /* Fallback for older browsers */
-    /* Fallback for older browsers */
-
-    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
-
-    /* Modern browsers with color-mix support */
-    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--primary-color) 25%, transparent);
+        /* Modern browsers with color-mix support */
+        box-shadow: 0 0 0 0.2rem /* Fallback for older browsers */
+        rgba(37, 99, 235, 0.25);
+        /* Modern browsers with color-mix support */
+        color-mix(in srgb, var(--primary-color) 25%, transparent);
     }
     
     .form-select {
@@ -407,10 +389,13 @@ body:not([class*="theme-"]) {
         left: 0;
         width: 100%;
         height: 100%;
-    /* Fallback for older browsers */
-    background-color: rgba(30, 41, 59, 0.5);
-    /* Modern browsers with color-mix support */
-    background-color: color-mix(in srgb, var(--dark-color) 50%, transparent);
+        /* Fallback for older browsers */
+        background-color: rgba(30, 41, 59, 0.5);
+        /* Modern browsers with color-mix support */
+        background-color: /* Fallback for older browsers */
+        rgba(30, 41, 59, 0.5);
+        /* Modern browsers with color-mix support */
+        color-mix(in srgb, var(--dark-color) 50%, transparent);
         z-index: 9999;
         display: flex;
         justify-content: center;
@@ -980,13 +965,10 @@ thead.table-dark th {
     border-color: var(--primary-color);
     background-color: var(--light-color);
     color: var(--text-primary);
-        /* Fallback for older browsers */
-    /* Fallback for older browsers */
-
-    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
-
-    /* Modern browsers with color-mix support */
-    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--primary-color) 25%, transparent);
+    box-shadow: 0 0 0 0.2rem /* Fallback for older browsers */
+        rgba(37, 99, 235, 0.25);
+        /* Modern browsers with color-mix support */
+        color-mix(in srgb, var(--primary-color) 25%, transparent);
 }
 
 .form-select {
@@ -1152,13 +1134,10 @@ thead.table-dark th {
     border-radius: 12px;
     padding: 1.5rem;
     margin-bottom: 2rem;
-        /* Fallback for older browsers */
-    /* Fallback for older browsers */
-
-    box-shadow: 0 2px 4px rgba(30, 41, 59, 0.1);
-
-    /* Modern browsers with color-mix support */
-    box-shadow: 0 2px 4px color-mix(in srgb, var(--dark-color) 10%, transparent);
+    box-shadow: 0 2px 4px /* Fallback for older browsers */
+        rgba(30, 41, 59, 0.1);
+        /* Modern browsers with color-mix support */
+        color-mix(in srgb, var(--dark-color) 10%, transparent);
 }
 
 .chart-title {
@@ -1452,23 +1431,17 @@ p, span, div {
 }
 
 .shadow {
-        /* Fallback for older browsers */
-    /* Fallback for older browsers */
-
-    box-shadow: 0 4px 6px rgba(30, 41, 59, 0.1);
-
-    /* Modern browsers with color-mix support */
-    box-shadow: 0 4px 6px color-mix(in srgb, var(--dark-color) 10%, transparent) !important;
+    box-shadow: 0 4px 6px /* Fallback for older browsers */
+        rgba(30, 41, 59, 0.1);
+        /* Modern browsers with color-mix support */
+        color-mix(in srgb, var(--dark-color) 10%, transparent) !important;
 }
 
 .shadow-lg {
-        /* Fallback for older browsers */
-    /* Fallback for older browsers */
-
-    box-shadow: 0 8px 15px rgba(30, 41, 59, 0.15);
-
-    /* Modern browsers with color-mix support */
-    box-shadow: 0 8px 15px color-mix(in srgb, var(--dark-color) 15%, transparent) !important;
+    box-shadow: 0 8px 15px /* Fallback for older browsers */
+        rgba(30, 41, 59, 0.15);
+        /* Modern browsers with color-mix support */
+        color-mix(in srgb, var(--dark-color) 15%, transparent) !important;
 }
 
 .border-radius {

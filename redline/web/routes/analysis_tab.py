@@ -7,7 +7,8 @@ from flask import Blueprint, render_template, request, jsonify
 import logging
 import pandas as pd
 import os
-from ..utils.analysis_helpers import clean_dataframe_columns, convert_numpy_types
+from ..utils.analysis_helpers import convert_numpy_types
+from ..utils.data_helpers import clean_dataframe_columns
 from .analysis_basic import perform_basic_analysis
 from .analysis_financial import perform_financial_analysis
 from .analysis_statistical import perform_statistical_analysis

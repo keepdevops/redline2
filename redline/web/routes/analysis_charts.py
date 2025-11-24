@@ -8,7 +8,8 @@ import logging
 import pandas as pd
 import numpy as np
 import os
-from ..utils.analysis_helpers import detect_price_column, detect_volume_column, clean_dataframe_columns
+from ..utils.analysis_helpers import detect_price_column, detect_volume_column
+from ..utils.data_helpers import clean_dataframe_columns
 
 analysis_charts_bp = Blueprint('analysis_charts', __name__)
 logger = logging.getLogger(__name__)

@@ -1,7 +1,10 @@
 # REDLINE Core Dependencies - Multi-Platform Compatible (Python 3.11+)
 pandas>=2.3.3
-numpy>=2.3.4
+numpy>=2.3.5
 yfinance>=0.2.66
+
+# Data Source Client Libraries (Optional - fallback to REST API if not installed)
+massive>=2.0.1  # Massive.com client library (optional - falls back to REST API if not installed)
 
 # Data Processing and Storage
 pyarrow>=22.0.0  # Updated for security patches
@@ -26,7 +29,7 @@ gunicorn>=23.0.0
 werkzeug>=3.1.3
 jinja2>=3.1.6
 markupsafe>=3.0.3
-click>=8.3.0
+click>=8.3.1
 blinker>=1.9.0
 itsdangerous>=2.2.0
 
@@ -38,7 +41,7 @@ gevent-websocket>=0.10.1
 
 # Background Task Processing
 celery>=5.5.3  # Updated for security patches
-redis>=7.0.1  # Updated to latest major version - test compatibility before deploying
+redis>=7.1.0  # Updated to latest version (7.1.0) - test compatibility before deploying
 
 # Optional Dependencies for Enhanced Features
 scikit-learn>=1.7.2  # Updated for security patches
@@ -46,7 +49,7 @@ matplotlib>=3.10.7  # Updated for security patches
 seaborn>=0.13.2  # Updated for security patches
 
 # ML Format Support (Optional - enables Keras .h5 and TensorFlow .npz formats)
-tensorflow>=2.18.0  # Enables Keras and TensorFlow format support
+tensorflow>=2.20.0  # Enables Keras and TensorFlow format support (updated from 2.18.0)
 
 # Development Dependencies (optional)
 pytest>=9.0.1  # Updated for security patches
@@ -58,9 +61,7 @@ flake8>=7.3.0  # Updated for security patches
 requests>=2.32.5
 urllib3>=2.5.0
 h2>=4.3.0  # Fixes CVE-2025-57804 (HTTP/2 request splitting)
-# Note: brotli CVE-2025-6176 - fix (1.2.0+) not yet available on PyPI (latest: 1.1.0)
-# Monitor: https://pypi.org/project/brotli/ for security update
-# Workaround: Consider disabling brotli compression if security is critical
+brotli>=1.2.0  # Updated - fixes CVE-2025-6176 (security update now available)
 
 # Configuration and Logging
 configparser>=7.2.0  # Updated for security patches
@@ -80,8 +81,9 @@ platformdirs>=4.5.0  # Updated for security patches
 
 # Payment Processing
 # Updated for security vulnerabilities (Jan 2025)
-stripe>=13.2.0
+stripe>=14.0.1
 
 # Cloud Storage (optional)
 # Updated for security vulnerabilities (Jan 2025) - using latest available version
-boto3>=1.40.72  # Latest available: 1.40.72 (fixes security issues)
+boto3>=1.41.2  # Updated: 1.41.2 (fixes security issues)
+watchdog>=6.0.0  # File system monitoring for auto-copy functionality

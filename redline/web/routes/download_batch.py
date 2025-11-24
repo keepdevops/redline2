@@ -14,6 +14,7 @@ from redline.web.utils.download_helpers import (
     get_download_directory,
     save_downloaded_data
 )
+from redline.downloaders.exceptions import RateLimitError
 
 download_batch_bp = Blueprint('download_batch', __name__)
 logger = logging.getLogger(__name__)
@@ -217,31 +218,71 @@ def batch_download():
                         'filename': filename
                     })
                 else:
+                    # No data found - not a rate limit issue
                     error_msg = 'No data found'
-                    if source == 'yahoo':
-                        error_msg += ' (possibly due to rate limiting)'
                     errors.append({
                         'ticker': ticker,
                         'error': error_msg
                     })
                     
-            except Exception as e:
-                error_msg = str(e)
-                if "Too Many Requests" in error_msg or "rate limit" in error_msg.lower():
-                    error_msg = f"Rate limited for {ticker}. Please wait before trying again."
+            except RateLimitError as e:
+                # Rate limit error from downloader
+                logger.warning(f"Rate limited for {ticker} from {source}: {e.message}")
+                retry_after = e.retry_after or 300
+                error_msg = f"Rate limit exceeded. {e.message}"
+                if retry_after:
+                    minutes = retry_after // 60
+                    if minutes > 0:
+                        error_msg += f" Please wait {minutes} minute(s) before trying again."
+                
                 errors.append({
                     'ticker': ticker,
-                    'error': error_msg
+                    'error': error_msg,
+                    'rate_limited': True,
+                    'retry_after': retry_after
                 })
+                
+                # If this is the first rate limit error in batch, we might want to stop
+                # For now, continue with other tickers but log the issue
+                if len([err for err in errors if err.get('rate_limited')]) == 1:
+                    logger.warning(f"Rate limit encountered during batch download. Continuing with remaining tickers...")
+                    
+            except Exception as e:
+                error_msg = str(e)
+                logger.error(f"Error downloading {ticker}: {error_msg}")
+                
+                # Check if exception indicates rate limiting (fallback)
+                if "Too Many Requests" in error_msg or "rate limit" in error_msg.lower():
+                    error_msg = f"Rate limited for {ticker}. Please wait before trying again."
+                    errors.append({
+                        'ticker': ticker,
+                        'error': error_msg,
+                        'rate_limited': True
+                    })
+                else:
+                    errors.append({
+                        'ticker': ticker,
+                        'error': error_msg
+                    })
         
-        # Check if all failures are due to rate limiting
-        rate_limit_count = sum(1 for error in errors if 'rate limit' in error['error'].lower())
+        # Check if failures are due to rate limiting
+        rate_limit_count = sum(1 for error in errors if error.get('rate_limited') or 'rate limit' in error.get('error', '').lower())
+        rate_limit_errors = [err for err in errors if err.get('rate_limited')]
+        
+        # Get retry_after from first rate limit error if available
+        retry_after = None
+        if rate_limit_errors:
+            retry_after = rate_limit_errors[0].get('retry_after', 300)
         
         message = f'Batch download completed. {len(results)} successful, {len(errors)} failed.'
         if rate_limit_count > 0:
-            message += f' {rate_limit_count} failures due to rate limiting. Please wait a few minutes before retrying.'
+            if retry_after:
+                minutes = retry_after // 60
+                message += f' {rate_limit_count} failure(s) due to rate limiting. Please wait {minutes} minute(s) before retrying.'
+            else:
+                message += f' {rate_limit_count} failure(s) due to rate limiting. Please wait a few minutes before retrying.'
         
-        return jsonify({
+        response_data = {
             'message': message,
             'results': results,
             'errors': errors,
@@ -249,7 +290,16 @@ def batch_download():
             'successful': len(results),
             'failed': len(errors),
             'rate_limit_failures': rate_limit_count
-        })
+        }
+        
+        # Add retry_after if there are rate limit errors
+        if retry_after:
+            response_data['retry_after'] = retry_after
+        
+        # Return 429 if all failures are due to rate limiting, otherwise 200 with error details
+        status_code = 429 if rate_limit_count > 0 and len(results) == 0 else 200
+        
+        return jsonify(response_data), status_code
         
     except Exception as e:
         logger.error(f"Error in batch download: {str(e)}")

@@ -1,8 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- International browser compatibility -->
+    <meta http-equiv="Content-Language" content="en">
     <title>{% block title %}REDLINE - Financial Data Analyzer{% endblock %}</title>
     
     <!-- Bootstrap CSS -->
@@ -67,6 +69,11 @@
                     <li class="nav-item">
                         <a class="nav-link" href="/analysis/">
                             <i class="fas fa-chart-bar me-1"></i>Analysis
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/ml/">
+                            <i class="fas fa-brain me-1"></i>ML
                         </a>
                     </li>
                     <li class="nav-item">

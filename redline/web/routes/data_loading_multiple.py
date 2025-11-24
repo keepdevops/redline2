@@ -121,7 +121,11 @@ def load_multiple_files():
 
 @data_loading_multiple_bp.route('/upload', methods=['POST'])
 def upload_file():
-    """Upload a file to the data directory. Handles ZIP extraction for Stooq files."""
+    """
+    Upload a file to the data directory or S3/R2.
+    Handles ZIP extraction for Stooq files.
+    If S3/R2 is configured, uploads directly to cloud storage.
+    """
     try:
         if 'file' not in request.files:
             return jsonify({'error': 'No file provided'}), 400
@@ -130,6 +134,84 @@ def upload_file():
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
         
+        # Check if S3/R2 is configured and should be used
+        use_s3 = os.environ.get('USE_S3_STORAGE', 'false').lower() == 'true'
+        has_s3_creds = all([
+            os.environ.get('S3_ACCESS_KEY'),
+            os.environ.get('S3_SECRET_KEY'),
+            os.environ.get('S3_BUCKET')
+        ])
+        
+        # If S3/R2 is configured, upload directly to cloud storage
+        if use_s3 and has_s3_creds:
+            try:
+                import boto3
+                from botocore.exceptions import ClientError
+                
+                # Get license key for user isolation
+                license_key = request.headers.get('X-License-Key') or request.form.get('license_key', 'default')
+                import hashlib
+                key_hash = hashlib.sha256(license_key.encode()).hexdigest()[:16]
+                
+                # Configure S3 client
+                endpoint_url = os.environ.get('S3_ENDPOINT_URL')
+                s3_client = boto3.client(
+                    's3',
+                    aws_access_key_id=os.environ.get('S3_ACCESS_KEY'),
+                    aws_secret_access_key=os.environ.get('S3_SECRET_KEY'),
+                    region_name=os.environ.get('S3_REGION', 'us-east-1'),
+                    endpoint_url=endpoint_url if endpoint_url else None
+                )
+                bucket = os.environ.get('S3_BUCKET')
+                
+                # Read file data
+                file_data = file.read()
+                filename = file.filename
+                s3_key = f"users/{key_hash}/files/{filename}"
+                
+                # Upload to S3/R2
+                s3_client.put_object(
+                    Bucket=bucket,
+                    Key=s3_key,
+                    Body=file_data,
+                    ContentType=file.content_type or 'application/octet-stream'
+                )
+                
+                # Handle ZIP extraction if needed
+                extracted_files = []
+                if zipfile.is_zipfile(file):
+                    # For ZIP files, we'd need to download, extract, and re-upload
+                    # For now, just upload the ZIP and note it needs extraction
+                    logger.info(f"ZIP file uploaded to S3/R2: {filename}")
+                    message = f'ZIP file uploaded to S3/R2. Extraction can be done on-demand.'
+                else:
+                    message = f'File uploaded to S3/R2 successfully.'
+                
+                # Get file URL
+                if endpoint_url:
+                    # R2 or custom endpoint
+                    endpoint = endpoint_url.rstrip('/')
+                    file_url = f"{endpoint}/{bucket}/{s3_key}"
+                else:
+                    # Standard S3
+                    region = os.environ.get('S3_REGION', 'us-east-1')
+                    file_url = f"https://{bucket}.s3.{region}.amazonaws.com/{s3_key}"
+                
+                return jsonify({
+                    'message': message,
+                    'filename': filename,
+                    's3_key': s3_key,
+                    'file_url': file_url,
+                    'storage': 'r2' if endpoint_url and 'r2.cloudflarestorage.com' in endpoint_url else 's3',
+                    'size': len(file_data)
+                })
+                
+            except ImportError:
+                logger.warning("boto3 not available, falling back to local storage")
+            except Exception as e:
+                logger.error(f"Error uploading to S3/R2: {str(e)}, falling back to local storage")
+        
+        # Fallback to local storage
         # Save uploaded file temporarily
         upload_dir = os.path.join(os.getcwd(), 'data', 'uploads')
         os.makedirs(upload_dir, exist_ok=True)
