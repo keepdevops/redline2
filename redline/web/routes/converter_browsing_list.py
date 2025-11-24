@@ -63,6 +63,27 @@ def list_available_files():
                         'location': 'data/downloaded'
                     })
         
+        # List files in stooq directory (for Stooq downloads)
+        stooq_dir = os.path.join(data_dir, 'stooq')
+        if os.path.exists(stooq_dir):
+            try:
+                for filename in os.listdir(stooq_dir):
+                    # Skip system files
+                    if filename in SYSTEM_FILES:
+                        continue
+                    if filename.endswith(('.csv', '.txt', '.json', '.parquet', '.feather', '.duckdb', '.npz', '.h5', '.arrow')):
+                        file_path = os.path.join(stooq_dir, filename)
+                        file_stat = os.stat(file_path)
+                        files.append({
+                            'name': filename,
+                            'path': file_path,
+                            'size': file_stat.st_size,
+                            'modified': file_stat.st_mtime,
+                            'location': 'data/stooq'
+                        })
+            except Exception as e:
+                logger.warning(f"Error reading stooq directory: {str(e)}")
+        
         # Sort by modification time (newest first)
         files.sort(key=lambda x: x['modified'], reverse=True)
         

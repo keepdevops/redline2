@@ -112,11 +112,29 @@ def convert_file():
                 ticker_col = detect_ticker_column(data_obj)
                 timestamp_col = detect_timestamp_column(data_obj)
                 
+                # For Stooq format with separate DATE and TIME columns, include both
                 subset = None
                 if ticker_col and timestamp_col:
                     subset = [ticker_col, timestamp_col]
+                    # Check if this is Stooq format with separate DATE and TIME
+                    if '<DATE>' in data_obj.columns and '<TIME>' in data_obj.columns:
+                        # Include TIME in duplicate detection to preserve all time-based rows
+                        if '<TIME>' not in subset:
+                            subset.append('<TIME>')
+                        logger.info(f"Stooq format detected: using {subset} for duplicate detection")
                 elif timestamp_col:
                     subset = [timestamp_col]
+                    # For Stooq format, also include TIME
+                    if '<DATE>' in data_obj.columns and '<TIME>' in data_obj.columns:
+                        if '<TIME>' not in subset:
+                            subset.append('<TIME>')
+                elif '<DATE>' in data_obj.columns and '<TIME>' in data_obj.columns:
+                    # Fallback: if no timestamp detected but Stooq format, use DATE+TIME
+                    subset = ['<DATE>', '<TIME>']
+                    if ticker_col:
+                        subset.insert(0, ticker_col)
+                    logger.info(f"Stooq format fallback: using {subset} for duplicate detection")
+                
                 data_obj = cleaner.remove_duplicates(data_obj, subset=subset)
                 duplicates_removed = df_before - len(data_obj)
                 cleaning_stats['duplicates_removed'] = duplicates_removed

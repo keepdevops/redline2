@@ -9,6 +9,13 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import os
 
+# Check for optional dependencies
+try:
+    import tensorflow as tf
+    TENSORFLOW_AVAILABLE = True
+except ImportError:
+    TENSORFLOW_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -22,21 +29,58 @@ class FileBrowserHelper:
     
     def browse_input_files(self):
         """Browse for input files."""
+        # File types for file dialog
+        # Note: On macOS, tkinter may not show all extensions in "All supported files"
+        # So we list each format explicitly to ensure visibility
+        # Order: Most common first, then less common formats
         filetypes = [
-            ("All supported files", "*.csv;*.txt;*.json;*.parquet;*.feather;*.duckdb"),
-            ("CSV files", "*.csv"),
-            ("TXT files", "*.txt"),
-            ("JSON files", "*.json"),
-            ("Parquet files", "*.parquet"),
-            ("Feather files", "*.feather"),
-            ("DuckDB files", "*.duckdb"),
-            ("All files", "*.*")
+            ("CSV files", "*.csv"),           # Most common
+            ("TXT files", "*.txt"),           # Common (Stooq format)
+            ("JSON files", "*.json"),         # Common
+            ("Parquet files", "*.parquet"),    # Common (efficient)
+            ("Feather files", "*.feather"),   # Less common but supported
+            ("DuckDB files", "*.duckdb"),      # Less common but supported
         ]
         
+        # Add ML formats if TensorFlow is available
+        if TENSORFLOW_AVAILABLE:
+            filetypes.extend([
+                ("Keras Model files", "*.h5"),      # Keras models
+                ("TensorFlow NPZ files", "*.npz"),  # TensorFlow/NumPy format
+            ])
+        
+        # Add "All supported files" - on macOS, use tuple format for better compatibility
+        # Note: Some macOS versions may not show all extensions in a single pattern
+        # So we also keep individual format filters above
+        all_extensions_list = ["*.csv", "*.txt", "*.json", "*.parquet", "*.feather", "*.duckdb"]
+        if TENSORFLOW_AVAILABLE:
+            all_extensions_list.extend(["*.h5", "*.npz"])
+        # Try tuple format first (better macOS support)
         try:
+            filetypes.append(("All supported files", tuple(all_extensions_list)))
+        except:
+            # Fallback to space-separated string if tuple doesn't work
+            all_extensions = " ".join(all_extensions_list)
+            filetypes.append(("All supported files", all_extensions))
+        
+        # Always add "All files" as last option (this always works)
+        filetypes.append(("All files", "*.*"))
+        
+        try:
+            # On macOS, set initial directory to Downloads for better UX
+            # Also ensure the file dialog can navigate to common locations
+            initialdir = None
+            if os.path.exists(os.path.expanduser("~/Downloads")):
+                initialdir = os.path.expanduser("~/Downloads")
+            elif os.path.exists("/app/data/stooq"):
+                initialdir = "/app/data/stooq"
+            elif os.path.exists("data/stooq"):
+                initialdir = "data/stooq"
+            
             files = filedialog.askopenfilenames(
                 title="Select Input Files",
-                filetypes=filetypes
+                filetypes=filetypes,
+                initialdir=initialdir
             )
         except Exception as e:
             self.logger.error(f"Error opening file dialog: {str(e)}")
@@ -100,6 +144,16 @@ class FileBrowserHelper:
     
     def show_preview_dialog(self, file_path: str, data):
         """Show data preview dialog."""
+        # Mask API keys in preview
+        from ...web.utils.security_helpers import should_mask_file, mask_dataframe_columns
+        preview_data = data.copy()
+        if should_mask_file(file_path):
+            preview_data = mask_dataframe_columns(preview_data)
+            self.logger.info(f"Masked API keys in preview for file: {file_path}")
+        else:
+            # Still check for API key columns
+            preview_data = mask_dataframe_columns(preview_data)
+        
         preview_window = tk.Toplevel(self.converter_tab.frame)
         preview_window.title(f"Preview: {os.path.basename(file_path)}")
         preview_window.geometry("800x600")
@@ -109,24 +163,24 @@ class FileBrowserHelper:
         info_frame.pack(fill=tk.X, padx=10, pady=10)
         
         ttk.Label(info_frame, text=f"File: {os.path.basename(file_path)}").pack(anchor=tk.W)
-        ttk.Label(info_frame, text=f"Shape: {data.shape[0]} rows × {data.shape[1]} columns").pack(anchor=tk.W)
-        ttk.Label(info_frame, text=f"Columns: {list(data.columns)}").pack(anchor=tk.W)
+        ttk.Label(info_frame, text=f"Shape: {preview_data.shape[0]} rows × {preview_data.shape[1]} columns").pack(anchor=tk.W)
+        ttk.Label(info_frame, text=f"Columns: {list(preview_data.columns)}").pack(anchor=tk.W)
         
         # Data preview
         preview_frame = ttk.Frame(preview_window)
         preview_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         # Create treeview for preview
-        preview_tree = ttk.Treeview(preview_frame, columns=list(data.columns), show='headings')
+        preview_tree = ttk.Treeview(preview_frame, columns=list(preview_data.columns), show='headings')
         
         # Configure columns
-        for col in data.columns:
+        for col in preview_data.columns:
             preview_tree.heading(col, text=str(col))
             preview_tree.column(col, width=100)
             
-        # Add data (first 100 rows)
-        preview_data = data.head(100)
-        for idx, row in preview_data.iterrows():
+        # Add data (first 100 rows) - using masked data
+        preview_data_display = preview_data.head(100)
+        for idx, row in preview_data_display.iterrows():
             preview_tree.insert('', 'end', values=list(row))
             
         # Scrollbars

@@ -37,7 +37,7 @@ class ConversionUIHelper:
         self.converter_tab.input_files_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
         
         ttk.Button(file_frame, text="Browse Files", 
-                  command=self.converter_tab.browse_input_files).pack(side=tk.RIGHT)
+                  command=self.converter_tab.browser_helper.browse_input_files).pack(side=tk.RIGHT)
         
         # Input format detection
         format_frame = ttk.Frame(input_frame)
@@ -51,11 +51,11 @@ class ConversionUIHelper:
         self.converter_tab.input_format_combo.pack(side=tk.LEFT, padx=(0, 10))
         
         ttk.Button(format_frame, text="Auto-detect", 
-                  command=self.converter_tab.auto_detect_format).pack(side=tk.LEFT)
+                  command=self.converter_tab.browser_helper.auto_detect_format).pack(side=tk.LEFT)
         
         # Preview button
         ttk.Button(input_frame, text="Preview Input File", 
-                  command=self.converter_tab.preview_input_file).pack(anchor=tk.W)
+                  command=self.converter_tab.browser_helper.preview_input_file).pack(anchor=tk.W)
     
     def create_output_section(self, parent):
         """Create output configuration section."""
@@ -72,7 +72,7 @@ class ConversionUIHelper:
         self.converter_tab.output_dir_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
         
         ttk.Button(dir_frame, text="Browse", 
-                  command=self.converter_tab.browse_output_directory).pack(side=tk.RIGHT)
+                  command=self.converter_tab.browser_helper.browse_output_directory).pack(side=tk.RIGHT)
         
         # Output format
         format_frame = ttk.Frame(output_frame)
@@ -178,7 +178,7 @@ class ConversionUIHelper:
         self.converter_tab.batch_convert_var = tk.BooleanVar()
         ttk.Checkbutton(options_frame, text="Convert all files in directory", 
                        variable=self.converter_tab.batch_convert_var, 
-                       command=self.converter_tab.toggle_batch_mode).pack(anchor=tk.W)
+                       command=self.converter_tab.events_helper.toggle_batch_mode).pack(anchor=tk.W)
         
         # Batch directory selection
         self.converter_tab.batch_dir_frame = ttk.Frame(batch_frame)
@@ -191,7 +191,7 @@ class ConversionUIHelper:
         self.converter_tab.batch_dir_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
         
         self.converter_tab.batch_browse_btn = ttk.Button(self.converter_tab.batch_dir_frame, text="Browse", 
-                                          command=self.converter_tab.browse_batch_directory, state='disabled')
+                                          command=self.converter_tab.browser_helper.browse_batch_directory, state='disabled')
         self.converter_tab.batch_browse_btn.pack(side=tk.RIGHT)
         
         # File pattern
@@ -227,15 +227,15 @@ class ConversionUIHelper:
         button_frame.pack(fill=tk.X, pady=(10, 0))
         
         self.converter_tab.convert_btn = ttk.Button(button_frame, text="Start Conversion", 
-                                     command=self.converter_tab.start_conversion)
+                                     command=self.converter_tab.events_helper.start_conversion)
         self.converter_tab.convert_btn.pack(side=tk.LEFT, padx=(0, 10))
         
         self.converter_tab.stop_btn = ttk.Button(button_frame, text="Stop", 
-                                  command=self.converter_tab.stop_conversion, state='disabled')
+                                  command=self.converter_tab.events_helper.stop_conversion, state='disabled')
         self.converter_tab.stop_btn.pack(side=tk.LEFT, padx=(0, 10))
         
         self.converter_tab.clear_btn = ttk.Button(button_frame, text="Clear Results", 
-                                   command=self.converter_tab.clear_results)
+                                   command=self.converter_tab.events_helper.clear_results)
         self.converter_tab.clear_btn.pack(side=tk.RIGHT)
         
         # Add tooltips to buttons
@@ -276,15 +276,15 @@ class ConversionUIHelper:
         actions_frame.pack(fill=tk.X, pady=(10, 0))
         
         open_file_btn = ttk.Button(actions_frame, text="Open Output File", 
-                                  command=self.converter_tab.open_output_file)
+                                  command=self.converter_tab.browser_helper.open_output_file)
         open_file_btn.pack(side=tk.LEFT, padx=(0, 10))
         
         open_dir_btn = ttk.Button(actions_frame, text="Open Output Directory", 
-                                 command=self.converter_tab.open_output_directory)
+                                 command=self.converter_tab.browser_helper.open_output_directory)
         open_dir_btn.pack(side=tk.LEFT, padx=(0, 10))
         
         load_data_btn = ttk.Button(actions_frame, text="Load to Data Tab", 
-                                  command=self.converter_tab.load_to_data_tab)
+                                  command=self.converter_tab.events_helper.load_to_data_tab)
         load_data_btn.pack(side=tk.RIGHT)
         
         # Add tooltips to action buttons

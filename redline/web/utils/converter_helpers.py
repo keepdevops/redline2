@@ -80,6 +80,11 @@ def find_input_file_path(input_file, data_dir=None):
             downloaded_path = os.path.join(data_dir, 'downloaded', input_file)
             if os.path.exists(downloaded_path):
                 input_path = downloaded_path
+            else:
+                # Check in stooq directory (for Stooq downloads)
+                stooq_path = os.path.join(data_dir, 'stooq', input_file)
+                if os.path.exists(stooq_path):
+                    input_path = stooq_path
     
     return input_path
 

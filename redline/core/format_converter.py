@@ -415,6 +415,35 @@ class FormatConverter:
                 return pd.read_feather(file_path)
             elif format == 'json':
                 return pd.read_json(file_path)
+            elif format == 'txt':
+                # Try to detect TXT format (Stooq format is comma-separated, others may be tab-separated)
+                try:
+                    # First, try to read first line to detect format
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        first_line = f.readline().strip()
+                    
+                    # Check if it's Stooq format (comma-separated with <TICKER> header)
+                    if '<TICKER>' in first_line or '<DATE>' in first_line:
+                        # Stooq format - comma-separated
+                        self.logger.info(f"Detected Stooq format (comma-separated) for {file_path}")
+                        return pd.read_csv(file_path, sep=',')
+                    else:
+                        # Try tab-separated first (common for TXT files)
+                        try:
+                            self.logger.info(f"Attempting tab-separated format for {file_path}")
+                            return pd.read_csv(file_path, sep='\t')
+                        except:
+                            # Fallback to comma-separated
+                            self.logger.info(f"Falling back to comma-separated format for {file_path}")
+                            return pd.read_csv(file_path, sep=',')
+                except Exception as txt_error:
+                    self.logger.error(f"Error reading TXT file {file_path}: {str(txt_error)}")
+                    # Last resort: try reading as CSV with default settings
+                    try:
+                        self.logger.info(f"Attempting CSV fallback for {file_path}")
+                        return pd.read_csv(file_path)
+                    except:
+                        raise txt_error
             elif format == 'duckdb':
                 import duckdb
                 conn = duckdb.connect(file_path)

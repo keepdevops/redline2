@@ -17,7 +17,7 @@ data_loading_single_bp = Blueprint('data_loading_single', __name__)
 logger = logging.getLogger(__name__)
 
 @data_loading_single_bp.route('/load', methods=['POST'])
-@rate_limit("30 per minute")
+@rate_limit("200 per minute")  # Increased for pagination - users need to browse through pages
 def load_data():
     """Load data from file."""
     try:
