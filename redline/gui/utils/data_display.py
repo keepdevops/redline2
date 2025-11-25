@@ -60,6 +60,45 @@ class DataDisplayHelper:
                     # Only convert if it's a known numeric column
                     if col_lower in [n.lower() for n in numeric_cols]:
                         try:
+                            # Check if column contains string data before converting
+                            sample = data[col].dropna().head(10)
+                            if len(sample) > 0:
+                                # Check if all values are strings (not numeric)
+                                if all(isinstance(x, str) for x in sample):
+                                    # Check if it's a repeated string pattern (like "AAPLAAPL..." or "IBMIBM")
+                                    def is_repeated_pattern(s):
+                                        """Check if string is a repetition of a shorter substring."""
+                                        if len(s) < 2:
+                                            return False
+                                        # Check if string is repetition of first N characters
+                                        for i in range(1, len(s) // 2 + 1):
+                                            substring = s[:i]
+                                            if len(s) % len(substring) == 0:
+                                                repetitions = len(s) // len(substring)
+                                                if substring * repetitions == s:
+                                                    return True
+                                        return False
+                                    
+                                    first_val = str(sample.iloc[0]) if len(sample) > 0 else ""
+                                    
+                                    # Check for repeated patterns
+                                    if is_repeated_pattern(first_val):
+                                        self.logger.warning(f"Column '{col}' contains repeated string pattern '{first_val[:20]}...', skipping numeric conversion")
+                                        continue
+                                    
+                                    # Check for long repeated patterns
+                                    if len(first_val) > 20 and len(set(first_val)) < 5:
+                                        self.logger.warning(f"Column '{col}' contains repeated string pattern, skipping numeric conversion")
+                                        continue
+                                    
+                                    # Check if it looks like ticker data (short uppercase strings that aren't repeated)
+                                    if all(len(str(x)) <= 10 and str(x).isupper() and not is_repeated_pattern(str(x)) for x in sample):
+                                        # Check if all values are the same repeated pattern
+                                        unique_values = set(str(x) for x in sample)
+                                        if len(unique_values) == 1 and is_repeated_pattern(list(unique_values)[0]):
+                                            self.logger.warning(f"Column '{col}' appears to be repeated ticker data, skipping numeric conversion")
+                                            continue
+                            
                             data[col] = pd.to_numeric(data[col], errors='coerce')
                         except Exception as conv_error:
                             self.logger.warning(f"Could not convert column '{col}' to numeric: {str(conv_error)}")

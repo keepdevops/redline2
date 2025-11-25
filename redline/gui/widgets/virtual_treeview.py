@@ -138,6 +138,17 @@ class VirtualScrollingTreeview:
                     if len(self.cached_data) < self.cache_size:
                         self.cached_data[i] = row_data
                 
+                # Validate row data matches expected columns
+                if self.data_source:
+                    expected_cols = self.data_source.get_columns()
+                    if expected_cols and len(row_data) != len(expected_cols):
+                        self.logger.warning(f"Row {i}: Expected {len(expected_cols)} values, got {len(row_data)}. Columns: {expected_cols[:5]}...")
+                        # Try to pad or truncate to match
+                        if len(row_data) < len(expected_cols):
+                            row_data = list(row_data) + [None] * (len(expected_cols) - len(row_data))
+                        else:
+                            row_data = row_data[:len(expected_cols)]
+                
                 # Insert item with row index as identifier
                 # Use row index as iid to prevent duplicates
                 try:

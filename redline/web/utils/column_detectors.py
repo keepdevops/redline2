@@ -11,6 +11,20 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
+def _is_repeated_pattern(s):
+    """Check if string is a repetition of a shorter substring (e.g., 'IBMIBM', 'AAPLAAPL')."""
+    if not isinstance(s, str) or len(s) < 2:
+        return False
+    # Check if string is repetition of first N characters
+    for i in range(1, len(s) // 2 + 1):
+        substring = s[:i]
+        if len(s) % len(substring) == 0:
+            repetitions = len(s) // len(substring)
+            if substring * repetitions == s:
+                return True
+    return False
+
+
 def detect_date_columns(df):
     """
     Detect and return list of columns that are likely dates/timestamps.
@@ -223,9 +237,22 @@ def detect_price_column(df):
         if len(numeric_col_list) >= 4:
             # Try the 4th numeric column as CLOSE
             close_candidate = numeric_col_list[3]
-            values = pd.to_numeric(df[close_candidate], errors='coerce').dropna()
-            if len(values) > 0 and values.min() > 0 and 0.01 < values.mean() < 1000000:
-                return close_candidate
+            # Check if column contains repeated string patterns before converting
+            sample = df[close_candidate].dropna().head(10)
+            if len(sample) > 0 and all(isinstance(x, str) for x in sample):
+                first_val = str(sample.iloc[0])
+                if _is_repeated_pattern(first_val):
+                    logger.warning(f"Skipping column '{close_candidate}' - contains repeated pattern: '{first_val[:20]}...'")
+                else:
+                    # Not a repeated pattern, try numeric conversion
+                    values = pd.to_numeric(df[close_candidate], errors='coerce').dropna()
+                    if len(values) > 0 and values.min() > 0 and 0.01 < values.mean() < 1000000:
+                        return close_candidate
+            else:
+                # Not all strings, try numeric conversion
+                values = pd.to_numeric(df[close_candidate], errors='coerce').dropna()
+                if len(values) > 0 and values.min() > 0 and 0.01 < values.mean() < 1000000:
+                    return close_candidate
     
     # Priority 2: Heuristic - find numeric column with characteristics of price data
     # Price data typically: positive values, moderate variance, not too large
@@ -234,6 +261,14 @@ def detect_price_column(df):
     
     for col in numeric_cols:
         try:
+            # Check if column contains repeated string patterns before converting
+            sample = df[col].dropna().head(10)
+            if len(sample) > 0 and all(isinstance(x, str) for x in sample):
+                first_val = str(sample.iloc[0])
+                if _is_repeated_pattern(first_val):
+                    logger.warning(f"Skipping column '{col}' - contains repeated pattern: '{first_val[:20]}...'")
+                    continue
+            
             values = pd.to_numeric(df[col], errors='coerce').dropna()
             if len(values) < 2:
                 continue
@@ -308,6 +343,14 @@ def detect_volume_column(df):
     
     for col in numeric_cols:
         try:
+            # Check if column contains repeated string patterns before converting
+            sample = df[col].dropna().head(10)
+            if len(sample) > 0 and all(isinstance(x, str) for x in sample):
+                first_val = str(sample.iloc[0])
+                if _is_repeated_pattern(first_val):
+                    logger.warning(f"Skipping column '{col}' - contains repeated pattern: '{first_val[:20]}...'")
+                    continue
+            
             values = pd.to_numeric(df[col], errors='coerce').dropna()
             if len(values) < 2:
                 continue

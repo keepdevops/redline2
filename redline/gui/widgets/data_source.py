@@ -175,11 +175,40 @@ class DataSource:
             return []
     
     def get_columns(self) -> List[str]:
-        """Get column names."""
+        """Get column names in the order they appear in the table."""
         try:
             if self.format_type == 'duckdb' and self.connection:
-                result = self.connection.execute("PRAGMA table_info(tickers_data)").fetchall()
-                return [col[1] for col in result] if result else []
+                # Use DESCRIBE to get columns in the order they appear in the table
+                try:
+                    result = self.connection.execute(f"DESCRIBE {self.table_name}").fetchall()
+                    # DESCRIBE returns (column_name, column_type, ...)
+                    columns = [col[0] for col in result] if result else []
+                    if columns:
+                        self.logger.debug(f"Got columns from DESCRIBE: {columns}")
+                        return columns
+                except Exception as e:
+                    self.logger.debug(f"DESCRIBE failed, trying PRAGMA: {str(e)}")
+                
+                # Fallback to PRAGMA table_info
+                try:
+                    result = self.connection.execute(f"PRAGMA table_info({self.table_name})").fetchall()
+                    # PRAGMA returns (cid, name, type, notnull, dflt_value, pk)
+                    columns = [col[1] for col in result] if result else []
+                    if columns:
+                        self.logger.debug(f"Got columns from PRAGMA: {columns}")
+                        return columns
+                except Exception as e:
+                    self.logger.warning(f"PRAGMA table_info failed: {str(e)}")
+                
+                # Last resort: get columns from a sample query
+                try:
+                    sample = self.connection.execute(f"SELECT * FROM {self.table_name} LIMIT 1").fetchdf()
+                    columns = list(sample.columns)
+                    self.logger.debug(f"Got columns from sample query: {columns}")
+                    return columns
+                except Exception as e:
+                    self.logger.error(f"Failed to get columns from sample query: {str(e)}")
+                    return []
             else:
                 if self.data is not None:
                     return list(self.data.columns)
@@ -187,6 +216,8 @@ class DataSource:
                 
         except Exception as e:
             self.logger.error(f"Error getting columns: {str(e)}")
+            import traceback
+            self.logger.debug(traceback.format_exc())
             return []
     
     def search_rows(self, search_term: str, column: str = None) -> List[int]:

@@ -204,7 +204,7 @@ class DatabaseConnector:
             if '<VOL>' in db_data.columns:
                 db_data['vol'] = db_data['<VOL>']
             
-            # Select standard columns for database
+            # Select standard columns for database in the exact order they appear in the table schema
             standard_columns = ['ticker', 'timestamp', 'open', 'high', 'low', 'close', 'vol']
             available_columns = [col for col in standard_columns if col in db_data.columns]
             
@@ -213,6 +213,7 @@ class DatabaseConnector:
                 conn.close()
                 raise ValueError(f"Cannot write empty data or data with no valid columns to {table}")
             
+            # Reorder columns to match table schema exactly
             db_data = db_data[available_columns]
             
             create_table_sql = f"""
@@ -230,8 +231,14 @@ class DatabaseConnector:
             
             # Insert data only if we have valid data
             if len(db_data) > 0 and len(db_data.columns) > 0:
-                conn.register('temp_df', db_data)
-                insert_sql = f"INSERT INTO {table} SELECT * FROM temp_df"
+                # Ensure column order matches table schema exactly
+                ordered_columns = [col for col in standard_columns if col in db_data.columns]
+                db_data_ordered = db_data[ordered_columns]
+                
+                conn.register('temp_df', db_data_ordered)
+                # Use explicit column list in INSERT to ensure correct order
+                columns_str = ', '.join(ordered_columns)
+                insert_sql = f"INSERT INTO {table} ({columns_str}) SELECT {columns_str} FROM temp_df"
                 conn.execute(insert_sql)
                 conn.unregister('temp_df')
             else:
