@@ -13,12 +13,16 @@ from typing import List, Dict, Optional, Any
 from .base_downloader import BaseDownloader
 from .exceptions import RateLimitError
 
-# Set environment variable BEFORE importing yfinance
-# Disable browser impersonation to avoid compatibility issues
-os.environ['CURL_IMPERSONATE'] = '0'  # Disable impersonation
-
-# Now import yfinance (it will respect CURL_IMPERSONATE=0)
-import yfinance as yf
+# Import yfinance
+# Note: yfinance 0.2.66+ uses curl_cffi by default
+# Setting CURL_IMPERSONATE=0 was causing curl error 43, so we removed it
+# Let curl_cffi use its default settings (which should work better)
+try:
+    import yfinance as yf
+except ImportError as e:
+    logger.error(f"Failed to import yfinance: {e}")
+    logger.error("Install with: pip install yfinance")
+    raise
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +40,10 @@ class YahooDownloader(BaseDownloader):
         self.min_request_interval = 5.0  # 5 seconds between requests to avoid rate limiting
         # rate_limit_lock will be initialized by base class _rate_limit() method
         
-        # Browser impersonation is disabled at module level (before yfinance import)
-        # CURL_IMPERSONATE=0 is set to prevent browser impersonation errors
-        self.logger.debug("Browser impersonation disabled via CURL_IMPERSONATE=0 (set at module level)")
+        # Note: yfinance 0.2.66+ uses curl_cffi by default
+        # We removed CURL_IMPERSONATE=0 because it was causing curl error 43
+        # curl_cffi now uses its default settings which should work better
+        self.logger.debug("yfinance using curl_cffi with default settings")
     
     def download_single_ticker(self, ticker: str, start_date: str = None, end_date: str = None) -> pd.DataFrame:
         """
@@ -60,15 +65,89 @@ class YahooDownloader(BaseDownloader):
             start_dt = datetime.strptime(start_date, '%Y-%m-%d') if start_date else None
             end_dt = datetime.strptime(end_date, '%Y-%m-%d') if end_date else None
             
+            # Validate dates
+            today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)  # Normalize to midnight
+            if end_dt and end_dt > today:
+                self.logger.warning(f"End date {end_date} is in the future, adjusting to today")
+                end_dt = today
+                end_date = today.strftime('%Y-%m-%d')
+            
+            if start_dt and end_dt and start_dt > end_dt:
+                raise ValueError(f"Start date {start_date} cannot be after end date {end_date}")
+            
+            # Ensure minimum date range (at least 1 day)
+            if start_dt and end_dt:
+                days_diff = (end_dt - start_dt).days
+                if days_diff < 1:
+                    self.logger.warning(f"Date range too short ({days_diff} days), extending to 1 day")
+                    start_dt = end_dt - timedelta(days=1)
+                    start_date = start_dt.strftime('%Y-%m-%d')
+            
             # Download data using yfinance
-            # Browser impersonation is disabled via CURL_IMPERSONATE=0 environment variable
-            # yfinance will use curl_cffi with standard HTTP requests
+            # yfinance 0.2.66+ uses curl_cffi by default (not requests)
+            # We removed CURL_IMPERSONATE=0 to avoid curl error 43
             ticker_obj = yf.Ticker(ticker)
             
             try:
                 # Download historical data
+                # Note: yfinance's end parameter is exclusive, so we need to handle it carefully
                 if start_dt and end_dt:
-                    data = ticker_obj.history(start=start_dt, end=end_dt)
+                    # If end date is today, use period-based approach to avoid future date issues
+                    if end_dt.date() == today.date():
+                        # End date is today - use period-based download to avoid future date issues
+                        days_diff = (end_dt - start_dt).days
+                        if days_diff <= 5:
+                            period = "5d"
+                        elif days_diff <= 30:
+                            period = "1mo"
+                        elif days_diff <= 90:
+                            period = "3mo"
+                        elif days_diff <= 180:
+                            period = "6mo"
+                        elif days_diff <= 365:
+                            period = "1y"
+                        elif days_diff <= 730:
+                            period = "2y"
+                        elif days_diff <= 1825:
+                            period = "5y"
+                        else:
+                            period = "max"
+                        
+                        self.logger.debug(f"Using period-based download: {period} (date range: {days_diff} days)")
+                        data = ticker_obj.history(period=period)
+                        
+                        # If period-based fails, try using yesterday as end date (safer for yfinance)
+                        if data.empty:
+                            self.logger.debug(f"Period-based download returned empty, trying with yesterday as end date")
+                            yesterday = today - timedelta(days=1)
+                            end_dt_yesterday = yesterday
+                            end_dt_inclusive = end_dt_yesterday + timedelta(days=1)
+                            if end_dt_inclusive > today:
+                                end_dt_inclusive = today
+                            try:
+                                data = ticker_obj.history(start=start_dt, end=end_dt_inclusive)
+                                self.logger.debug(f"Date range download with yesterday end date succeeded")
+                            except Exception as fallback_error:
+                                self.logger.debug(f"Fallback to yesterday end date also failed: {fallback_error}")
+                        
+                        # Filter to the requested date range
+                        if not data.empty:
+                            # Normalize timezone-aware index to timezone-naive for comparison
+                            if hasattr(data.index, 'tz') and data.index.tz is not None:
+                                data.index = data.index.tz_localize(None)
+                            
+                            if start_dt:
+                                data = data[data.index >= start_dt]
+                            if end_dt:
+                                # Include data up to and including end date
+                                data = data[data.index <= end_dt]
+                    else:
+                        # End date is in the past - safe to add 1 day for inclusive end
+                        end_dt_inclusive = end_dt + timedelta(days=1)
+                        # Ensure we don't go beyond today
+                        if end_dt_inclusive > today:
+                            end_dt_inclusive = today + timedelta(days=1)
+                        data = ticker_obj.history(start=start_dt, end=end_dt_inclusive)
                 elif start_dt:
                     data = ticker_obj.history(start=start_dt)
                 else:
@@ -124,19 +203,76 @@ class YahooDownloader(BaseDownloader):
                     # Raise exception so route can return 503, not 404
                     raise Exception(f'yfinance library error: {error_msg}. This may be a temporary issue with Yahoo Finance. Please try again in a few moments or use a different data source (e.g., Stooq).')
                 elif 'curl' in error_lower or 'setopt' in error_lower or 'curl_cffi' in error_lower:
-                    # curl_cffi errors (like "Failed to setopt") - also yfinance issues
-                    self.logger.error(f"curl_cffi error for {ticker}: {error_msg}")
-                    raise Exception(f'Yahoo Finance connection error: {error_msg}. This may be a temporary issue. Please try again in a few moments or use a different data source (e.g., Stooq).')
+                    # curl_cffi errors (like "Failed to setopt") - library compatibility issue
+                    # Error 43 typically means CURLE_BAD_FUNCTION_ARGUMENT or similar
+                    self.logger.error(f"curl_cffi library error for {ticker}: {error_msg}")
+                    
+                    # Provide specific guidance for curl errors
+                    # Error 43 = CURLE_BAD_FUNCTION_ARGUMENT - typically a curl_cffi compatibility issue
+                    if 'setopt' in error_lower and ('10002' in error_msg or '43' in error_msg or 'curl: (43)' in error_msg):
+                        helpful_msg = (
+                            f'curl_cffi library error (curl error 43): This is a low-level library compatibility issue. '
+                            f'Possible solutions: (1) Update curl_cffi: pip install --upgrade curl-cffi, '
+                            f'(2) Use Stooq data source instead, (3) Wait a few minutes and retry, '
+                            f'or (4) Restart the application. Error details: {error_msg}'
+                        )
+                    else:
+                        helpful_msg = (
+                            f'Yahoo Finance connection error (curl_cffi): {error_msg}. '
+                            f'This may be a temporary library issue. Try: (1) Use Stooq data source, '
+                            f'(2) Wait and retry, or (3) Update curl_cffi: pip install --upgrade curl-cffi'
+                        )
+                    
+                    raise Exception(helpful_msg)
                 else:
                     # Re-raise other errors
                     raise
             
+            # Normalize timezone-aware index to timezone-naive for consistency
+            if not data.empty and hasattr(data.index, 'tz') and data.index.tz is not None:
+                data.index = data.index.tz_localize(None)
+            
             # Check if data is empty - this could indicate rate limiting or no data
             if data.empty:
-                # Check if this might be due to rate limiting
-                # Yahoo Finance sometimes returns empty data when rate limited
-                # We'll log a warning but return empty DataFrame (let route handler decide)
-                self.logger.warning(f"No data found for ticker {ticker} - this might be due to rate limiting")
+                # Check if this might be due to rate limiting or invalid date range
+                date_range_info = ""
+                if start_dt and end_dt:
+                    days_diff = (end_dt - start_dt).days
+                    date_range_info = f" for date range {start_date} to {end_date} ({days_diff} days)"
+                
+                # Check if date range might be the issue
+                if start_dt and end_dt:
+                    if days_diff < 7:
+                        self.logger.warning(
+                            f"No data found for ticker {ticker}{date_range_info}. "
+                            f"Date range is very short ({days_diff} days). "
+                            f"Try a longer date range (e.g., 1 year)."
+                        )
+                    elif end_dt > today:
+                        self.logger.warning(
+                            f"No data found for ticker {ticker}{date_range_info}. "
+                            f"End date is in the future. Try setting end date to today or earlier."
+                        )
+                    elif end_dt.date() == today.date():
+                        # End date is today - likely rate limiting or API issue
+                        self.logger.warning(
+                            f"No data found for ticker {ticker}{date_range_info}. "
+                            f"End date is today - this often indicates Yahoo Finance rate limiting. "
+                            f"Suggestions: (1) Wait 5-10 minutes and retry, (2) Use end date of yesterday, "
+                            f"(3) Try a shorter date range, or (4) Use Stooq data source instead."
+                        )
+                    else:
+                        self.logger.warning(
+                            f"No data found for ticker {ticker}{date_range_info}. "
+                            f"This might be due to: (1) Rate limiting, (2) Ticker delisted/no data, "
+                            f"or (3) Yahoo Finance API issues. Try a different date range or data source (e.g., Stooq)."
+                        )
+                else:
+                    self.logger.warning(
+                        f"No data found for ticker {ticker}. "
+                        f"This might be due to rate limiting or the ticker having no data. "
+                        f"Try a different date range or data source (e.g., Stooq)."
+                    )
                 return pd.DataFrame()
             
             # Standardize the data

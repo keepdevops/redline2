@@ -39,6 +39,50 @@ class DownloadLogicHelper:
         start_date = self.download_tab.start_date_var.get()
         end_date = self.download_tab.end_date_var.get()
         
+        # Validate dates
+        try:
+            from datetime import datetime
+            start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+            end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+            today = datetime.now()
+            
+            # Check if end date is in the future
+            if end_dt > today:
+                messagebox.showwarning(
+                    "Invalid Date Range",
+                    f"End date ({end_date}) cannot be in the future.\n"
+                    f"Please set end date to today ({today.strftime('%Y-%m-%d')}) or earlier."
+                )
+                # Auto-correct to today
+                self.download_tab.end_date_var.set(today.strftime('%Y-%m-%d'))
+                end_date = today.strftime('%Y-%m-%d')
+                end_dt = today
+            
+            # Check if start date is after end date
+            if start_dt > end_dt:
+                messagebox.showerror(
+                    "Invalid Date Range",
+                    f"Start date ({start_date}) cannot be after end date ({end_date})."
+                )
+                return
+            
+            # Check if date range is too large (more than 20 years)
+            days_diff = (end_dt - start_dt).days
+            if days_diff > 7300:  # ~20 years
+                messagebox.showwarning(
+                    "Large Date Range",
+                    f"Date range is very large ({days_diff} days).\n"
+                    f"This may take a long time to download. Continue?"
+                )
+        except ValueError as e:
+            messagebox.showerror(
+                "Invalid Date Format",
+                f"Invalid date format. Please use YYYY-MM-DD format.\n"
+                f"Start: {start_date}, End: {end_date}\n"
+                f"Error: {str(e)}"
+            )
+            return
+        
         # Get source
         source = self.download_tab.source_var.get()
         
@@ -115,10 +159,18 @@ class DownloadLogicHelper:
                         
                         self.logger.info(f"Successfully downloaded {ticker}: {len(df)} rows")
                     else:
-                        error_msg = "No data returned"
+                        # No data returned - provide helpful error message
+                        error_msg = f"No data returned for date range {start_date} to {end_date}"
+                        suggestion = ""
+                        if source == "yahoo":
+                            suggestion = " Try: (1) Different date range, (2) Stooq data source, or (3) Wait and retry (rate limiting)"
+                        else:
+                            suggestion = " Try a different date range or data source"
+                        
+                        full_error = f"{error_msg}.{suggestion}"
                         self.download_tab.main_window.run_in_main_thread(
-                            lambda t=ticker, s=source_name, e=error_msg:
-                            self.add_download_result(t, 0, "N/A", s, f"Failed: {e}", "")
+                            lambda t=ticker, s=source_name, e=full_error:
+                            self.add_download_result(t, 0, f"{start_date} to {end_date}", s, f"Failed: {e}", "")
                         )
                         self.logger.warning(f"Failed to download {ticker}: {error_msg}")
                     

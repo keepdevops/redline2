@@ -41,6 +41,7 @@ class DownloadUtilsHelper:
     
     def set_date_range(self, days):
         """Set date range to last N days or specific period."""
+        from datetime import datetime, timedelta
         end_date = datetime.now()
         
         # Handle both string periods and integer days
@@ -64,8 +65,18 @@ class DownloadUtilsHelper:
             # Handle integer days
             start_date = end_date - timedelta(days=int(days))
         
-        self.download_tab.start_date_var.set(start_date.strftime('%Y-%m-%d'))
-        self.download_tab.end_date_var.set(end_date.strftime('%Y-%m-%d'))
+        # Ensure dates are valid (start <= end, end <= today)
+        if start_date > end_date:
+            start_date = end_date - timedelta(days=365)  # Fallback to 1 year
+        
+        # Format dates
+        start_str = start_date.strftime('%Y-%m-%d')
+        end_str = end_date.strftime('%Y-%m-%d')
+        
+        self.download_tab.start_date_var.set(start_str)
+        self.download_tab.end_date_var.set(end_str)
+        
+        self.logger.info(f"Set date range: {start_str} to {end_str}")
     
     def open_stooq_website(self):
         """Open Stooq website for manual download."""
