@@ -7,6 +7,7 @@ Handles file browsing, directory selection, and file operations.
 import logging
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
+from .safe_file_dialog import safe_askopenfilenames
 import os
 
 # Check for optional dependencies
@@ -29,6 +30,9 @@ class FileBrowserHelper:
     
     def browse_input_files(self):
         """Browse for input files."""
+        import traceback
+        self.logger.info(f"🔍 FileBrowserHelper.browse_input_files() called")
+        self.logger.debug(f"   Call stack:\n{''.join(traceback.format_stack()[-5:-1])}")
         # File types for file dialog
         # Note: On macOS, tkinter may not show all extensions in "All supported files"
         # So we list each format explicitly to ensure visibility
@@ -49,19 +53,15 @@ class FileBrowserHelper:
                 ("TensorFlow NPZ files", "*.npz"),  # TensorFlow/NumPy format
             ])
         
-        # Add "All supported files" - on macOS, use tuple format for better compatibility
-        # Note: Some macOS versions may not show all extensions in a single pattern
-        # So we also keep individual format filters above
+        # Add "All supported files" - on macOS, use semicolon-separated string
+        # Note: macOS Tkinter file dialogs don't accept tuples, only strings
+        # So we also keep individual format filters above for better visibility
         all_extensions_list = ["*.csv", "*.txt", "*.json", "*.parquet", "*.feather", "*.duckdb"]
         if TENSORFLOW_AVAILABLE:
             all_extensions_list.extend(["*.h5", "*.npz"])
-        # Try tuple format first (better macOS support)
-        try:
-            filetypes.append(("All supported files", tuple(all_extensions_list)))
-        except:
-            # Fallback to space-separated string if tuple doesn't work
-            all_extensions = " ".join(all_extensions_list)
-            filetypes.append(("All supported files", all_extensions))
+        # Use semicolon-separated string (macOS compatible)
+        all_extensions = ";".join(all_extensions_list)
+        filetypes.append(("All supported files", all_extensions))
         
         # Always add "All files" as last option (this always works)
         filetypes.append(("All files", "*.*"))
@@ -77,7 +77,8 @@ class FileBrowserHelper:
             elif os.path.exists("data/stooq"):
                 initialdir = "data/stooq"
             
-            files = filedialog.askopenfilenames(
+            # Let safe wrapper handle all validation
+            files = safe_askopenfilenames(
                 title="Select Input Files",
                 filetypes=filetypes,
                 initialdir=initialdir
@@ -97,12 +98,18 @@ class FileBrowserHelper:
     
     def browse_output_directory(self):
         """Browse for output directory."""
+        import traceback
+        self.logger.info(f"🔍 FileBrowserHelper.browse_output_directory() called")
+        self.logger.debug(f"   Call stack:\n{''.join(traceback.format_stack()[-5:-1])}")
         directory = filedialog.askdirectory(title="Select Output Directory")
         if directory:
             self.converter_tab.output_dir_var.set(directory)
     
     def browse_batch_directory(self):
         """Browse for batch directory."""
+        import traceback
+        self.logger.info(f"🔍 FileBrowserHelper.browse_batch_directory() called")
+        self.logger.debug(f"   Call stack:\n{''.join(traceback.format_stack()[-5:-1])}")
         directory = filedialog.askdirectory(title="Select Batch Directory")
         if directory:
             self.converter_tab.batch_dir_var.set(directory)

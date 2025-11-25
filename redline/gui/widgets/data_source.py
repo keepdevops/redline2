@@ -105,9 +105,31 @@ class DataSource:
             if self.format_type == 'duckdb' and self.connection:
                 # Use try-except to handle connection issues gracefully
                 try:
-                    query = f"SELECT * FROM {self.table_name} LIMIT 1 OFFSET {index}"
+                    # Get column names first to ensure correct order
+                    columns = self.get_columns()
+                    if not columns:
+                        # Fallback to SELECT * if we can't get columns
+                        query = f"SELECT * FROM {self.table_name} LIMIT 1 OFFSET {index}"
+                        result = self.connection.execute(query).fetchone()
+                        return list(result) if result else []
+                    
+                    # Select columns in the correct order
+                    columns_str = ', '.join(columns)
+                    query = f"SELECT {columns_str} FROM {self.table_name} LIMIT 1 OFFSET {index}"
                     result = self.connection.execute(query).fetchone()
-                    return list(result) if result else []
+                    
+                    if result:
+                        row_data = list(result)
+                        # Ensure we have the right number of values
+                        if len(row_data) != len(columns):
+                            self.logger.warning(f"Row {index} has {len(row_data)} values but {len(columns)} columns")
+                            # Pad or truncate to match column count
+                            if len(row_data) < len(columns):
+                                row_data.extend([None] * (len(columns) - len(row_data)))
+                            else:
+                                row_data = row_data[:len(columns)]
+                        return row_data
+                    return []
                 except Exception as db_error:
                     # If database connection fails, fall back to pandas
                     self.logger.warning(f"Database query failed, falling back to pandas: {str(db_error)}")
@@ -116,27 +138,40 @@ class DataSource:
                     return []
             else:
                 if self.data is not None and index < len(self.data):
-                    return list(self.data.iloc[index])
+                    row = self.data.iloc[index]
+                    # Return in column order
+                    return [row[col] for col in self.data.columns]
                 return []
                 
         except Exception as e:
             self.logger.error(f"Error getting row {index}: {str(e)}")
+            import traceback
+            self.logger.debug(traceback.format_exc())
             return []
     
     def get_rows(self, start: int, end: int) -> List[List]:
         """Get a range of rows."""
         try:
             if self.format_type == 'duckdb' and self.connection:
-                query = f"SELECT * FROM tickers_data LIMIT {end - start} OFFSET {start}"
+                # Get columns in correct order
+                columns = self.get_columns()
+                if columns:
+                    columns_str = ', '.join(columns)
+                    query = f"SELECT {columns_str} FROM {self.table_name} LIMIT {end - start} OFFSET {start}"
+                else:
+                    query = f"SELECT * FROM {self.table_name} LIMIT {end - start} OFFSET {start}"
                 result = self.connection.execute(query).fetchdf()
                 return [list(row) for _, row in result.iterrows()]
             else:
                 if self.data is not None:
-                    return [list(row) for _, row in self.data.iloc[start:end].iterrows()]
+                    # Return in column order
+                    return [[row[col] for col in self.data.columns] for _, row in self.data.iloc[start:end].iterrows()]
                 return []
                 
         except Exception as e:
             self.logger.error(f"Error getting rows {start}-{end}: {str(e)}")
+            import traceback
+            self.logger.debug(traceback.format_exc())
             return []
     
     def get_columns(self) -> List[str]:

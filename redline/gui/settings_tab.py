@@ -180,7 +180,11 @@ class SettingsTab:
             
             # Load from config or use defaults
             # Check if 'Data' section exists in config
-            data_section = config.get('Data', {}) if hasattr(config, 'get') else {}
+            # ConfigParser uses has_section() and [] access, not dict.get()
+            if hasattr(config, 'has_section') and config.has_section('Data'):
+                data_section = config['Data']
+            else:
+                data_section = {}
             
             for key, default_value in defaults.items():
                 if key in data_section:

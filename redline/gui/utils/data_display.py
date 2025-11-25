@@ -29,7 +29,8 @@ class DataDisplayHelper:
             self.logger.info(f"Starting data display: {len(data)} rows, columns: {list(data.columns)}")
             
             # Create data source
-            if self.data_tab.current_data_source:
+            # Close existing data source if it's an object with a close method
+            if self.data_tab.current_data_source and hasattr(self.data_tab.current_data_source, 'close'):
                 self.data_tab.current_data_source.close()
             
             # Check if data is empty
@@ -47,12 +48,32 @@ class DataDisplayHelper:
             # Clean data before display - ensure numeric columns are numeric
             try:
                 # Auto-convert common numeric columns to numeric type
+                # Exclude ticker and other string columns
                 numeric_cols = ['open', 'high', 'low', 'close', 'vol', 'volume', 'openint']
+                string_cols = ['ticker', 'symbol', 'format']  # Columns that should never be numeric
+                
                 for col in data.columns:
-                    if col.lower() in [n.lower() for n in numeric_cols]:
-                        data[col] = pd.to_numeric(data[col], errors='coerce')
+                    col_lower = col.lower()
+                    # Skip if it's a known string column
+                    if any(s in col_lower for s in ['ticker', 'symbol', 'format', 'date', 'time']):
+                        continue
+                    # Only convert if it's a known numeric column
+                    if col_lower in [n.lower() for n in numeric_cols]:
+                        try:
+                            data[col] = pd.to_numeric(data[col], errors='coerce')
+                        except Exception as conv_error:
+                            self.logger.warning(f"Could not convert column '{col}' to numeric: {str(conv_error)}")
+                            # If conversion fails, check if it's actually string data
+                            if data[col].dtype == 'object':
+                                # Check if all values are strings (not numeric)
+                                sample = data[col].dropna().head(10)
+                                if len(sample) > 0 and all(isinstance(x, str) for x in sample):
+                                    self.logger.warning(f"Column '{col}' appears to contain string data, skipping numeric conversion")
+                                    continue
             except Exception as e:
                 self.logger.warning(f"Could not clean data types: {str(e)}")
+                import traceback
+                self.logger.debug(traceback.format_exc())
             
             # Try to use database if available, otherwise use direct pandas display
             try:
@@ -83,8 +104,8 @@ class DataDisplayHelper:
             # Update main window
             self.data_tab.main_window.set_current_file_path("Multiple files")
             
-            # Force treeview refresh
-            self.data_tab.treeview.refresh()
+            # Note: No need to call refresh() here - set_data_source() already updates the visible range
+            # Calling refresh() again would cause duplicate rows
             self.logger.info("Data display completed successfully")
             
         except Exception as e:

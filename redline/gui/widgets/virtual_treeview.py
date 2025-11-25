@@ -8,6 +8,7 @@ import logging
 import tkinter as tk
 from tkinter import ttk
 from typing import List, Dict, Any, Optional
+import threading
 from .data_source import DataSource
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,10 @@ class VirtualScrollingTreeview:
         self.data_source: Optional[DataSource] = None
         self.cached_data: Dict[int, List] = {}
         self.cache_size = 1000  # Number of rows to cache
+        
+        # Lock to prevent concurrent updates
+        self._update_lock = threading.Lock()
+        self._loading = False
         
         # Bind scroll events
         self.tree.bind('<Configure>', self._on_configure)
@@ -66,30 +71,98 @@ class VirtualScrollingTreeview:
         visible_start = int(scroll_pos[0] * self.total_rows)
         visible_end = int(scroll_pos[1] * self.total_rows)
         
+        # Ensure at least one row is visible
+        if visible_end <= visible_start:
+            visible_end = min(visible_start + 10, self.total_rows)
+        
         if visible_start != self.visible_start or visible_end != self.visible_end:
+            self.logger.debug(f"Updating visible range: {self.visible_start}-{self.visible_end} -> {visible_start}-{visible_end}")
             self.visible_start = visible_start
             self.visible_end = visible_end
             self._load_visible_items()
+        else:
+            self.logger.debug(f"Visible range unchanged: {visible_start}-{visible_end}")
     
     def _load_visible_items(self):
         """Load only the visible items into the tree."""
         if not self.data_source:
             return
         
-        # Clear current items
-        self.tree.delete(*self.tree.get_children())
+        # Prevent concurrent loading
+        if self._loading:
+            self.logger.debug("Already loading items, skipping duplicate call")
+            return
         
-        # Load visible items
-        for i in range(self.visible_start, min(self.visible_end + 1, self.total_rows)):
-            if i in self.cached_data:
-                row_data = self.cached_data[i]
-            else:
-                row_data = self.data_source.get_row(i)
-                if len(self.cached_data) < self.cache_size:
-                    self.cached_data[i] = row_data
+        with self._update_lock:
+            if self._loading:
+                return
+            self._loading = True
+        
+        try:
+            # Clear current items first - get all children before deleting to avoid issues
+            children = self.tree.get_children()
+            if children:
+                self.logger.debug(f"Clearing {len(children)} existing items before loading")
+                self.tree.delete(*children)
             
-            # Insert item with row index as identifier
-            item_id = self.tree.insert('', 'end', text=str(i), values=row_data)
+            # Verify tree is empty
+            remaining = self.tree.get_children()
+            if remaining:
+                self.logger.warning(f"Tree still has {len(remaining)} items after delete, forcing clear")
+                # Force clear by deleting individually
+                for item in list(remaining):
+                    try:
+                        self.tree.delete(item)
+                    except:
+                        pass
+            
+            # Load visible items
+            items_to_load = list(range(self.visible_start, min(self.visible_end + 1, self.total_rows)))
+            self.logger.debug(f"Loading {len(items_to_load)} items: rows {self.visible_start} to {min(self.visible_end, self.total_rows - 1)}")
+            
+            inserted_count = 0
+            for i in items_to_load:
+                # Check if item already exists (shouldn't happen after clear, but double-check)
+                existing_iid = f"row_{i}"
+                try:
+                    self.tree.item(existing_iid)
+                    self.logger.warning(f"Row {i} already exists, skipping duplicate")
+                    continue
+                except:
+                    pass  # Item doesn't exist, which is correct
+                
+                if i in self.cached_data:
+                    row_data = self.cached_data[i]
+                else:
+                    row_data = self.data_source.get_row(i)
+                    if len(self.cached_data) < self.cache_size:
+                        self.cached_data[i] = row_data
+                
+                # Insert item with row index as identifier
+                # Use row index as iid to prevent duplicates
+                try:
+                    item_id = self.tree.insert('', 'end', iid=existing_iid, text=str(i), values=row_data)
+                    inserted_count += 1
+                except tk.TclError as e:
+                    # TclError usually means iid already exists
+                    if "already exists" in str(e).lower():
+                        self.logger.warning(f"Row {i} iid already exists, skipping: {str(e)}")
+                        continue
+                    else:
+                        self.logger.error(f"Error inserting row {i}: {str(e)}")
+                        # Try without iid as fallback
+                        try:
+                            item_id = self.tree.insert('', 'end', text=str(i), values=row_data)
+                            inserted_count += 1
+                        except Exception as e2:
+                            self.logger.error(f"Error inserting row {i} without iid: {str(e2)}")
+                except Exception as e:
+                    self.logger.error(f"Unexpected error inserting row {i}: {str(e)}")
+            
+            self.logger.debug(f"Successfully inserted {inserted_count} items")
+            
+        finally:
+            self._loading = False
     
     def set_data_source(self, data_source: DataSource):
         """Set the data source for virtual scrolling."""

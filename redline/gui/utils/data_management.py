@@ -6,10 +6,11 @@ Handles save, clear, search, and filter operations.
 
 import logging
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import messagebox
 import pandas as pd
 
 from ...core.data_loader import DataLoader
+from .safe_file_dialog import safe_asksaveasfilename
 
 logger = logging.getLogger(__name__)
 
@@ -24,22 +25,28 @@ class DataManagementHelper:
     
     def save_current_data(self):
         """Save current data to file."""
+        import traceback
+        from .safe_file_dialog import safe_asksaveasfilename  # Import here to avoid cache issues
+        self.logger.info(f"🔍 DataManagementHelper.save_current_data() called")
+        self.logger.debug(f"   Call stack:\n{''.join(traceback.format_stack()[-5:-1])}")
         if self.data_tab.current_data is None or self.data_tab.current_data.empty:
             self.data_tab.main_window.show_warning_message("Warning", "No data to save")
             return
         
         try:
-            # Open save dialog
-            file_path = filedialog.asksaveasfilename(
+            # Open save dialog - let safe wrapper handle all validation
+            filetypes = [
+                ("CSV files", "*.csv"),
+                ("JSON files", "*.json"),
+                ("Parquet files", "*.parquet"),
+                ("Feather files", "*.feather"),
+                ("All files", "*.*")
+            ]
+            
+            file_path = safe_asksaveasfilename(
                 title="Save Data As",
                 defaultextension=".csv",
-                filetypes=[
-                    ("CSV files", "*.csv"),
-                    ("JSON files", "*.json"),
-                    ("Parquet files", "*.parquet"),
-                    ("Feather files", "*.feather"),
-                    ("All files", "*.*")
-                ]
+                filetypes=filetypes
             )
             
             if file_path:
@@ -76,7 +83,9 @@ class DataManagementHelper:
         self.data_tab.unsaved_changes = False
         
         if self.data_tab.current_data_source:
-            self.data_tab.current_data_source.close()
+            # Only call close() if it's an object with a close method, not a string
+            if hasattr(self.data_tab.current_data_source, 'close'):
+                self.data_tab.current_data_source.close()
             self.data_tab.current_data_source = None
         
         self.data_tab.status_label.config(text="No data loaded")

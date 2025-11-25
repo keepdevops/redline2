@@ -6,21 +6,10 @@ Enhanced database connector with connection pooling and query caching for improv
 
 import logging
 import pandas as pd
-import threading
-import time
-import hashlib
 from typing import Union, Dict, Any, Optional, List
 from functools import lru_cache
-import queue
 
 # Optional dependencies
-try:
-    import duckdb
-    DUCKDB_AVAILABLE = True
-except ImportError:
-    duckdb = None
-    DUCKDB_AVAILABLE = False
-
 try:
     import polars as pl
     POLARS_AVAILABLE = True
@@ -35,156 +24,10 @@ except ImportError:
     pa = None
     PYARROW_AVAILABLE = False
 
+from .connection_pool import ConnectionPool
+from .query_cache import QueryCache
+
 logger = logging.getLogger(__name__)
-
-class ConnectionPool:
-    """Thread-safe connection pool for database connections."""
-    
-    def __init__(self, db_path: str, max_connections: int = 10):
-        """Initialize connection pool."""
-        self.db_path = db_path
-        self.max_connections = max_connections
-        self.pool = queue.Queue(maxsize=max_connections)
-        self.lock = threading.Lock()
-        self.active_connections = 0
-        self.logger = logging.getLogger(__name__)
-        
-        # Pre-populate pool with initial connections
-        self._initialize_pool()
-    
-    def _initialize_pool(self):
-        """Initialize the connection pool with initial connections."""
-        try:
-            for _ in range(min(3, self.max_connections)):  # Start with 3 connections
-                conn = self._create_connection()
-                self.pool.put(conn)
-                self.active_connections += 1
-            self.logger.info(f"Initialized connection pool with {self.active_connections} connections")
-        except Exception as e:
-            self.logger.error(f"Failed to initialize connection pool: {str(e)}")
-    
-    def _create_connection(self):
-        """Create a new database connection."""
-        if not DUCKDB_AVAILABLE:
-            raise ImportError("duckdb not available. Please install duckdb to use database features.")
-        
-        try:
-            import os
-            os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
-            conn = duckdb.connect(self.db_path)
-            return conn
-        except Exception as e:
-            self.logger.error(f"Failed to create database connection: {str(e)}")
-            raise
-    
-    def get_connection(self, timeout: int = 30):
-        """Get a connection from the pool."""
-        try:
-            # Try to get existing connection
-            conn = self.pool.get(timeout=timeout)
-            return conn
-        except queue.Empty:
-            # Pool is empty, try to create new connection
-            with self.lock:
-                if self.active_connections < self.max_connections:
-                    conn = self._create_connection()
-                    self.active_connections += 1
-                    self.logger.debug(f"Created new connection. Active: {self.active_connections}")
-                    return conn
-                else:
-                    # Wait for a connection to become available
-                    conn = self.pool.get(timeout=timeout)
-                    return conn
-    
-    def return_connection(self, conn):
-        """Return a connection to the pool."""
-        try:
-            self.pool.put_nowait(conn)
-        except queue.Full:
-            # Pool is full, close the connection
-            conn.close()
-            with self.lock:
-                self.active_connections -= 1
-            self.logger.debug(f"Closed excess connection. Active: {self.active_connections}")
-    
-    def close_all(self):
-        """Close all connections in the pool."""
-        with self.lock:
-            while not self.pool.empty():
-                try:
-                    conn = self.pool.get_nowait()
-                    conn.close()
-                except queue.Empty:
-                    break
-            self.active_connections = 0
-        self.logger.info("Closed all connections in pool")
-
-class QueryCache:
-    """Thread-safe query result cache with TTL."""
-    
-    def __init__(self, max_size: int = 128, ttl_seconds: int = 300):
-        """Initialize query cache."""
-        self.max_size = max_size
-        self.ttl_seconds = ttl_seconds
-        self.cache: Dict[str, Dict[str, Any]] = {}
-        self.lock = threading.RLock()
-        self.logger = logging.getLogger(__name__)
-    
-    def _generate_key(self, query: str, params: Dict[str, Any] = None) -> str:
-        """Generate cache key for query and parameters."""
-        cache_string = f"{query}:{str(params) if params else ''}"
-        return hashlib.md5(cache_string.encode()).hexdigest()
-    
-    def get(self, query: str, params: Dict[str, Any] = None) -> Optional[pd.DataFrame]:
-        """Get cached query result."""
-        with self.lock:
-            key = self._generate_key(query, params)
-            
-            if key in self.cache:
-                cached_item = self.cache[key]
-                
-                # Check TTL
-                if time.time() - cached_item['timestamp'] < self.ttl_seconds:
-                    self.logger.debug(f"Cache hit for query: {query[:50]}...")
-                    return cached_item['result'].copy()
-                else:
-                    # Expired, remove from cache
-                    del self.cache[key]
-                    self.logger.debug(f"Cache expired for query: {query[:50]}...")
-            
-            return None
-    
-    def set(self, query: str, result: pd.DataFrame, params: Dict[str, Any] = None):
-        """Cache query result."""
-        with self.lock:
-            # Remove oldest entries if cache is full
-            while len(self.cache) >= self.max_size:
-                oldest_key = min(self.cache.keys(), key=lambda k: self.cache[k]['timestamp'])
-                del self.cache[oldest_key]
-            
-            key = self._generate_key(query, params)
-            self.cache[key] = {
-                'result': result.copy(),
-                'timestamp': time.time()
-            }
-            self.logger.debug(f"Cached query result: {query[:50]}...")
-    
-    def clear(self):
-        """Clear all cached results."""
-        with self.lock:
-            self.cache.clear()
-        self.logger.info("Cleared query cache")
-    
-    def get_stats(self) -> Dict[str, Any]:
-        """Get cache statistics."""
-        with self.lock:
-            return {
-                'size': len(self.cache),
-                'max_size': self.max_size,
-                'ttl_seconds': self.ttl_seconds,
-                'oldest_entry': min((item['timestamp'] for item in self.cache.values()), default=None),
-                'newest_entry': max((item['timestamp'] for item in self.cache.values()), default=None)
-            }
 
 class OptimizedDatabaseConnector:
     """Optimized database connector with connection pooling and query caching."""

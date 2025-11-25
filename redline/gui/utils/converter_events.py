@@ -51,7 +51,7 @@ class ConverterEventsHelper:
             return
             
         # Clear previous results
-        self.converter_tab.clear_results()
+        self.clear_results()
         
         # Start conversion in thread
         self.converter_tab.stop_event.clear()

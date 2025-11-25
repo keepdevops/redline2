@@ -7,8 +7,9 @@ Handles file loading, browsing, and file-related operations.
 import logging
 import os
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, messagebox
 from pathlib import Path
+from .safe_file_dialog import safe_askopenfilenames
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +24,12 @@ class FileOperationsHelper:
     
     def open_file_dialog(self):
         """Open file dialog to select data files."""
+        import traceback
+        self.logger.info(f"🔍 FileOperationsHelper.open_file_dialog() called")
+        self.logger.debug(f"   Call stack:\n{''.join(traceback.format_stack()[-5:-1])}")
         try:
-            # Supported file types
+            # Supported file types - let safe wrapper handle all validation
+            # Note: Avoid semicolon-separated patterns on macOS - they can cause crashes
             filetypes = [
                 ("CSV files", "*.csv"),
                 ("TXT files", "*.txt"),
@@ -32,12 +37,11 @@ class FileOperationsHelper:
                 ("Parquet files", "*.parquet"),
                 ("Feather files", "*.feather"),
                 ("DuckDB files", "*.duckdb"),
-                ("All supported files", "*.csv;*.txt;*.json;*.parquet;*.feather;*.duckdb"),
                 ("All files", "*.*")
             ]
             
-            # Open file dialog
-            file_paths = filedialog.askopenfilenames(
+            # Open file dialog using macOS-safe wrapper (handles all validation)
+            file_paths = safe_askopenfilenames(
                 title="Select Data Files",
                 filetypes=filetypes,
                 initialdir=os.path.expanduser("~")
@@ -104,8 +108,9 @@ class FileOperationsHelper:
                 messagebox.showerror("Error", f"File not found: {file_path}")
                 return None
             
-            # Use the data tab's loader
-            loader = self.data_tab.loader
+            # Use the data tab's converter (FormatConverter)
+            from redline.core.format_converter import FormatConverter
+            converter = FormatConverter()
             
             # Detect file format
             ext = os.path.splitext(file_path)[1].lower()
@@ -121,15 +126,16 @@ class FileOperationsHelper:
             
             # Load the data
             self.logger.info(f"Loading file: {file_path} (format: {format_type})")
-            data = loader.load_file(file_path, format_type)
+            data = converter.load_file_by_type(file_path, format_type)
             
             if data is None or (hasattr(data, 'empty') and data.empty):
                 messagebox.showwarning("Warning", f"No data loaded from: {file_path}")
                 return None
             
             # Store in data tab
+            # Note: current_data_source will be set by _display_data() as a DataSource object
+            # Don't set it here as a string, as cleanup_resources() expects an object with .close()
             self.data_tab.current_data = data
-            self.data_tab.current_data_source = file_path
             self.data_tab.current_format = format_type
             self.data_tab.unsaved_changes = False
             
@@ -147,6 +153,8 @@ class FileOperationsHelper:
             if hasattr(self.data_tab, 'main_window'):
                 self.data_tab.main_window.set_current_file_path(file_path)
             
+            # Get num_rows for logging
+            num_rows = len(data) if hasattr(data, '__len__') else 0
             self.logger.info(f"Successfully loaded {num_rows} rows from {file_path}")
             return data
             

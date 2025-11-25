@@ -180,8 +180,19 @@ class DatabaseConnector:
             if '<TICKER>' in db_data.columns:
                 db_data['ticker'] = db_data['<TICKER>']
             if '<DATE>' in db_data.columns:
-                # Convert YYYYMMDD to proper timestamp
-                db_data['timestamp'] = pd.to_datetime(db_data['<DATE>'], format='%Y%m%d')
+                # Convert date to proper timestamp - handle multiple formats
+                try:
+                    # Try YYYYMMDD format first (Stooq format)
+                    db_data['timestamp'] = pd.to_datetime(db_data['<DATE>'], format='%Y%m%d', errors='coerce')
+                    # If that fails, try ISO8601 format (YYYY-MM-DD)
+                    if db_data['timestamp'].isna().any():
+                        db_data['timestamp'] = pd.to_datetime(db_data['<DATE>'], format='ISO8601', errors='coerce')
+                    # If still fails, try inferring format
+                    if db_data['timestamp'].isna().any():
+                        db_data['timestamp'] = pd.to_datetime(db_data['<DATE>'], errors='coerce')
+                except Exception as e:
+                    # Fallback to auto-detection
+                    db_data['timestamp'] = pd.to_datetime(db_data['<DATE>'], errors='coerce')
             if '<OPEN>' in db_data.columns:
                 db_data['open'] = db_data['<OPEN>']
             if '<HIGH>' in db_data.columns:

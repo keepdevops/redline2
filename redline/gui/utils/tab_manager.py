@@ -69,7 +69,9 @@ class TabManagerHelper:
         """Handle tab change events."""
         try:
             current_tab = self.main_window.notebook.tab(self.main_window.notebook.select(), "text")
-            self.main_window.logger.info(f"Switched to tab: {current_tab}")
+            self.main_window.logger.info(f"🔄 Switched to tab: {current_tab}")
+            import traceback
+            self.main_window.logger.debug(f"   Tab switch call stack:\n{''.join(traceback.format_stack()[-8:-1])}")
             
             # Update status label
             if hasattr(self.main_window, 'status_label'):
@@ -85,14 +87,20 @@ class TabManagerHelper:
             
             # Notify the active tab of the change
             if current_tab == "Data" and hasattr(self.main_window, 'data_tab'):
+                self.main_window.logger.info(f"📊 Activating Data tab...")
                 self.main_window.data_tab.on_tab_activated()
+                self.main_window.logger.info(f"✅ Data tab activated")
             elif current_tab == "Analysis" and hasattr(self.main_window, 'analysis_tab'):
+                self.main_window.logger.info(f"📈 Activating Analysis tab...")
                 self.main_window.analysis_tab.on_tab_activated()
             elif current_tab == "Download/API" and hasattr(self.main_window, 'download_tab'):
+                self.main_window.logger.info(f"⬇️ Activating Download tab...")
                 self.main_window.download_tab.on_tab_activated()
             elif current_tab == "Converter" and hasattr(self.main_window, 'converter_tab'):
+                self.main_window.logger.info(f"🔄 Activating Converter tab...")
                 self.main_window.converter_tab.on_tab_activated()
             elif current_tab == "Settings" and hasattr(self.main_window, 'settings_tab'):
+                self.main_window.logger.info(f"⚙️ Activating Settings tab...")
                 self.main_window.settings_tab.on_tab_activated()
                 
         except Exception as e:

@@ -239,9 +239,15 @@ class DataTab:
     
     def on_tab_activated(self):
         """Handle tab activation."""
+        self.logger.info(f"📊 DataTab.on_tab_activated() called")
+        import traceback
+        self.logger.debug(f"   Call stack:\n{''.join(traceback.format_stack()[-5:-1])}")
         # Refresh data when tab becomes active
         if self.current_data is not None:
+            self.logger.info(f"   Refreshing data (current_data exists)")
             self.refresh_data()
+        else:
+            self.logger.info(f"   No current_data to refresh")
     
     def on_window_resize(self):
         """Handle window resize events."""
@@ -266,7 +272,9 @@ class DataTab:
         """Clean up resources."""
         try:
             if self.current_data_source:
-                self.current_data_source.close()
+                # Only call close() if it's an object with a close method, not a string
+                if hasattr(self.current_data_source, 'close'):
+                    self.current_data_source.close()
                 self.current_data_source = None
         except Exception as e:
             self.logger.error(f"Error cleaning up data tab resources: {str(e)}")

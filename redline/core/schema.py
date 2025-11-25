@@ -4,35 +4,70 @@ REDLINE Core Schema Definitions
 Defines data schemas and format mappings for financial data processing.
 """
 
+# Check for optional dependencies
+try:
+    import tensorflow as tf
+    TENSORFLOW_AVAILABLE = True
+except ImportError:
+    TENSORFLOW_AVAILABLE = False
+
+try:
+    import pyarrow as pa
+    PYARROW_AVAILABLE = True
+except ImportError:
+    PYARROW_AVAILABLE = False
+
+try:
+    import polars as pl
+    POLARS_AVAILABLE = True
+except ImportError:
+    POLARS_AVAILABLE = False
+
 # Standard REDLINE data schema
 SCHEMA = ['ticker', 'timestamp', 'open', 'high', 'low', 'close', 'vol', 'openint', 'format']
 
-# File extension to format mapping
-EXT_TO_FORMAT = {
+# File extension to format mapping (base formats always available)
+_EXT_TO_FORMAT_BASE = {
     '.csv': 'csv',
     '.json': 'json',
     '.duckdb': 'duckdb',
     '.parquet': 'parquet',
     '.feather': 'feather',
     '.txt': 'txt',
-    '.h5': 'keras',
-    '.npz': 'tensorflow',
-    '.arrow': 'pyarrow'
 }
 
-# File dialog information mapping
-FORMAT_DIALOG_INFO = {
+# Add optional formats based on availability
+if TENSORFLOW_AVAILABLE:
+    _EXT_TO_FORMAT_BASE['.h5'] = 'keras'
+    _EXT_TO_FORMAT_BASE['.npz'] = 'tensorflow'
+
+if PYARROW_AVAILABLE:
+    _EXT_TO_FORMAT_BASE['.arrow'] = 'pyarrow'
+
+EXT_TO_FORMAT = _EXT_TO_FORMAT_BASE
+
+# File dialog information mapping (base formats)
+_FORMAT_DIALOG_INFO_BASE = {
     'csv':     ('.csv',     'CSV Files', '*.csv'),
     'txt':     ('.txt',     'TXT Files', '*.txt'),
     'json':    ('.json',    'JSON Files', '*.json'),
     'duckdb':  ('.duckdb',  'DuckDB Files', '*.duckdb'),
     'parquet': ('.parquet', 'Parquet Files', '*.parquet'),
     'feather': ('.feather', 'Feather Files', '*.feather'),
-    'keras':   ('.h5',      'Keras Model', '*.h5'),
-    'tensorflow': ('.npz',  'TensorFlow NumPy', '*.npz'),
-    'pyarrow': ('.arrow',   'Apache Arrow', '*.arrow'),
-    'polars':  ('.parquet', 'Polars DataFrame', '*.parquet')
 }
+
+# Add optional formats based on availability
+if TENSORFLOW_AVAILABLE:
+    _FORMAT_DIALOG_INFO_BASE['keras'] = ('.h5', 'Keras Model', '*.h5')
+    _FORMAT_DIALOG_INFO_BASE['tensorflow'] = ('.npz', 'TensorFlow NumPy', '*.npz')
+
+if PYARROW_AVAILABLE:
+    _FORMAT_DIALOG_INFO_BASE['pyarrow'] = ('.arrow', 'Apache Arrow', '*.arrow')
+
+if POLARS_AVAILABLE:
+    _FORMAT_DIALOG_INFO_BASE['polars'] = ('.parquet', 'Polars DataFrame', '*.parquet')
+
+FORMAT_DIALOG_INFO = _FORMAT_DIALOG_INFO_BASE
 
 # Stooq format columns for validation
 STOOQ_COLUMNS = ['<TICKER>', '<DATE>', '<TIME>', '<OPEN>', '<HIGH>', '<LOW>', '<CLOSE>', '<VOL>']
