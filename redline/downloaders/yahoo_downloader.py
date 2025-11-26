@@ -12,19 +12,54 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any
 from .base_downloader import BaseDownloader
 from .exceptions import RateLimitError
+from .yahoo_date_handler import YahooDateHandler
+from .yahoo_error_handler import YahooErrorHandler
+from .yahoo_data_formatter import YahooDataFormatter
+
+logger = logging.getLogger(__name__)
+
+# Disable browser impersonation in yfinance (like tkinter version)
+# This prevents "Impersonating chrome136 is not supported" errors
+# Set environment variable BEFORE importing yfinance
+os.environ['YF_NO_BROWSER_IMPERSONATION'] = '1'
+os.environ['CURL_IMPERSONATE'] = ''  # Also disable curl_cffi impersonation
 
 # Import yfinance
 # Note: yfinance 0.2.66+ uses curl_cffi by default
-# Setting CURL_IMPERSONATE=0 was causing curl error 43, so we removed it
-# Let curl_cffi use its default settings (which should work better)
+# We disable browser impersonation to match tkinter behavior
 try:
     import yfinance as yf
+    
+    # Monkey-patch yfinance to force no impersonation
+    # Patch the session creation in yfinance.utils to use impersonate=None
+    try:
+        import yfinance.utils as yf_utils
+        import curl_cffi.requests as curl_requests
+        
+        # Store original session creation
+        _original_session = curl_requests.Session
+        
+        # Create a wrapper that forces impersonate=None
+        class NoImpersonateSession(curl_requests.Session):
+            def __init__(self, *args, **kwargs):
+                # Force impersonate=None
+                kwargs['impersonate'] = None
+                super().__init__(*args, **kwargs)
+        
+        # Patch curl_requests.Session to use our no-impersonate version
+        # Only if not already patched
+        if not hasattr(curl_requests.Session, '_redline_patched'):
+            curl_requests.Session = NoImpersonateSession
+            curl_requests.Session._redline_patched = True
+            logger.debug("Patched curl_cffi.Session to disable browser impersonation")
+    except Exception as patch_error:
+        # If patching fails, log but continue - env var should still work
+        logger.warning(f"Could not patch yfinance session creation: {patch_error}")
+    
 except ImportError as e:
     logger.error(f"Failed to import yfinance: {e}")
     logger.error("Install with: pip install yfinance")
     raise
-
-logger = logging.getLogger(__name__)
 
 class YahooDownloader(BaseDownloader):
     """Yahoo Finance data downloader."""
@@ -36,14 +71,23 @@ class YahooDownloader(BaseDownloader):
         self.logger = logging.getLogger(__name__)
         
         # Rate limiting - increased delay to avoid rate limiting
+        # Yahoo Finance is very aggressive with rate limiting, so we use longer delays
         self.last_request_time = 0
-        self.min_request_interval = 5.0  # 5 seconds between requests to avoid rate limiting
+        self.min_request_interval = 60.0  # 60 seconds (1 minute) between requests to avoid rate limiting
+        self.rate_limit_backoff_multiplier = 2.0  # Double the delay after each rate limit
+        self.max_request_interval = 600.0  # Maximum 10 minutes between requests
+        self.initial_delay = 10.0  # Wait 10 seconds before first request
         # rate_limit_lock will be initialized by base class _rate_limit() method
         
         # Note: yfinance 0.2.66+ uses curl_cffi by default
-        # We removed CURL_IMPERSONATE=0 because it was causing curl error 43
-        # curl_cffi now uses its default settings which should work better
-        self.logger.debug("yfinance using curl_cffi with default settings")
+        # Browser impersonation is disabled via YF_NO_BROWSER_IMPERSONATION=1 (set before import)
+        # This matches the tkinter version behavior and prevents impersonation errors
+        self.logger.debug("yfinance using curl_cffi without browser impersonation (YF_NO_BROWSER_IMPERSONATION=1)")
+        
+        # Initialize helper classes
+        self.date_handler = YahooDateHandler()
+        self.error_handler = YahooErrorHandler()
+        self.data_formatter = YahooDataFormatter()
     
     def download_single_ticker(self, ticker: str, start_date: str = None, end_date: str = None) -> pd.DataFrame:
         """
@@ -59,29 +103,16 @@ class YahooDownloader(BaseDownloader):
         """
         try:
             # Apply rate limiting
+            # Add initial delay if this is the first request
+            if self.last_request_time == 0:
+                self.logger.info(f"Initial delay of {self.initial_delay} seconds before first Yahoo Finance request")
+                time.sleep(self.initial_delay)
+            
             self._rate_limit()
             
-            # Parse dates
-            start_dt = datetime.strptime(start_date, '%Y-%m-%d') if start_date else None
-            end_dt = datetime.strptime(end_date, '%Y-%m-%d') if end_date else None
-            
-            # Validate dates
+            # Parse and validate dates using helper
+            start_dt, end_dt, start_date, end_date = self.date_handler.parse_and_validate_dates(start_date, end_date)
             today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)  # Normalize to midnight
-            if end_dt and end_dt > today:
-                self.logger.warning(f"End date {end_date} is in the future, adjusting to today")
-                end_dt = today
-                end_date = today.strftime('%Y-%m-%d')
-            
-            if start_dt and end_dt and start_dt > end_dt:
-                raise ValueError(f"Start date {start_date} cannot be after end date {end_date}")
-            
-            # Ensure minimum date range (at least 1 day)
-            if start_dt and end_dt:
-                days_diff = (end_dt - start_dt).days
-                if days_diff < 1:
-                    self.logger.warning(f"Date range too short ({days_diff} days), extending to 1 day")
-                    start_dt = end_dt - timedelta(days=1)
-                    start_date = start_dt.strftime('%Y-%m-%d')
             
             # Download data using yfinance
             # yfinance 0.2.66+ uses curl_cffi by default (not requests)
@@ -96,22 +127,7 @@ class YahooDownloader(BaseDownloader):
                     if end_dt.date() == today.date():
                         # End date is today - use period-based download to avoid future date issues
                         days_diff = (end_dt - start_dt).days
-                        if days_diff <= 5:
-                            period = "5d"
-                        elif days_diff <= 30:
-                            period = "1mo"
-                        elif days_diff <= 90:
-                            period = "3mo"
-                        elif days_diff <= 180:
-                            period = "6mo"
-                        elif days_diff <= 365:
-                            period = "1y"
-                        elif days_diff <= 730:
-                            period = "2y"
-                        elif days_diff <= 1825:
-                            period = "5y"
-                        else:
-                            period = "max"
+                        period = self.date_handler.calculate_period(days_diff)
                         
                         self.logger.debug(f"Using period-based download: {period} (date range: {days_diff} days)")
                         data = ticker_obj.history(period=period)
@@ -130,23 +146,11 @@ class YahooDownloader(BaseDownloader):
                             except Exception as fallback_error:
                                 self.logger.debug(f"Fallback to yesterday end date also failed: {fallback_error}")
                         
-                        # Filter to the requested date range
-                        if not data.empty:
-                            # Normalize timezone-aware index to timezone-naive for comparison
-                            if hasattr(data.index, 'tz') and data.index.tz is not None:
-                                data.index = data.index.tz_localize(None)
-                            
-                            if start_dt:
-                                data = data[data.index >= start_dt]
-                            if end_dt:
-                                # Include data up to and including end date
-                                data = data[data.index <= end_dt]
+                        # Filter to the requested date range using helper
+                        data = self.date_handler.normalize_timezone(data, start_dt, end_dt)
                     else:
                         # End date is in the past - safe to add 1 day for inclusive end
-                        end_dt_inclusive = end_dt + timedelta(days=1)
-                        # Ensure we don't go beyond today
-                        if end_dt_inclusive > today:
-                            end_dt_inclusive = today + timedelta(days=1)
+                        end_dt_inclusive = self.date_handler.get_inclusive_end_date(end_dt, today)
                         data = ticker_obj.history(start=start_dt, end=end_dt_inclusive)
                 elif start_dt:
                     data = ticker_obj.history(start=start_dt)
@@ -154,83 +158,33 @@ class YahooDownloader(BaseDownloader):
                     # Default to 1 year if no dates provided
                     data = ticker_obj.history(period="1y")
             except Exception as history_error:
-                # Check if this is a rate limit error from yfinance
+                # Use error handler to detect and handle errors
                 error_msg = str(history_error)
-                error_lower = error_msg.lower()
-                
-                # Detect rate limiting indicators
-                is_rate_limit = (
-                    "too many requests" in error_lower or
-                    "rate limit" in error_lower or
-                    "429" in error_msg or
-                    "throttled" in error_lower or
-                    "exceeded" in error_lower and "request" in error_lower
-                )
-                
-                # Detect yfinance library errors (not "no data" errors)
-                is_yfinance_error = (
-                    "impersonating" in error_lower or
-                    "user-agent" in error_lower or
-                    "not supported" in error_lower or
-                    "yfinance" in error_lower or
-                    "curl_cffi" in error_lower or
-                    "setopt" in error_lower
-                )
-                
-                # Check for HTTPError with 429 status
-                if hasattr(history_error, 'response'):
-                    try:
-                        if hasattr(history_error.response, 'status_code'):
-                            if history_error.response.status_code == 429:
-                                is_rate_limit = True
-                    except:
-                        pass
+                error_type, is_rate_limit = self.error_handler.detect_error_type(history_error, error_msg)
                 
                 if is_rate_limit:
-                    self.logger.warning(f"Rate limited for {ticker} from Yahoo Finance")
-                    # Increase delay for next request
-                    self.min_request_interval = min(self.min_request_interval * 1.5, 30.0)
-                    # Raise RateLimitError with retry information
-                    retry_after = int(self.min_request_interval * 12)  # Suggest waiting ~12x the interval
-                    raise RateLimitError(
-                        f'Rate limit exceeded for Yahoo Finance while downloading {ticker}',
-                        retry_after=retry_after,
-                        source='yahoo'
+                    # Increase delay for next request with exponential backoff
+                    self.min_request_interval = min(
+                        self.min_request_interval * self.rate_limit_backoff_multiplier,
+                        self.max_request_interval
                     )
-                elif is_yfinance_error:
-                    # yfinance library error - raise with descriptive message
-                    self.logger.error(f"yfinance library error for {ticker}: {error_msg}")
-                    # Raise exception so route can return 503, not 404
-                    raise Exception(f'yfinance library error: {error_msg}. This may be a temporary issue with Yahoo Finance. Please try again in a few moments or use a different data source (e.g., Stooq).')
-                elif 'curl' in error_lower or 'setopt' in error_lower or 'curl_cffi' in error_lower:
-                    # curl_cffi errors (like "Failed to setopt") - library compatibility issue
-                    # Error 43 typically means CURLE_BAD_FUNCTION_ARGUMENT or similar
-                    self.logger.error(f"curl_cffi library error for {ticker}: {error_msg}")
-                    
-                    # Provide specific guidance for curl errors
-                    # Error 43 = CURLE_BAD_FUNCTION_ARGUMENT - typically a curl_cffi compatibility issue
-                    if 'setopt' in error_lower and ('10002' in error_msg or '43' in error_msg or 'curl: (43)' in error_msg):
-                        helpful_msg = (
-                            f'curl_cffi library error (curl error 43): This is a low-level library compatibility issue. '
-                            f'Possible solutions: (1) Update curl_cffi: pip install --upgrade curl-cffi, '
-                            f'(2) Use Stooq data source instead, (3) Wait a few minutes and retry, '
-                            f'or (4) Restart the application. Error details: {error_msg}'
-                        )
-                    else:
-                        helpful_msg = (
-                            f'Yahoo Finance connection error (curl_cffi): {error_msg}. '
-                            f'This may be a temporary library issue. Try: (1) Use Stooq data source, '
-                            f'(2) Wait and retry, or (3) Update curl_cffi: pip install --upgrade curl-cffi'
-                        )
-                    
+                    self.logger.warning(
+                        f"Rate limit detected for {ticker}. "
+                        f"Increasing delay to {self.min_request_interval:.1f} seconds"
+                    )
+                    # Raise RateLimitError with retry information
+                    raise self.error_handler.handle_rate_limit_error(ticker, self.min_request_interval)
+                elif error_type in ('yfinance_error', 'curl_error'):
+                    # yfinance/curl library error - raise with descriptive message
+                    self.logger.error(f"{error_type} for {ticker}: {error_msg}")
+                    helpful_msg = self.error_handler.create_error_message(error_type, error_msg, ticker)
                     raise Exception(helpful_msg)
                 else:
                     # Re-raise other errors
                     raise
             
             # Normalize timezone-aware index to timezone-naive for consistency
-            if not data.empty and hasattr(data.index, 'tz') and data.index.tz is not None:
-                data.index = data.index.tz_localize(None)
+            data = self.data_formatter.normalize_timezone_index(data)
             
             # Check if data is empty - this could indicate rate limiting or no data
             if data.empty:
@@ -275,8 +229,8 @@ class YahooDownloader(BaseDownloader):
                     )
                 return pd.DataFrame()
             
-            # Standardize the data
-            standardized_data = self.standardize_yahoo_data(data, ticker)
+            # Standardize the data using formatter
+            standardized_data = self.data_formatter.standardize_data(data, ticker)
             
             self.logger.info(f"Downloaded {len(standardized_data)} records for {ticker}")
             return standardized_data
@@ -290,70 +244,12 @@ class YahooDownloader(BaseDownloader):
             error_lower = error_msg.lower()
             
             # If it's a yfinance/curl error, re-raise so route can return 503
-            if ('yfinance' in error_lower or 'impersonating' in error_lower or 
-                'curl' in error_lower or 'setopt' in error_lower or 'curl_cffi' in error_lower):
+            if self.error_handler.is_yfinance_related_error(error_msg):
                 self.logger.error(f"yfinance/curl error for {ticker}: {error_msg}")
                 raise  # Re-raise so route can handle it properly
             
             # For other errors, log and return empty DataFrame
             self.logger.error(f"Error downloading {ticker} from Yahoo Finance: {error_msg}")
-            return pd.DataFrame()
-    
-    def standardize_yahoo_data(self, data: pd.DataFrame, ticker: str) -> pd.DataFrame:
-        """
-        Standardize Yahoo Finance data to REDLINE format.
-        
-        Args:
-            data: Raw DataFrame from Yahoo Finance
-            ticker: Ticker symbol
-            
-        Returns:
-            Standardized DataFrame
-        """
-        try:
-            # Create a copy to avoid modifying original
-            df = data.copy()
-            
-            # Reset index to make Date a column
-            df = df.reset_index()
-            
-            # Handle timezone-aware timestamps
-            try:
-                df['Date'] = pd.to_datetime(df['Date'], utc=True)
-                df['Date'] = df['Date'].dt.tz_localize(None)  # Remove timezone
-                df['<DATE>'] = df['Date'].dt.strftime('%Y%m%d')
-            except:
-                df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-                df['<DATE>'] = df['Date'].dt.strftime('%Y%m%d')
-            
-            # Map to Stooq format
-            df['<TICKER>'] = ticker
-            df['<TIME>'] = '000000'  # Default time for daily data
-            df['<OPEN>'] = df['Open']
-            df['<HIGH>'] = df['High']
-            df['<LOW>'] = df['Low']
-            df['<CLOSE>'] = df['Close']
-            df['<VOL>'] = df['Volume']
-            
-            # Select Stooq columns in correct order
-            stooq_columns = ['<TICKER>', '<DATE>', '<TIME>', '<OPEN>', '<HIGH>', '<LOW>', '<CLOSE>', '<VOL>']
-            df_stooq = df[stooq_columns].copy()
-            
-            # Handle missing values
-            df_stooq = df_stooq.dropna(subset=['<TICKER>', '<DATE>', '<CLOSE>'])
-            
-            # Ensure numeric columns are properly formatted
-            numeric_cols = ['<OPEN>', '<HIGH>', '<LOW>', '<CLOSE>', '<VOL>']
-            for col in numeric_cols:
-                df_stooq[col] = pd.to_numeric(df_stooq[col], errors='coerce')
-            
-            # Remove rows with invalid numeric data
-            df_stooq = df_stooq.dropna(subset=numeric_cols)
-            
-            return df_stooq
-            
-        except Exception as e:
-            self.logger.error(f"Error standardizing Yahoo data for {ticker}: {str(e)}")
             return pd.DataFrame()
     
     def get_ticker_info(self, ticker: str) -> Dict[str, Any]:

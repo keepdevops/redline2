@@ -31,6 +31,7 @@ services:
       - GUNICORN_THREADS=2
       - LICENSE_SERVER_URL=http://host.docker.internal:5001
       - REQUIRE_LICENSE_SERVER=false
+      - YF_NO_BROWSER_IMPERSONATION=1
     restart: unless-stopped
     # Start file watcher in background (auto-copies Downloads to data/stooq)
     # Uses simple polling version (no watchdog dependency needed)

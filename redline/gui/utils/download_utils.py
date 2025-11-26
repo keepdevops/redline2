@@ -186,6 +186,9 @@ class DownloadUtilsHelper:
             try:
                 if source == "yahoo":
                     # Test Yahoo Finance API
+                    # Set environment variable before importing yfinance
+                    import os
+                    os.environ['YF_NO_BROWSER_IMPERSONATION'] = '1'
                     import yfinance as yf
                     test_ticker = yf.Ticker("AAPL")
                     info = test_ticker.info

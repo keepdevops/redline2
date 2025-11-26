@@ -15,6 +15,7 @@ from .file_filters import apply_filters
 from .chunked_loading import load_large_file_chunked
 from ...core.format_loaders import FormatLoaders
 from ...core.format_savers import FormatSavers
+from ...core.schema import detect_format_from_path  # Centralized format detection
 
 logger = logging.getLogger(__name__)
 
@@ -57,5 +58,6 @@ __all__ = [
     'load_file_by_format',
     'save_file_by_format',
     'apply_filters',
-    'load_large_file_chunked'
+    'load_large_file_chunked',
+    'detect_format_from_path'  # Re-export for backward compatibility
 ]
