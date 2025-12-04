@@ -9,6 +9,7 @@ ENV FLASK_APP=web_app.py
 ENV FLASK_ENV=production
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV FLASK_RUN_PORT=5000
+ENV CURL_IMPERSONATE=0
 
 # GTK and accessibility settings to prevent warnings
 ENV GTK_MODULES=""

@@ -1,7 +1,7 @@
 # REDLINE Core Dependencies - Multi-Platform Compatible (Python 3.11+)
 pandas>=2.3.3
 numpy>=2.3.5
-yfinance>=0.2.66
+yfinance==0.2.40  # Downgraded from 0.2.66 to fix chrome136 impersonation error
 
 # Data Source Client Libraries (Optional - fallback to REST API if not installed)
 massive>=2.0.1  # Massive.com client library (optional - falls back to REST API if not installed)
@@ -60,6 +60,7 @@ flake8>=7.3.0  # Updated for security patches
 # Updated for security vulnerabilities (Jan 2025) - using latest available versions
 requests>=2.32.5
 urllib3>=2.5.0
+curl-cffi>=0.7.0  # Required by yfinance for Yahoo Finance API access
 h2>=4.3.0  # Fixes CVE-2025-57804 (HTTP/2 request splitting)
 brotli>=1.2.0  # Updated - fixes CVE-2025-6176 (security update now available)
 

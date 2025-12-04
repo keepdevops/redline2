@@ -6,6 +6,11 @@ Flask-based web interface for REDLINE application
 
 import os
 import sys
+
+# CRITICAL: Set CURL_IMPERSONATE=0 BEFORE any imports that use yfinance
+# This fixes the "Impersonating chrome136 is not supported" error
+os.environ['CURL_IMPERSONATE'] = '0'
+
 import logging
 import secrets
 from flask import Flask, render_template, request, jsonify, g

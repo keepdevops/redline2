@@ -166,7 +166,7 @@ def batch_download():
             try:
                 # Add longer delay between downloads to respect rate limits
                 if i > 0 and downloader:
-                    delay = 10  # 10 second delay between downloads to avoid rate limiting
+                    delay = 30  # 30 second delay between downloads to avoid rate limiting (increased from 10s)
                     logger.info(f"Waiting {delay} seconds before downloading {ticker}...")
                     time.sleep(delay)
                 
@@ -196,8 +196,31 @@ def batch_download():
                         start_date=start_date,
                         end_date=end_date
                     )
-                    
-                    # If download failed due to rate limiting, try to use existing data
+
+                    # If download failed and source is Yahoo, try Stooq as fallback
+                    if (result is None or result.empty) and source == 'yahoo':
+                        logger.warning(f"Yahoo Finance failed for {ticker}, attempting Stooq fallback...")
+                        try:
+                            from redline.downloaders.stooq_downloader import StooqDownloader
+                            stooq_data_dir = os.path.join(os.getcwd(), 'data', 'stooq')
+                            os.makedirs(stooq_data_dir, exist_ok=True)
+                            stooq_downloader = StooqDownloader(output_dir=stooq_data_dir)
+
+                            result = stooq_downloader.download_single_ticker(
+                                ticker=ticker,
+                                start_date=start_date,
+                                end_date=end_date
+                            )
+
+                            if result is not None and not result.empty:
+                                logger.info(f"Successfully downloaded {ticker} from Stooq as fallback")
+                                source = 'stooq'  # Update source for filename
+                            else:
+                                logger.info(f"Stooq fallback also failed for {ticker}, checking existing data...")
+                        except Exception as stooq_error:
+                            logger.error(f"Stooq fallback error for {ticker}: {str(stooq_error)}")
+
+                    # If still no data, try to use existing data file
                     if result is None or result.empty:
                         logger.info(f"Download failed for {ticker}, checking for existing data...")
                         existing_file = f"data/{ticker}_yahoo_data.csv"

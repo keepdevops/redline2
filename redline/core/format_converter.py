@@ -10,6 +10,9 @@ from typing import Union, List, Dict, Any
 import os
 import json
 
+# Initialize logger early for use in exception handlers
+logger = logging.getLogger(__name__)
+
 # Optional dependencies
 try:
     import polars as pl
@@ -35,7 +38,10 @@ except ImportError:
 try:
     import tensorflow as tf
     TENSORFLOW_AVAILABLE = True
-except ImportError:
+except (ImportError, TypeError, AttributeError, Exception) as e:
+    # Catch all exceptions during tensorflow import, including initialization errors
+    # Some tensorflow versions have bugs during import in certain environments
+    logger.warning(f"TensorFlow import failed: {type(e).__name__}: {e}. TensorFlow features will be disabled.")
     tf = None
     TENSORFLOW_AVAILABLE = False
 
@@ -45,8 +51,6 @@ try:
 except ImportError:
     np = None
     NUMPY_AVAILABLE = False
-
-logger = logging.getLogger(__name__)
 
 class FormatConverter:
     """Handles format conversion and file I/O operations."""

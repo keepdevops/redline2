@@ -8,6 +8,7 @@ ENV FLASK_APP=web_app.py
 ENV FLASK_ENV=production
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV FLASK_RUN_PORT=5000
+ENV CURL_IMPERSONATE=0
 
 # Install system dependencies for web app
 RUN apt-get update && apt-get install -y \

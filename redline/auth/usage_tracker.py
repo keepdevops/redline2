@@ -60,7 +60,7 @@ class UsageTracker:
             except Exception as e:
                 logger.warning(f"Failed to log session start to storage: {str(e)}")
         
-        logger.info(f"Started usage session {session_id} for license {license_key}")
+        logger.debug(f"Started usage session {session_id} for license {license_key}")
         return session_id
     
     def update_session(self, session_id: str) -> Optional[Dict]:

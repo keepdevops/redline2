@@ -13,11 +13,8 @@ from typing import List, Dict, Optional, Any
 from .base_downloader import BaseDownloader
 from .exceptions import RateLimitError
 
-# Set environment variable BEFORE importing yfinance
-# Disable browser impersonation to avoid compatibility issues
-os.environ['CURL_IMPERSONATE'] = '0'  # Disable impersonation
-
-# Now import yfinance (it will respect CURL_IMPERSONATE=0)
+# Import yfinance - it will use curl_cffi if available (required for Yahoo Finance API)
+# Do not pass a session parameter to yf.Ticker() - let yfinance handle session creation internally
 import yfinance as yf
 
 logger = logging.getLogger(__name__)
@@ -33,7 +30,7 @@ class YahooDownloader(BaseDownloader):
         
         # Rate limiting - increased delay to avoid rate limiting
         self.last_request_time = 0
-        self.min_request_interval = 5.0  # 5 seconds between requests to avoid rate limiting
+        self.min_request_interval = 15.0  # 15 seconds between requests to avoid rate limiting (increased from 5s)
         # rate_limit_lock will be initialized by base class _rate_limit() method
         
         # Browser impersonation is disabled at module level (before yfinance import)
@@ -60,9 +57,8 @@ class YahooDownloader(BaseDownloader):
             start_dt = datetime.strptime(start_date, '%Y-%m-%d') if start_date else None
             end_dt = datetime.strptime(end_date, '%Y-%m-%d') if end_date else None
             
-            # Download data using yfinance
-            # Browser impersonation is disabled via CURL_IMPERSONATE=0 environment variable
-            # yfinance will use curl_cffi with standard HTTP requests
+            # Download data using yfinance - let yfinance handle the session internally
+            # Do not pass session parameter - yfinance will use curl_cffi if available
             ticker_obj = yf.Ticker(ticker)
             
             try:
@@ -233,7 +229,7 @@ class YahooDownloader(BaseDownloader):
         try:
             ticker_obj = yf.Ticker(ticker)
             info = ticker_obj.info
-            
+
             return {
                 'symbol': info.get('symbol', ticker),
                 'name': info.get('longName', ''),
@@ -264,7 +260,7 @@ class YahooDownloader(BaseDownloader):
             # a different approach or API for ticker search
             ticker_obj = yf.Ticker(query)
             info = ticker_obj.info
-            
+
             if info and 'symbol' in info:
                 return [{
                     'symbol': info.get('symbol', query),
@@ -299,10 +295,10 @@ class YahooDownloader(BaseDownloader):
             try:
                 self.logger.info(f"Downloading {ticker} ({i+1}/{len(tickers)})")
                 
-                # Yahoo Finance has rate limits, so we add a small delay
+                # Yahoo Finance has rate limits, so we add a delay
                 if i > 0:
                     import time
-                    time.sleep(0.5)  # 500ms delay between requests
+                    time.sleep(5.0)  # 5 second delay between requests (increased from 0.5s)
                 
                 # Download data
                 data = self.download_single_ticker(ticker, start_date, end_date)

@@ -24,6 +24,9 @@ export FLASK_APP=web_app.py
 export FLASK_ENV=production
 export FLASK_DEBUG=0
 
+# Fix yfinance chrome136 impersonation error
+export CURL_IMPERSONATE=0
+
 # Create necessary directories
 mkdir -p data data/converted data/downloaded data/stooq_format
 

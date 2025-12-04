@@ -46,7 +46,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     FLASK_ENV=development \
     GUNICORN_WORKERS=2 \
     GUNICORN_THREADS=4 \
-    GUNICORN_TIMEOUT=120
+    GUNICORN_TIMEOUT=120 \
+    CURL_IMPERSONATE=0
 
 # Install runtime dependencies only
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \

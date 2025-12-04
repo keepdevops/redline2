@@ -74,25 +74,35 @@ def api_list_files():
                         'location': 'downloaded'
                     })
         
-        # Get files from stooq directory (for Stooq downloads)
+        # Get files from stooq directory (recursively including all subdirectories)
+        # Stooq data often comes in nested structures like: stooq/5min/subfolder1/data.txt
         stooq_dir = os.path.join(data_dir, 'stooq')
         if os.path.exists(stooq_dir):
             try:
-                for filename in os.listdir(stooq_dir):
-                    # Skip system files
-                    if filename in SYSTEM_FILES:
-                        continue
-                    file_path = os.path.join(stooq_dir, filename)
-                    if os.path.isfile(file_path) and not filename.startswith('.'):
-                        file_stat = os.stat(file_path)
-                        files.append({
-                            'name': filename,
-                            'size': file_stat.st_size,
-                            'modified': file_stat.st_mtime,
-                            'path': file_path,
-                            'storage': 'local',
-                            'location': 'stooq'
-                        })
+                # Recursively search all subdirectories in stooq/
+                for root, dirs, filenames in os.walk(stooq_dir):
+                    for filename in filenames:
+                        # Skip system files
+                        if filename in SYSTEM_FILES:
+                            continue
+                        if not filename.startswith('.'):
+                            file_path = os.path.join(root, filename)
+                            if os.path.isfile(file_path):
+                                file_stat = os.stat(file_path)
+                                # Get relative path from data_dir for detailed location
+                                rel_path = os.path.relpath(file_path, data_dir)
+                                # Also get relative path from stooq_dir for cleaner display
+                                stooq_rel_path = os.path.relpath(file_path, stooq_dir)
+
+                                files.append({
+                                    'name': filename,
+                                    'size': file_stat.st_size,
+                                    'modified': file_stat.st_mtime,
+                                    'path': file_path,
+                                    'storage': 'local',
+                                    'location': rel_path,  # Full path: stooq/5min/folder/file.txt
+                                    'stooq_path': stooq_rel_path  # Relative to stooq: 5min/folder/file.txt
+                                })
             except Exception as e:
                 logger.warning(f"Error reading stooq directory: {str(e)}")
 
@@ -191,32 +201,7 @@ def api_list_files():
         files.sort(key=lambda x: x.get('modified', 0), reverse=True)
         
         return jsonify({'files': files})
-        
-    except Exception as e:
-        logger.error(f"Error listing files: {str(e)}")
-        return jsonify({'error': str(e)}), 500
 
-@api_files_list_bp.route('/files', methods=['GET'])
-def list_files():
-    """List available data files."""
-    try:
-        from ..utils.api_helpers import allowed_file
-        
-        data_dir = os.path.join(os.getcwd(), 'data')
-        files = []
-        
-        for filename in os.listdir(data_dir):
-            if allowed_file(filename):
-                file_path = os.path.join(data_dir, filename)
-                file_stat = os.stat(file_path)
-                files.append({
-                    'name': filename,
-                    'size': file_stat.st_size,
-                    'modified': file_stat.st_mtime
-                })
-        
-        return jsonify({'files': files})
-        
     except Exception as e:
         logger.error(f"Error listing files: {str(e)}")
         return jsonify({'error': str(e)}), 500

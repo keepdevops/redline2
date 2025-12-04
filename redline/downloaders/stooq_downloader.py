@@ -50,16 +50,65 @@ class StooqDownloader(BaseDownloader):
     def download_single_ticker(self, ticker: str, start_date: str = None, end_date: str = None) -> pd.DataFrame:
         """
         Download historical data for a single ticker from Stooq.
-        
+        First checks local cache before attempting download.
+
         Args:
             ticker: Stock ticker symbol
-            start_date: Start date (YYYY-MM-DD) - not used for Stooq direct download
-            end_date: End date (YYYY-MM-DD) - not used for Stooq direct download
-            
+            start_date: Start date (YYYY-MM-DD) - filters data after loading
+            end_date: End date (YYYY-MM-DD) - filters data after loading
+
         Returns:
             DataFrame with historical data
         """
         try:
+            # First, check if data already exists locally in the REDLINE data directory
+            import os
+            import glob
+
+            # Look for existing files in multiple locations
+            data_dir = os.path.join(os.getcwd(), 'data')
+            possible_files = [
+                os.path.join(data_dir, f'{ticker}_stooq_data.csv'),
+                os.path.join(data_dir, f'{ticker}_stooq_data.txt'),
+                os.path.join(self.output_dir, f'{ticker}.csv'),
+                os.path.join(self.output_dir, f'{ticker}.txt'),
+                os.path.join(self.output_dir, f'{ticker}_stooq.csv'),
+            ]
+
+            # Also search for any file containing the ticker
+            search_patterns = [
+                os.path.join(data_dir, f'*{ticker}*stooq*.csv'),
+                os.path.join(data_dir, f'*{ticker}*stooq*.txt'),
+                os.path.join(self.output_dir, f'*{ticker}*.csv'),
+                os.path.join(self.output_dir, f'*{ticker}*.txt'),
+            ]
+
+            for pattern in search_patterns:
+                possible_files.extend(glob.glob(pattern))
+
+            # Try to load from existing files
+            for filepath in possible_files:
+                if os.path.exists(filepath):
+                    try:
+                        self.logger.info(f"Found existing Stooq data for {ticker} at {filepath}")
+                        data = pd.read_csv(filepath)
+
+                        # Check if it's valid Stooq format
+                        if self._is_valid_stooq_data(data):
+                            self.logger.info(f"Successfully loaded {ticker} from local cache: {filepath}")
+                            # Filter by date if specified
+                            if start_date or end_date:
+                                data = self._filter_by_date_range(data, start_date, end_date)
+                            return data
+                        else:
+                            self.logger.debug(f"File {filepath} is not in valid Stooq format, trying next")
+                    except Exception as e:
+                        self.logger.debug(f"Could not load {filepath}: {str(e)}")
+                        continue
+
+            self.logger.info(f"No local cache found for {ticker}, attempting download from Stooq")
+
+            # No local data found, proceed with download
             # Try multiple endpoints
             for endpoint in self.endpoints:
                 try:
@@ -127,6 +176,46 @@ class StooqDownloader(BaseDownloader):
         """Check if the downloaded data is valid Stooq format."""
         required_columns = ['<TICKER>', '<DATE>', '<OPEN>', '<HIGH>', '<LOW>', '<CLOSE>', '<VOL>']
         return all(col in data.columns for col in required_columns)
+
+    def _filter_by_date_range(self, data: pd.DataFrame, start_date: str = None, end_date: str = None) -> pd.DataFrame:
+        """
+        Filter DataFrame by date range.
+
+        Args:
+            data: DataFrame with <DATE> column
+            start_date: Start date (YYYY-MM-DD)
+            end_date: End date (YYYY-MM-DD)
+
+        Returns:
+            Filtered DataFrame
+        """
+        try:
+            if data.empty:
+                return data
+
+            df = data.copy()
+
+            # Convert <DATE> column to datetime if it's not already
+            if '<DATE>' in df.columns:
+                df['<DATE>'] = pd.to_datetime(df['<DATE>'], format='%Y%m%d', errors='coerce')
+
+                # Filter by date range
+                if start_date:
+                    start = pd.to_datetime(start_date)
+                    df = df[df['<DATE>'] >= start]
+
+                if end_date:
+                    end = pd.to_datetime(end_date)
+                    df = df[df['<DATE>'] <= end]
+
+                # Convert back to original format (YYYYMMDD)
+                df['<DATE>'] = df['<DATE>'].dt.strftime('%Y%m%d')
+
+            return df
+
+        except Exception as e:
+            self.logger.error(f"Error filtering by date range: {str(e)}")
+            return data
     
     def standardize_stooq_data(self, data: pd.DataFrame, ticker: str) -> pd.DataFrame:
         """
