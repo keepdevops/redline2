@@ -10,8 +10,9 @@ data_tab_bp = Blueprint('data_tab', __name__)
 
 @data_tab_bp.route('/')
 def data_tab():
-    """Data tab main page - TKINTER STYLE VERSION."""
-    return render_template('data_tab_tkinter_style.html')
+    """Data tab main page - redirects to multi-file view."""
+    from flask import redirect
+    return redirect('/data/multi')
 
 
 @data_tab_bp.route('/browser')

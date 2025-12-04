@@ -522,14 +522,6 @@
 
 {% block content %}
 <div class="container-fluid">
-    <div class="row mb-3">
-        <div class="col-12">
-            <div class="btn-group" role="group">
-                <a href="/data/" class="btn btn-outline-primary">Single File View</a>
-                <a href="/data/multi" class="btn btn-outline-primary active">Multi-File View</a>
-            </div>
-        </div>
-    </div>
     <!-- Data Display Area - Moved to Top -->
     <div class="row mb-4">
         <div class="col-12" style="width: 100%; max-width: 100%; box-sizing: border-box;">
@@ -602,12 +594,29 @@
             <div class="file-selector">
                 <h5 class="mb-3">📁 Select Files to Load</h5>
                 <div class="mb-3">
-                    <button id="loadSelectedBtn" class="load-button">
-                        Load Selected Files
-                    </button>
-                    <button id="clearAllBtn" class="clear-button">
-                        Clear All
-                    </button>
+                    <div class="btn-group" role="group">
+                        <button id="loadSelectedBtn" class="load-button">
+                            Load Selected Files
+                        </button>
+                        <button id="clearAllBtn" class="clear-button">
+                            Clear All
+                        </button>
+                        <button class="btn btn-sm btn-success" onclick="document.getElementById('fileUploadInput').click()">
+                            <i class="fas fa-upload"></i> Upload File
+                        </button>
+                    </div>
+                    <input type="file" id="fileUploadInput" style="display: none;" accept=".csv,.txt,.json,.parquet,.feather,.zip" multiple onchange="handleFileUpload(event)">
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="autoUploadCheck" checked>
+                        <label class="form-check-label" for="autoUploadCheck">
+                            Auto-upload when files are selected
+                        </label>
+                    </div>
+                    <div id="dropZone" class="mt-3 p-4 border border-dashed rounded text-center" style="border-color: var(--border-color); cursor: pointer; min-height: 100px; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                        <i class="fas fa-cloud-upload-alt fa-2x mb-2" style="color: var(--text-muted);"></i>
+                        <p class="mb-0" style="color: var(--text-muted);">Drag and drop files here or click to select</p>
+                        <small class="text-muted">Supports: CSV, TXT, JSON, Parquet, Feather, ZIP</small>
+                    </div>
                 </div>
                 
                 <div class="file-list" id="fileList">
@@ -2569,5 +2578,193 @@ updateDataDisplay = function() {
         }
     }, 150);
 };
+
+// Handle file upload (supports single or multiple files)
+async function handleFileUpload(event, files = null) {
+    const fileInput = event ? event.target : null;
+    const filesToUpload = files || (fileInput ? Array.from(fileInput.files) : []);
+    
+    if (filesToUpload.length === 0) {
+        console.warn('No files selected');
+        return;
+    }
+    
+    console.log(`Uploading ${filesToUpload.length} file(s)...`);
+    
+    // Check if auto-upload is enabled
+    const autoUploadCheck = document.getElementById('autoUploadCheck');
+    const autoUpload = autoUploadCheck ? autoUploadCheck.checked : true;
+    
+    // If auto-upload is disabled and this was triggered by file selection (not drag-drop), just return
+    if (!autoUpload && event && event.type === 'change' && !files) {
+        console.log('Auto-upload is disabled. Files selected but not uploaded.');
+        return;
+    }
+    
+    // Show loading indicator
+    const uploadBtn = document.querySelector('button[onclick*="fileUploadInput"]');
+    const originalBtnText = uploadBtn ? uploadBtn.innerHTML : '';
+    const dropZone = document.getElementById('dropZone');
+    
+    if (uploadBtn) {
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Uploading ${filesToUpload.length} file(s)...`;
+    }
+    
+    if (dropZone) {
+        dropZone.style.opacity = '0.6';
+        dropZone.style.pointerEvents = 'none';
+    }
+    
+    // Get license key if available
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    // Prepare headers
+    const headers = {};
+    if (licenseKey) {
+        headers['X-License-Key'] = licenseKey;
+    }
+    
+    // Upload files sequentially
+    let successCount = 0;
+    let errorCount = 0;
+    const errors = [];
+    
+    for (const file of filesToUpload) {
+        try {
+            // Create FormData for each file
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                headers: headers,
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || data.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            console.log('File uploaded successfully:', file.name);
+            successCount++;
+            
+            if (data.extracted_files && data.extracted_files.length > 0) {
+                console.log(`ZIP file extracted. ${data.extracted_count} file(s) extracted to data/stooq.`);
+            }
+            
+        } catch (error) {
+            console.error(`Error uploading file ${file.name}:`, error);
+            errorCount++;
+            errors.push(`${file.name}: ${error.message || 'Unknown error'}`);
+        }
+    }
+    
+    // Show results
+    if (successCount > 0) {
+        const message = errorCount > 0 
+            ? `${successCount} file(s) uploaded successfully. ${errorCount} failed.`
+            : `${successCount} file(s) uploaded successfully`;
+        
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, errorCount > 0 ? 'warning' : 'success');
+        } else {
+            alert(message);
+        }
+        
+        // Refresh file list to show the new files
+        loadFileList();
+    }
+    
+    if (errorCount > 0) {
+        const errorMsg = errors.join('\n');
+        if (typeof window.showToast === 'function') {
+            window.showToast(`Upload errors:\n${errorMsg}`, 'error');
+        } else {
+            alert(`Upload errors:\n${errorMsg}`);
+        }
+    }
+    
+    // Reset file input
+    if (fileInput) {
+        fileInput.value = '';
+    }
+    
+    // Restore UI state
+    if (uploadBtn) {
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = originalBtnText;
+    }
+    
+    if (dropZone) {
+        dropZone.style.opacity = '1';
+        dropZone.style.pointerEvents = 'auto';
+        dropZone.classList.remove('drag-over');
+    }
+}
+
+// Drag and drop handlers
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileUploadInput');
+    
+    if (dropZone && fileInput) {
+        // Click on drop zone to trigger file input
+        dropZone.addEventListener('click', function() {
+            fileInput.click();
+        });
+        
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        // Highlight drop zone when item is dragged over it
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, function() {
+                dropZone.classList.add('drag-over');
+                dropZone.style.borderColor = 'var(--primary-color)';
+                dropZone.style.backgroundColor = 'var(--secondary-color)';
+            }, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, function() {
+                dropZone.classList.remove('drag-over');
+                dropZone.style.borderColor = 'var(--border-color)';
+                dropZone.style.backgroundColor = 'transparent';
+            }, false);
+        });
+        
+        // Handle dropped files
+        dropZone.addEventListener('drop', function(e) {
+            const dt = e.dataTransfer;
+            const files = Array.from(dt.files).filter(file => {
+                const ext = '.' + file.name.split('.').pop().toLowerCase();
+                return ['.csv', '.txt', '.json', '.parquet', '.feather', '.zip'].includes(ext);
+            });
+            
+            if (files.length > 0) {
+                handleFileUpload(null, files);
+            } else {
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Please drop valid file types (CSV, TXT, JSON, Parquet, Feather, ZIP)', 'error');
+                } else {
+                    alert('Please drop valid file types (CSV, TXT, JSON, Parquet, Feather, ZIP)');
+                }
+            }
+        }, false);
+    }
+});
 </script>
 {% endblock %}

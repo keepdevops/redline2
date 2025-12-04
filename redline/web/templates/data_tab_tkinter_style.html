@@ -354,9 +354,15 @@
             <div class="file-selector">
                 <h5 class="mb-3">📁 Select File to Load</h5>
                 <div class="mb-3">
-                    <button class="btn btn-sm btn-outline-primary" onclick="refreshFileList()">
-                        <i class="fas fa-sync-alt"></i> Refresh
-                    </button>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-outline-primary" onclick="refreshFileList()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                        <button class="btn btn-sm btn-success" onclick="document.getElementById('fileUploadInput').click()">
+                            <i class="fas fa-upload"></i> Upload File
+                        </button>
+                    </div>
+                    <input type="file" id="fileUploadInput" style="display: none;" accept=".csv,.txt,.json,.parquet,.feather,.zip" onchange="handleFileUpload(event)">
                 </div>
                 
                 <div class="file-list" id="fileList">
@@ -1227,6 +1233,94 @@ function formatFileSize(bytes) {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Handle file upload
+async function handleFileUpload(event) {
+    const fileInput = event.target;
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        console.warn('No file selected');
+        return;
+    }
+    
+    console.log('Uploading file:', file.name);
+    
+    // Show loading indicator
+    const uploadBtn = document.querySelector('button[onclick*="fileUploadInput"]');
+    const originalBtnText = uploadBtn ? uploadBtn.innerHTML : '';
+    if (uploadBtn) {
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+    }
+    
+    // Create FormData
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // Get license key if available
+    const licenseKey = (typeof window.getLicenseKey === 'function') 
+        ? window.getLicenseKey() 
+        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+    
+    // Prepare headers
+    const headers = {};
+    if (licenseKey) {
+        headers['X-License-Key'] = licenseKey;
+    }
+    
+    try {
+        const response = await fetch('/api/upload', {
+            method: 'POST',
+            headers: headers,
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || data.message || `HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        console.log('File uploaded successfully:', data);
+        
+        // Show success message
+        const message = data.message || 'File uploaded successfully';
+        if (data.extracted_files && data.extracted_files.length > 0) {
+            console.log(`ZIP file extracted. ${data.extracted_count} file(s) extracted to data/stooq.`);
+        }
+        
+        // Show toast notification if available
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, 'success');
+        } else {
+            alert(message);
+        }
+        
+        // Refresh file list to show the new file
+        refreshFileList();
+        
+        // Reset file input
+        fileInput.value = '';
+        
+    } catch (error) {
+        console.error('Error uploading file:', error);
+        const errorMsg = error.message || 'Unknown error occurred';
+        
+        // Show error message
+        if (typeof window.showToast === 'function') {
+            window.showToast(`Upload failed: ${errorMsg}`, 'error');
+        } else {
+            alert(`Upload failed: ${errorMsg}`);
+        }
+    } finally {
+        // Restore button state
+        if (uploadBtn) {
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = originalBtnText;
+        }
+    }
 }
 </script>
 {% endblock %}
