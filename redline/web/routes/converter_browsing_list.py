@@ -23,47 +23,47 @@ SYSTEM_FILES = {
 
 @converter_browsing_list_bp.route('/files')
 def list_available_files():
-    """List files available for conversion."""
+    """List files available for conversion. Matches /api/files endpoint format."""
     try:
         data_dir = os.path.join(os.getcwd(), 'data')
         files = []
         
-        # List files in main data directory
+        # Get files from main data directory (no extension filter - match data view)
         if os.path.exists(data_dir):
             for filename in os.listdir(data_dir):
                 # Skip system files
                 if filename in SYSTEM_FILES:
                     continue
-                if filename.endswith(('.csv', '.txt', '.json', '.parquet', '.feather', '.duckdb', '.npz', '.h5', '.arrow')):
-                    file_path = os.path.join(data_dir, filename)
-                    if os.path.isfile(file_path) and not filename.startswith('.'):
-                        file_stat = os.stat(file_path)
-                        files.append({
-                            'name': filename,
-                            'path': file_path,
-                            'size': file_stat.st_size,
-                            'modified': file_stat.st_mtime,
-                            'location': 'data'
-                        })
+                file_path = os.path.join(data_dir, filename)
+                if os.path.isfile(file_path) and not filename.startswith('.'):
+                    file_stat = os.stat(file_path)
+                    files.append({
+                        'name': filename,
+                        'size': file_stat.st_size,
+                        'modified': file_stat.st_mtime,
+                        'path': file_path,
+                        'storage': 'local',
+                        'location': 'root'
+                    })
         
-        # List files in downloaded directory
+        # Get files from downloaded directory
         downloaded_dir = os.path.join(data_dir, 'downloaded')
         if os.path.exists(downloaded_dir):
             for filename in os.listdir(downloaded_dir):
                 # Skip system files
                 if filename in SYSTEM_FILES:
                     continue
-                if filename.endswith(('.csv', '.txt', '.json', '.parquet', '.feather', '.duckdb', '.npz', '.h5', '.arrow')):
-                    file_path = os.path.join(downloaded_dir, filename)
-                    if os.path.isfile(file_path) and not filename.startswith('.'):
-                        file_stat = os.stat(file_path)
-                        files.append({
-                            'name': filename,
-                            'path': file_path,
-                            'size': file_stat.st_size,
-                            'modified': file_stat.st_mtime,
-                            'location': 'data/downloaded'
-                        })
+                file_path = os.path.join(downloaded_dir, filename)
+                if os.path.isfile(file_path) and not filename.startswith('.'):
+                    file_stat = os.stat(file_path)
+                    files.append({
+                        'name': filename,
+                        'size': file_stat.st_size,
+                        'modified': file_stat.st_mtime,
+                        'path': file_path,
+                        'storage': 'local',
+                        'location': 'downloaded'
+                    })
         
         # Get files from uploads directory
         uploads_dir = os.path.join(data_dir, 'uploads')
@@ -72,20 +72,20 @@ def list_available_files():
                 # Skip system files
                 if filename in SYSTEM_FILES:
                     continue
-                if filename.endswith(('.csv', '.txt', '.json', '.parquet', '.feather', '.duckdb', '.npz', '.h5', '.arrow')):
-                    file_path = os.path.join(uploads_dir, filename)
-                    if os.path.isfile(file_path) and not filename.startswith('.'):
-                        file_stat = os.stat(file_path)
-                        files.append({
-                            'name': filename,
-                            'path': file_path,
-                            'size': file_stat.st_size,
-                            'modified': file_stat.st_mtime,
-                            'location': 'data/uploads'
-                        })
+                file_path = os.path.join(uploads_dir, filename)
+                if os.path.isfile(file_path) and not filename.startswith('.'):
+                    file_stat = os.stat(file_path)
+                    files.append({
+                        'name': filename,
+                        'size': file_stat.st_size,
+                        'modified': file_stat.st_mtime,
+                        'path': file_path,
+                        'storage': 'local',
+                        'location': 'uploads'
+                    })
         
-        # List files in stooq directory (recursively including all subdirectories)
-        # Stooq data often comes in nested structures like: stooq/5 min/hk/hkex stocks/2/file.txt
+        # Get files from stooq directory (recursively including all subdirectories)
+        # Stooq data often comes in nested structures like: stooq/5min/subfolder1/data.txt
         stooq_dir = os.path.join(data_dir, 'stooq')
         if os.path.exists(stooq_dir):
             try:
@@ -101,18 +101,47 @@ def list_available_files():
                                 file_stat = os.stat(file_path)
                                 # Get relative path from data_dir for detailed location
                                 rel_path = os.path.relpath(file_path, data_dir)
+                                # Also get relative path from stooq_dir for cleaner display
+                                stooq_rel_path = os.path.relpath(file_path, stooq_dir)
+                                
                                 files.append({
                                     'name': filename,
-                                    'path': file_path,
                                     'size': file_stat.st_size,
                                     'modified': file_stat.st_mtime,
-                                    'location': rel_path  # Full path: stooq/5 min/hk/file.txt
+                                    'path': file_path,
+                                    'storage': 'local',
+                                    'location': rel_path,  # Full path: stooq/5min/folder/file.txt
+                                    'stooq_path': stooq_rel_path  # Relative to stooq: 5min/folder/file.txt
                                 })
             except Exception as e:
                 logger.warning(f"Error reading stooq directory: {str(e)}")
         
+        # Get files from converted/export directory (recursively including subdirectories)
+        converted_dir = os.path.join(data_dir, 'converted')
+        if os.path.exists(converted_dir):
+            # Recursively search subdirectories in converted/ (duckdb/, parquet/, etc.)
+            for root, dirs, filenames in os.walk(converted_dir):
+                for filename in filenames:
+                    # Skip system files
+                    if filename in SYSTEM_FILES:
+                        continue
+                    if not filename.startswith('.'):
+                        file_path = os.path.join(root, filename)
+                        if os.path.isfile(file_path):
+                            file_stat = os.stat(file_path)
+                            # Get relative path for location
+                            rel_path = os.path.relpath(file_path, data_dir)
+                            files.append({
+                                'name': filename,
+                                'size': file_stat.st_size,
+                                'modified': file_stat.st_mtime,
+                                'path': file_path,
+                                'storage': 'local',
+                                'location': rel_path
+                            })
+        
         # Sort by modification time (newest first)
-        files.sort(key=lambda x: x['modified'], reverse=True)
+        files.sort(key=lambda x: x.get('modified', 0), reverse=True)
         
         return jsonify({'files': files})
         
