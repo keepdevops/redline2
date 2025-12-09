@@ -7,14 +7,15 @@ from flask import Blueprint, request, jsonify
 import logging
 import os
 import pandas as pd
-from ..utils.converter_helpers import find_input_file_path, adjust_output_filename
+import traceback
+from ..utils.converter_helpers import find_input_file_path, adjust_output_filename, validate_file_before_conversion
 
 converter_single_bp = Blueprint('converter_single', __name__)
 logger = logging.getLogger(__name__)
 
 @converter_single_bp.route('/convert', methods=['POST'])
 def convert_file():
-    """Convert file between formats."""
+    """Convert file between formats - redirects to batch conversion."""
     try:
         data = request.get_json()
         input_file = data.get('input_file')
@@ -22,7 +23,7 @@ def convert_file():
         output_filename = data.get('output_filename')
         overwrite = data.get('overwrite', False)
         
-        logger.info(f"Convert request: input_file={input_file}, output_format={output_format}, output_filename={output_filename}, overwrite={overwrite}")
+        logger.info(f"Single file convert request redirected to batch: input_file={input_file}, output_format={output_format}, output_filename={output_filename}, overwrite={overwrite}")
         
         if not all([input_file, output_format, output_filename]):
             logger.error(f"Missing required parameters: input_file={input_file}, output_format={output_format}, output_filename={output_filename}")
@@ -32,8 +33,40 @@ def convert_file():
                     'input_file': input_file,
                     'output_format': output_format,
                     'output_filename': output_filename
-                }
+                },
+                'message': 'Single file conversion is no longer supported. Please use batch conversion instead.'
             }), 400
+        
+        # Redirect single file conversion to batch conversion
+        # Convert single file request to batch format
+        from .converter_batch import batch_convert
+        from flask import Request
+        
+        # Create batch conversion request
+        batch_data = {
+            'files': [{
+                'input_file': input_file,
+                'output_format': output_format,
+                'output_filename': output_filename
+            }],
+            'overwrite': overwrite,
+            # Include data cleaning options if provided
+            'remove_duplicates': data.get('remove_duplicates', False),
+            'handle_missing': data.get('handle_missing', 'drop'),
+            'clean_column_names': data.get('clean_column_names', False),
+            'column_order': data.get('column_order')
+        }
+        
+        # Call batch conversion with single file
+        # Create a mock request object for batch_convert
+        original_json = request.get_json
+        request.get_json = lambda: batch_data
+        
+        try:
+            result = batch_convert()
+            return result
+        finally:
+            request.get_json = original_json
         
         # Ensure output filename has the correct extension
         output_filename = adjust_output_filename(output_filename, output_format)
@@ -56,15 +89,24 @@ def convert_file():
             # Check if it's a system file
             from ..utils.converter_helpers import is_system_file
             if is_system_file(os.path.basename(input_file)):
-                return jsonify({'error': 'System files cannot be converted'}), 403
-            return jsonify({'error': 'Input file not found'}), 404
+                logger.warning(f"Attempted to convert system file: {input_file}")
+                return jsonify({
+                    'error': 'System files cannot be converted',
+                    'input_file': input_file
+                }), 403
+            logger.error(f"Input file not found: {input_file} (searched in: {data_dir})")
+            return jsonify({
+                'error': 'Input file not found',
+                'input_file': input_file,
+                'searched_paths': [
+                    os.path.join(data_dir, input_file),
+                    os.path.join(data_dir, 'downloaded', input_file),
+                    os.path.join(data_dir, 'stooq', input_file)
+                ]
+            }), 404
         
         from redline.core.format_converter import FormatConverter
         converter = FormatConverter()
-        
-        # Load data
-        logger.info(f"Loading data from {input_file}")
-        from redline.core.schema import EXT_TO_FORMAT
         
         # Validate output format
         supported_formats = converter.get_supported_formats()
@@ -80,16 +122,70 @@ def convert_file():
             }), 400
         
         # Detect format from file extension
+        from redline.core.schema import EXT_TO_FORMAT
         ext = os.path.splitext(input_path)[1].lower()
         format_type = EXT_TO_FORMAT.get(ext, 'csv')
         
-        data_obj = converter.load_file_by_type(input_path, format_type)
+        # Validate file before conversion attempt
+        logger.info(f"Validating file {input_file} before conversion...")
+        is_valid, validation_error, validation_details = validate_file_before_conversion(
+            input_path, expected_format=format_type
+        )
         
-        if data_obj is None or (hasattr(data_obj, 'empty') and data_obj.empty):
-            logger.error(f"Failed to load data from {input_path}")
+        if not is_valid:
+            error_msg = validation_error or 'File validation failed'
+            logger.error(f"File validation failed for {input_file}: {error_msg}")
+            logger.debug(f"Validation details: {validation_details}")
             return jsonify({
-                'error': 'Failed to load input file',
-                'details': f'Could not load data from {input_file} as {format_type} format'
+                'error': error_msg,
+                'input_file': input_file,
+                'validation_details': validation_details
+            }), 400
+        
+        # Log validation success with details
+        if validation_details.get('file_size'):
+            logger.info(f"File validation passed: {input_file} "
+                      f"(size: {validation_details['file_size']} bytes, "
+                      f"format: {format_type}, "
+                      f"encoding: {validation_details.get('encoding', 'N/A')})")
+        
+        # Load data
+        logger.info(f"Loading data from {input_file} as {format_type} format...")
+        try:
+            data_obj = converter.load_file_by_type(input_path, format_type)
+        except Exception as load_error:
+            error_msg = f"Error loading file: {str(load_error)}"
+            logger.error(f"Failed to load {input_file}: {error_msg}")
+            logger.debug(f"Load error traceback:\n{traceback.format_exc()}")
+            return jsonify({
+                'error': error_msg,
+                'input_file': input_file,
+                'format_attempted': format_type,
+                'file_path': input_path,
+                'file_size': validation_details.get('file_size', 'unknown')
+            }), 400
+        
+        if data_obj is None:
+            error_msg = f"File loaded but returned None: {input_file}"
+            logger.error(error_msg)
+            return jsonify({
+                'error': error_msg,
+                'input_file': input_file,
+                'format_attempted': format_type,
+                'file_path': input_path,
+                'file_size': validation_details.get('file_size', 'unknown')
+            }), 400
+        
+        if hasattr(data_obj, 'empty') and data_obj.empty:
+            error_msg = f"File loaded but contains no data: {input_file}"
+            logger.warning(error_msg)
+            logger.debug(f"Data object type: {type(data_obj)}, shape: {getattr(data_obj, 'shape', 'N/A')}")
+            return jsonify({
+                'error': error_msg,
+                'input_file': input_file,
+                'format_attempted': format_type,
+                'file_path': input_path,
+                'file_size': validation_details.get('file_size', 'unknown')
             }), 400
         
         # Apply data cleaning options if provided
@@ -243,6 +339,11 @@ def convert_file():
         return jsonify(result)
         
     except Exception as e:
-        logger.error(f"Error converting file: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        error_msg = str(e)
+        logger.error(f"Error converting file: {error_msg}")
+        logger.debug(f"Exception traceback:\n{traceback.format_exc()}")
+        return jsonify({
+            'error': error_msg,
+            'exception_type': type(e).__name__
+        }), 500
 

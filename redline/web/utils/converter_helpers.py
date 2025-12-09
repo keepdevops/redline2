@@ -6,7 +6,7 @@ import os
 import shutil
 import logging
 import pandas as pd
-from typing import List, Dict, Optional, Union
+from typing import List, Dict, Optional, Union, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -238,4 +238,124 @@ def merge_dataframes(dataframes: List[pd.DataFrame],
         return merged_df
     
     return pd.DataFrame()
+
+def validate_file_before_conversion(file_path: str, expected_format: str = None) -> Tuple[bool, Optional[str], Dict[str, any]]:
+    """
+    Comprehensive file validation before conversion attempt.
+    
+    Args:
+        file_path: Path to the file to validate
+        expected_format: Expected file format (csv, parquet, etc.) for additional checks
+    
+    Returns:
+        Tuple of (is_valid, error_message, validation_details)
+        validation_details contains: file_size, is_readable, encoding_info, format_match, etc.
+    """
+    validation_details = {
+        'file_path': file_path,
+        'file_exists': False,
+        'file_size': 0,
+        'is_readable': False,
+        'is_empty': False,
+        'encoding': None,
+        'format_match': None,
+        'error_details': []
+    }
+    
+    # Check 1: File exists
+    if not os.path.exists(file_path):
+        return False, f"File does not exist: {file_path}", validation_details
+    
+    validation_details['file_exists'] = True
+    
+    # Check 2: Is a file (not directory)
+    if not os.path.isfile(file_path):
+        return False, f"Path is not a file: {file_path}", validation_details
+    
+    # Check 3: File size
+    try:
+        file_size = os.path.getsize(file_path)
+        validation_details['file_size'] = file_size
+        
+        if file_size == 0:
+            validation_details['is_empty'] = True
+            return False, f"File is empty (0 bytes): {file_path}", validation_details
+        
+        # Warn about very large files (>1GB)
+        if file_size > 1024 * 1024 * 1024:  # 1GB
+            validation_details['error_details'].append(f"File is very large ({file_size / (1024**3):.2f} GB)")
+    except OSError as e:
+        return False, f"Cannot access file size: {str(e)}", validation_details
+    
+    # Check 4: File is readable
+    try:
+        with open(file_path, 'rb') as f:
+            f.read(1)  # Try to read at least 1 byte
+        validation_details['is_readable'] = True
+    except PermissionError:
+        return False, f"Permission denied: Cannot read file {file_path}", validation_details
+    except Exception as e:
+        return False, f"Cannot read file: {str(e)}", validation_details
+    
+    # Check 5: Encoding detection (for text files)
+    if expected_format in ['csv', 'txt', 'json']:
+        try:
+            # Try common encodings
+            encodings_to_try = ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252', 'iso-8859-1']
+            encoding_found = None
+            
+            for encoding in encodings_to_try:
+                try:
+                    with open(file_path, 'r', encoding=encoding) as f:
+                        f.read(1024)  # Read first 1KB to test encoding
+                    encoding_found = encoding
+                    break
+                except UnicodeDecodeError:
+                    continue
+            
+            if encoding_found:
+                validation_details['encoding'] = encoding_found
+            else:
+                validation_details['error_details'].append("Could not detect valid text encoding")
+        except Exception as e:
+            validation_details['error_details'].append(f"Encoding check failed: {str(e)}")
+    
+    # Check 6: Format match (check file extension matches expected format)
+    if expected_format:
+        ext = os.path.splitext(file_path)[1].lower()
+        format_extensions = {
+            'csv': ['.csv'],
+            'txt': ['.txt'],
+            'json': ['.json'],
+            'parquet': ['.parquet'],
+            'feather': ['.feather'],
+            'duckdb': ['.duckdb']
+        }
+        
+        expected_exts = format_extensions.get(expected_format, [])
+        if expected_exts and ext not in expected_exts:
+            validation_details['format_match'] = False
+            validation_details['error_details'].append(
+                f"File extension ({ext}) does not match expected format ({expected_format})"
+            )
+        else:
+            validation_details['format_match'] = True
+    
+    # Check 7: Quick content check for text files (check if file has actual content beyond whitespace)
+    if expected_format in ['csv', 'txt', 'json']:
+        try:
+            with open(file_path, 'r', encoding=validation_details.get('encoding', 'utf-8'), errors='ignore') as f:
+                first_chunk = f.read(1024)
+                if not first_chunk.strip():
+                    validation_details['is_empty'] = True
+                    return False, f"File appears to contain only whitespace: {file_path}", validation_details
+        except Exception as e:
+            validation_details['error_details'].append(f"Content check failed: {str(e)}")
+    
+    # All checks passed
+    if validation_details['error_details']:
+        # Has warnings but not critical errors
+        return True, None, validation_details
+    
+    return True, None, validation_details
 

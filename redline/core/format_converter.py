@@ -400,7 +400,19 @@ class FormatConverter:
                 raise FileNotFoundError(f"File not found: {file_path}")
             
             if format == 'csv':
-                return pd.read_csv(file_path)
+                try:
+                    return pd.read_csv(file_path)
+                except Exception as csv_error:
+                    file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
+                    self.logger.error(f"Error reading CSV file {file_path}: {str(csv_error)} (file size: {file_size} bytes)")
+                    # Try to read first few lines for diagnostics
+                    try:
+                        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                            first_lines = [f.readline() for _ in range(3)]
+                        self.logger.debug(f"First 3 lines of {file_path}:\n{''.join(first_lines)}")
+                    except Exception as diag_error:
+                        self.logger.debug(f"Could not read diagnostic info: {str(diag_error)}")
+                    raise csv_error
             elif format == 'parquet':
                 try:
                     data = pd.read_parquet(file_path)
@@ -416,9 +428,19 @@ class FormatConverter:
                     except:
                         raise parquet_error
             elif format == 'feather':
-                return pd.read_feather(file_path)
+                try:
+                    return pd.read_feather(file_path)
+                except Exception as feather_error:
+                    file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
+                    self.logger.error(f"Error reading Feather file {file_path}: {str(feather_error)} (file size: {file_size} bytes)")
+                    raise feather_error
             elif format == 'json':
-                return pd.read_json(file_path)
+                try:
+                    return pd.read_json(file_path)
+                except Exception as json_error:
+                    file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
+                    self.logger.error(f"Error reading JSON file {file_path}: {str(json_error)} (file size: {file_size} bytes)")
+                    raise json_error
             elif format == 'txt':
                 # Try to detect TXT format (Stooq format is comma-separated, others may be tab-separated)
                 try:

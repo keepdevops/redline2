@@ -8,120 +8,6 @@
 {% block content %}
 <div class="row">
     <div class="col-md-8">
-        <!-- Conversion Form -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-exchange-alt me-2"></i>Convert File Format
-                </h5>
-            </div>
-            <div class="card-body">
-                <form id="conversionForm">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="inputFile" class="form-label">Input File</label>
-                                <select class="form-select" id="inputFile" required>
-                                    <option value="">Select input file...</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="outputFormat" class="form-label">Output Format</label>
-                                <select class="form-select" id="outputFormat" required>
-                                    <option value="">Select output format...</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="outputFilename" class="form-label">Output Filename</label>
-                                <input type="text" class="form-control" id="outputFilename" placeholder="Enter output filename..." required>
-                                <div class="form-text">Enter filename without extension (will be added automatically)</div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3 d-flex align-items-end">
-                                <div class="form-check me-3">
-                                    <input class="form-check-input" type="checkbox" id="overwrite">
-                                    <label class="form-check-label" for="overwrite">
-                                        Overwrite existing file
-                                    </label>
-                                </div>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-exchange-alt me-2"></i>Convert
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Data Cleaning Options -->
-                    <div class="mb-3">
-                        <h6 class="mb-3"><i class="fas fa-broom me-2"></i><strong>Data Cleaning Options</strong> <small class="text-muted">(Applied before conversion)</small></h6>
-                        <div class="card card-body bg-light">
-                                <div class="mb-3">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="convertRemoveDuplicates" checked>
-                                        <label class="form-check-label" for="convertRemoveDuplicates">
-                                            <strong>Remove Duplicate Rows</strong>
-                                        </label>
-                                    </div>
-                                    <small class="form-text text-muted">
-                                        Removes rows that are exact duplicates. If ticker and timestamp columns exist, duplicates are detected based on those columns.
-                                    </small>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="convertHandleMissing" class="form-label">
-                                        <strong>Handle Missing Values</strong>
-                                    </label>
-                                    <select class="form-select" id="convertHandleMissing">
-                                        <option value="drop" selected>Drop rows with missing values</option>
-                                        <option value="forward_fill">Forward fill (use previous value)</option>
-                                        <option value="backward_fill">Backward fill (use next value)</option>
-                                        <option value="none">Don't handle missing values</option>
-                                    </select>
-                                    <small class="form-text text-muted">
-                                        <strong>Drop:</strong> Removes rows with missing values in ticker, timestamp, or close columns<br>
-                                        <strong>Forward Fill:</strong> Fills missing values with the previous row's value<br>
-                                        <strong>Backward Fill:</strong> Fills missing values with the next row's value<br>
-                                        <strong>None:</strong> Leaves missing values as-is
-                                    </small>
-                                </div>
-                                
-                                <div class="mb-0">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="convertCleanColumnNames" checked>
-                                        <label class="form-check-label" for="convertCleanColumnNames">
-                                            Clean column names (remove unnamed/empty columns)
-                                        </label>
-                                    </div>
-                                </div>
-                                
-                                <!-- Column Order Input -->
-                                <div class="mb-3 mt-3">
-                                    <label for="convertColumnOrder" class="form-label">
-                                        <strong>Column Order (Optional)</strong>
-                                    </label>
-                                    <input type="text" 
-                                           class="form-control" 
-                                           id="convertColumnOrder" 
-                                           placeholder="ticker,date,open,high,low,close,volume"
-                                           title="Comma-separated list of column names in desired order">
-                                    <small class="form-text text-muted">
-                                        Specify column order (comma-separated). Columns not listed will be appended at the end.
-                                    </small>
-                                </div>
-                            </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-
         <!-- Batch Conversion -->
         <div class="card mb-4">
             <div class="card-header">
@@ -296,19 +182,6 @@ $(document).ready(function() {
     updateBatchButtons();
     
     // Event handlers
-    $('#conversionForm').on('submit', function(e) {
-        e.preventDefault();
-        convertFile();
-    });
-    
-    $('#inputFile').on('change', function() {
-        updateOutputFilename();
-    });
-    
-    $('#outputFormat').on('change', function() {
-        updateOutputFilename();
-    });
-    
     $('#batchConvertBtn').on('click', function() {
         batchConvert();
     });
@@ -367,20 +240,12 @@ function loadAvailableFiles() {
         .then(response => {
             availableFiles = response.files || [];
             
-            // Populate single file selection dropdown
-            const select = $('#inputFile');
-            select.empty();
-            select.append('<option value="">Select input file...</option>');
-            
             // Populate batch file selection dropdown
             const batchSelect = $('#batchFileSelect');
             batchSelect.empty();
             batchSelect.append('<option value="">Select files for batch conversion...</option>');
             
             availableFiles.forEach(file => {
-                // Single file dropdown
-                select.append(`<option value="${file.name}">${file.name} (${REDLINE.utils.formatFileSize(file.size)})</option>`);
-                
                 // Batch file dropdown
                 batchSelect.append(`<option value="${file.name}">${file.name} (${REDLINE.utils.formatFileSize(file.size)})</option>`);
             });
@@ -479,7 +344,8 @@ function updateMergeConvertedButton() {
     $('#mergeConvertedBtn').prop('disabled', selectedConvertedFiles.length < 2);
 }
 
-function updateOutputFilename() {
+// Removed: updateOutputFilename - no longer needed (single file conversion removed)
+function _updateOutputFilename() {
     const inputFile = $('#inputFile').val();
     const outputFormat = $('#outputFormat').val();
     
@@ -499,77 +365,6 @@ function getFormatExtension(format) {
         'duckdb': '.duckdb'
     };
     return extensions[format] || '';
-}
-
-function convertFile() {
-    const inputFile = $('#inputFile').val();
-    const outputFormat = $('#outputFormat').val();
-    const outputFilename = $('#outputFilename').val();
-    const overwrite = $('#overwrite').is(':checked');
-    
-    if (!inputFile || !outputFormat || !outputFilename) {
-        REDLINE.ui.showToast('Please fill in all required fields', 'error');
-        return;
-    }
-    
-    // Get license key - use global function if available, otherwise fallback
-    const licenseKey = (typeof window.getLicenseKey === 'function') 
-        ? window.getLicenseKey() 
-        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
-    if (!licenseKey) {
-        REDLINE.ui.showToast('License key is required. Please register or enter your license key.', 'error');
-        return;
-    }
-    
-    REDLINE.ui.showLoading('Converting file...');
-    console.log('Converting file with license key:', licenseKey.substring(0, 20) + '...');
-    
-    // Get cleaning options
-    const removeDuplicates = $('#convertRemoveDuplicates').is(':checked');
-    const handleMissing = $('#convertHandleMissing').val();
-    const cleanColumnNames = $('#convertCleanColumnNames').is(':checked');
-    const columnOrder = $('#convertColumnOrder').val().trim();
-    
-    const conversionData = {
-        input_file: inputFile,
-        output_format: outputFormat,
-        output_filename: outputFilename,
-        overwrite: overwrite,
-        license_key: licenseKey,  // Include license key in request body
-        // Data cleaning options
-        remove_duplicates: removeDuplicates,
-        handle_missing: handleMissing,
-        clean_column_names: cleanColumnNames,
-        column_order: columnOrder || null  // Column order (optional)
-    };
-    
-    REDLINE.api.post('/converter/convert', conversionData)
-        .then(response => {
-            REDLINE.ui.hideLoading();
-            showConversionResults([response]);
-            REDLINE.ui.showToast('File converted successfully', 'success');
-            loadConvertedFiles();
-        })
-        .catch(error => {
-            REDLINE.ui.hideLoading();
-            // Extract error message from response
-            let errorMessage = error.message || 'Unknown error';
-            if (error.response && error.response.data) {
-                const errorData = error.response.data;
-                if (errorData.error) {
-                    errorMessage = errorData.error;
-                    // Special handling for "Output file already exists"
-                    if (errorMessage === 'Output file already exists' && errorData.suggestion) {
-                        errorMessage = `${errorMessage}. ${errorData.suggestion}`;
-                        // Auto-check overwrite checkbox if user wants to retry
-                        console.log('Output file exists. User can check "Overwrite existing file" to retry.');
-                    } else if (errorData.details) {
-                        errorMessage = `${errorMessage}: ${errorData.details}`;
-                    }
-                }
-            }
-            REDLINE.ui.showToast('Error converting file: ' + errorMessage, 'error');
-        });
 }
 
 function addSelectedFilesToBatch() {

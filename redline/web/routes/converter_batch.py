@@ -7,7 +7,8 @@ from flask import Blueprint, request, jsonify
 import logging
 import os
 import pandas as pd
-from ..utils.converter_helpers import find_input_file_path, adjust_output_filename
+import traceback
+from ..utils.converter_helpers import find_input_file_path, adjust_output_filename, validate_file_before_conversion
 
 converter_batch_bp = Blueprint('converter_batch', __name__)
 logger = logging.getLogger(__name__)
@@ -68,37 +69,103 @@ def batch_convert():
                     # Check if it's a system file
                     from ..utils.converter_helpers import is_system_file
                     if is_system_file(os.path.basename(input_file)):
-                        errors.append({
-                            'input_file': input_file,
-                            'error': 'System files cannot be converted'
-                        })
-                    else:
-                        error_msg = f'Input file not found: {input_file}'
+                        error_msg = f'System files cannot be converted: {input_file}'
                         logger.warning(error_msg)
                         errors.append({
                             'input_file': input_file,
-                            'error': error_msg
+                            'error': error_msg,
+                            'error_type': 'system_file'
+                        })
+                    else:
+                        error_msg = f'Input file not found: {input_file}'
+                        logger.warning(f"{error_msg} (searched in: {data_dir})")
+                        errors.append({
+                            'input_file': input_file,
+                            'error': error_msg,
+                            'error_type': 'file_not_found',
+                            'searched_paths': [
+                                os.path.join(data_dir, input_file),
+                                os.path.join(data_dir, 'downloaded', input_file),
+                                os.path.join(data_dir, 'stooq', input_file)
+                            ]
                         })
                     continue
+                
+                # Detect format from file extension
+                from redline.core.schema import EXT_TO_FORMAT
+                ext = os.path.splitext(input_path)[1].lower()
+                format_type = EXT_TO_FORMAT.get(ext, 'csv')
+                
+                # Validate file before conversion attempt
+                logger.info(f"Validating file {input_file} before conversion...")
+                is_valid, validation_error, validation_details = validate_file_before_conversion(
+                    input_path, expected_format=format_type
+                )
+                
+                if not is_valid:
+                    error_msg = validation_error or 'File validation failed'
+                    logger.error(f"File validation failed for {input_file}: {error_msg}")
+                    logger.debug(f"Validation details: {validation_details}")
+                    errors.append({
+                        'input_file': input_file,
+                        'error': error_msg,
+                        'error_type': 'validation_failed',
+                        'validation_details': validation_details
+                    })
+                    continue
+                
+                # Log validation success with details
+                if validation_details.get('file_size'):
+                    logger.info(f"File validation passed: {input_file} "
+                              f"(size: {validation_details['file_size']} bytes, "
+                              f"format: {format_type}, "
+                              f"encoding: {validation_details.get('encoding', 'N/A')})")
                 
                 from redline.core.format_converter import FormatConverter
                 converter = FormatConverter()
                 
                 # Load and convert
-                from redline.core.schema import EXT_TO_FORMAT
-                
-                # Detect format from file extension
-                ext = os.path.splitext(input_path)[1].lower()
-                format_type = EXT_TO_FORMAT.get(ext, 'csv')
-                
                 logger.info(f"Loading file {input_file} as {format_type} format...")
-                data_obj = converter.load_file_by_type(input_path, format_type)
-                
-                if data_obj is None or (hasattr(data_obj, 'empty') and data_obj.empty):
-                    logger.warning(f"Failed to load or empty file: {input_file}")
+                try:
+                    data_obj = converter.load_file_by_type(input_path, format_type)
+                except Exception as load_error:
+                    error_msg = f"Error loading file: {str(load_error)}"
+                    logger.error(f"Failed to load {input_file}: {error_msg}")
+                    logger.debug(f"Load error traceback:\n{traceback.format_exc()}")
                     errors.append({
                         'input_file': input_file,
-                        'error': 'Failed to load input file or file is empty'
+                        'error': error_msg,
+                        'error_type': 'load_error',
+                        'format_attempted': format_type,
+                        'file_path': input_path,
+                        'file_size': validation_details.get('file_size', 'unknown')
+                    })
+                    continue
+                
+                if data_obj is None:
+                    error_msg = f"File loaded but returned None: {input_file}"
+                    logger.error(error_msg)
+                    errors.append({
+                        'input_file': input_file,
+                        'error': error_msg,
+                        'error_type': 'empty_result',
+                        'format_attempted': format_type,
+                        'file_path': input_path,
+                        'file_size': validation_details.get('file_size', 'unknown')
+                    })
+                    continue
+                
+                if hasattr(data_obj, 'empty') and data_obj.empty:
+                    error_msg = f"File loaded but contains no data: {input_file}"
+                    logger.warning(error_msg)
+                    logger.debug(f"Data object type: {type(data_obj)}, shape: {getattr(data_obj, 'shape', 'N/A')}")
+                    errors.append({
+                        'input_file': input_file,
+                        'error': error_msg,
+                        'error_type': 'empty_data',
+                        'format_attempted': format_type,
+                        'file_path': input_path,
+                        'file_size': validation_details.get('file_size', 'unknown')
                     })
                     continue
                 
@@ -121,9 +188,14 @@ def batch_convert():
                 })
                 
             except Exception as e:
+                error_msg = str(e)
+                logger.error(f"Unexpected error processing {file_config.get('input_file', 'unknown')}: {error_msg}")
+                logger.debug(f"Exception traceback:\n{traceback.format_exc()}")
                 errors.append({
                     'input_file': file_config.get('input_file', 'unknown'),
-                    'error': str(e)
+                    'error': error_msg,
+                    'error_type': 'unexpected_error',
+                    'exception_type': type(e).__name__
                 })
         
         logger.info(f"Batch conversion completed: {len(results)} successful, {len(errors)} failed")

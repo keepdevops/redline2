@@ -74,6 +74,25 @@ def api_list_files():
                         'location': 'downloaded'
                     })
         
+        # Get files from uploads directory
+        uploads_dir = os.path.join(data_dir, 'uploads')
+        if os.path.exists(uploads_dir):
+            for filename in os.listdir(uploads_dir):
+                # Skip system files
+                if filename in SYSTEM_FILES:
+                    continue
+                file_path = os.path.join(uploads_dir, filename)
+                if os.path.isfile(file_path) and not filename.startswith('.'):
+                    file_stat = os.stat(file_path)
+                    files.append({
+                        'name': filename,
+                        'size': file_stat.st_size,
+                        'modified': file_stat.st_mtime,
+                        'path': file_path,
+                        'storage': 'local',
+                        'location': 'uploads'
+                    })
+        
         # Get files from stooq directory (recursively including all subdirectories)
         # Stooq data often comes in nested structures like: stooq/5min/subfolder1/data.txt
         stooq_dir = os.path.join(data_dir, 'stooq')
