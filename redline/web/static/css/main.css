@@ -1182,11 +1182,13 @@ thead.table-dark th {
     font-size: 2.5rem;
     font-weight: 700;
     margin-bottom: 0.5rem;
+    color: #ffffff !important;
 }
 
 .stats-label {
     font-size: 0.875rem;
-    opacity: 0.9;
+    color: #ffffff !important;
+    opacity: 1;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }

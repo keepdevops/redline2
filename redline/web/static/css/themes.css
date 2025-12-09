@@ -794,3 +794,27 @@ body.theme-dark .form-check-label,
     color: var(--text-primary) !important;
     border-left-color: var(--warning-color) !important;
 }
+
+/* Dashboard Stats Labels - Bright White for All Themes */
+.theme-default .stats-label,
+.theme-high-contrast .stats-label,
+.theme-ocean .stats-label,
+.theme-forest .stats-label,
+.theme-sunset .stats-label,
+.theme-monochrome .stats-label,
+.theme-grayscale .stats-label,
+.theme-dark .stats-label {
+    color: #ffffff !important;
+    opacity: 1 !important;
+}
+
+.theme-default .stats-number,
+.theme-high-contrast .stats-number,
+.theme-ocean .stats-number,
+.theme-forest .stats-number,
+.theme-sunset .stats-number,
+.theme-monochrome .stats-number,
+.theme-grayscale .stats-number,
+.theme-dark .stats-number {
+    color: #ffffff !important;
+}
