@@ -36,14 +36,15 @@ def list_available_files():
                     continue
                 if filename.endswith(('.csv', '.txt', '.json', '.parquet', '.feather', '.duckdb', '.npz', '.h5', '.arrow')):
                     file_path = os.path.join(data_dir, filename)
-                    file_stat = os.stat(file_path)
-                    files.append({
-                        'name': filename,
-                        'path': file_path,
-                        'size': file_stat.st_size,
-                        'modified': file_stat.st_mtime,
-                        'location': 'data'
-                    })
+                    if os.path.isfile(file_path) and not filename.startswith('.'):
+                        file_stat = os.stat(file_path)
+                        files.append({
+                            'name': filename,
+                            'path': file_path,
+                            'size': file_stat.st_size,
+                            'modified': file_stat.st_mtime,
+                            'location': 'data'
+                        })
         
         # List files in downloaded directory
         downloaded_dir = os.path.join(data_dir, 'downloaded')
@@ -54,33 +55,59 @@ def list_available_files():
                     continue
                 if filename.endswith(('.csv', '.txt', '.json', '.parquet', '.feather', '.duckdb', '.npz', '.h5', '.arrow')):
                     file_path = os.path.join(downloaded_dir, filename)
-                    file_stat = os.stat(file_path)
-                    files.append({
-                        'name': filename,
-                        'path': file_path,
-                        'size': file_stat.st_size,
-                        'modified': file_stat.st_mtime,
-                        'location': 'data/downloaded'
-                    })
-        
-        # List files in stooq directory (for Stooq downloads)
-        stooq_dir = os.path.join(data_dir, 'stooq')
-        if os.path.exists(stooq_dir):
-            try:
-                for filename in os.listdir(stooq_dir):
-                    # Skip system files
-                    if filename in SYSTEM_FILES:
-                        continue
-                    if filename.endswith(('.csv', '.txt', '.json', '.parquet', '.feather', '.duckdb', '.npz', '.h5', '.arrow')):
-                        file_path = os.path.join(stooq_dir, filename)
+                    if os.path.isfile(file_path) and not filename.startswith('.'):
                         file_stat = os.stat(file_path)
                         files.append({
                             'name': filename,
                             'path': file_path,
                             'size': file_stat.st_size,
                             'modified': file_stat.st_mtime,
-                            'location': 'data/stooq'
+                            'location': 'data/downloaded'
                         })
+        
+        # Get files from uploads directory
+        uploads_dir = os.path.join(data_dir, 'uploads')
+        if os.path.exists(uploads_dir):
+            for filename in os.listdir(uploads_dir):
+                # Skip system files
+                if filename in SYSTEM_FILES:
+                    continue
+                if filename.endswith(('.csv', '.txt', '.json', '.parquet', '.feather', '.duckdb', '.npz', '.h5', '.arrow')):
+                    file_path = os.path.join(uploads_dir, filename)
+                    if os.path.isfile(file_path) and not filename.startswith('.'):
+                        file_stat = os.stat(file_path)
+                        files.append({
+                            'name': filename,
+                            'path': file_path,
+                            'size': file_stat.st_size,
+                            'modified': file_stat.st_mtime,
+                            'location': 'data/uploads'
+                        })
+        
+        # List files in stooq directory (recursively including all subdirectories)
+        # Stooq data often comes in nested structures like: stooq/5 min/hk/hkex stocks/2/file.txt
+        stooq_dir = os.path.join(data_dir, 'stooq')
+        if os.path.exists(stooq_dir):
+            try:
+                # Recursively search all subdirectories in stooq/
+                for root, dirs, filenames in os.walk(stooq_dir):
+                    for filename in filenames:
+                        # Skip system files
+                        if filename in SYSTEM_FILES:
+                            continue
+                        if not filename.startswith('.'):
+                            file_path = os.path.join(root, filename)
+                            if os.path.isfile(file_path):
+                                file_stat = os.stat(file_path)
+                                # Get relative path from data_dir for detailed location
+                                rel_path = os.path.relpath(file_path, data_dir)
+                                files.append({
+                                    'name': filename,
+                                    'path': file_path,
+                                    'size': file_stat.st_size,
+                                    'modified': file_stat.st_mtime,
+                                    'location': rel_path  # Full path: stooq/5 min/hk/file.txt
+                                })
             except Exception as e:
                 logger.warning(f"Error reading stooq directory: {str(e)}")
         
@@ -97,24 +124,30 @@ def list_available_files():
 def list_converted_files():
     """List previously converted files."""
     try:
-        converted_dir = os.path.join(os.getcwd(), 'data', 'converted')
+        data_dir = os.path.join(os.getcwd(), 'data')
+        converted_dir = os.path.join(data_dir, 'converted')
         files = []
         
         if os.path.exists(converted_dir):
-            for filename in os.listdir(converted_dir):
-                # Skip system files
-                if filename in SYSTEM_FILES:
-                    continue
-                if filename.endswith(('.csv', '.txt', '.json', '.parquet', '.feather', '.duckdb', '.npz', '.h5', '.arrow')):
-                    file_path = os.path.join(converted_dir, filename)
-                    file_stat = os.stat(file_path)
-                    files.append({
-                        'name': filename,
-                        'path': file_path,
-                        'size': file_stat.st_size,
-                        'modified': file_stat.st_mtime,
-                        'location': 'data/converted'
-                    })
+            # Recursively search subdirectories in converted/ (duckdb/, parquet/, etc.)
+            for root, dirs, filenames in os.walk(converted_dir):
+                for filename in filenames:
+                    # Skip system files
+                    if filename in SYSTEM_FILES:
+                        continue
+                    if not filename.startswith('.'):
+                        file_path = os.path.join(root, filename)
+                        if os.path.isfile(file_path):
+                            file_stat = os.stat(file_path)
+                            # Get relative path for location
+                            rel_path = os.path.relpath(file_path, data_dir)
+                            files.append({
+                                'name': filename,
+                                'path': file_path,
+                                'size': file_stat.st_size,
+                                'modified': file_stat.st_mtime,
+                                'location': rel_path
+                            })
         
         # Sort by modification time (newest first)
         files.sort(key=lambda x: x['modified'], reverse=True)
