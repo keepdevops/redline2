@@ -691,6 +691,25 @@ let columnMappings = new Map();
 
 // Load file list on page load
 document.addEventListener('DOMContentLoaded', function() {
+    // Set up event delegation for delete buttons (once on page load)
+    // This will handle clicks on all delete buttons, even those added dynamically
+    const fileListContainer = document.getElementById('fileList');
+    if (fileListContainer) {
+        // Use capture phase to catch events early
+        fileListContainer.addEventListener('click', handleDeleteClick, true);
+        console.log('✅ Delete button event listener attached to fileList container');
+    } else {
+        console.warn('⚠️ fileList container not found, event delegation not set up');
+        // Try again after a short delay
+        setTimeout(function() {
+            const container = document.getElementById('fileList');
+            if (container) {
+                container.addEventListener('click', handleDeleteClick, true);
+                console.log('✅ Delete button event listener attached (delayed)');
+            }
+        }, 100);
+    }
+    
     loadFileList();
     
     // Load saved date format preference
@@ -737,6 +756,8 @@ async function loadFileList() {
         const data = await response.json();
         
         if (data.files && data.files.length > 0) {
+            // Store file list data globally for path lookup in delete function
+            window.fileListData = data.files;
             displayFileList(data.files);
         } else {
             document.getElementById('fileList').innerHTML = 
@@ -753,26 +774,164 @@ async function loadFileList() {
 function displayFileList(files) {
     const fileList = document.getElementById('fileList');
     
-    fileList.innerHTML = files.map(file => `
-        <div class="file-item" data-filename="${file.name}">
-            <input type="checkbox" id="file-${file.name}" 
-                   onchange="toggleFileSelection('${file.name}')">
+    fileList.innerHTML = files.map(file => {
+        // Use location (relative path) if available, then path, otherwise use name
+        // Location is preferred because it's the relative path from data directory (e.g., "stooq/5 min/hk/file.txt")
+        const fileIdentifier = file.location || file.path || file.name;
+        // For data attributes, properly escape HTML entities
+        const escapeHtmlAttr = (str) => {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        };
+        const safeIdentifier = escapeHtmlAttr(fileIdentifier);
+        const safeName = escapeHtmlAttr(file.name);
+        
+        return `
+        <div class="file-item" data-filename="${safeName}" data-filepath="${safeIdentifier}">
+            <input type="checkbox" id="file-${safeName}" 
+                   onchange="toggleFileSelection('${safeName}')">
             <div class="file-info">
                 <div class="file-name">${file.name}</div>
                 <div class="file-size">${formatFileSize(file.size)} • ${formatDate(file.modified)}</div>
             </div>
             <div class="file-actions">
                 <button class="file-delete-btn" 
-                        onclick="deleteFile('${file.name}', event)" 
+                        data-filename="${safeName}"
+                        data-filepath="${safeIdentifier}"
                         title="Delete file">
                     <i class="fas fa-trash-alt"></i>
                 </button>
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
     
     // Ensure button state is correct after file list is displayed
     updateLoadButtonState();
+    
+    // Remove any inline onclick handlers that might have been cached
+    // and ensure event delegation is working
+    const fileListContainer = document.getElementById('fileList');
+    if (fileListContainer) {
+        const deleteButtons = fileListContainer.querySelectorAll('.file-delete-btn');
+        deleteButtons.forEach(btn => {
+            // Remove any onclick attribute
+            if (btn.hasAttribute('onclick')) {
+                console.warn('Found inline onclick on delete button, removing it');
+                btn.removeAttribute('onclick');
+            }
+            // Verify data attributes are set
+            if (!btn.dataset.filename || !btn.dataset.filepath) {
+                console.warn('Delete button missing data attributes:', {
+                    filename: btn.dataset.filename,
+                    filepath: btn.dataset.filepath,
+                    button: btn
+                });
+            }
+        });
+    }
+    
+    // Note: Event delegation is set up on page load, so no need to re-attach here
+    // The click handler will work for all buttons in the fileList container
+}
+
+// Handle delete button clicks using event delegation
+// Version: 2025-12-08-v3 (cache-busted, aggressive inline handler removal)
+function handleDeleteClick(event) {
+    // First, check if this is a delete button click
+    const deleteBtn = event.target.closest('.file-delete-btn');
+    if (!deleteBtn) {
+        // Check if clicked on icon inside button
+        const icon = event.target.closest('i.fa-trash-alt, i.fas');
+        if (icon) {
+            const btn = icon.closest('.file-delete-btn');
+            if (btn) {
+                // Remove any inline onclick immediately
+                if (btn.onclick || btn.hasAttribute('onclick')) {
+                    console.warn('🚨 Removing inline onclick handler from button');
+                    btn.onclick = null;
+                    btn.removeAttribute('onclick');
+                }
+                event.stopImmediatePropagation();
+                event.preventDefault();
+                processDeleteClick(btn, event);
+            }
+        }
+        return;
+    }
+    
+    // Remove any inline onclick immediately
+    if (deleteBtn.onclick || deleteBtn.hasAttribute('onclick')) {
+        console.warn('🚨 Removing inline onclick handler from button');
+        deleteBtn.onclick = null;
+        deleteBtn.removeAttribute('onclick');
+    }
+    
+    // Prevent any other handlers from running
+    event.stopImmediatePropagation();
+    event.preventDefault();
+    
+    processDeleteClick(deleteBtn, event);
+}
+
+function processDeleteClick(deleteBtn, event) {
+    
+    console.log('🔵 processDeleteClick called (v3)', { 
+        button: deleteBtn,
+        hasOnclick: !!deleteBtn.onclick || deleteBtn.hasAttribute('onclick')
+    });
+    
+    // Use dataset to get attributes (automatically handles HTML entity decoding)
+    // Note: dataset converts data-filepath to filepath (camelCase)
+    const filename = deleteBtn.dataset.filename;
+    const filepath = deleteBtn.dataset.filepath;
+    
+    // Also try getAttribute as fallback
+    const filenameAttr = deleteBtn.getAttribute('data-filename');
+    const filepathAttr = deleteBtn.getAttribute('data-filepath');
+    
+    const finalFilename = filename || filenameAttr;
+    const finalFilepath = filepath || filepathAttr;
+    
+    console.log('🔴 Delete button clicked:', { 
+        filename: finalFilename, 
+        filepath: finalFilepath, 
+        dataset: deleteBtn.dataset,
+        attributes: {
+            filename: filenameAttr,
+            filepath: filepathAttr
+        },
+        allAttributes: Array.from(deleteBtn.attributes).map(attr => ({ name: attr.name, value: attr.value }))
+    });
+    
+    if (!finalFilename) {
+        console.error('❌ Missing filename');
+        return;
+    }
+    
+    if (!finalFilepath) {
+        console.error('⚠️ Missing filepath in dataset, trying parent file-item');
+        // Fallback: try to get from parent file-item
+        const fileItem = deleteBtn.closest('.file-item');
+        if (fileItem) {
+            const itemPath = fileItem.dataset.filepath || fileItem.getAttribute('data-filepath');
+            console.log('Got filepath from parent file-item:', itemPath);
+            if (itemPath) {
+                deleteFile(finalFilename, itemPath, event);
+                return;
+            }
+        }
+        console.error('❌ Cannot delete: missing filepath');
+        return;
+    }
+    
+    console.log('✅ Calling deleteFile with:', { filename: finalFilename, filepath: finalFilepath });
+    deleteFile(finalFilename, finalFilepath, event);
 }
 
 // Update load button state (button is always enabled)
@@ -803,7 +962,7 @@ function toggleFileSelection(filename) {
 }
 
 // Delete file
-async function deleteFile(filename, event) {
+async function deleteFile(filename, filePath, event) {
     if (event) {
         event.stopPropagation();
         event.preventDefault();
@@ -834,7 +993,106 @@ async function deleteFile(filename, event) {
     }
     
     try {
-        const response = await fetch(`/api/files/${encodeURIComponent(filename)}`, {
+        // ALWAYS log what we received (works even with cached code)
+        console.log('🗑️ deleteFile called:', { filename, filePath, hasFileItem: !!fileItem });
+        
+        // Get file path from parameter or data attribute
+        let actualFilePath = filePath;
+        if (!actualFilePath && fileItem) {
+            actualFilePath = fileItem.getAttribute('data-filepath');
+            console.log('📂 Got path from fileItem:', actualFilePath);
+        }
+        
+        // ALWAYS try to look up path if it's missing or just a filename
+        // This works even with cached JavaScript that only passes filename
+        const isJustFilename = !actualFilePath || 
+                               actualFilePath === filename || 
+                               (!actualFilePath.includes('/') && !actualFilePath.includes('\\'));
+        
+        if (isJustFilename) {
+            console.warn('⚠️ Only filename provided, looking up full path...', { filename, actualFilePath });
+            
+            // Method 1: Try global file list data
+            if (window.fileListData && Array.isArray(window.fileListData)) {
+                const fileInfo = window.fileListData.find(f => f.name === filename);
+                if (fileInfo && (fileInfo.location || fileInfo.path)) {
+                    actualFilePath = fileInfo.location || fileInfo.path;
+                    console.log('✅ Found in window.fileListData:', actualFilePath);
+                }
+            }
+            
+            // Method 2: Try DOM lookup if still not found
+            if (!actualFilePath || actualFilePath === filename) {
+                const allFileItems = document.querySelectorAll('.file-item[data-filepath]');
+                console.log('🔍 Searching DOM, found', allFileItems.length, 'file items');
+                for (const item of allFileItems) {
+                    const itemNameEl = item.querySelector('.file-name');
+                    const itemName = itemNameEl ? itemNameEl.textContent.trim() : null;
+                    if (itemName === filename) {
+                        actualFilePath = item.getAttribute('data-filepath');
+                        console.log('✅ Found in DOM:', { filename, filepath: actualFilePath });
+                        break;
+                    }
+                }
+            }
+            
+            // Method 3: Try to find by matching the filename in all data attributes
+            if (!actualFilePath || actualFilePath === filename) {
+                const allButtons = document.querySelectorAll('.file-delete-btn[data-filepath]');
+                for (const btn of allButtons) {
+                    const btnFilename = btn.getAttribute('data-filename');
+                    if (btnFilename === filename) {
+                        actualFilePath = btn.getAttribute('data-filepath');
+                        console.log('✅ Found in button data:', { filename, filepath: actualFilePath });
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Use filePath if available (for files in subdirectories), otherwise use filename
+        // If filePath is a full path, extract just the relative path from data directory
+        let deletePath = actualFilePath || filename;
+        
+        // If filePath is an absolute path, convert to relative path from data directory
+        if (actualFilePath && actualFilePath.startsWith('/')) {
+            // Extract relative path (e.g., /app/data/stooq/5 min/hk/file.txt -> stooq/5 min/hk/file.txt)
+            const dataDirMatch = actualFilePath.match(/\/data\/(.+)$/);
+            if (dataDirMatch) {
+                deletePath = dataDirMatch[1];
+            } else {
+                // Fallback to just filename if we can't parse the path
+                deletePath = filename;
+            }
+        }
+        
+        // If filePath is a location (relative path like "stooq/5 min/hk/file.txt"), use it directly
+        // This handles the case where location is already a relative path
+        if (actualFilePath && !actualFilePath.startsWith('/') && actualFilePath.includes('/')) {
+            deletePath = actualFilePath;
+        }
+        
+        // Log for debugging
+        console.log('Delete request:', { 
+            filename, 
+            filePath, 
+            actualFilePath, 
+            deletePath,
+            encodedPath: encodeURIComponent(deletePath),
+            fileItem: fileItem ? fileItem.getAttribute('data-filepath') : 'no fileItem'
+        });
+        
+        // Validate that we have a proper path
+        if (!deletePath || deletePath === filename) {
+            console.warn('Warning: deletePath is same as filename, might be missing full path', {
+                filename,
+                filePath,
+                actualFilePath,
+                deletePath
+            });
+        }
+        
+        const response = await fetch(`/api/files/${encodeURIComponent(deletePath)}`, {
             method: 'DELETE',
             headers: {
                 'X-License-Key': licenseKey
