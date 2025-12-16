@@ -602,7 +602,7 @@ const themeSystem = {
     // Initialize theme system
     init: function() {
         // Load saved theme from localStorage
-        const savedTheme = localStorage.getItem('redline-theme') || 'theme-default';
+        const savedTheme = localStorage.getItem('variosync-theme') || 'theme-default';
         this.applyTheme(savedTheme);
         
         // Handle theme selection
@@ -610,7 +610,7 @@ const themeSystem = {
             e.preventDefault();
             const theme = $(this).data('theme');
             themeSystem.applyTheme(theme);
-            localStorage.setItem('redline-theme', theme);
+            localStorage.setItem('variosync-theme', theme);
             
             // Update active state
             $('.theme-option').removeClass('active');
@@ -684,7 +684,7 @@ const themeSystem = {
 
     // Get current theme
     getCurrentTheme: function() {
-        return localStorage.getItem('redline-theme') || 'theme-default';
+        return localStorage.getItem('variosync-theme') || 'theme-default';
     },
 
     // Set theme

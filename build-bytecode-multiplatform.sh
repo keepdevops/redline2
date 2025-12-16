@@ -1,17 +1,17 @@
 #!/bin/bash
 
-# REDLINE Multi-Platform Docker Build Script - Bytecode Optimized Version
+# VarioSync Multi-Platform Docker Build Script - Bytecode Optimized Version
 # Builds and pushes bytecode-compiled images for AMD64 and ARM64 simultaneously
 # Creates multi-platform manifests for production deployment with optimized performance
 
 set -e
 
 # Configuration
-IMAGE_NAME="keepdevops/redline"
-VERSION="v1.0.0-bytecode-multiplatform"
+IMAGE_NAME="keepdevops/variosync"
+VERSION="v2.1.0-bytecode-multiplatform"
 PLATFORMS="linux/amd64,linux/arm64"
 
-echo "🚀 REDLINE MULTI-PLATFORM BUILD - BYTECODE OPTIMIZED VERSION"
+echo "🚀 VARIOSYNC MULTI-PLATFORM BUILD - BYTECODE OPTIMIZED VERSION"
 echo "==========================================================="
 echo ""
 echo "📦 Building for platforms: ${PLATFORMS}"
@@ -56,7 +56,7 @@ echo ""
 echo "🚀 Usage Examples:"
 echo ""
 echo "# Production deployment with persistent data (recommended):"
-echo "docker run -d -p 8080:8080 -v redline-data:/app/data ${IMAGE_NAME}:bytecode"
+echo "docker run -d -p 8080:8080 -v variosync-data:/app/data ${IMAGE_NAME}:bytecode"
 echo ""
 echo "# Production with custom environment variables:"
 echo "docker run -d -p 8080:8080 -v redline-data:/app/data \\"

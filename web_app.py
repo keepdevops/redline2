@@ -478,7 +478,7 @@ def create_app():
     if limiter:
         health = limiter.limit("10000 per hour")(health)
     
-    logger.info("REDLINE Web application created successfully")
+    logger.info("VarioSync Web application created successfully")
     
     # Store socketio for potential use
     app.config['socketio'] = socketio
@@ -489,7 +489,7 @@ def create_app():
 def main():
     """Main entry point for the web application (development mode only)."""
     try:
-        logger.info("Starting REDLINE Web Application...")
+        logger.info("Starting VarioSync Web Application...")
         
         # Create application
         app = create_app()
@@ -526,7 +526,7 @@ def main():
             app.run(host=host, port=port, debug=debug)
         
     except Exception as e:
-        logger.error(f"Failed to start REDLINE Web Application: {str(e)}")
+        logger.error(f"Failed to start VarioSync Web Application: {str(e)}")
         sys.exit(1)
 
 # Create app instance for Gunicorn

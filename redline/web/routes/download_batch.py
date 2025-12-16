@@ -164,10 +164,15 @@ def batch_download():
         
         for i, ticker in enumerate(tickers):
             try:
-                # Add longer delay between downloads to respect rate limits
-                if i > 0 and downloader:
-                    delay = 30  # 30 second delay between downloads to avoid rate limiting (increased from 10s)
-                    logger.info(f"Waiting {delay} seconds before downloading {ticker}...")
+                # Optimized delay for Yahoo Finance batch downloads
+                # The downloader handles its own rate limiting, so we use a smaller delay here
+                if i > 0 and downloader and source == 'yahoo':
+                    delay = 2.0  # 2 second delay (reduced from 30s - downloader handles rate limiting)
+                    logger.debug(f"Waiting {delay} seconds before downloading {ticker}...")
+                    time.sleep(delay)
+                elif i > 0 and downloader:
+                    # Other sources may need different delays
+                    delay = 1.0
                     time.sleep(delay)
                 
                 if test_mode:

@@ -140,7 +140,7 @@ class ColorCustomizer {
         if (bodyTheme) {
             return bodyTheme[0];
         }
-        return localStorage.getItem('redline-theme') || 'theme-default';
+        return localStorage.getItem('variosync-theme') || 'theme-default';
     }
     
     listenForThemeChanges() {
@@ -193,7 +193,7 @@ class ColorCustomizer {
         
         // If theme changed (not initial load), clear saved custom colors
         if (clearSaved) {
-            localStorage.removeItem('redline-custom-font-colors');
+            localStorage.removeItem('variosync-custom-font-colors');
             this.customColors = {};
         }
         
@@ -481,7 +481,7 @@ class ColorCustomizer {
     }
     
     saveColors() {
-        localStorage.setItem('redline-custom-font-colors', JSON.stringify(this.customColors));
+        localStorage.setItem('variosync-custom-font-colors', JSON.stringify(this.customColors));
         this.showNotification('Font colors saved successfully!', 'success');
     }
     
@@ -491,7 +491,7 @@ class ColorCustomizer {
         this.updateColorsForTheme(currentTheme, false);
         
         // Then, if user has custom colors saved, apply them (but only if they explicitly saved them)
-        const savedColors = localStorage.getItem('redline-custom-font-colors');
+        const savedColors = localStorage.getItem('variosync-custom-font-colors');
         if (savedColors) {
             try {
                 const parsedColors = JSON.parse(savedColors);

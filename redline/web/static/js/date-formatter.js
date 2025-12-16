@@ -75,12 +75,12 @@ function formatDateValue(value, header) {
     
     // Try jQuery first (if available)
     if (typeof $ !== 'undefined' && $('#dateFormatSelect').length > 0) {
-        dateFormat = $('#dateFormatSelect').val() || localStorage.getItem('redline-date-format') || 'auto';
+        dateFormat = $('#dateFormatSelect').val() || localStorage.getItem('variosync-date-format') || 'auto';
     }
     // Fallback to vanilla JS
     else {
         const dateFormatSelect = document.getElementById('dateFormatSelect');
-        dateFormat = dateFormatSelect ? dateFormatSelect.value : (localStorage.getItem('redline-date-format') || 'auto');
+        dateFormat = dateFormatSelect ? dateFormatSelect.value : (localStorage.getItem('variosync-date-format') || 'auto');
     }
     
     // If format is 'raw', return original value

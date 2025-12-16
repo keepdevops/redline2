@@ -153,7 +153,7 @@
             if (key) {
                 localStorage.setItem(LICENSE_KEY_STORAGE, key);
                 currentLicenseKey = key;
-                window.REDLINE_LICENSE_KEY = key; // Also set global
+                window.VARIOSYNC_LICENSE_KEY = key; // Also set global
                 
                 // Dispatch event for other scripts
                 window.dispatchEvent(new CustomEvent('licenseKeyUpdated', { detail: { licenseKey: key } }));

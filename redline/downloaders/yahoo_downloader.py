@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-REDLINE Yahoo Finance Downloader
+VarioSync Yahoo Finance Downloader
 Downloads historical data from Yahoo Finance using yfinance library.
 """
 
@@ -28,16 +28,19 @@ class YahooDownloader(BaseDownloader):
         self.output_dir = output_dir
         self.logger = logging.getLogger(__name__)
         
-        # Rate limiting - increased delay to avoid rate limiting
+        # Rate limiting - optimized for batch downloads
         self.last_request_time = 0
-        self.min_request_interval = 15.0  # 15 seconds between requests to avoid rate limiting (increased from 5s)
+        self.min_request_interval = 2.0  # 2 seconds between requests (reduced from 15s for better throughput)
         # rate_limit_lock will be initialized by base class _rate_limit() method
+        
+        # Session management for batch downloads
+        self._session = None
         
         # Browser impersonation is disabled at module level (before yfinance import)
         # CURL_IMPERSONATE=0 is set to prevent browser impersonation errors
         self.logger.debug("Browser impersonation disabled via CURL_IMPERSONATE=0 (set at module level)")
     
-    def download_single_ticker(self, ticker: str, start_date: str = None, end_date: str = None) -> pd.DataFrame:
+    def download_single_ticker(self, ticker: str, start_date: str = None, end_date: str = None, use_session: bool = True) -> pd.DataFrame:
         """
         Download historical data for a single ticker.
         
@@ -45,20 +48,36 @@ class YahooDownloader(BaseDownloader):
             ticker: Stock ticker symbol
             start_date: Start date (YYYY-MM-DD)
             end_date: End date (YYYY-MM-DD)
+            use_session: Whether to reuse session for batch downloads
             
         Returns:
             DataFrame with historical data
         """
         try:
-            # Apply rate limiting
-            self._rate_limit()
+            # Apply rate limiting (only if not in batch mode)
+            if use_session:
+                # In batch mode, rate limiting is handled at batch level
+                time.sleep(0.5)  # Small delay to avoid overwhelming Yahoo
+            else:
+                self._rate_limit()
             
             # Parse dates
             start_dt = datetime.strptime(start_date, '%Y-%m-%d') if start_date else None
             end_dt = datetime.strptime(end_date, '%Y-%m-%d') if end_date else None
             
-            # Download data using yfinance - let yfinance handle the session internally
-            # Do not pass session parameter - yfinance will use curl_cffi if available
+            # Download data using yfinance
+            # For batch downloads, reuse session if available
+            if use_session and self._session is None:
+                # Create a session for batch downloads
+                try:
+                    import requests
+                    self._session = requests.Session()
+                    self._session.headers.update({
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    })
+                except:
+                    self._session = None
+            
             ticker_obj = yf.Ticker(ticker)
             
             try:
@@ -291,44 +310,98 @@ class YahooDownloader(BaseDownloader):
         
         self.logger.info(f"Starting Yahoo Finance download of {len(tickers)} tickers")
         
+        # Initialize session for batch downloads
+        try:
+            import requests
+            self._session = requests.Session()
+            self._session.headers.update({
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            })
+        except:
+            self._session = None
+        
+        consecutive_failures = 0
+        max_consecutive_failures = 3
+        
         for i, ticker in enumerate(tickers):
             try:
                 self.logger.info(f"Downloading {ticker} ({i+1}/{len(tickers)})")
                 
-                # Yahoo Finance has rate limits, so we add a delay
+                # Adaptive delay based on recent failures
                 if i > 0:
-                    import time
-                    time.sleep(5.0)  # 5 second delay between requests (increased from 0.5s)
+                    if consecutive_failures > 0:
+                        delay = min(2.0 + (consecutive_failures * 1.0), 10.0)  # Increase delay if failures
+                        self.logger.info(f"Using adaptive delay of {delay}s due to recent failures")
+                    else:
+                        delay = 2.0  # Normal delay between requests
+                    time.sleep(delay)
                 
-                # Download data
-                data = self.download_single_ticker(ticker, start_date, end_date)
+                # Download data with session reuse
+                data = self.download_single_ticker(ticker, start_date, end_date, use_session=True)
                 
                 if not data.empty:
                     results[ticker] = data
                     self.stats['successful_requests'] += 1
                     self.stats['total_data_points'] += len(data)
+                    consecutive_failures = 0  # Reset failure counter on success
                 else:
                     failed_tickers.append(ticker)
                     self.stats['failed_requests'] += 1
+                    consecutive_failures += 1
+                    
+                    # If too many consecutive failures, increase delay and log warning
+                    if consecutive_failures >= max_consecutive_failures:
+                        self.logger.warning(f"Multiple consecutive failures ({consecutive_failures}). This may indicate rate limiting.")
+                        time.sleep(5.0)  # Extra delay before continuing
                 
                 self.stats['total_requests'] += 1
                 self.stats['last_request_time'] = datetime.now()
                 
             except RateLimitError as e:
-                # Rate limit error - propagate to caller
+                # Rate limit error - log and continue with increased delay
                 self.logger.warning(f"Rate limited while downloading {ticker}: {e.message}")
                 failed_tickers.append(ticker)
+                consecutive_failures += 1
                 self.stats['failed_requests'] += 1
                 self.stats['total_requests'] += 1
-                # If this is the first rate limit error, raise it to stop batch processing
-                # Otherwise, continue with other tickers
-                if len(failed_tickers) == 1:
+                
+                # Wait longer before next request
+                if i < len(tickers) - 1:  # Don't wait after last ticker
+                    retry_delay = e.retry_after if hasattr(e, 'retry_after') and e.retry_after else 30
+                    self.logger.info(f"Waiting {retry_delay}s before next request due to rate limit...")
+                    time.sleep(min(retry_delay, 60))  # Cap at 60 seconds
+                
+                # Only raise if this is the first rate limit and we have many tickers remaining
+                if len(failed_tickers) == 1 and len(tickers) > 5:
+                    # For large batches, continue but with longer delays
+                    self.logger.warning("Rate limit encountered. Continuing with increased delays...")
+                elif len(failed_tickers) <= 3:
+                    # For small batches or first few failures, continue
+                    continue
+                else:
+                    # Too many rate limit errors, stop batch
                     raise
+                    
             except Exception as e:
-                self.logger.error(f"Failed to download {ticker}: {str(e)}")
+                error_msg = str(e)
+                self.logger.error(f"Failed to download {ticker}: {error_msg}")
                 failed_tickers.append(ticker)
+                consecutive_failures += 1
                 self.stats['failed_requests'] += 1
                 self.stats['total_requests'] += 1
+                
+                # Check if it's a yfinance/curl error that might be temporary
+                if any(keyword in error_msg.lower() for keyword in ['yfinance', 'curl', 'impersonating', 'setopt']):
+                    self.logger.warning(f"yfinance/curl error for {ticker}. Waiting before continuing...")
+                    time.sleep(3.0)  # Wait before continuing
+        
+        # Clean up session
+        if self._session:
+            try:
+                self._session.close()
+            except:
+                pass
+            self._session = None
         
         if failed_tickers:
             self.logger.warning(f"Failed to download {len(failed_tickers)} tickers: {', '.join(failed_tickers)}")

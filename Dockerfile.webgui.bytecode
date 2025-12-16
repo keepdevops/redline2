@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# REDLINE Web-Based GUI - Bytecode Optimized Version
+# VarioSync Web-Based GUI - Bytecode Optimized Version
 # Multi-stage build with pre-compiled Python bytecode and minified JavaScript/CSS for production
 
 # ============================================
@@ -122,7 +122,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     GUNICORN_TIMEOUT=120 \
     REQUIRE_LICENSE_SERVER=false \
     LICENSE_SERVER_URL=http://localhost:5001 \
-    REDLINE_VERSION=2.1.0 \
+    VARIOSYNC_VERSION=2.1.0 \
     CURL_IMPERSONATE=0
 
 # Install runtime dependencies only
@@ -171,9 +171,9 @@ CMD ["gunicorn", \
      "web_app:create_app()"]
 
 # Labels for metadata
-LABEL maintainer="REDLINE Team <keepdevops@gmail.com>" \
+LABEL maintainer="VarioSync Team <keepdevops@gmail.com>" \
       version="2.1.0-bytecode" \
-      description="REDLINE Financial Analysis - Bytecode Optimized Production Version with Modular Architecture and Subscription Service" \
+      description="VarioSync Financial Analysis - Bytecode Optimized Production Version with Modular Architecture and Subscription Service" \
       architecture="multi-platform" \
       performance="optimized" \
       license="proprietary" \

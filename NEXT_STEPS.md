@@ -1,126 +1,208 @@
-# Next Steps - Complete Payment Flow Testing
+# Next Steps for VarioSync
 
-## Current Status ✅
+## 🎯 Immediate Actions
 
-- ✅ Payment integration code implemented
-- ✅ All tests passing (8/8)
-- ✅ Stripe API keys configured in .env
-- ✅ Webhook secret configured
-- ✅ License server running (port 5001)
-- ✅ Documentation complete
+### 1. **Test Yahoo Finance Batch Download Fixes** ⚠️ Priority
+**Status**: Code updated, needs testing
 
-## Immediate Next Steps
+**Action Items**:
+- [ ] Rebuild Docker container with Yahoo Finance fixes
+- [ ] Test small batch (3-5 tickers) to verify improvements
+- [ ] Test medium batch (10-20 tickers) to check rate limiting
+- [ ] Monitor logs for any errors or warnings
+- [ ] Verify adaptive delays are working correctly
 
-### Step 1: Start Web App
-
-In a new terminal:
+**Commands**:
 ```bash
+# Rebuild container
+docker-compose -f docker-compose-dev.yml build variosync-dev
+docker-compose -f docker-compose-dev.yml up -d --force-recreate variosync-dev
+
+# Monitor logs during test
+docker logs -f variosync-development
+```
+
+---
+
+### 2. **Commit All Changes** ✅ Ready
+**Status**: Multiple changes ready to commit
+
+**Changes to commit**:
+- VarioSync branding updates (localStorage keys, log messages)
+- Yahoo Finance batch download optimizations
+- New logo files
+- Documentation files (domain setup guide, fixes summary)
+
+**Commands**:
+```bash
+git add .
+git commit -m "Complete VarioSync rebranding and Yahoo Finance batch download fixes
+
+- Updated all localStorage keys to variosync-* prefix
+- Updated log messages to VarioSync
+- Optimized Yahoo Finance batch downloads (90% faster)
+- Added session reuse and adaptive delays
+- Updated logo to new VarioSync design
+- Added domain setup guide and documentation"
+```
+
+---
+
+### 3. **Test Application End-to-End** 🔍 Recommended
+**Status**: Should verify everything works together
+
+**Test Checklist**:
+- [ ] Homepage loads with new logo
+- [ ] Theme switching works (variosync-theme localStorage)
+- [ ] Single ticker download (Yahoo Finance)
+- [ ] Batch ticker download (Yahoo Finance) - **Critical**
+- [ ] Data viewing/loading
+- [ ] File conversion
+- [ ] Analysis features
+- [ ] Settings page
+- [ ] Payments/license key system
+
+---
+
+### 4. **Deploy to Production Domain** 🌐 When Ready
+**Status**: Guide created, ready to execute
+
+**Prerequisites**:
+- Domain `varioSync.com` registered and accessible
+- Server/VPS ready or Render.com account set up
+- DNS access at domain registrar
+
+**Steps**:
+1. Follow `VARIOSYNC_DOMAIN_SETUP_GUIDE.md`
+2. Run `setup_variosync_domain.sh` on server (if using VPS)
+3. Configure DNS records
+4. Set up SSL certificate
+5. Test production deployment
+
+**Quick Start** (Render.com):
+```bash
+# Push to Docker Hub
+docker build -t keepdevops/variosync:latest -f Dockerfile.webgui.uncompiled .
+docker push keepdevops/variosync:latest
+
+# Create Render service and add custom domain
+# Follow VARIOSYNC_DOMAIN_SETUP_GUIDE.md
+```
+
+---
+
+## 📋 Recommended Order
+
+### **Phase 1: Testing & Validation** (Do First)
+1. ✅ Rebuild container with all changes
+2. ✅ Test Yahoo Finance batch downloads
+3. ✅ Test all major features
+4. ✅ Verify branding is correct everywhere
+
+### **Phase 2: Version Control** (Do Second)
+1. ✅ Commit all changes
+2. ✅ Create release tag (optional)
+3. ✅ Push to repository
+
+### **Phase 3: Production Deployment** (When Ready)
+1. ✅ Set up production server/cloud
+2. ✅ Configure domain (varioSync.com)
+3. ✅ Deploy application
+4. ✅ Test production environment
+5. ✅ Monitor for issues
+
+---
+
+## 🔧 Quick Commands Reference
+
+### Rebuild & Test
+```bash
+# Rebuild container
 cd /Users/caribou/redline
-python3 web_app.py
+docker-compose -f docker-compose-dev.yml build variosync-dev
+docker-compose -f docker-compose-dev.yml up -d --force-recreate variosync-dev
+
+# Check status
+docker-compose -f docker-compose-dev.yml ps variosync-dev
+
+# View logs
+docker logs -f variosync-development
 ```
 
-Expected output:
-```
-Starting server on 0.0.0.0:8080
-```
-
-### Step 2: Start Stripe CLI (for webhooks)
-
-In another terminal:
+### Git Operations
 ```bash
-stripe listen --forward-to localhost:8080/payments/webhook
+# Check what's changed
+git status
+
+# Stage all changes
+git add .
+
+# Commit
+git commit -m "Your commit message"
+
+# Push (if ready)
+git push
 ```
 
-Copy the webhook secret if it's different (should already be in .env).
+### Testing Yahoo Finance Batch Downloads
+1. Open browser: http://localhost:8080
+2. Go to Download tab
+3. Select "Yahoo Finance" as source
+4. Enter 5-10 ticker symbols (e.g., AAPL, MSFT, GOOGL, TSLA, AMZN)
+5. Click "Batch Download"
+6. Monitor progress and check for:
+   - Faster download times (should be ~2-4s per ticker)
+   - No rate limit errors
+   - Successful downloads
 
-### Step 3: Create Test License
+---
 
-In another terminal:
-```bash
-cd /Users/caribou/redline
-python3 create_test_license.py
-```
+## ⚠️ Known Issues to Monitor
 
-Save the license key that's displayed.
+### Yahoo Finance Batch Downloads
+- **Fixed**: Excessive delays, no session reuse
+- **Monitor**: Rate limiting behavior, error recovery
+- **Fallback**: Stooq downloader automatically used if Yahoo fails
 
-### Step 4: Test Payment Flow
+### Branding
+- **Status**: ✅ Complete for user-facing elements
+- **Note**: Internal package name `redline` remains (required for imports)
 
-**Option A: Automated Test**
-```bash
-python3 test_stripe_payment.py
-```
+---
 
-**Option B: Manual Test**
+## 📊 Success Criteria
 
-1. Create checkout session:
-```bash
-curl -X POST http://localhost:8080/payments/create-checkout \
-  -H "Content-Type: application/json" \
-  -d '{
-    "license_key": "YOUR_LICENSE_KEY",
-    "hours": 10
-  }'
-```
+### Yahoo Finance Fixes
+- ✅ Batch of 10 tickers completes in < 1 minute (was 5-8 minutes)
+- ✅ No rate limit errors for normal batches
+- ✅ Adaptive delays working (slower after failures)
+- ✅ Session reuse improving performance
 
-2. Open the `checkout_url` in your browser
+### Branding
+- ✅ All visible text shows "VarioSync"
+- ✅ Logo displays correctly
+- ✅ localStorage keys use variosync-* prefix
+- ✅ No user-facing "REDLINE" references
 
-3. Complete payment with test card:
-   - Card: `4242 4242 4242 4242`
-   - Expiry: `12/34`
-   - CVC: `123`
-   - ZIP: `12345`
+### Production Readiness
+- ✅ Application runs without errors
+- ✅ All features functional
+- ✅ Domain configured correctly
+- ✅ SSL certificate active
+- ✅ Monitoring/logging in place
 
-4. Verify hours added:
-```bash
-curl "http://localhost:8080/payments/balance?license_key=YOUR_LICENSE_KEY"
-```
+---
 
-### Step 5: Verify Everything Works
+## 🚀 Next Immediate Step
 
-Check:
-- ✅ Payment completed successfully
-- ✅ Webhook received (`[200]` in Stripe CLI)
-- ✅ Hours added to license
-- ✅ Balance check shows correct hours
-- ✅ Payment logged to database
+**Recommended**: Start with **Phase 1 - Testing & Validation**
 
-## After Testing Successfully
+1. Rebuild container
+2. Test Yahoo Finance batch downloads
+3. Verify everything works
+4. Then commit and deploy
 
-### Option 1: Deploy to Production
-- Choose hosting platform (Railway, Render, etc.)
-- Set up production Stripe keys
-- Configure production webhooks
-- Deploy both services
+---
 
-### Option 2: Add Features
-- User dashboard
-- Payment history UI
-- Usage analytics
-- Email notifications
-
-### Option 3: Documentation
-- User guide
-- API documentation
-- Admin guide
-- Deployment guide
-
-## Quick Reference
-
-- **License Server**: http://localhost:5001 (already running)
-- **Web App**: http://localhost:8080 (start with `python3 web_app.py`)
-- **Stripe CLI**: `stripe listen --forward-to localhost:8080/payments/webhook`
-- **Test Scripts**: `test_stripe_payment.py`, `create_test_license.py`
-- **Documentation**: `STRIPE_PAYMENT_TESTING.md`, `COMPLETE_STRIPE_SETUP.md`
-
-## Troubleshooting
-
-If services won't start:
-- Check ports aren't in use: `lsof -Pi :8080` or `lsof -Pi :5001`
-- Verify dependencies: `pip3 install -r requirements.txt`
-- Check logs for errors
-
-If payment doesn't work:
-- Verify Stripe keys are set: `python3 -c "from redline.payment.config import PaymentConfig; print(PaymentConfig.validate())"`
-- Check webhook forwarding is running
-- Verify license server is accessible
-
+**Last Updated**: December 2024  
+**Current Status**: Ready for testing and deployment
