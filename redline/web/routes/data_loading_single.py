@@ -1,5 +1,5 @@
 """
-Single file loading routes for REDLINE Web GUI
+Single file loading routes for VarioSync Web GUI
 Handles loading individual files
 """
 

@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}REDLINE - Financial Data Analyzer{% endblock %}
+{% block title %}VarioSync - Financial Data Analyzer{% endblock %}
 
-{% block page_title %}Welcome to REDLINE{% endblock %}
+{% block page_title %}Welcome to VarioSync{% endblock %}
 {% block page_subtitle %}Financial Data Analyzer & Management Tool{% endblock %}
 
 {% block content %}
@@ -11,7 +11,8 @@
         <div class="welcome-section">
             <div class="welcome-header">
                 <h1 class="display-4 text-primary">
-                    <i class="fas fa-chart-line me-3"></i>REDLINE
+                    <img src="{{ url_for('static', filename='img/variosync-logo.png') }}" alt="VarioSync" height="120" class="me-3" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+                    <i class="fas fa-chart-line me-3" style="display:none;"></i>VarioSync
                 </h1>
                 <p class="lead">Professional-grade financial data analysis with modern web interface</p>
             </div>
@@ -210,6 +211,25 @@
 .welcome-header h1 {
     font-weight: 700;
     margin-bottom: 1rem;
+    color: #ffffff !important;
+}
+
+/* Ensure VarioSync text is bright white for all themes */
+.welcome-section h1,
+.welcome-header h1,
+.welcome-section h1.display-4,
+.welcome-header h1.display-4,
+.welcome-section h1.text-primary,
+.welcome-header h1.text-primary,
+.welcome-section h1.display-4.text-primary,
+.welcome-header h1.display-4.text-primary {
+    color: #ffffff !important;
+}
+
+/* Ensure subtitle "Professional-grade financial data analysis with modern web interface" is bright white */
+.welcome-section p.lead,
+.welcome-header p.lead {
+    color: #ffffff !important;
 }
 
 .feature-card {

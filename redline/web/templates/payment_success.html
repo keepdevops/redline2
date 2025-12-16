@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Payment Success - REDLINE{% endblock %}
+{% block title %}Payment Success - VarioSync{% endblock %}
 
 {% block page_title %}Payment Successful!{% endblock %}
 {% block page_subtitle %}Your payment has been processed successfully{% endblock %}
@@ -64,7 +64,7 @@
                     <strong>Hours Remaining:</strong> {{ hours_remaining }}
                 </div>
                 
-                <p>You now have access to REDLINE!</p>
+                <p>You now have access to VarioSync!</p>
                 
                 <div class="d-grid gap-2 mt-4">
                     <a href="{{ url_for('main.dashboard') }}?license_key={{ license_key }}" class="btn btn-primary btn-lg" id="dashboardBtn">
@@ -115,7 +115,7 @@
     // Save license key to localStorage for persistent access
     const licenseKey = "{{ license_key }}";
     if (licenseKey && licenseKey !== 'None' && licenseKey.trim()) {
-        localStorage.setItem('redline_license_key', licenseKey.trim());
+        localStorage.setItem('variosync_license_key', licenseKey.trim());
         console.log('License key saved to localStorage:', licenseKey);
     }
     

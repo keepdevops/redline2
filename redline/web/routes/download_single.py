@@ -58,7 +58,7 @@ def download_data():
             )
         elif source == 'stooq':
             from redline.downloaders.stooq_downloader import StooqDownloader
-            # Use REDLINE data directory for Stooq downloads
+            # Use VarioSync data directory for Stooq downloads
             data_dir = os.path.join(os.getcwd(), 'data', 'stooq')
             os.makedirs(data_dir, exist_ok=True)
             downloader = StooqDownloader(output_dir=data_dir)

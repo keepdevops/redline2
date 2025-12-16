@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Background Tasks - REDLINE{% endblock %}
+{% block title %}Background Tasks - VarioSync{% endblock %}
 
 {% block page_title %}Background Task Processing{% endblock %}
 {% block page_subtitle %}Monitor and manage asynchronous operations{% endblock %}
@@ -213,7 +213,7 @@ function loadSystemStatus() {
     // Get license key - use global function if available, otherwise fallback
     const licenseKey = (typeof window.getLicenseKey === 'function') 
         ? window.getLicenseKey() 
-        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
     
     $.ajax({
         url: '/tasks/health',
@@ -268,7 +268,7 @@ function loadQueueStats() {
     // Get license key - use global function if available, otherwise fallback
     const licenseKey = (typeof window.getLicenseKey === 'function') 
         ? window.getLicenseKey() 
-        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
     
     $.ajax({
         url: '/tasks/queue/stats',
@@ -325,7 +325,7 @@ function loadTasks() {
     // Get license key - use global function if available, otherwise fallback
     const licenseKey = (typeof window.getLicenseKey === 'function') 
         ? window.getLicenseKey() 
-        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
     
     const statusFilter = $('#statusFilter').val();
     let url = statusFilter ? `/tasks/list?status=${statusFilter}` : '/tasks/list';
@@ -422,7 +422,7 @@ function showTaskDetails(taskId) {
     // Get license key - use global function if available, otherwise fallback
     const licenseKey = (typeof window.getLicenseKey === 'function') 
         ? window.getLicenseKey() 
-        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
     
     $.ajax({
         url: `/tasks/status/${taskId}`,
@@ -471,7 +471,7 @@ function showTaskDetails(taskId) {
             $('#taskDetailsModal').modal('show');
         })
         .fail(function() {
-            REDLINE.ui.showToast('Failed to load task details', 'error');
+            VarioSync.ui.showToast('Failed to load task details', 'error');
         });
 }
 
@@ -480,7 +480,7 @@ function cancelTaskById(taskId) {
         // Get license key - use global function if available, otherwise fallback
         const licenseKey = (typeof window.getLicenseKey === 'function') 
             ? window.getLicenseKey() 
-            : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+            : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
         
         $.ajax({
             url: `/tasks/cancel/${taskId}`,
@@ -489,11 +489,11 @@ function cancelTaskById(taskId) {
             data: licenseKey ? { license_key: licenseKey } : {}
         })
             .done(function() {
-                REDLINE.ui.showToast('Task cancelled successfully', 'success');
+                VarioSync.ui.showToast('Task cancelled successfully', 'success');
                 loadTasks();
             })
             .fail(function() {
-                REDLINE.ui.showToast('Failed to cancel task', 'error');
+                VarioSync.ui.showToast('Failed to cancel task', 'error');
             });
     }
 }
@@ -657,9 +657,9 @@ function submitTask() {
     // Get license key - use global function if available, otherwise fallback
     const licenseKey = (typeof window.getLicenseKey === 'function') 
         ? window.getLicenseKey() 
-        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
     if (!licenseKey) {
-        REDLINE.ui.showToast('License key is required. Please register or enter your license key.', 'error');
+        VarioSync.ui.showToast('License key is required. Please register or enter your license key.', 'error');
         return;
     }
     
@@ -672,7 +672,7 @@ function submitTask() {
     
     $.post(`/tasks/${endpoint}`, taskData)
         .done(function(response) {
-            REDLINE.ui.showToast(`Task submitted successfully: ${response.task_id}`, 'success');
+            VarioSync.ui.showToast(`Task submitted successfully: ${response.task_id}`, 'success');
             loadTasks();
             
             // Clear form
@@ -682,7 +682,7 @@ function submitTask() {
         })
         .fail(function(xhr) {
             const error = xhr.responseJSON?.error || 'Failed to submit task';
-            REDLINE.ui.showToast(`Error: ${error}`, 'error');
+            VarioSync.ui.showToast(`Error: ${error}`, 'error');
         });
 }
 
@@ -691,7 +691,7 @@ function cleanupOldTasks() {
         // Get license key - use global function if available, otherwise fallback
         const licenseKey = (typeof window.getLicenseKey === 'function') 
             ? window.getLicenseKey() 
-            : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+            : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
         
         const cleanupData = {days: 7};
         if (licenseKey) {
@@ -700,11 +700,11 @@ function cleanupOldTasks() {
         
         $.post('/tasks/cleanup', cleanupData)
             .done(function() {
-                REDLINE.ui.showToast('Old tasks cleaned up successfully', 'success');
+                VarioSync.ui.showToast('Old tasks cleaned up successfully', 'success');
                 loadTasks();
             })
             .fail(function() {
-                REDLINE.ui.showToast('Failed to cleanup old tasks', 'error');
+                VarioSync.ui.showToast('Failed to cleanup old tasks', 'error');
             });
     }
 }

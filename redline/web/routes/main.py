@@ -1,5 +1,5 @@
 """
-Main routes registry for REDLINE Web GUI
+Main routes registry for VarioSync Web GUI
 Provides the main dashboard and navigation
 
 This module now serves as a central registry for all main blueprints.

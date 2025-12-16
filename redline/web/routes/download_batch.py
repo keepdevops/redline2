@@ -44,7 +44,7 @@ def batch_download():
         # Create a single downloader instance to share rate limiting
         downloader = None
         # Use environment variable for test mode instead of request parameter
-        test_mode = os.environ.get('REDLINE_TEST_MODE', 'false').lower() == 'true'
+        test_mode = os.environ.get('VarioSync_TEST_MODE', 'false').lower() == 'true'
         
         if test_mode:
             logger.info("Running in test mode - will create sample data")
@@ -53,7 +53,7 @@ def batch_download():
             downloader = YahooDownloader()
         elif source == 'stooq':
             from redline.downloaders.stooq_downloader import StooqDownloader
-            # Use REDLINE data directory for Stooq downloads
+            # Use VarioSync data directory for Stooq downloads
             data_dir = os.path.join(os.getcwd(), 'data', 'stooq')
             os.makedirs(data_dir, exist_ok=True)
             downloader = StooqDownloader(output_dir=data_dir)

@@ -1,5 +1,5 @@
 """
-Statistical analysis routes for REDLINE Web GUI
+Statistical analysis routes for VarioSync Web GUI
 Handles statistical analysis operations
 """
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Payment checkout routes for REDLINE Web GUI
+Payment checkout routes for VarioSync Web GUI
 Handles Stripe checkout session creation
 """
 
@@ -96,8 +96,8 @@ def create_checkout():
                     'price_data': {
                         'currency': PaymentConfig.CURRENCY,
                         'product_data': {
-                            'name': f'{hours} Hours of REDLINE Access',
-                            'description': f'Purchase {hours} hours of access time for REDLINE'
+                            'name': f'{hours} Hours of VarioSync Access',
+                            'description': f'Purchase {hours} hours of access time for VarioSync'
                         },
                         'unit_amount': price_cents,
                     },

@@ -1,5 +1,5 @@
 """
-ML routes for REDLINE Web GUI
+ML routes for VarioSync Web GUI
 Route handlers for machine learning operations
 
 This module now serves as a central registry for all ML blueprints.

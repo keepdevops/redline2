@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 <!-- Stooq Data Downloader Template -->
 
-{% block title %}Stooq Data Downloader - REDLINE{% endblock %}
+{% block title %}Stooq Data Downloader - VarioSync{% endblock %}
 
 {% block page_title %}Stooq Data Downloader{% endblock %}
 {% block page_subtitle %}Download financial data from Stooq and convert to CSV format{% endblock %}
@@ -289,7 +289,7 @@ function downloadFile(filePath) {
 
 function viewRecentFile(filename) {
     // Open file browser to view recent file
-    const filePath = '/Users/caribou/redline/data/stooq/' + filename;
+    const filePath = '/Users/caribou/variosync/data/stooq/' + filename;
     window.open('/data/browser?path=' + encodeURIComponent(filePath), '_blank');
 }
 </script>

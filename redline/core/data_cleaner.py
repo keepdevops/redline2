@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-REDLINE Data Cleaner
+VarioSync Data Cleaner
 Handles data cleaning, standardization, and preprocessing operations.
 """
 
@@ -20,7 +20,7 @@ class DataCleaner:
     
     def clean_and_select_columns(self, data: pd.DataFrame) -> pd.DataFrame:
         """
-        Clean and standardize DataFrame columns to match REDLINE schema.
+        Clean and standardize DataFrame columns to match VarioSync schema.
         
         Args:
             data: Raw DataFrame to clean
@@ -74,7 +74,7 @@ class DataCleaner:
     
     def standardize_txt_columns(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Standardize columns from Stooq TXT format to REDLINE schema.
+        Standardize columns from Stooq TXT format to VarioSync schema.
         
         Args:
             df: DataFrame with Stooq format columns
@@ -86,7 +86,7 @@ class DataCleaner:
             # Create a copy to avoid modifying original
             result = df.copy()
             
-            # Map Stooq columns to REDLINE schema
+            # Map Stooq columns to VarioSync schema
             column_mapping = {
                 '<TICKER>': 'ticker',
                 '<DATE>': 'date_str',

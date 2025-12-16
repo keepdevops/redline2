@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Register - REDLINE{% endblock %}
+{% block title %}Register - VarioSync{% endblock %}
 
 {% block page_title %}Get Your License Key{% endblock %}
-{% block page_subtitle %}Create a new account to start using REDLINE{% endblock %}
+{% block page_subtitle %}Create a new account to start using VarioSync{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -232,7 +232,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="alert alert-light border">
                             <code id="licenseKeyDisplay" style="font-size: 1.3em; font-weight: bold; color: #0d6efd; word-break: break-all;">${licenseKey}</code>
                         </div>
-                        <p><strong>Important:</strong> Save this license key! You'll need it to access REDLINE.</p>
+                        <p><strong>Important:</strong> Save this license key! You'll need it to access VarioSync.</p>
                         <p class="text-muted"><small>An email with your license key has been sent to: ${email}</small></p>
                         <hr>
                         <div class="d-grid gap-2">
@@ -247,7 +247,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
                 
                 // Save license key to localStorage for persistent access
-                localStorage.setItem('redline_license_key', licenseKey);
+                localStorage.setItem('variosync_license_key', licenseKey);
                 console.log('License key saved to localStorage:', licenseKey);
                 
                 // Scroll to result

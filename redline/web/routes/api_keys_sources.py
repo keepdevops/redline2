@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-API Keys sources routes for REDLINE Web GUI
+API Keys sources routes for VarioSync Web GUI
 Provides information about API sources and how to get keys
 """
 
@@ -38,7 +38,7 @@ def get_api_sources():
                     'Fill out simple registration form',
                     'Verify email address',
                     'Copy your API key',
-                    'Paste it in REDLINE settings'
+                    'Paste it in VarioSync settings'
                 ],
                 'pros': [
                     'High quality data',
@@ -75,7 +75,7 @@ def get_api_sources():
                     'Create account with email',
                     'Verify email address',
                     'Copy your API key',
-                    'Paste it in REDLINE settings'
+                    'Paste it in VarioSync settings'
                 ],
                 'pros': [
                     'Higher rate limits',
@@ -106,7 +106,7 @@ def get_api_sources():
                 'daily_limit': 'Unlimited but unreliable',
                 'signup_steps': [
                     'No registration required',
-                    'Built into REDLINE',
+                    'Built into VarioSync',
                     'May experience rate limiting',
                     'Consider upgrading to paid APIs'
                 ],
@@ -181,7 +181,7 @@ def get_api_sources():
                     'Navigate to API Keys section',
                     'Generate a new API key',
                     'Copy your API key',
-                    'Paste it in REDLINE settings'
+                    'Paste it in VarioSync settings'
                 ],
                 'pros': [
                     'Comprehensive market data',

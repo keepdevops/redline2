@@ -1,5 +1,5 @@
 """
-Multiple file loading routes for REDLINE Web GUI
+Multiple file loading routes for VarioSync Web GUI
 Handles loading multiple files and file uploads
 """
 

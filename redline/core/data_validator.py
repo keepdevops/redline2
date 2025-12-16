@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-REDLINE Data Validator
+VarioSync Data Validator
 Handles validation of financial data files and data integrity checks.
 """
 

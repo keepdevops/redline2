@@ -1,4 +1,4 @@
-/* REDLINE Color Scheme Themes */
+/* VarioSync Color Scheme Themes - All Fonts Bright White */
 
 /* Default Color-Blind Friendly Theme */
 .theme-default {
@@ -558,7 +558,7 @@ body.theme-dark .modal .modal-dialog .modal-content,
 .theme-dark.modal .modal-dialog .modal-content,
 body.theme-dark .modal-content {
     background-color: var(--light-color) !important;
-    color: var(--text-primary) !important;
+    color: #ffffff !important;
     border: 1px solid var(--border-color) !important;
 }
 
@@ -575,14 +575,14 @@ body.theme-dark .modal .modal-dialog .modal-content .modal-header,
 .theme-dark.modal.show .modal-dialog .modal-content .modal-header,
 body.theme-dark .modal-header {
     background-color: var(--light-color) !important;
-    color: var(--text-primary) !important;
+    color: #ffffff !important;
     border-bottom: 1px solid var(--border-color) !important;
 }
 
 body.theme-dark .modal-header .modal-title,
 .theme-dark .modal-header .modal-title,
 body.theme-dark .modal.show .modal-header .modal-title {
-    color: var(--text-primary) !important;
+    color: #ffffff !important;
 }
 
 body.theme-dark .modal.show .modal-dialog .modal-content .modal-body,
@@ -591,7 +591,7 @@ body.theme-dark .modal .modal-dialog .modal-content .modal-body,
 .theme-dark.modal.show .modal-dialog .modal-content .modal-body,
 body.theme-dark .modal-body {
     background-color: var(--light-color) !important;
-    color: var(--text-primary) !important;
+    color: #ffffff !important;
 }
 
 body.theme-dark .modal.show .modal-dialog .modal-content .modal-footer,
@@ -600,11 +600,12 @@ body.theme-dark .modal .modal-dialog .modal-content .modal-footer,
 .theme-dark.modal.show .modal-dialog .modal-content .modal-footer,
 body.theme-dark .modal-footer {
     background-color: var(--light-color) !important;
-    color: var(--text-primary) !important;
+    color: #ffffff !important;
     border-top: 1px solid var(--border-color) !important;
 }
 
 /* Dark Theme - Form Controls - Higher specificity to override Bootstrap */
+/* ALL THEMES: Bright White Font */
 body.theme-dark .form-control,
 .theme-dark .modal .form-control,
 .theme-dark .form-control {
@@ -646,12 +647,13 @@ body.theme-dark .form-select:focus,
 }
 
 .theme-dark .form-label {
-    color: var(--text-primary) !important;
+    color: #ffffff !important;
 }
 
 .theme-dark .form-text,
 .theme-dark small.text-muted {
-    color: var(--text-muted) !important;
+    color: #ffffff !important;
+    opacity: 0.9 !important;
 }
 
 /* Dark Theme - Form Check Inputs (Checkboxes, Switches) */
@@ -682,7 +684,7 @@ body.theme-dark .form-check-input:focus,
 body.theme-dark .form-check-label,
 .theme-dark .modal .form-check-label,
 .theme-dark .form-check-label {
-    color: var(--text-primary) !important;
+    color: #ffffff !important;
     cursor: pointer !important;
 }
 
@@ -795,26 +797,216 @@ body.theme-dark .form-check-label,
     border-left-color: var(--warning-color) !important;
 }
 
-/* Dashboard Stats Labels - Bright White for All Themes */
-.theme-default .stats-label,
-.theme-high-contrast .stats-label,
-.theme-ocean .stats-label,
-.theme-forest .stats-label,
-.theme-sunset .stats-label,
-.theme-monochrome .stats-label,
-.theme-grayscale .stats-label,
-.theme-dark .stats-label {
+/* VarioSync Brand Name - Bright White for All Themes */
+.theme-default .navbar-brand,
+.theme-high-contrast .navbar-brand,
+.theme-ocean .navbar-brand,
+.theme-forest .navbar-brand,
+.theme-sunset .navbar-brand,
+.theme-monochrome .navbar-brand,
+.theme-grayscale .navbar-brand,
+.theme-dark .navbar-brand {
     color: #ffffff !important;
-    opacity: 1 !important;
 }
 
-.theme-default .stats-number,
-.theme-high-contrast .stats-number,
-.theme-ocean .stats-number,
-.theme-forest .stats-number,
-.theme-sunset .stats-number,
-.theme-monochrome .stats-number,
-.theme-grayscale .stats-number,
-.theme-dark .stats-number {
+.theme-default .navbar-brand:not(:has(img)),
+.theme-high-contrast .navbar-brand:not(:has(img)),
+.theme-ocean .navbar-brand:not(:has(img)),
+.theme-forest .navbar-brand:not(:has(img)),
+.theme-sunset .navbar-brand:not(:has(img)),
+.theme-monochrome .navbar-brand:not(:has(img)),
+.theme-grayscale .navbar-brand:not(:has(img)),
+.theme-dark .navbar-brand:not(:has(img)) {
     color: #ffffff !important;
+}
+
+/* VarioSync heading on homepage - Bright White for All Themes */
+.theme-default .welcome-section h1,
+.theme-high-contrast .welcome-section h1,
+.theme-ocean .welcome-section h1,
+.theme-forest .welcome-section h1,
+.theme-sunset .welcome-section h1,
+.theme-monochrome .welcome-section h1,
+.theme-grayscale .welcome-section h1,
+.theme-dark .welcome-section h1,
+.theme-default .welcome-header h1,
+.theme-high-contrast .welcome-header h1,
+.theme-ocean .welcome-header h1,
+.theme-forest .welcome-header h1,
+.theme-sunset .welcome-header h1,
+.theme-monochrome .welcome-header h1,
+.theme-grayscale .welcome-header h1,
+.theme-dark .welcome-header h1 {
+    color: #ffffff !important;
+}
+
+/* Override Bootstrap text-primary class for VarioSync heading - Maximum Specificity */
+.theme-default .welcome-section h1.text-primary,
+.theme-high-contrast .welcome-section h1.text-primary,
+.theme-ocean .welcome-section h1.text-primary,
+.theme-forest .welcome-section h1.text-primary,
+.theme-sunset .welcome-section h1.text-primary,
+.theme-monochrome .welcome-section h1.text-primary,
+.theme-grayscale .welcome-section h1.text-primary,
+.theme-dark .welcome-section h1.text-primary,
+.theme-default .welcome-header h1.text-primary,
+.theme-high-contrast .welcome-header h1.text-primary,
+.theme-ocean .welcome-header h1.text-primary,
+.theme-forest .welcome-header h1.text-primary,
+.theme-sunset .welcome-header h1.text-primary,
+.theme-monochrome .welcome-header h1.text-primary,
+.theme-grayscale .welcome-header h1.text-primary,
+.theme-dark .welcome-header h1.text-primary {
+    color: #ffffff !important;
+}
+
+/* Override Bootstrap display-4 and text-primary combination - Maximum Specificity */
+.theme-default .welcome-section h1.display-4.text-primary,
+.theme-high-contrast .welcome-section h1.display-4.text-primary,
+.theme-ocean .welcome-section h1.display-4.text-primary,
+.theme-forest .welcome-section h1.display-4.text-primary,
+.theme-sunset .welcome-section h1.display-4.text-primary,
+.theme-monochrome .welcome-section h1.display-4.text-primary,
+.theme-grayscale .welcome-section h1.display-4.text-primary,
+.theme-dark .welcome-section h1.display-4.text-primary,
+.theme-default .welcome-header h1.display-4.text-primary,
+.theme-high-contrast .welcome-header h1.display-4.text-primary,
+.theme-ocean .welcome-header h1.display-4.text-primary,
+.theme-forest .welcome-header h1.display-4.text-primary,
+.theme-sunset .welcome-header h1.display-4.text-primary,
+.theme-monochrome .welcome-header h1.display-4.text-primary,
+.theme-grayscale .welcome-header h1.display-4.text-primary,
+.theme-dark .welcome-header h1.display-4.text-primary {
+    color: #ffffff !important;
+}
+
+/* Body-level specificity for ultimate override */
+body.theme-default .welcome-section h1,
+body.theme-high-contrast .welcome-section h1,
+body.theme-ocean .welcome-section h1,
+body.theme-forest .welcome-section h1,
+body.theme-sunset .welcome-section h1,
+body.theme-monochrome .welcome-section h1,
+body.theme-grayscale .welcome-section h1,
+body.theme-dark .welcome-section h1,
+body.theme-default .welcome-header h1,
+body.theme-high-contrast .welcome-header h1,
+body.theme-ocean .welcome-header h1,
+body.theme-forest .welcome-header h1,
+body.theme-sunset .welcome-header h1,
+body.theme-monochrome .welcome-header h1,
+body.theme-grayscale .welcome-header h1,
+body.theme-dark .welcome-header h1 {
+    color: #ffffff !important;
+}
+
+body.theme-default .welcome-section h1.display-4.text-primary,
+body.theme-high-contrast .welcome-section h1.display-4.text-primary,
+body.theme-ocean .welcome-section h1.display-4.text-primary,
+body.theme-forest .welcome-section h1.display-4.text-primary,
+body.theme-sunset .welcome-section h1.display-4.text-primary,
+body.theme-monochrome .welcome-section h1.display-4.text-primary,
+body.theme-grayscale .welcome-section h1.display-4.text-primary,
+body.theme-dark .welcome-section h1.display-4.text-primary,
+body.theme-default .welcome-header h1.display-4.text-primary,
+body.theme-high-contrast .welcome-header h1.display-4.text-primary,
+body.theme-ocean .welcome-header h1.display-4.text-primary,
+body.theme-forest .welcome-header h1.display-4.text-primary,
+body.theme-sunset .welcome-header h1.display-4.text-primary,
+body.theme-monochrome .welcome-header h1.display-4.text-primary,
+body.theme-grayscale .welcome-header h1.display-4.text-primary,
+body.theme-dark .welcome-header h1.display-4.text-primary {
+    color: #ffffff !important;
+}
+
+/* Subtitle "Professional-grade financial data analysis with modern web interface" - Bright White for All Themes */
+.theme-default .welcome-section p.lead,
+.theme-high-contrast .welcome-section p.lead,
+.theme-ocean .welcome-section p.lead,
+.theme-forest .welcome-section p.lead,
+.theme-sunset .welcome-section p.lead,
+.theme-monochrome .welcome-section p.lead,
+.theme-grayscale .welcome-section p.lead,
+.theme-dark .welcome-section p.lead,
+.theme-default .welcome-header p.lead,
+.theme-high-contrast .welcome-header p.lead,
+.theme-ocean .welcome-header p.lead,
+.theme-forest .welcome-header p.lead,
+.theme-sunset .welcome-header p.lead,
+.theme-monochrome .welcome-header p.lead,
+.theme-grayscale .welcome-header p.lead,
+.theme-dark .welcome-header p.lead {
+    color: #ffffff !important;
+}
+
+/* Body-level specificity for subtitle */
+body.theme-default .welcome-section p.lead,
+body.theme-high-contrast .welcome-section p.lead,
+body.theme-ocean .welcome-section p.lead,
+body.theme-forest .welcome-section p.lead,
+body.theme-sunset .welcome-section p.lead,
+body.theme-monochrome .welcome-section p.lead,
+body.theme-grayscale .welcome-section p.lead,
+body.theme-dark .welcome-section p.lead,
+body.theme-default .welcome-header p.lead,
+body.theme-high-contrast .welcome-header p.lead,
+body.theme-ocean .welcome-header p.lead,
+body.theme-forest .welcome-header p.lead,
+body.theme-sunset .welcome-header p.lead,
+body.theme-monochrome .welcome-header p.lead,
+body.theme-grayscale .welcome-header p.lead,
+body.theme-dark .welcome-header p.lead {
+    color: #ffffff !important;
+}
+
+/* Exceptions: Form inputs keep dark text for readability, buttons keep their backgrounds */
+.theme-default input[type="text"],
+.theme-default input[type="email"],
+.theme-default input[type="password"],
+.theme-default input[type="number"],
+.theme-default textarea,
+.theme-default select,
+.theme-high-contrast input[type="text"],
+.theme-high-contrast input[type="email"],
+.theme-high-contrast input[type="password"],
+.theme-high-contrast input[type="number"],
+.theme-high-contrast textarea,
+.theme-high-contrast select,
+.theme-ocean input[type="text"],
+.theme-ocean input[type="email"],
+.theme-ocean input[type="password"],
+.theme-ocean input[type="number"],
+.theme-ocean textarea,
+.theme-ocean select,
+.theme-forest input[type="text"],
+.theme-forest input[type="email"],
+.theme-forest input[type="password"],
+.theme-forest input[type="number"],
+.theme-forest textarea,
+.theme-forest select,
+.theme-sunset input[type="text"],
+.theme-sunset input[type="email"],
+.theme-sunset input[type="password"],
+.theme-sunset input[type="number"],
+.theme-sunset textarea,
+.theme-sunset select,
+.theme-monochrome input[type="text"],
+.theme-monochrome input[type="email"],
+.theme-monochrome input[type="password"],
+.theme-monochrome input[type="number"],
+.theme-monochrome textarea,
+.theme-monochrome select,
+.theme-grayscale input[type="text"],
+.theme-grayscale input[type="email"],
+.theme-grayscale input[type="password"],
+.theme-grayscale input[type="number"],
+.theme-grayscale textarea,
+.theme-grayscale select,
+.theme-dark input[type="text"],
+.theme-dark input[type="email"],
+.theme-dark input[type="password"],
+.theme-dark input[type="number"],
+.theme-dark textarea,
+.theme-dark select {
+    color: #000000 !important;
 }

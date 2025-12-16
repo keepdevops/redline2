@@ -1,5 +1,5 @@
 """
-API file operations routes for REDLINE Web GUI
+API file operations routes for VarioSync Web GUI
 Handles file upload and deletion
 """
 

@@ -1,5 +1,5 @@
 /**
- * REDLINE Global Balance Tracker
+ * VarioSync Global Balance Tracker
  * Tracks and displays hours remaining balance across all pages
  */
 
@@ -8,9 +8,9 @@
     
     // Configuration
     const API_BASE = '/payments';
-    const LICENSE_KEY_STORAGE = 'redline_license_key';
+    const LICENSE_KEY_STORAGE = 'variosync_license_key';
     const BALANCE_REFRESH_INTERVAL = 60000; // 1 minute
-    const BALANCE_STORAGE = 'redline_balance_cache';
+    const BALANCE_STORAGE = 'variosync_balance_cache';
     const BALANCE_CACHE_TTL = 30000; // 30 seconds cache
     
     // State
@@ -26,7 +26,7 @@
         if (typeof window.getLicenseKey === 'function') {
             return window.getLicenseKey();
         }
-        return localStorage.getItem(LICENSE_KEY_STORAGE) || window.REDLINE_LICENSE_KEY;
+        return localStorage.getItem(LICENSE_KEY_STORAGE) || window.VARIOSYNC_LICENSE_KEY;
     }
     
     /**
@@ -520,7 +520,7 @@
     }
     
     // Expose global functions
-    window.REDLINE_BALANCE = {
+    window.VARIOSYNC_BALANCE = {
         loadBalance: function() { loadBalance(false); },
         getBalance: function() { return currentBalance; },
         refresh: function() { loadBalance(false); }

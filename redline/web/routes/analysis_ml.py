@@ -1,5 +1,5 @@
 """
-ML Data Preparation routes for REDLINE Web GUI
+ML Data Preparation routes for VarioSync Web GUI
 Handles ML/RL training data preparation in numpy and tensorflow formats
 """
 

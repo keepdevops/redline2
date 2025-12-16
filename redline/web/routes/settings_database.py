@@ -1,5 +1,5 @@
 """
-Settings database routes for REDLINE Web GUI
+Settings database routes for VarioSync Web GUI
 Handles database connection status and testing
 """
 

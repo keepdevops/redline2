@@ -1,5 +1,5 @@
 """
-Data browsing routes for REDLINE Web GUI.
+Data browsing routes for VarioSync Web GUI.
 Handles file listing, browsing, and database statistics.
 """
 

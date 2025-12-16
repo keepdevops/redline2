@@ -1,5 +1,5 @@
 """
-Background Task status routes for REDLINE Web GUI
+Background Task status routes for VarioSync Web GUI
 Handles task status, results, and management
 """
 

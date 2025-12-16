@@ -1,5 +1,5 @@
 """
-Background Task submission routes for REDLINE Web GUI
+Background Task submission routes for VarioSync Web GUI
 Handles submitting asynchronous tasks
 """
 

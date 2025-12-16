@@ -432,7 +432,7 @@ document.addEventListener('DOMContentLoaded', function() {
     refreshFileList();
     
     // Load saved date format preference
-    const savedDateFormat = localStorage.getItem('redline-date-format') || 'auto';
+    const savedDateFormat = localStorage.getItem('variosync-date-format') || 'auto';
     const dateFormatSelect = document.getElementById('dateFormatSelect');
     if (dateFormatSelect) {
         dateFormatSelect.value = savedDateFormat;
@@ -440,7 +440,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Date format change handler
         dateFormatSelect.addEventListener('change', function() {
             const selectedFormat = this.value;
-            localStorage.setItem('redline-date-format', selectedFormat);
+            localStorage.setItem('variosync-date-format', selectedFormat);
             console.log('Date format changed to:', selectedFormat);
             
             // Re-render table if data is already loaded
@@ -464,7 +464,7 @@ function refreshFileList() {
     // Get license key - use global function if available, otherwise fallback
     const licenseKey = (typeof window.getLicenseKey === 'function') 
         ? window.getLicenseKey() 
-        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
     
     const fileListDiv = document.getElementById('fileList');
     fileListDiv.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading files...</div>';
@@ -551,7 +551,7 @@ async function deleteFile(filename, event) {
     // Get license key
     const licenseKey = (typeof window.getLicenseKey === 'function') 
         ? window.getLicenseKey() 
-        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
     
     if (!licenseKey) {
         alert('License key is required to delete files.');
@@ -639,7 +639,7 @@ function loadFileData(filename, page = 1) {
     // Get license key - use global function if available, otherwise fallback
     const licenseKey = (typeof window.getLicenseKey === 'function') 
         ? window.getLicenseKey() 
-        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
     
     if (!licenseKey) {
         console.error('No license key found!');
@@ -934,7 +934,7 @@ function displayDataTable(data) {
         // Load data from API with pagination
         const licenseKey = (typeof window.getLicenseKey === 'function') 
             ? window.getLicenseKey() 
-            : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+            : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
         
         window.virtualScrollTable.loadDataFromAPI(`/data/load`, {
             filename: filename,
@@ -1107,7 +1107,7 @@ function displayDataTable(data) {
     }
 }
 
-// formatDateValue() is now loaded from redline/web/static/js/date-formatter.js
+// formatDateValue() is now loaded from variosync/web/static/js/date-formatter.js
 // No need to define it here - it's available globally from base.html
 
 // Clean data (remove duplicates, handle missing values)
@@ -1262,7 +1262,7 @@ async function handleFileUpload(event) {
     // Get license key if available
     const licenseKey = (typeof window.getLicenseKey === 'function') 
         ? window.getLicenseKey() 
-        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
     
     // Prepare headers
     const headers = {};

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Payment webhook routes for REDLINE Web GUI
+Payment webhook routes for VarioSync Web GUI
 Handles Stripe webhook events
 """
 

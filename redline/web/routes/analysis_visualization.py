@@ -1,5 +1,5 @@
 """
-Backend visualization routes for REDLINE Web GUI
+Backend visualization routes for VarioSync Web GUI
 Generates charts using matplotlib/seaborn and returns as base64 images
 """
 

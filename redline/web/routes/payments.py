@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Payment routes registry for REDLINE Web GUI
+Payment routes registry for VarioSync Web GUI
 Handles Stripe payment processing, checkout, and webhooks
 
 This module now serves as a central registry for all payment blueprints.

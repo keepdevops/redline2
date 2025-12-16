@@ -1,5 +1,5 @@
 """
-API file listing routes for REDLINE Web GUI
+API file listing routes for VarioSync Web GUI
 Handles file listing and metadata
 """
 

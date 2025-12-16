@@ -3,7 +3,7 @@
 # Script to stop Flask web app and clear browser cache
 # Usage: ./stop_web_app.sh
 
-echo "🛑 Stopping Redline Web App..."
+echo "🛑 Stopping VarioSync Web App..."
 
 # Function to stop Flask app
 stop_flask_app() {
@@ -141,7 +141,7 @@ cleanup_temp_files() {
 
 # Main execution
 echo "=========================================="
-echo "🛑 Redline Web App Shutdown Script"
+echo "🛑 VarioSync Web App Shutdown Script"
 echo "=========================================="
 
 # Stop Flask application
@@ -154,7 +154,7 @@ clear_browser_cache
 cleanup_temp_files
 
 echo ""
-echo "🎉 Redline Web App shutdown complete!"
+echo "🎉 VarioSync Web App shutdown complete!"
 echo "   - Flask application stopped"
 echo "   - Browser cache cleared"
 echo "   - Temporary files cleaned"

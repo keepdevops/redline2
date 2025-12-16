@@ -1,5 +1,5 @@
 """
-Data routes for REDLINE Web GUI
+Data routes for VarioSync Web GUI
 Route handlers for data viewing, filtering, and management
 
 This module now serves as a central registry for all data blueprints.

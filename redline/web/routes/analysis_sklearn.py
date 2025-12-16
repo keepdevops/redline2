@@ -1,5 +1,5 @@
 """
-Scikit-learn ML features for REDLINE Web GUI
+Scikit-learn ML features for VarioSync Web GUI
 Provides outlier detection, clustering, predictions, and feature scaling
 """
 

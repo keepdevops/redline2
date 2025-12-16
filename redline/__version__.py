@@ -1,5 +1,5 @@
 """
-REDLINE Version Information
+VarioSync Version Information
 """
 
 __version__ = "2.1.0"

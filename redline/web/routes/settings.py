@@ -1,5 +1,5 @@
 """
-Settings routes registry for REDLINE Web GUI
+Settings routes registry for VarioSync Web GUI
 Handles application configuration and settings
 
 This module now serves as a central registry for all settings blueprints.

@@ -1,5 +1,5 @@
 """
-Download routes registry for REDLINE Web GUI.
+Download routes registry for VarioSync Web GUI.
 Handles data downloading from various sources.
 
 This module acts as a central registry for download sub-blueprints.

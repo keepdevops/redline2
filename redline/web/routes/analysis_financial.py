@@ -1,5 +1,5 @@
 """
-Financial analysis routes for REDLINE Web GUI
+Financial analysis routes for VarioSync Web GUI
 Handles financial data analysis operations
 """
 

@@ -1,5 +1,5 @@
 """
-Data filtering routes registry for REDLINE Web GUI
+Data filtering routes registry for VarioSync Web GUI
 Handles data filtering, export, and cleaning operations
 
 This module now serves as a central registry for all data filtering blueprints.

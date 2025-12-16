@@ -1,5 +1,5 @@
 """
-Data cleaning routes for REDLINE Web GUI
+Data cleaning routes for VarioSync Web GUI
 Handles data cleaning operations
 """
 

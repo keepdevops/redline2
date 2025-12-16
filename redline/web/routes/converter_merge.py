@@ -1,5 +1,5 @@
 """
-File merge routes for REDLINE Web GUI.
+File merge routes for VarioSync Web GUI.
 Handles merging multiple files into one during batch conversion.
 """
 

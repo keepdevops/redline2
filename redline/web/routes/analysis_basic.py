@@ -1,5 +1,5 @@
 """
-Basic analysis routes for REDLINE Web GUI
+Basic analysis routes for VarioSync Web GUI
 Handles basic data analysis operations
 """
 

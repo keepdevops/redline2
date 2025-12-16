@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-REDLINE Setup Configuration
+VarioSync Setup Configuration
 Package distribution setup for PyPI
 """
 
@@ -25,13 +25,13 @@ def read_long_description():
     if os.path.exists('README.md'):
         with open('README.md', 'r', encoding='utf-8') as f:
             return f.read()
-    return "REDLINE - Professional Financial Data Analysis Platform"
+    return "VarioSync - Professional Financial Data Analysis Platform"
 
 setup(
     name="redline-financial",
     version="2.1.0",
-    author="REDLINE Development Team",
-    author_email="support@redline.example.com",
+    author="VarioSync Development Team",
+    author_email="support@variosync.com",
     description="Professional financial data analysis platform with GUI and web interface",
     long_description=read_long_description(),
     long_description_content_type="text/markdown",

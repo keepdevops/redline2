@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-REDLINE Main Application Entry Point
+VarioSync Main Application Entry Point
 Updated to use the new modular library structure.
 """
 
@@ -22,7 +22,7 @@ def main():
         # Setup logging
         setup_logging(
             log_level="INFO",
-            log_file="redline.log",
+            log_file="variosync.log",
             console_output=True
         )
         configure_third_party_logging()
@@ -41,7 +41,7 @@ def main():
         root.mainloop()
         
     except Exception as e:
-        print(f"Error starting REDLINE application: {str(e)}")
+        print(f"Error starting VarioSync application: {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 """
-Data tab template routes for REDLINE Web GUI.
+Data tab template routes for VarioSync Web GUI.
 Handles rendering of data tab pages.
 """
 

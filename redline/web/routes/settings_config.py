@@ -1,5 +1,5 @@
 """
-Settings configuration routes for REDLINE Web GUI
+Settings configuration routes for VarioSync Web GUI
 Handles application configuration management
 """
 

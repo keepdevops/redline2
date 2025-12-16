@@ -1,5 +1,5 @@
 """
-Settings system routes for REDLINE Web GUI
+Settings system routes for VarioSync Web GUI
 Handles system information and log management
 """
 
@@ -96,7 +96,7 @@ def get_logs():
             return jsonify({
                 'logs': [],
                 'message': 'No log file found. Logs may be going to stdout/stderr in Docker.',
-                'hint': 'Use "docker logs redline-webgui" to view logs in Docker environment.',
+                'hint': 'Use "docker logs variosync-webgui" to view logs in Docker environment.',
                 'possible_locations': possible_log_files
             })
         

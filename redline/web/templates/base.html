@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- International browser compatibility -->
     <meta http-equiv="Content-Language" content="en">
-    <title>{% block title %}REDLINE - Financial Data Analyzer{% endblock %}</title>
+    <title>{% block title %}VarioSync - Financial Data Analyzer{% endblock %}</title>
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -47,7 +47,8 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('main.index') }}">
-                <i class="fas fa-chart-line me-2"></i>REDLINE
+                <img src="{{ url_for('static', filename='img/variosync-logo.png') }}" alt="VarioSync" height="50" class="me-2" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+                <i class="fas fa-chart-line me-2" style="display:none;"></i>VarioSync
             </a>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -206,7 +207,7 @@
             <div class="col-md-10 main-content">
                 {% block content %}
                 <div class="content-header">
-                    <h1 class="content-title">{% block page_title %}Welcome to REDLINE{% endblock %}</h1>
+                    <h1 class="content-title">{% block page_title %}Welcome to VarioSync{% endblock %}</h1>
                     <p class="content-subtitle">{% block page_subtitle %}Financial Data Analyzer & Management Tool{% endblock %}</p>
                 </div>
                 
@@ -233,7 +234,7 @@
         <div id="toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="toast-header">
                 <i class="fas fa-info-circle text-primary me-2"></i>
-                <strong class="me-auto">REDLINE</strong>
+                <strong class="me-auto">VarioSync</strong>
                 <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
             </div>
             <div class="toast-body">
@@ -252,13 +253,13 @@
             <script>
             // Auto-load license key from localStorage on all pages
             (function() {
-                const LICENSE_KEY_STORAGE = 'redline_license_key';
+                const LICENSE_KEY_STORAGE = 'variosync_license_key';
                 
                 // Function to get license key (available immediately)
                 function getLicenseKey() {
-                    const key = localStorage.getItem(LICENSE_KEY_STORAGE) || window.REDLINE_LICENSE_KEY;
+                    const key = localStorage.getItem(LICENSE_KEY_STORAGE) || window.VARIOSYNC_LICENSE_KEY;
                     if (!key) {
-                        console.warn('⚠️ No license key found in localStorage or window.REDLINE_LICENSE_KEY');
+                        console.warn('⚠️ No license key found in localStorage or window.VARIOSYNC_LICENSE_KEY');
                     }
                     return key;
                 }
@@ -270,7 +271,7 @@
                 const savedKey = localStorage.getItem(LICENSE_KEY_STORAGE);
                 if (savedKey) {
                     // Make license key available globally
-                    window.REDLINE_LICENSE_KEY = savedKey;
+                    window.VARIOSYNC_LICENSE_KEY = savedKey;
                     console.log('✅ License key loaded from localStorage:', savedKey.substring(0, 20) + '...');
                 } else {
                     console.log('ℹ️ No license key found in localStorage. Register or enter license key.');
@@ -281,7 +282,7 @@
                     const key = getLicenseKey();
                     console.log('🔑 License Key Check:');
                     console.log('  - localStorage:', localStorage.getItem(LICENSE_KEY_STORAGE) ? 'Found' : 'Not found');
-                    console.log('  - window.REDLINE_LICENSE_KEY:', window.REDLINE_LICENSE_KEY ? 'Found' : 'Not found');
+                    console.log('  - window.VARIOSYNC_LICENSE_KEY:', window.VARIOSYNC_LICENSE_KEY ? 'Found' : 'Not found');
                     console.log('  - Current key:', key ? key.substring(0, 20) + '...' : 'None');
                     return key;
                 };
@@ -510,9 +511,9 @@
                 }
                 
                 // Make license key available globally for all modules
-                window.REDLINE = window.REDLINE || {};
-                window.REDLINE.getLicenseKey = getLicenseKey;
-                window.REDLINE.LICENSE_KEY_STORAGE = LICENSE_KEY_STORAGE;
+                window.VARIOSYNC = window.VARIOSYNC || {};
+                window.VARIOSYNC.getLicenseKey = getLicenseKey;
+                window.VARIOSYNC.LICENSE_KEY_STORAGE = LICENSE_KEY_STORAGE;
             })();
             </script>
     
@@ -545,7 +546,7 @@
             // Get license key - use global function if available, otherwise fallback
             const licenseKey = (typeof window.getLicenseKey === 'function') 
                 ? window.getLicenseKey() 
-                : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+                : (localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY);
             
             $.ajax({
                 url: '/api/files',
@@ -584,7 +585,7 @@
             // Get license key - use global function if available, otherwise fallback
             const licenseKey = (typeof window.getLicenseKey === 'function') 
                 ? window.getLicenseKey() 
-                : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+                : (localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY);
             
             // Status endpoint doesn't require license key, but include it if available
             const url = '/status';

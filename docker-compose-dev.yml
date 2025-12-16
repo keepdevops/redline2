@@ -1,19 +1,19 @@
 version: '3.8'
 
 services:
-  redline-dev:
+  variosync-dev:
     build:
       context: .
       dockerfile: Dockerfile.webgui.uncompiled
-    image: redline-webgui:dev
-    container_name: redline-development
+    image: variosync-webgui:dev
+    container_name: variosync-development
     ports:
       - "8080:8080"
     volumes:
       # Data persistence
-      - redline-dev-data:/app/data
-      - redline-dev-logs:/app/logs
-      - redline-dev-config:/app/config
+      - variosync-dev-data:/app/data
+      - variosync-dev-logs:/app/logs
+      - variosync-dev-config:/app/config
       # Mount Downloads folder for M3 Apple Silicon (bypasses security restrictions)
       # Files are automatically copied from Downloads to data/stooq inside container
       - ~/Downloads:/app/data/downloads:ro  # Read-only mount
@@ -46,19 +46,19 @@ services:
       retries: 3
       start_period: 15s
     networks:
-      - redline-dev-network
+      - variosync-dev-network
 
   # Optional Redis for caching (development)
   redis-dev:
     image: redis:7-alpine
-    container_name: redline-redis-dev
+    container_name: variosync-redis-dev
     ports:
       - "6379:6379"
     volumes:
-      - redline-dev-redis:/data
+      - variosync-dev-redis:/data
     restart: unless-stopped
     networks:
-      - redline-dev-network
+      - variosync-dev-network
     profiles:
       - redis
       - full
@@ -66,36 +66,36 @@ services:
   # Optional PostgreSQL for advanced development (if needed)
   postgres-dev:
     image: postgres:15-alpine
-    container_name: redline-postgres-dev
+    container_name: variosync-postgres-dev
     environment:
-      - POSTGRES_DB=redline_dev
-      - POSTGRES_USER=redline
+      - POSTGRES_DB=variosync_dev
+      - POSTGRES_USER=variosync
       - POSTGRES_PASSWORD=dev_password
     ports:
       - "5432:5432"
     volumes:
-      - redline-dev-postgres:/var/lib/postgresql/data
+      - variosync-dev-postgres:/var/lib/postgresql/data
     restart: unless-stopped
     networks:
-      - redline-dev-network
+      - variosync-dev-network
     profiles:
       - postgres
       - full
 
 volumes:
-  redline-dev-data:
+  variosync-dev-data:
     driver: local
-  redline-dev-logs:
+  variosync-dev-logs:
     driver: local
-  redline-dev-config:
+  variosync-dev-config:
     driver: local
-  redline-dev-redis:
+  variosync-dev-redis:
     driver: local
-  redline-dev-postgres:
+  variosync-dev-postgres:
     driver: local
 
 networks:
-  redline-dev-network:
+  variosync-dev-network:
     driver: bridge
 
 # Development Commands:
@@ -117,7 +117,7 @@ networks:
 #   2. docker-compose -f docker-compose-dev.yml up -d
 #
 # View logs:
-#   docker-compose -f docker-compose-dev.yml logs -f redline-dev
+#   docker-compose -f docker-compose-dev.yml logs -f variosync-dev
 #
 # Rebuild after changes:
 #   docker-compose -f docker-compose-dev.yml up -d --build

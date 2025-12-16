@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Machine Learning - REDLINE{% endblock %}
+{% block title %}Machine Learning - VarioSync{% endblock %}
 
 {% block page_title %}Machine Learning{% endblock %}
 {% block page_subtitle %}Prepare data, train models, and perform ML operations{% endblock %}
@@ -206,15 +206,15 @@ let currentMLData = null;
 let currentMLResponse = null;
 
 $(document).ready(function() {
-    // Safari compatibility: Ensure REDLINE is available
-    if (typeof REDLINE === 'undefined' || !REDLINE.api) {
-        console.error('REDLINE API not available. Waiting for it to load...');
+    // Safari compatibility: Ensure VarioSync is available
+    if (typeof VarioSync === 'undefined' || !VarioSync.api) {
+        console.error('VarioSync API not available. Waiting for it to load...');
         setTimeout(function() {
-            if (typeof REDLINE !== 'undefined' && REDLINE.api) {
+            if (typeof VarioSync !== 'undefined' && VarioSync.api) {
                 loadAvailableFiles();
             } else {
-                console.error('REDLINE API still not available after timeout');
-                alert('Error: REDLINE API not loaded. Please refresh the page.');
+                console.error('VarioSync API still not available after timeout');
+                alert('Error: VarioSync API not loaded. Please refresh the page.');
             }
         }, 1000);
     } else {
@@ -290,21 +290,21 @@ $(document).ready(function() {
 
 function loadAvailableFiles() {
     // Safari compatibility check
-    if (typeof REDLINE === 'undefined' || !REDLINE.ui || !REDLINE.api) {
-        console.error('REDLINE not available in loadAvailableFiles');
+    if (typeof VarioSync === 'undefined' || !VarioSync.ui || !VarioSync.api) {
+        console.error('VarioSync not available in loadAvailableFiles');
         setTimeout(loadAvailableFiles, 500);
         return;
     }
     
-    REDLINE.ui.showLoading('Loading available files...');
+    VarioSync.ui.showLoading('Loading available files...');
     
-    REDLINE.api.get('/api/files')
+    VarioSync.api.get('/api/files')
         .then(function(response) {
             console.log('loadAvailableFiles - Response:', response);
             var select = $('#mlFile');
             if (select.length === 0) {
                 console.error('loadAvailableFiles - Dropdown not found!');
-                REDLINE.ui.hideLoading();
+                VarioSync.ui.hideLoading();
                 return;
             }
             
@@ -316,7 +316,7 @@ function loadAvailableFiles() {
                 for (var i = 0; i < response.files.length; i++) {
                     var file = response.files[i];
                     if (file.name && typeof file.name === 'string') {
-                        var fileSize = file.size ? REDLINE.utils.formatFileSize(file.size) : 'Unknown size';
+                        var fileSize = file.size ? VarioSync.utils.formatFileSize(file.size) : 'Unknown size';
                         var safePath = file.path ? file.path : '';
                         var optionHtml = '<option value="' + file.name + '" data-path="' + safePath + '">' + file.name + ' (' + fileSize + ')</option>';
                         select.append(optionHtml);
@@ -329,13 +329,13 @@ function loadAvailableFiles() {
                 select.append('<option value="" disabled>No files available</option>');
             }
             
-            REDLINE.ui.hideLoading();
+            VarioSync.ui.hideLoading();
         })
         .catch(function(error) {
-            REDLINE.ui.hideLoading();
+            VarioSync.ui.hideLoading();
             console.error('Error loading files:', error);
             var errorMessage = error.message || error.error || 'Unknown error occurred';
-            REDLINE.ui.showToast('Error loading files: ' + errorMessage, 'error');
+            VarioSync.ui.showToast('Error loading files: ' + errorMessage, 'error');
         });
 }
 
@@ -344,7 +344,7 @@ function loadQuickStats(filename) {
     var fileOption = $('#mlFile option[value="' + filename + '"]');
     var filePath = fileOption.length > 0 ? (fileOption.data('path') || '') : '';
     
-    REDLINE.api.post('/api/data/quick-stats', {
+    VarioSync.api.post('/api/data/quick-stats', {
         filename: filename,
         file_path: filePath
     })
@@ -379,7 +379,7 @@ function loadFileColumns(filename) {
     var fileOption = $('#mlFile option[value="' + filename + '"]');
     var filePath = fileOption.length > 0 ? (fileOption.data('path') || '') : '';
     
-    return REDLINE.api.post('/api/data/quick-stats', {
+    return VarioSync.api.post('/api/data/quick-stats', {
         filename: filename,
         file_path: filePath
     })
@@ -434,7 +434,7 @@ function prepareMLData() {
     // Use same approach as Analysis tab - direct value check
     var filename = $('#mlFile').val();
     if (!filename || filename === '') {
-        REDLINE.ui.showToast('Please select a file first', 'error');
+        VarioSync.ui.showToast('Please select a file first', 'error');
         return;
     }
     
@@ -443,11 +443,11 @@ function prepareMLData() {
     var filePath = opt.data('path') || null;
     
     // Load columns first, then show modal
-    REDLINE.ui.showToast('Loading file information...', 'info');
+    VarioSync.ui.showToast('Loading file information...', 'info');
     loadFileColumns(filename).then(function() {
         // Verify columns were loaded
         if (!currentMLData || !currentMLData.columns || currentMLData.columns.length === 0) {
-            REDLINE.ui.showToast('Failed to load file columns. Please try selecting the file again.', 'error');
+            VarioSync.ui.showToast('Failed to load file columns. Please try selecting the file again.', 'error');
             return;
         }
         
@@ -455,7 +455,7 @@ function prepareMLData() {
         showMLFeatureSelectionModal(currentMLData.columns, filename, filePath);
     }).catch(function(error) {
         console.error('Error loading columns:', error);
-        REDLINE.ui.showToast('Failed to load file columns. Please try selecting the file again.', 'error');
+        VarioSync.ui.showToast('Failed to load file columns. Please try selecting the file again.', 'error');
     });
 }
 
@@ -538,7 +538,7 @@ function confirmMLFeatures() {
     }).get();
     
     if (selectedFeatures.length === 0) {
-        REDLINE.ui.showToast('Please select at least one feature', 'error');
+        VarioSync.ui.showToast('Please select at least one feature', 'error');
         return;
     }
     
@@ -549,13 +549,13 @@ function confirmMLFeatures() {
     const modal = bootstrap.Modal.getInstance(document.getElementById('mlFeatureSelectionModal'));
     modal.hide();
     
-    REDLINE.ui.showLoading('Preparing ML data...');
+    VarioSync.ui.showLoading('Preparing ML data...');
     
     const licenseKey = (typeof window.getLicenseKey === 'function') 
         ? window.getLicenseKey() 
-        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
     
-    REDLINE.api.post('/analysis/prepare-ml-data', {
+    VarioSync.api.post('/analysis/prepare-ml-data', {
         filename: fileInfo.filename,
         file_path: fileInfo.file_path,
         format: formatType,
@@ -563,15 +563,15 @@ function confirmMLFeatures() {
         license_key: licenseKey
     })
     .then(response => {
-        REDLINE.ui.hideLoading();
+        VarioSync.ui.hideLoading();
         currentMLResponse = response;
         displayMLDataResult(response);
         $('#mlResults').show();
     })
     .catch(error => {
-        REDLINE.ui.hideLoading();
+        VarioSync.ui.hideLoading();
         const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
-        REDLINE.ui.showToast('Error preparing ML data: ' + errorMsg, 'error');
+        VarioSync.ui.showToast('Error preparing ML data: ' + errorMsg, 'error');
     });
 }
 
@@ -609,14 +609,14 @@ function displayMLDataResult(response) {
     `;
     
     $('#resultsContent').prepend(resultHtml);
-    REDLINE.ui.showToast('ML data prepared successfully', 'success');
+    VarioSync.ui.showToast('ML data prepared successfully', 'success');
 }
 
 function detectOutliers() {
     // Use same approach as Analysis tab
     var filename = $('#mlFile').val();
     if (!filename || filename === '') {
-        REDLINE.ui.showToast('Please select a file first', 'error');
+        VarioSync.ui.showToast('Please select a file first', 'error');
         return;
     }
     
@@ -627,27 +627,27 @@ function detectOutliers() {
     const contamination = prompt('Enter contamination rate (0.01 to 0.5, default 0.1 = 10%):', '0.1');
     if (!contamination) return;
     
-    REDLINE.ui.showLoading('Detecting outliers...');
+    VarioSync.ui.showLoading('Detecting outliers...');
     
     const licenseKey = (typeof window.getLicenseKey === 'function') 
         ? window.getLicenseKey() 
-        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
     
-    REDLINE.api.post('/analysis/detect-outliers', {
+    VarioSync.api.post('/analysis/detect-outliers', {
         filename: filename,
         file_path: filePath,
         contamination: parseFloat(contamination),
         license_key: licenseKey
     })
     .then(response => {
-        REDLINE.ui.hideLoading();
+        VarioSync.ui.hideLoading();
         currentMLResponse = response;
         displayOutlierResult(response);
         $('#mlResults').show();
     })
     .catch(error => {
-        REDLINE.ui.hideLoading();
-        REDLINE.ui.showToast('Error detecting outliers: ' + (error.message || error.error), 'error');
+        VarioSync.ui.hideLoading();
+        VarioSync.ui.showToast('Error detecting outliers: ' + (error.message || error.error), 'error');
     });
 }
 
@@ -676,14 +676,14 @@ function displayOutlierResult(response) {
     
     resultHtml += `</div></div>`;
     $('#resultsContent').prepend(resultHtml);
-    REDLINE.ui.showToast('Outlier detection completed', 'success');
+    VarioSync.ui.showToast('Outlier detection completed', 'success');
 }
 
 function clusterData() {
     // Use same approach as Analysis tab
     var filename = $('#mlFile').val();
     if (!filename || filename === '') {
-        REDLINE.ui.showToast('Please select a file first', 'error');
+        VarioSync.ui.showToast('Please select a file first', 'error');
         return;
     }
     
@@ -694,27 +694,27 @@ function clusterData() {
     const nClusters = prompt('Enter number of clusters (2-10, default 3):', '3');
     if (!nClusters) return;
     
-    REDLINE.ui.showLoading('Clustering data...');
+    VarioSync.ui.showLoading('Clustering data...');
     
     const licenseKey = (typeof window.getLicenseKey === 'function') 
         ? window.getLicenseKey() 
-        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
     
-    REDLINE.api.post('/analysis/cluster-data', {
+    VarioSync.api.post('/analysis/cluster-data', {
         filename: filename,
         file_path: filePath,
         n_clusters: parseInt(nClusters),
         license_key: licenseKey
     })
     .then(response => {
-        REDLINE.ui.hideLoading();
+        VarioSync.ui.hideLoading();
         currentMLResponse = response;
         displayClusterResult(response);
         $('#mlResults').show();
     })
     .catch(error => {
-        REDLINE.ui.hideLoading();
-        REDLINE.ui.showToast('Error clustering data: ' + (error.message || error.error), 'error');
+        VarioSync.ui.hideLoading();
+        VarioSync.ui.showToast('Error clustering data: ' + (error.message || error.error), 'error');
     });
 }
 
@@ -744,14 +744,14 @@ function displayClusterResult(response) {
     
     resultHtml += `</div></div>`;
     $('#resultsContent').prepend(resultHtml);
-    REDLINE.ui.showToast('Clustering completed', 'success');
+    VarioSync.ui.showToast('Clustering completed', 'success');
 }
 
 function predictValues() {
     // Use same approach as Analysis tab
     var filename = $('#mlFile').val();
     if (!filename || filename === '') {
-        REDLINE.ui.showToast('Please select a file first', 'error');
+        VarioSync.ui.showToast('Please select a file first', 'error');
         return;
     }
     
@@ -762,27 +762,27 @@ function predictValues() {
     // Ask if user wants to save weights
     const saveWeights = confirm('Save training weights to feather file?');
     
-    REDLINE.ui.showLoading('Training model and making predictions...');
+    VarioSync.ui.showLoading('Training model and making predictions...');
     
     const licenseKey = (typeof window.getLicenseKey === 'function') 
         ? window.getLicenseKey() 
-        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
     
-    REDLINE.api.post('/analysis/predict', {
+    VarioSync.api.post('/analysis/predict', {
         save_weights: saveWeights,
         filename: filename,
         file_path: filePath,
         license_key: licenseKey
     })
     .then(response => {
-        REDLINE.ui.hideLoading();
+        VarioSync.ui.hideLoading();
         currentMLResponse = response;
         displayPredictionResult(response);
         $('#mlResults').show();
     })
     .catch(error => {
-        REDLINE.ui.hideLoading();
-        REDLINE.ui.showToast('Error making predictions: ' + (error.message || error.error), 'error');
+        VarioSync.ui.hideLoading();
+        VarioSync.ui.showToast('Error making predictions: ' + (error.message || error.error), 'error');
     });
 }
 
@@ -834,14 +834,14 @@ function displayPredictionResult(response) {
     const toastMsg = response.weights_saved 
         ? `Prediction completed. Weights saved: ${response.weights_filename}`
         : 'Prediction completed';
-    REDLINE.ui.showToast(toastMsg, 'success');
+    VarioSync.ui.showToast(toastMsg, 'success');
 }
 
 function scaleFeatures() {
     // Use same approach as Analysis tab
     var filename = $('#mlFile').val();
     if (!filename || filename === '') {
-        REDLINE.ui.showToast('Please select a file first', 'error');
+        VarioSync.ui.showToast('Please select a file first', 'error');
         return;
     }
     
@@ -850,11 +850,11 @@ function scaleFeatures() {
     var filePath = opt.data('path') || null;
     
     // Load columns first, then show modal
-    REDLINE.ui.showToast('Loading file information...', 'info');
+    VarioSync.ui.showToast('Loading file information...', 'info');
     loadFileColumns(filename).then(function() {
         // Verify columns were loaded
         if (!currentMLData || !currentMLData.columns || currentMLData.columns.length === 0) {
-            REDLINE.ui.showToast('Failed to load file columns. Please try selecting the file again.', 'error');
+            VarioSync.ui.showToast('Failed to load file columns. Please try selecting the file again.', 'error');
             return;
         }
         
@@ -862,7 +862,7 @@ function scaleFeatures() {
         showScaleFeatureSelectionModal(currentMLData.columns, filename, filePath);
     }).catch(function(error) {
         console.error('Error loading columns:', error);
-        REDLINE.ui.showToast('Failed to load file columns. Please try selecting the file again.', 'error');
+        VarioSync.ui.showToast('Failed to load file columns. Please try selecting the file again.', 'error');
     });
 }
 
@@ -945,7 +945,7 @@ function confirmScaleFeatures() {
     }).get();
     
     if (selectedFeatures.length === 0) {
-        REDLINE.ui.showToast('Please select at least one feature to scale', 'error');
+        VarioSync.ui.showToast('Please select at least one feature to scale', 'error');
         return;
     }
     
@@ -956,13 +956,13 @@ function confirmScaleFeatures() {
     const modal = bootstrap.Modal.getInstance(document.getElementById('scaleFeatureSelectionModal'));
     modal.hide();
     
-    REDLINE.ui.showLoading('Scaling features...');
+    VarioSync.ui.showLoading('Scaling features...');
     
     const licenseKey = (typeof window.getLicenseKey === 'function') 
         ? window.getLicenseKey() 
-        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
     
-    REDLINE.api.post('/analysis/scale-features', {
+    VarioSync.api.post('/analysis/scale-features', {
         filename: fileInfo.filename,
         file_path: fileInfo.file_path,
         method: methodType,
@@ -970,14 +970,14 @@ function confirmScaleFeatures() {
         license_key: licenseKey
     })
     .then(response => {
-        REDLINE.ui.hideLoading();
+        VarioSync.ui.hideLoading();
         currentMLResponse = response;
         displayScalingResult(response);
         $('#mlResults').show();
     })
     .catch(error => {
-        REDLINE.ui.hideLoading();
-        REDLINE.ui.showToast('Error scaling features: ' + (error.message || error.error), 'error');
+        VarioSync.ui.hideLoading();
+        VarioSync.ui.showToast('Error scaling features: ' + (error.message || error.error), 'error');
     });
 }
 
@@ -1006,7 +1006,7 @@ function displayScalingResult(response) {
     `;
     
     $('#resultsContent').prepend(resultHtml);
-    REDLINE.ui.showToast('Feature scaling completed', 'success');
+    VarioSync.ui.showToast('Feature scaling completed', 'success');
 }
 </script>
 {% endblock %}

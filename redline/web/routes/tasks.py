@@ -1,5 +1,5 @@
 """
-Background Task routes registry for REDLINE Web GUI
+Background Task routes registry for VarioSync Web GUI
 Handles asynchronous task processing and monitoring
 
 This module now serves as a central registry for all task blueprints.

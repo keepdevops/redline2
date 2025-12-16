@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Converter Tab - REDLINE{% endblock %}
+{% block title %}Converter Tab - VarioSync{% endblock %}
 
 {% block page_title %}Format Converter{% endblock %}
 {% block page_subtitle %}Convert between different data formats{% endblock %}
@@ -204,9 +204,9 @@ $(document).ready(function() {
 });
 
 function loadAvailableFiles() {
-    REDLINE.ui.showLoading('Loading available files...');
+    VarioSync.ui.showLoading('Loading available files...');
     
-    REDLINE.api.get('/converter/files')
+    VarioSync.api.get('/converter/files')
         .then(response => {
             availableFiles = response.files || [];
             
@@ -217,19 +217,19 @@ function loadAvailableFiles() {
             
             availableFiles.forEach(file => {
                 // Batch file dropdown
-                batchSelect.append(`<option value="${file.name}">${file.name} (${REDLINE.utils.formatFileSize(file.size)})</option>`);
+                batchSelect.append(`<option value="${file.name}">${file.name} (${VarioSync.utils.formatFileSize(file.size)})</option>`);
             });
             
-            REDLINE.ui.hideLoading();
+            VarioSync.ui.hideLoading();
         })
         .catch(error => {
-            REDLINE.ui.hideLoading();
-            REDLINE.ui.showToast('Error loading files: ' + error.message, 'error');
+            VarioSync.ui.hideLoading();
+            VarioSync.ui.showToast('Error loading files: ' + error.message, 'error');
         });
 }
 
 function loadSupportedFormats() {
-    REDLINE.api.get('/converter/formats')
+    VarioSync.api.get('/converter/formats')
         .then(response => {
             const formats = response.formats || {};
             const select = $('#outputFormat');
@@ -247,7 +247,7 @@ function loadSupportedFormats() {
             });
         })
         .catch(error => {
-            REDLINE.ui.showToast('Error loading formats: ' + error.message, 'error');
+            VarioSync.ui.showToast('Error loading formats: ' + error.message, 'error');
         });
 }
 
@@ -255,7 +255,7 @@ let convertedFiles = [];
 let selectedConvertedFiles = [];
 
 function loadConvertedFiles() {
-    REDLINE.api.get('/converter/converted-files')
+    VarioSync.api.get('/converter/converted-files')
         .then(response => {
             const container = $('#convertedFiles');
             container.empty();
@@ -270,10 +270,10 @@ function loadConvertedFiles() {
                                 <input class="form-check-input converted-file-checkbox" type="checkbox" value="${file.name}" id="converted-${index}">
                                 <label class="form-check-label" for="converted-${index}">
                                     <small class="text-primary">${file.name}</small><br>
-                                    <small class="text-muted">${REDLINE.utils.formatFileSize(file.size)}</small>
+                                    <small class="text-muted">${VarioSync.utils.formatFileSize(file.size)}</small>
                                 </label>
                             </div>
-                            <small class="text-muted">${REDLINE.utils.formatDate(file.modified)}</small>
+                            <small class="text-muted">${VarioSync.utils.formatDate(file.modified)}</small>
                         </div>
                     `);
                     container.append(item);
@@ -329,7 +329,7 @@ function addSelectedFilesToBatch() {
     const selectedFiles = $('#batchFileSelect').val() || [];
     
     if (selectedFiles.length === 0) {
-        REDLINE.ui.showToast('Please select files to add to batch', 'error');
+        VarioSync.ui.showToast('Please select files to add to batch', 'error');
         return;
     }
     
@@ -345,14 +345,14 @@ function addSelectedFilesToBatch() {
     updateBatchFilesList();
     updateBatchButtons();
     
-    REDLINE.ui.showToast(`Added ${selectedFiles.length} file(s) to batch conversion`, 'success');
+    VarioSync.ui.showToast(`Added ${selectedFiles.length} file(s) to batch conversion`, 'success');
 }
 
 function clearBatchFiles() {
     batchFiles = [];
     updateBatchFilesList();
     updateBatchButtons();
-    REDLINE.ui.showToast('Cleared all files from batch', 'info');
+    VarioSync.ui.showToast('Cleared all files from batch', 'info');
 }
 
 function selectAllFiles() {
@@ -377,7 +377,7 @@ function updateBatchFilesList() {
         <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
             <div>
                 <strong>${file.name}</strong>
-                <small class="text-muted d-block">${REDLINE.utils.formatFileSize(file.size)}</small>
+                <small class="text-muted d-block">${VarioSync.utils.formatFileSize(file.size)}</small>
             </div>
             <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeFromBatch(${index})">
                 <i class="fas fa-times"></i>
@@ -411,7 +411,7 @@ if (typeof window.columnMappings === 'undefined') {
 
 function batchConvert() {
     if (batchFiles.length === 0) {
-        REDLINE.ui.showToast('No files selected for batch conversion', 'error');
+        VarioSync.ui.showToast('No files selected for batch conversion', 'error');
         return;
     }
     
@@ -420,20 +420,20 @@ function batchConvert() {
     const mergeFiles = $('#batchMergeFiles').is(':checked');
     
     if (!outputFormat) {
-        REDLINE.ui.showToast('Please select output format for batch conversion', 'error');
+        VarioSync.ui.showToast('Please select output format for batch conversion', 'error');
         return;
     }
     
     // Get license key - use global function if available, otherwise fallback
     const licenseKey = (typeof window.getLicenseKey === 'function') 
         ? window.getLicenseKey() 
-        : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
     if (!licenseKey) {
-        REDLINE.ui.showToast('License key is required. Please register or enter your license key.', 'error');
+        VarioSync.ui.showToast('License key is required. Please register or enter your license key.', 'error');
         return;
     }
     
-    REDLINE.ui.showLoading(mergeFiles ? 'Merging files...' : 'Converting files...');
+    VarioSync.ui.showLoading(mergeFiles ? 'Merging files...' : 'Converting files...');
     console.log('Batch converting with license key:', licenseKey.substring(0, 20) + '...');
     
     if (mergeFiles) {
@@ -442,7 +442,7 @@ function batchConvert() {
         const files = batchFiles.map(file => file.name);
         const columnOrder = $('#mergeColumnOrder').val().trim();
         
-        REDLINE.api.post('/converter/batch-merge', {
+        VarioSync.api.post('/converter/batch-merge', {
             files: files,
             output_format: outputFormat,
             output_filename: mergeFilename,
@@ -452,14 +452,14 @@ function batchConvert() {
             license_key: licenseKey
         })
             .then(response => {
-                REDLINE.ui.hideLoading();
+                VarioSync.ui.hideLoading();
                 showMergeResults(response);
-                REDLINE.ui.showToast(`Successfully merged ${response.loaded_files.length} files into ${response.output_file}`, 'success');
+                VarioSync.ui.showToast(`Successfully merged ${response.loaded_files.length} files into ${response.output_file}`, 'success');
                 loadConvertedFiles();
             })
             .catch(error => {
-                REDLINE.ui.hideLoading();
-                REDLINE.ui.showToast('Error merging files: ' + error.message, 'error');
+                VarioSync.ui.hideLoading();
+                VarioSync.ui.showToast('Error merging files: ' + error.message, 'error');
             });
     } else {
         // Normal batch conversion: convert each file separately
@@ -470,20 +470,20 @@ function batchConvert() {
             overwrite: overwrite
         }));
         
-        REDLINE.api.post('/converter/batch-convert', {
+        VarioSync.api.post('/converter/batch-convert', {
             files: files,
             overwrite: overwrite,
             license_key: licenseKey
         })
             .then(response => {
-                REDLINE.ui.hideLoading();
+                VarioSync.ui.hideLoading();
                 showBatchResults(response);
-                REDLINE.ui.showToast(`Batch conversion completed: ${response.successful} successful, ${response.failed} failed`, 'success');
+                VarioSync.ui.showToast(`Batch conversion completed: ${response.successful} successful, ${response.failed} failed`, 'success');
                 loadConvertedFiles();
             })
             .catch(error => {
-                REDLINE.ui.hideLoading();
-                REDLINE.ui.showToast('Error in batch conversion: ' + error.message, 'error');
+                VarioSync.ui.hideLoading();
+                VarioSync.ui.showToast('Error in batch conversion: ' + error.message, 'error');
             });
     }
 }
@@ -491,13 +491,13 @@ function batchConvert() {
 function showColumnEditorModal() {
     // Validate that files are selected
     if (batchFiles.length === 0) {
-        REDLINE.ui.showToast('Please select files for batch conversion first', 'error');
+        VarioSync.ui.showToast('Please select files for batch conversion first', 'error');
         return;
     }
     
     // Validate that merge is enabled
     if (!$('#batchMergeFiles').is(':checked')) {
-        REDLINE.ui.showToast('Please enable "Merge files into one output file" to edit column names', 'error');
+        VarioSync.ui.showToast('Please enable "Merge files into one output file" to edit column names', 'error');
         return;
     }
     
@@ -560,12 +560,12 @@ function loadColumnMappings() {
         return;
     }
     
-    REDLINE.ui.showLoading('Loading column information...');
+    VarioSync.ui.showLoading('Loading column information...');
     
     // Call API to get columns from selected files
-    REDLINE.api.post('/converter/columns', { files: selectedFiles })
+    VarioSync.api.post('/converter/columns', { files: selectedFiles })
         .then(response => {
-            REDLINE.ui.hideLoading();
+            VarioSync.ui.hideLoading();
             
             if (response.error) {
                 $('#columnMappingsList').html(`
@@ -648,7 +648,7 @@ function loadColumnMappings() {
             });
         })
         .catch(error => {
-            REDLINE.ui.hideLoading();
+            VarioSync.ui.hideLoading();
             $('#columnMappingsList').html(`
                 <div class="alert alert-danger">
                     <small>Error loading columns: ${error.message}</small>
@@ -671,15 +671,15 @@ function saveColumnMappings() {
     
     const mappingCount = Object.keys(activeMappings).length;
     if (mappingCount > 0) {
-        REDLINE.ui.showToast(`Column mappings saved (${mappingCount} column(s) renamed)`, 'success');
+        VarioSync.ui.showToast(`Column mappings saved (${mappingCount} column(s) renamed)`, 'success');
     } else {
-        REDLINE.ui.showToast('No column name changes detected', 'info');
+        VarioSync.ui.showToast('No column name changes detected', 'info');
     }
 }
 
 function mergeConvertedFiles() {
     if (selectedConvertedFiles.length < 2) {
-        REDLINE.ui.showToast('Please select at least 2 files to merge', 'error');
+        VarioSync.ui.showToast('Please select at least 2 files to merge', 'error');
         return;
     }
     
@@ -748,17 +748,17 @@ function mergeConvertedFiles() {
         // Get license key
         const licenseKey = (typeof window.getLicenseKey === 'function') 
             ? window.getLicenseKey() 
-            : (localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY);
+            : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
         if (!licenseKey) {
-            REDLINE.ui.showToast('License key is required', 'error');
+            VarioSync.ui.showToast('License key is required', 'error');
             return;
         }
         
-        REDLINE.ui.showLoading('Merging converted files...');
+        VarioSync.ui.showLoading('Merging converted files...');
         
         const columnOrder = $('#mergeConvertedColumnOrder').val().trim();
         
-        REDLINE.api.post('/converter/batch-merge', {
+        VarioSync.api.post('/converter/batch-merge', {
             files: selectedConvertedFiles,
             output_format: outputFormat,
             output_filename: outputFilename,
@@ -768,14 +768,14 @@ function mergeConvertedFiles() {
             license_key: licenseKey
         })
             .then(response => {
-                REDLINE.ui.hideLoading();
+                VarioSync.ui.hideLoading();
                 showMergeResults(response);
-                REDLINE.ui.showToast(`Successfully merged ${response.loaded_files.length} files into ${response.output_file}`, 'success');
+                VarioSync.ui.showToast(`Successfully merged ${response.loaded_files.length} files into ${response.output_file}`, 'success');
                 loadConvertedFiles();
             })
             .catch(error => {
-                REDLINE.ui.hideLoading();
-                REDLINE.ui.showToast('Error merging files: ' + error.message, 'error');
+                VarioSync.ui.hideLoading();
+                VarioSync.ui.showToast('Error merging files: ' + error.message, 'error');
             });
     });
 }

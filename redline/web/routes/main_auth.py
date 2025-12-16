@@ -1,5 +1,5 @@
 """
-Main authentication routes for REDLINE Web GUI
+Main authentication routes for VarioSync Web GUI
 Handles user registration and license key generation
 """
 
@@ -131,15 +131,15 @@ def send_license_email(email, license_key, name, license_data):
         msg = MIMEMultipart('alternative')
         msg['From'] = from_email
         msg['To'] = email
-        msg['Subject'] = 'Your REDLINE License Key'
+        msg['Subject'] = 'Your VarioSync License Key'
         
         # Email body
         html_body = f"""
         <html>
         <body>
-            <h2>Welcome to REDLINE!</h2>
+            <h2>Welcome to VarioSync!</h2>
             <p>Dear {name},</p>
-            <p>Thank you for registering with REDLINE. Your license key has been generated.</p>
+            <p>Thank you for registering with VarioSync. Your license key has been generated.</p>
             <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
                 <p><strong>Your License Key:</strong></p>
                 <p style="font-size: 1.5em; font-weight: bold; color: #0d6efd; font-family: monospace;">{license_key}</p>
@@ -154,20 +154,20 @@ def send_license_email(email, license_key, name, license_data):
             <ol>
                 <li>Save this license key securely</li>
                 <li>Go to the Payment tab to purchase hours</li>
-                <li>Start using REDLINE!</li>
+                <li>Start using VarioSync!</li>
             </ol>
             <p>If you have any questions, please contact support.</p>
-            <p>Best regards,<br>The REDLINE Team</p>
+            <p>Best regards,<br>The VarioSync Team</p>
         </body>
         </html>
         """
         
         text_body = f"""
-Welcome to REDLINE!
+Welcome to VarioSync!
 
 Dear {name},
 
-Thank you for registering with REDLINE. Your license key has been generated.
+Thank you for registering with VarioSync. Your license key has been generated.
 
 Your License Key: {license_key}
 
@@ -179,12 +179,12 @@ License Details:
 Next Steps:
 1. Save this license key securely
 2. Go to the Payment tab to purchase hours
-3. Start using REDLINE!
+3. Start using VarioSync!
 
 If you have any questions, please contact support.
 
 Best regards,
-The REDLINE Team
+The VarioSync Team
         """
         
         msg.attach(MIMEText(text_body, 'plain'))

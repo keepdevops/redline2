@@ -1,5 +1,5 @@
 /**
- * REDLINE Payment Management JavaScript
+ * VarioSync Payment Management JavaScript
  * Handles payment processing, balance checking, and hour purchases
  */
 
@@ -8,7 +8,7 @@
     
     // Configuration
     const API_BASE = '/payments';
-    const LICENSE_KEY_STORAGE = 'redline_license_key';
+    const LICENSE_KEY_STORAGE = 'variosync_license_key';
     
     // State
     let currentLicenseKey = null;
@@ -41,7 +41,7 @@
         if (savedKey && licenseKeyInput) {
             licenseKeyInput.value = savedKey;
             currentLicenseKey = savedKey;
-            window.REDLINE_LICENSE_KEY = savedKey; // Also set global
+            window.VARIOSYNC_LICENSE_KEY = savedKey; // Also set global
             
             // Show saved status
             const licenseKeyStatus = document.getElementById('licenseKeyStatus');

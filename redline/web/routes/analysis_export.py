@@ -1,5 +1,5 @@
 """
-Analysis export routes for REDLINE Web GUI
+Analysis export routes for VarioSync Web GUI
 Handles exporting analysis results to all supported formats
 """
 

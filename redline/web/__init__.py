@@ -1,5 +1,5 @@
-# REDLINE Web GUI Package
-# Flask-based web interface for REDLINE application
+# VarioSync Web GUI Package
+# Flask-based web interface for VarioSync application
 
 from flask import Flask
 from flask_socketio import SocketIO

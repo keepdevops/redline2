@@ -1,5 +1,5 @@
 """
-Converter routes for REDLINE Web GUI
+Converter routes for VarioSync Web GUI
 Handles file format conversion operations
 
 This module now serves as a central registry for all converter blueprints.

@@ -1,5 +1,5 @@
 """
-Analysis routes for REDLINE Web GUI
+Analysis routes for VarioSync Web GUI
 Route handlers for data analysis and statistical operations
 
 This module now serves as a central registry for all analysis blueprints.

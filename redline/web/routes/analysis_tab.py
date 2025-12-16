@@ -1,5 +1,5 @@
 """
-Analysis tab routes for REDLINE Web GUI
+Analysis tab routes for VarioSync Web GUI
 Main route handlers for analysis operations
 """
 

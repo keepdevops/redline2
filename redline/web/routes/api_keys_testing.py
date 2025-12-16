@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-API Keys testing routes for REDLINE Web GUI
+API Keys testing routes for VarioSync Web GUI
 Handles testing API keys by making sample requests
 """
 

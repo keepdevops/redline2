@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-API Keys routes registry for REDLINE Web GUI
+API Keys routes registry for VarioSync Web GUI
 Helps users get free API keys for data sources
 
 This module now serves as a central registry for all API keys blueprints.

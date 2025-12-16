@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Payment tab routes for REDLINE Web GUI
+Payment tab routes for VarioSync Web GUI
 Handles payment success page, packages, and main payment tab
 """
 

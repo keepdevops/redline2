@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-REDLINE Web Application Entry Point
-Flask-based web interface for REDLINE application
+VarioSync Web Application Entry Point
+Flask-based web interface for VarioSync application
 """
 
 import os
@@ -60,7 +60,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('redline_web.log'),
+        logging.FileHandler('variosync_web.log'),
         logging.StreamHandler()
     ]
 )

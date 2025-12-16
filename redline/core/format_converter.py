@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-REDLINE Format Converter
+VarioSync Format Converter
 Handles conversion between different data formats and file I/O operations.
 """
 

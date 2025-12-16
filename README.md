@@ -1,8 +1,8 @@
-# REDLINE - Professional Financial Data Analysis Platform
+# VarioSync - Professional Financial Data Analysis Platform
 
 <div align="center">
 
-![REDLINE Logo](https://img.shields.io/badge/REDLINE-Financial%20Data%20Analyzer-blue?style=for-the-badge&logo=chart-line)
+![VarioSync Logo](https://img.shields.io/badge/VarioSync-Financial%20Data%20Analyzer-blue?style=for-the-badge&logo=chart-line)
 
 **Professional-grade financial data analysis with modern GUI, web interface, and multi-platform distribution**
 
@@ -16,9 +16,9 @@
 
 ---
 
-## 🌟 **What is REDLINE?**
+## 🌟 **What is VarioSync?**
 
-REDLINE is a comprehensive **financial data analysis platform** that provides data downloading, viewing, filtering, and analysis capabilities with both modern GUI and web interfaces. It supports multiple data sources, formats, and deployment methods for professional financial data analysis.
+VarioSync is a comprehensive **financial data analysis platform** that provides data downloading, viewing, filtering, and analysis capabilities with both modern GUI and web interfaces. It supports multiple data sources, formats, and deployment methods for professional financial data analysis.
 
 **Perfect for:**
 - 📊 **Financial Analysts** - Professional data analysis tools
@@ -357,7 +357,7 @@ redline --register-install
 
 ### **Example 1: Download and Analyze Stock Data**
 ```bash
-# Start REDLINE
+# Start VarioSync
 redline-gui
 
 # Or use web interface

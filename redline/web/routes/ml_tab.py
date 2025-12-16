@@ -1,5 +1,5 @@
 """
-ML tab routes for REDLINE Web GUI
+ML tab routes for VarioSync Web GUI
 Main route handlers for machine learning operations
 """
 

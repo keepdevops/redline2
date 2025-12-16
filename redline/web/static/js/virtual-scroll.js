@@ -1,5 +1,5 @@
 /**
- * Virtual Scrolling Component for REDLINE Web GUI
+ * Virtual Scrolling Component for VarioSync Web GUI
  * Provides high-performance scrolling for large datasets
  */
 
@@ -159,7 +159,7 @@ if (typeof window.VirtualScrollTable === 'undefined') {
             };
             
             // Get license key from localStorage
-            const licenseKey = localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY;
+            const licenseKey = localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY;
             
             // Add license key to request params
             if (licenseKey) {

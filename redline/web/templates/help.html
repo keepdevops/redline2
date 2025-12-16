@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Help & Documentation - REDLINE{% endblock %}
+{% block title %}Help & Documentation - VarioSync{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -141,7 +141,7 @@
                     <div class="row">
                         <div class="col-md-6">
                             <h6><i class="fas fa-key text-primary me-2"></i>1. Register for an Account</h6>
-                            <p class="text-muted">Create your account to receive a license key and start using REDLINE.</p>
+                            <p class="text-muted">Create your account to receive a license key and start using VarioSync.</p>
                             <ul class="list-unstyled text-muted">
                                 <li>• Visit the <a href="/register" class="text-decoration-none">Registration</a> page</li>
                                 <li>• Enter your name, email, and company (optional)</li>
@@ -159,13 +159,13 @@
                             </ul>
                         </div>
                         <div class="col-md-6">
-                            <h6><i class="fas fa-globe text-info me-2"></i>3. Access REDLINE</h6>
-                            <p class="text-muted">Access REDLINE from any device with a web browser.</p>
+                            <h6><i class="fas fa-globe text-info me-2"></i>3. Access VarioSync</h6>
+                            <p class="text-muted">Access VarioSync from any device with a web browser.</p>
                             <ul class="list-unstyled text-muted">
                                 <li>• Open your web browser (Chrome, Firefox, Safari, Edge)</li>
                                 <li>• Navigate to <strong>https://redfindat.com</strong></li>
                                 <li>• Enter your license key when prompted</li>
-                                <li>• Start using REDLINE immediately</li>
+                                <li>• Start using VarioSync immediately</li>
                             </ul>
                             
                             <h6><i class="fas fa-info-circle text-warning me-2"></i>System Requirements</h6>
@@ -371,7 +371,7 @@ $(document).ready(function() {
     $('#browserInfo').text(navigator.userAgent.split(' ').slice(-2).join(' '));
     
     // Get current theme
-    const currentTheme = localStorage.getItem('redline-theme') || 'theme-default';
+    const currentTheme = localStorage.getItem('variosync-theme') || 'theme-default';
     const themeNames = {
         'theme-default': 'Default',
         'theme-high-contrast': 'High Contrast',

@@ -1,4 +1,4 @@
-// REDLINE Web GUI Main JavaScript
+// VarioSync Web GUI Main JavaScript
 
 // Global variables
 let currentData = null;
@@ -6,7 +6,7 @@ let currentFilters = {};
 let isLoading = false;
 
 // License key management (persistent across all pages)
-const LICENSE_KEY_STORAGE = 'redline_license_key';
+const LICENSE_KEY_STORAGE = 'variosync_license_key';
 
 // Get stored license key
 function getStoredLicenseKey() {
@@ -15,7 +15,7 @@ function getStoredLicenseKey() {
         return window.getLicenseKey();
     }
     // Fallback to direct localStorage access
-    return localStorage.getItem(LICENSE_KEY_STORAGE) || window.REDLINE_LICENSE_KEY;
+    return localStorage.getItem(LICENSE_KEY_STORAGE) || window.VARIOSYNC_LICENSE_KEY;
 }
 
 // Save license key to localStorage
@@ -856,7 +856,7 @@ function refreshCurrentData() {
 }
 
 // Export global functions
-window.REDLINE = {
+window.VARIOSYNC = {
     utils: utils,
     api: api,
     ui: ui,

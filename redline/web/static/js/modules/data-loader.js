@@ -19,7 +19,7 @@ class DataLoader {
             console.log(`DataLoader: Loading data for file: ${filename}`);
             
             // Get license key from localStorage
-            const licenseKey = localStorage.getItem('redline_license_key') || window.REDLINE_LICENSE_KEY;
+            const licenseKey = localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY;
             
             const headers = {
                 'Content-Type': 'application/json',

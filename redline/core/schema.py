@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-REDLINE Core Schema Definitions
+VarioSync Core Schema Definitions
 Defines data schemas and format mappings for financial data processing.
 """
 
-# Standard REDLINE data schema
+# Standard VarioSync data schema
 SCHEMA = ['ticker', 'timestamp', 'open', 'high', 'low', 'close', 'vol', 'openint', 'format']
 
 # File extension to format mapping

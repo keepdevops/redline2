@@ -1,5 +1,5 @@
 /**
- * REDLINE Date Formatter
+ * VarioSync Date Formatter
  * Unified date formatting function that works with both jQuery and vanilla JavaScript.
  * 
  * This function formats YYYYMMDD numeric dates (e.g., 20241118) to readable formats

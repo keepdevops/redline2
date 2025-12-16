@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Settings Tab - REDLINE{% endblock %}
+{% block title %}Settings Tab - VarioSync{% endblock %}
 
 {% block page_title %}Settings & Configuration{% endblock %}
 {% block page_subtitle %}Configure application settings and system information{% endblock %}
@@ -255,7 +255,7 @@ $(document).ready(function() {
 });
 
 function loadConfiguration() {
-    REDLINE.api.get('/settings/config')
+    VarioSync.api.get('/settings/config')
         .then(response => {
             const config = response.config;
             
@@ -282,7 +282,7 @@ function loadConfiguration() {
             $('#includeMetadata').prop('checked', config.export?.include_metadata === 'true');
         })
         .catch(error => {
-            REDLINE.ui.showToast('Error loading configuration: ' + error.message, 'error');
+            VarioSync.ui.showToast('Error loading configuration: ' + error.message, 'error');
         });
 }
 
@@ -309,38 +309,38 @@ function saveConfiguration() {
         }
     };
     
-    REDLINE.ui.showLoading('Saving configuration...');
+    VarioSync.ui.showLoading('Saving configuration...');
     
-    REDLINE.api.post('/settings/config', { config: config })
+    VarioSync.api.post('/settings/config', { config: config })
         .then(response => {
-            REDLINE.ui.hideLoading();
-            REDLINE.ui.showToast('Configuration saved successfully', 'success');
+            VarioSync.ui.hideLoading();
+            VarioSync.ui.showToast('Configuration saved successfully', 'success');
         })
         .catch(error => {
-            REDLINE.ui.hideLoading();
-            REDLINE.ui.showToast('Error saving configuration: ' + error.message, 'error');
+            VarioSync.ui.hideLoading();
+            VarioSync.ui.showToast('Error saving configuration: ' + error.message, 'error');
         });
 }
 
 function resetConfiguration() {
-    REDLINE.ui.confirm('Are you sure you want to reset all settings to defaults?', function() {
-        REDLINE.ui.showLoading('Resetting configuration...');
+    VarioSync.ui.confirm('Are you sure you want to reset all settings to defaults?', function() {
+        VarioSync.ui.showLoading('Resetting configuration...');
         
-        REDLINE.api.get('/settings/reset-config')
+        VarioSync.api.get('/settings/reset-config')
             .then(response => {
-                REDLINE.ui.hideLoading();
+                VarioSync.ui.hideLoading();
                 loadConfiguration();
-                REDLINE.ui.showToast('Configuration reset to defaults', 'success');
+                VarioSync.ui.showToast('Configuration reset to defaults', 'success');
             })
             .catch(error => {
-                REDLINE.ui.hideLoading();
-                REDLINE.ui.showToast('Error resetting configuration: ' + error.message, 'error');
+                VarioSync.ui.hideLoading();
+                VarioSync.ui.showToast('Error resetting configuration: ' + error.message, 'error');
             });
     });
 }
 
 function loadSystemInfo() {
-    REDLINE.api.get('/settings/system-info')
+    VarioSync.api.get('/settings/system-info')
         .then(response => {
             const infoHtml = `
                 <div class="mb-3">
@@ -358,16 +358,16 @@ function loadSystemInfo() {
                 
                 <div class="mb-3">
                     <h6>Memory</h6>
-                    <p class="mb-1"><strong>Total:</strong> ${REDLINE.utils.formatFileSize(response.memory?.total || 0)}</p>
-                    <p class="mb-1"><strong>Available:</strong> ${REDLINE.utils.formatFileSize(response.memory?.available || 0)}</p>
+                    <p class="mb-1"><strong>Total:</strong> ${VarioSync.utils.formatFileSize(response.memory?.total || 0)}</p>
+                    <p class="mb-1"><strong>Available:</strong> ${VarioSync.utils.formatFileSize(response.memory?.available || 0)}</p>
                     <p class="mb-1"><strong>Used:</strong> ${response.memory?.percent || 0}%</p>
                 </div>
                 
                 <div class="mb-3">
                     <h6>Disk</h6>
-                    <p class="mb-1"><strong>Total:</strong> ${REDLINE.utils.formatFileSize(response.disk?.total || 0)}</p>
-                    <p class="mb-1"><strong>Used:</strong> ${REDLINE.utils.formatFileSize(response.disk?.used || 0)}</p>
-                    <p class="mb-1"><strong>Free:</strong> ${REDLINE.utils.formatFileSize(response.disk?.free || 0)}</p>
+                    <p class="mb-1"><strong>Total:</strong> ${VarioSync.utils.formatFileSize(response.disk?.total || 0)}</p>
+                    <p class="mb-1"><strong>Used:</strong> ${VarioSync.utils.formatFileSize(response.disk?.used || 0)}</p>
+                    <p class="mb-1"><strong>Free:</strong> ${VarioSync.utils.formatFileSize(response.disk?.free || 0)}</p>
                 </div>
                 
                 <div class="mb-3">
@@ -385,7 +385,7 @@ function loadSystemInfo() {
 }
 
 function loadDatabaseStatus() {
-    REDLINE.api.get('/settings/database-status')
+    VarioSync.api.get('/settings/database-status')
         .then(response => {
             const statusHtml = `
                 <div class="mb-2">
@@ -414,20 +414,20 @@ function loadDatabaseStatus() {
 }
 
 function testConnection(type) {
-    REDLINE.ui.showLoading(`Testing ${type} connection...`);
+    VarioSync.ui.showLoading(`Testing ${type} connection...`);
     
-    REDLINE.api.post('/settings/test-connection', { type: type })
+    VarioSync.api.post('/settings/test-connection', { type: type })
         .then(response => {
-            REDLINE.ui.hideLoading();
+            VarioSync.ui.hideLoading();
             if (response.success) {
-                REDLINE.ui.showToast(`${type} connection test successful`, 'success');
+                VarioSync.ui.showToast(`${type} connection test successful`, 'success');
             } else {
-                REDLINE.ui.showToast(`${type} connection test failed: ${response.message}`, 'error');
+                VarioSync.ui.showToast(`${type} connection test failed: ${response.message}`, 'error');
             }
         })
         .catch(error => {
-            REDLINE.ui.hideLoading();
-            REDLINE.ui.showToast(`Error testing ${type} connection: ${error.message}`, 'error');
+            VarioSync.ui.hideLoading();
+            VarioSync.ui.showToast(`Error testing ${type} connection: ${error.message}`, 'error');
         });
 }
 
@@ -435,7 +435,7 @@ function loadLogs() {
     const container = $('#logsContainer');
     container.html('<small class="text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Loading logs...</small>');
     
-    REDLINE.api.get('/settings/logs')
+    VarioSync.api.get('/settings/logs')
         .then(response => {
             container.empty();
             
@@ -498,18 +498,18 @@ function loadLogs() {
 }
 
 function clearLogs() {
-    REDLINE.ui.confirm('Are you sure you want to clear all application logs?', function() {
-        REDLINE.ui.showLoading('Clearing logs...');
+    VarioSync.ui.confirm('Are you sure you want to clear all application logs?', function() {
+        VarioSync.ui.showLoading('Clearing logs...');
         
-        REDLINE.api.post('/settings/clear-logs')
+        VarioSync.api.post('/settings/clear-logs')
             .then(response => {
-                REDLINE.ui.hideLoading();
+                VarioSync.ui.hideLoading();
                 loadLogs();
-                REDLINE.ui.showToast('Logs cleared successfully', 'success');
+                VarioSync.ui.showToast('Logs cleared successfully', 'success');
             })
             .catch(error => {
-                REDLINE.ui.hideLoading();
-                REDLINE.ui.showToast('Error clearing logs: ' + error.message, 'error');
+                VarioSync.ui.hideLoading();
+                VarioSync.ui.showToast('Error clearing logs: ' + error.message, 'error');
             });
     });
 }
@@ -534,8 +534,8 @@ function applyThemeSetting(theme) {
     }
     
     // Also update local storage
-    localStorage.setItem('redline-theme', actualTheme);
-    localStorage.setItem('redline-theme-preference', theme);
+    localStorage.setItem('variosync-theme', actualTheme);
+    localStorage.setItem('variosync-theme-preference', theme);
 }
 
 function getAutoTheme() {

@@ -1,5 +1,5 @@
 """
-API routes for REDLINE Web GUI
+API routes for VarioSync Web GUI
 Provides REST API endpoints for data operations
 
 This module now serves as a central registry for all API blueprints.

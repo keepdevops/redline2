@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-API Keys management routes for REDLINE Web GUI
+API Keys management routes for VarioSync Web GUI
 Handles saving, loading, and displaying API keys
 """
 

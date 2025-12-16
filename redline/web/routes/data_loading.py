@@ -1,5 +1,5 @@
 """
-Data loading routes registry for REDLINE Web GUI
+Data loading routes registry for VarioSync Web GUI
 Handles file loading, uploading, and data import operations
 
 This module now serves as a central registry for all data loading blueprints.

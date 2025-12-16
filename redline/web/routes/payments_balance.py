@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Payment balance and history routes for REDLINE Web GUI
+Payment balance and history routes for VarioSync Web GUI
 Handles balance retrieval and payment/usage history
 """
 

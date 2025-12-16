@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-REDLINE Data Loading Service
+VarioSync Data Loading Service
 Centralized data loading functionality to eliminate duplication across modules.
 """
 

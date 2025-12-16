@@ -1,5 +1,5 @@
 """
-Data filtering routes for REDLINE Web GUI
+Data filtering routes for VarioSync Web GUI
 Handles data filtering and export operations
 """
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-REDLINE Core Data Loader
+VarioSync Core Data Loader
 Main data loading and processing functionality for financial data.
 """
 
@@ -40,7 +40,7 @@ from .format_converter import FormatConverter
 logger = logging.getLogger(__name__)
 
 class DataLoader:
-    """Main data loading and processing class for REDLINE."""
+    """Main data loading and processing class for VarioSync."""
     
     def __init__(self, config_path: str = 'data_config.ini'):
         """Initialize DataLoader with configuration."""

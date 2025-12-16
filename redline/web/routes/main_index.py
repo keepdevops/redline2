@@ -1,5 +1,5 @@
 """
-Main index routes for REDLINE Web GUI
+Main index routes for VarioSync Web GUI
 Provides the main dashboard and navigation pages
 """
 
@@ -48,7 +48,7 @@ def status():
 @main_index_bp.route('/health')
 def health():
     """Health check endpoint for Docker."""
-    return jsonify({'status': 'healthy', 'service': 'redline-web'})
+    return jsonify({'status': 'healthy', 'service': 'variosync-web'})
 
 @main_index_bp.route('/tasks')
 def tasks_page():

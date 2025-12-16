@@ -1,5 +1,5 @@
 """
-Correlation analysis routes for REDLINE Web GUI
+Correlation analysis routes for VarioSync Web GUI
 Handles correlation analysis operations
 """
 

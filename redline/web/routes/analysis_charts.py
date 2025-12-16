@@ -1,5 +1,5 @@
 """
-Chart data routes for REDLINE Web GUI
+Chart data routes for VarioSync Web GUI
 Provides sample data for Chart.js visualizations
 """
 

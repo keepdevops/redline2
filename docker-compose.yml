@@ -1,19 +1,19 @@
 version: '3.8'
 
 services:
-  redline-web:
-    image: keepdevops/redline:latest
-    container_name: redline-web
+  variosync-web:
+    image: keepdevops/variosync:latest
+    container_name: variosync-web
     ports:
       - "8080:8080"
     volumes:
       # Persistent data storage for custom APIs and user files
-      - redline-data:/app/data
-      - redline-logs:/app/logs
-      - redline-config:/app/config
+      - variosync-data:/app/data
+      - variosync-logs:/app/logs
+      - variosync-config:/app/config
     environment:
       - FLASK_ENV=production
-      - REDLINE_ENV=production
+      - VARIOSYNC_ENV=production
       - GUNICORN_WORKERS=1
       - GUNICORN_THREADS=4
       - REQUIRE_LICENSE_SERVER=true
@@ -37,7 +37,7 @@ services:
   # Optional Redis for enhanced performance (if using Celery)
   redis:
     image: redis:7-alpine
-    container_name: redline-redis
+    container_name: variosync-redis
     volumes:
       - redis-data:/data
     restart: unless-stopped
@@ -45,19 +45,19 @@ services:
       - full  # Only start with: docker-compose --profile full up
 
 volumes:
-  redline-data:
+  variosync-data:
     driver: local
     driver_opts:
       type: none
       o: bind
       device: ./data
-  redline-logs:
+  variosync-logs:
     driver: local
-  redline-config:
+  variosync-config:
     driver: local
   redis-data:
     driver: local
 
 networks:
   default:
-    name: redline-network
+    name: variosync-network
