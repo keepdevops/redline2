@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![VarioSync Logo](https://img.shields.io/badge/VarioSync-Financial%20Data%20Analyzer-blue?style=for-the-badge&logo=chart-line)
+![REDLINE Logo](https://img.shields.io/badge/REDLINE-Financial%20Data%20Analyzer-blue?style=for-the-badge&logo=chart-line)
 
 **Professional-grade financial data analysis with modern GUI, web interface, and multi-platform distribution**
 
