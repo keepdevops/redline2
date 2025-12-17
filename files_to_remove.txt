@@ -1,0 +1,66 @@
+# Files That Can Be Removed (Not Part of Production or Dev)
+
+## TEST FILES
+test_upload_delete.py
+
+## DEMO/EXAMPLE FILES
+DUPLICATION_CONSOLIDATION_DEMO.py
+CUSTOM_API_EXAMPLE.py
+
+## STANDALONE SCRIPTS (Not Imported by Production)
+bulk_stock_downloader.py
+chartoasis_stooq_downloader.py
+comprehensive_financial_downloader.py
+multi_source_downloader.py
+stooq_historical_data_downloader.py
+stooq_historical_downloader.py
+universal_gui_downloader.py
+use_converted_data.py
+
+## UTILITY SCRIPTS (Development/One-off)
+add_dns_records.py
+analyze_help_docs.py
+cleanup_conversion_files.py
+convert_to_stooq_format.py
+cost_calculator.py
+create_test_license.py
+data_module_grid.py
+enhanced_database_status.py
+financial_data_formats_guide.py
+log_viewer_route.py
+move_stooq_from_downloads.py
+open_stooq_manual.py
+run_gui_tests.py
+setup_massive_api_key.py
+stooq_data_downloader.py
+stooq_gui_downloader.py
+stooq_manual_downloader.py
+web_app_safe.py  # Backup/safe version
+
+## ARCHIVE/COMPRESSED FILES
+redline-gui-executable-arm64-v1.0.0.tar.gz
+redline-source-v1.0.0.tar.gz
+redline-portable-v1.0.0.tar.gz
+
+## OS/TEMP FILES
+.DS_Store
+
+## ANALYSIS/REPORT MARKDOWN (Already identified)
+CODEBASE_SCAN_FOR_PAYMENT_INTEGRATION.md
+DUPLICATION_SCAN_REPORT.md
+IMPORT_VERIFICATION_REPORT.md
+duplicate_classes_analysis.md
+legacy_files_moved_summary.md
+legacy_files_production_usage.md
+production_duplicates_summary.md
+step1_migration_complete.md
+
+## FUTURE PLANNING
+FUTUREME.md
+
+## CACHE DIRECTORIES (Can be regenerated)
+__pycache__/ directories (throughout project)
+
+## CONFIG FILES (May be runtime-generated)
+gunicorn.conf.py  # Check if used in production
+
