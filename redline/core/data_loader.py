@@ -25,12 +25,9 @@ except ImportError:
     pa = None
     PYARROW_AVAILABLE = False
 
-try:
-    import duckdb
-    DUCKDB_AVAILABLE = True
-except ImportError:
-    duckdb = None
-    DUCKDB_AVAILABLE = False
+# DuckDB operations now handled by Modal + Supabase
+# Local DuckDB no longer required
+DUCKDB_AVAILABLE = False
 
 from .schema import SCHEMA, EXT_TO_FORMAT, FORMAT_DIALOG_INFO
 from .data_validator import DataValidator
@@ -120,76 +117,69 @@ class DataLoader:
     
     def save_to_shared(self, table: str, data: Union[pd.DataFrame, 'pl.DataFrame', 'pa.Table'], format: str) -> None:
         """
-        Save data to shared database table.
-        
+        Save data to shared database table (Supabase PostgreSQL).
+
         Args:
             table: Table name
             data: Data to save
             format: Data format identifier
         """
         try:
+            from redline.auth.supabase_config import supabase_admin
+
             # Convert to pandas DataFrame if needed
             if POLARS_AVAILABLE and isinstance(data, pl.DataFrame):
                 data = data.to_pandas()
             elif PYARROW_AVAILABLE and isinstance(data, pa.Table):
                 data = data.to_pandas()
-            
+
             data['format'] = format
             data = self.cleaner.clean_and_select_columns(data)
-            
+
             # Ensure timestamp is in datetime format
             data['timestamp'] = pd.to_datetime(data['timestamp'])
-            
-            # Create table if not exists and insert data using DuckDB
-            conn = duckdb.connect(self.db_path)
-            conn.execute(f"DROP TABLE IF EXISTS {table}")
-            
-            create_table_sql = f"""
-            CREATE TABLE IF NOT EXISTS {table} (
-                ticker VARCHAR,
-                timestamp TIMESTAMP,
-                open DOUBLE,
-                high DOUBLE,
-                low DOUBLE,
-                close DOUBLE,
-                vol DOUBLE,
-                openint DOUBLE,
-                format VARCHAR
-            )
-            """
-            conn.execute(create_table_sql)
-            
-            # Insert data
-            conn.register('temp_df', data)
-            insert_sql = f"INSERT INTO {table} SELECT * FROM temp_df"
-            conn.execute(insert_sql)
-            conn.unregister('temp_df')
-            conn.close()
-            
-            self.logger.info(f"Saved data to {table} in format {format}")
-            
+
+            # Convert DataFrame to list of dicts for Supabase
+            records = data.to_dict('records')
+
+            # Delete existing records for this table (if needed)
+            # Note: This assumes table name maps to a Supabase table
+            # You may need to adjust the table name or create custom tables
+
+            # Insert data to Supabase
+            # Note: Table must exist in Supabase schema
+            supabase_admin.table(table).upsert(records).execute()
+
+            self.logger.info(f"Saved {len(records)} records to Supabase table '{table}' in format {format}")
+
         except Exception as e:
             self.logger.exception(f"Failed to save to {table}: {str(e)}")
             raise
     
     def load_ticker_data(self, ticker: str) -> pd.DataFrame:
         """
-        Load data for a specific ticker from the database.
-        
+        Load data for a specific ticker from the database (Supabase PostgreSQL).
+
         Args:
             ticker: Ticker symbol
-            
+
         Returns:
             DataFrame with ticker data
         """
         try:
-            conn = duckdb.connect(self.db_path)
-            query = f"SELECT * FROM tickers_data WHERE ticker = '{ticker}' ORDER BY timestamp"
-            result = conn.execute(query).fetchdf()
-            conn.close()
-            
-            return result
-            
+            from redline.auth.supabase_config import supabase_admin
+
+            # Query Supabase for ticker data
+            # Note: Assumes 'tickers_data' table exists in Supabase schema
+            result = supabase_admin.table('tickers_data').select('*').eq('ticker', ticker).order('timestamp').execute()
+
+            # Convert to DataFrame
+            if result.data:
+                df = pd.DataFrame(result.data)
+                return df
+            else:
+                return pd.DataFrame()
+
         except Exception as e:
             self.logger.error(f"Error loading ticker data for {ticker}: {str(e)}")
             return pd.DataFrame()

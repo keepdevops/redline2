@@ -2,8 +2,12 @@
 
 services:
   variosync-web:
-    image: keepdevops/variosync:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.webgui.bytecode
     container_name: variosync-web
+    env_file:
+      - .env
     ports:
       - "8080:8080"
     volumes:
@@ -18,11 +22,10 @@ services:
       - GUNICORN_THREADS=4
       - REQUIRE_LICENSE_SERVER=true
       - LICENSE_SERVER_URL=http://host.docker.internal:5001
-      # Stripe Configuration (load from .env file or set directly)
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
-      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-}
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
-      - HOURS_PER_DOLLAR=${HOURS_PER_DOLLAR:-5}
+      - POLARS_SKIP_CPU_CHECK=1
+      # Stripe Configuration (loaded from .env file via env_file)
+      # Set STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET in .env file
+      - HOURS_PER_DOLLAR=${HOURS_PER_DOLLAR:-0.2}
       - PAYMENT_CURRENCY=${PAYMENT_CURRENCY:-usd}
     extra_hosts:
       - "host.docker.internal:host-gateway"

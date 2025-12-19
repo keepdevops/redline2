@@ -480,11 +480,6 @@ def _load_data_file(filename, file_path_hint=None):
         df = pd.read_feather(data_path)
     elif format_type == 'json':
         df = pd.read_json(data_path)
-    elif format_type == 'duckdb':
-        import duckdb
-        conn = duckdb.connect(data_path)
-        df = conn.execute("SELECT * FROM tickers_data").fetchdf()
-        conn.close()
     elif format_type in ('tensorflow', 'npz'):
         import numpy as np
         # Use allow_pickle=True for .npz files that may contain object arrays

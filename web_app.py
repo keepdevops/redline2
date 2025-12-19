@@ -160,237 +160,122 @@ def create_app():
         logger.warning(f"Failed to initialize Usage Tracker: {str(e)}")
         app.config['usage_tracker'] = None
     
-    # Access control middleware - check license and hours BEFORE processing request
+    # Access control middleware - check JWT token and hours BEFORE processing request
     @app.before_request
     def check_access():
-        """Check if user has valid license and sufficient hours"""
-        # Skip access control for public endpoints
-        public_endpoints = ('static', 'health', 'register', 'payments.payment_tab', 
-                          'payments.packages', 'payments.create_checkout', 
-                          'payments.success', 'payments.webhook', 'main.index',
-                          'main.dashboard', 'main.help', 'main.create_license_proxy')
-        
-        # Public API paths (don't require license)
-        public_api_paths = ['/api/register', '/api/status', '/health']
-        
-        # Web pages (HTML) don't require license key - only API endpoints do
-        # Allow access to web pages, but API endpoints still require license
-        if request.endpoint in public_endpoints or request.path.startswith('/static') or request.path in public_api_paths:
-            return
-        
-        # Skip license check for web pages (HTML responses) - only enforce for API endpoints
-        # Allow base routes (like /data/, /analysis/, /download/) but require license for API endpoints
-        path = request.path.rstrip('/')
-        
-        # List of base HTML page routes that don't require license key
-        base_html_routes = ['/data', '/analysis', '/download', '/converter', '/tasks', '/settings', '/api-keys', '/payments']
-        
-        # If it's exactly a base route (no sub-path), allow it
-        if path in base_html_routes:
-            return  # Allow HTML pages without license key
-        
-        # Exclude health/status endpoints (don't require license)
-        if request.path in ['/health', '/tasks/health', '/api/status', '/status']:
-            return
-        
-        # Check if this is an API endpoint that requires license key
-        # API endpoints that require license:
-        api_endpoints_requiring_license = [
-            '/api/files', '/api/upload', '/api/data',  # API routes (but not /api/status, /api/register)
-            '/data/load', '/data/filter', '/data/files',  # Data API routes
-            '/analysis/analyze',  # Analysis API routes
-            '/download/download', '/download/batch-download',  # Download API routes (history doesn't require license)
-            '/user-data/',  # User data API routes
-            '/converter/convert', '/converter/batch-convert',  # Converter API routes
-            '/tasks/list', '/tasks/queue', '/tasks/submit', '/tasks/cleanup', '/tasks/cancel',  # Tasks API routes
-        ]
-        
-        # Check if this path matches any API endpoint
-        is_api_endpoint = False
-        for endpoint in api_endpoints_requiring_license:
-            if request.path.startswith(endpoint):
-                is_api_endpoint = True
-                break
-        
-        # Also check for /api/* routes (but exclude public ones)
-        if request.path.startswith('/api/') and request.path not in ['/api/status', '/api/register']:
-            is_api_endpoint = True
-        
-        # If it's not an API endpoint, allow it (it's an HTML page)
-        if not is_api_endpoint:
-            return  # Allow HTML pages without license key
-        
-        # Get license key from request - check multiple sources
-        license_key = None
-        
-        # Check headers first
-        license_key = request.headers.get('X-License-Key') or request.headers.get('x-license-key')
-        
-        # Check query parameters
-        if not license_key:
-            license_key = request.args.get('license_key')
-        
-        # Check form data (for file uploads)
-        if not license_key:
-            license_key = request.form.get('license_key')
-        
-        # Check JSON body - try even if request.is_json is False (sometimes Flask doesn't detect it)
-        if not license_key:
-            content_type = request.headers.get('Content-Type', '').lower()
-            if 'application/json' in content_type:
-                try:
-                    # Use silent=True and force=True to avoid errors if body was already read
-                    json_data = request.get_json(silent=True, force=True)
-                    if json_data and isinstance(json_data, dict):
-                        license_key = json_data.get('license_key')
-                        if license_key:
-                            logger.debug(f"Found license key in JSON body for {request.path}")
-                except Exception as e:
-                    logger.debug(f"Could not parse JSON body for {request.path}: {str(e)}")
-        
-        # Log license key status for debugging pagination issues
-        if request.path == '/data/load' and request.method == 'POST':
-            logger.debug(f"License key check for /data/load: found={bool(license_key)}, method={request.method}, "
-                        f"has_header={bool(request.headers.get('X-License-Key'))}, "
-                        f"content_type={request.headers.get('Content-Type', 'N/A')}")
-        
-        # For API endpoints, require license key
-        # Exception: /api/files can be called from public pages (registration) - return empty list instead of error
-        if request.path == '/api/files' and not license_key:
-            # Allow /api/files without license key (returns empty list for public pages)
-            from flask import jsonify
-            logger.debug(f"/api/files called without license key (likely from public page like /register)")
-            return jsonify({'files': [], 'total': 0}), 200
-        
-        if request.path.startswith('/api/') or request.path.startswith('/data/') or \
-           request.path.startswith('/analysis/') or request.path.startswith('/download/') or \
-           request.path.startswith('/user-data/') or request.path.startswith('/converter/'):
-            if not license_key:
-                from flask import jsonify
-                logger.warning(f"License key missing for {request.path}. Headers: {dict(request.headers)}")
-                return jsonify({
-                    'error': 'License key is required',
-                    'message': 'Please provide a license key in X-License-Key header, license_key query parameter, or JSON body',
-                    'debug': {
-                        'path': request.path,
-                        'method': request.method,
-                        'has_headers': bool(request.headers),
-                        'has_json': request.is_json,
-                        'headers_keys': list(request.headers.keys()) if request.headers else []
-                    }
-                }), 401
-            
-            logger.debug(f"License key found for {request.path}: {license_key[:20]}...")
-            
-            # Validate access
-            try:
-                from redline.auth.access_control import access_controller
-                is_valid, error_msg, license_info = access_controller.validate_access(license_key)
+        """Validate JWT token from Supabase Auth"""
+        from flask import jsonify
 
-                if not is_valid:
-                    from flask import jsonify
-                    logger.warning(f"Access denied for {request.path}: {error_msg} (license_key: {license_key[:20] + '...' if license_key else 'None'})")
-                    # Include more debugging info for pagination requests
-                    debug_info = {}
-                    if request.path == '/data/load' and request.method == 'POST':
-                        debug_info = {
-                            'path': request.path,
-                            'method': request.method,
-                            'has_license_in_header': bool(request.headers.get('X-License-Key')),
-                            'has_license_in_body': bool(request.get_json(silent=True) and request.get_json(silent=True).get('license_key')),
-                            'content_type': request.headers.get('Content-Type', 'N/A')
-                        }
+        # Skip auth for public endpoints
+        public_endpoints = ('static', 'health', 'main.index', 'main.register',
+                           'main.login', 'payments.webhook', 'payments.payment_tab',
+                           'main.dashboard', 'main.help')
+
+        public_paths = ['/api/register', '/api/login', '/api/status', '/health',
+                       '/payments/webhook', '/static', '/register', '/login', '/help', '/']
+
+        if request.endpoint in public_endpoints or request.path.startswith('/static'):
+            return
+
+        # Check if path is public
+        for path in public_paths:
+            if request.path.startswith(path):
+                return
+
+        # Extract JWT token from Authorization header
+        auth_header = request.headers.get('Authorization')
+
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({
+                'error': 'Authentication required',
+                'message': 'Please provide Authorization: Bearer <token> header'
+            }), 401
+
+        token = auth_header.replace('Bearer ', '')
+
+        try:
+            # Validate JWT and extract user info
+            from redline.auth.supabase_auth import supabase_auth
+            user_data = supabase_auth.validate_jwt(token)
+            g.user_id = user_data['user_id']
+            g.email = user_data['email']
+
+            # Check if user has hours remaining
+            if os.environ.get('ENFORCE_PAYMENT', 'true').lower() == 'true':
+                hours = supabase_auth.get_user_hours(g.user_id)
+                if hours <= 0:
                     return jsonify({
-                        'error': error_msg or 'Access denied',
-                        'code': 'INSUFFICIENT_HOURS' if 'hours' in (error_msg or '').lower() else 'INVALID_LICENSE',
-                        'license_key_provided': license_key[:20] + '...' if license_key else None,
-                        'debug': debug_info
+                        'error': 'No hours remaining',
+                        'message': 'Please purchase hours to continue using the service',
+                        'hours_remaining': 0.0
                     }), 403
 
-                # Store license info in g for use in request
-                g.license_key = license_key
-                g.license_info = license_info
-                logger.debug(f"Access granted for {request.path} with license {license_key[:20]}...")
-            except ImportError:
-                logger.warning("Access controller not available, skipping access check")
-            except Exception as e:
-                logger.error(f"Error in access control: {str(e)}")
-                from flask import jsonify
-                return jsonify({
-                    'error': f'Access control error: {str(e)}',
-                    'code': 'ACCESS_CONTROL_ERROR'
-                }), 500
+            logger.debug(f"Access granted for {request.path} with user {g.user_id}")
+
+        except Exception as e:
+            logger.error(f"JWT validation failed for {request.path}: {str(e)}")
+            return jsonify({
+                'error': 'Invalid authentication token',
+                'message': str(e)
+            }), 401
     
     # Usage tracking middleware (Gunicorn-compatible Flask decorator)
     @app.before_request
     def track_usage():
-        """Track usage time for API requests"""
-        # Skip tracking for static files and health checks
-        if request.endpoint in ('static', 'health') or request.path.startswith('/static'):
+        """Track usage and deduct hours"""
+        # Skip for public endpoints
+        if not hasattr(g, 'user_id'):
             return
-        
-        # Get license key from request (header, session, or query param)
-        license_key = (
-            request.headers.get('X-License-Key') or
-            request.args.get('license_key') or
-            (request.json.get('license_key') if request.is_json else None) or
-            getattr(g, 'license_key', None)  # Use from access control if available
-        )
-        
-        if not license_key:
-            return  # No license key, skip tracking
-        
+
+        user_id = g.user_id
+
         # Get or create session
         usage_tracker = app.config.get('usage_tracker')
         if not usage_tracker:
             return
-        
-        # Track usage per license key (session-independent)
-        # This ensures hours are deducted even if sessions don't persist
+
+        # Session-independent tracking using last_deduction_time dict
         from datetime import datetime
         now = datetime.now()
-        last_deduction = usage_tracker.last_deduction_time.get(license_key)
-        
+        last_deduction = usage_tracker.last_deduction_time.get(user_id)
+
         if last_deduction is None:
-            # First time tracking this license, initialize
-            usage_tracker.last_deduction_time[license_key] = now
-            # Create session for logging purposes
-            session_id = usage_tracker.start_session(license_key)
+            # First request: create session
+            session_id = usage_tracker.start_session(user_id)
             g.session_id = session_id
         else:
-            # Check if enough time has passed since last deduction
-            time_since_deduction = (now - last_deduction).total_seconds()
-            
-            if time_since_deduction >= usage_tracker.check_interval:
-                # Enough time has passed, deduct hours
-                hours_used = time_since_deduction / 3600.0
-                usage_tracker._deduct_hours(license_key, hours_used, None)
-                # Update last deduction time
-                usage_tracker.last_deduction_time[license_key] = now
-            
-            # Get or create session ID for logging
-            session_id = request.headers.get('X-Session-ID')
-            if not session_id:
-                session_id = usage_tracker.start_session(license_key)
-            else:
-                # Try to update existing session
-                updated = usage_tracker.update_session(session_id)
-                if not updated:
-                    # Session doesn't exist, create new one
-                    session_id = usage_tracker.start_session(license_key)
-            g.session_id = session_id
-        
-        # Log access to persistent storage
+            # Check if deduction interval elapsed
+            time_since = (now - last_deduction).total_seconds()
+            check_interval = int(os.environ.get('USAGE_CHECK_INTERVAL', '30'))
+
+            if time_since >= check_interval:
+                hours_used = time_since / 3600.0
+                # Deduct from Supabase
+                from redline.auth.supabase_auth import supabase_auth
+                supabase_auth.deduct_hours(user_id, hours_used)
+                usage_tracker.last_deduction_time[user_id] = now
+
+                # Log to DuckDB
+                try:
+                    from redline.database.usage_storage import usage_storage
+                    if usage_storage:
+                        usage_storage.log_hour_deduction(
+                            user_id=user_id,
+                            hours=hours_used,
+                            session_id=g.get('session_id')
+                        )
+                except Exception as e:
+                    logger.debug(f"Failed to log hour deduction: {str(e)}")
+
+        # Log API access
         try:
             from redline.database.usage_storage import usage_storage
             if usage_storage:
                 usage_storage.log_access(
-                    license_key=license_key,
+                    user_id=user_id,
                     endpoint=request.endpoint or request.path,
                     method=request.method,
-                    session_id=session_id,
-                    ip_address=request.remote_addr,
-                    user_agent=request.headers.get('User-Agent')
+                    ip_address=request.remote_addr
                 )
         except Exception as e:
             logger.debug(f"Failed to log access: {str(e)}")

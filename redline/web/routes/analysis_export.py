@@ -42,9 +42,10 @@ def export_analysis():
         os.makedirs(export_dir, exist_ok=True)
         
         # Format-specific extensions
+        # Note: DuckDB format removed - use Parquet for cloud storage
         format_extensions = {
             'json': '.json', 'csv': '.csv', 'parquet': '.parquet',
-            'feather': '.feather', 'duckdb': '.duckdb', 'txt': '.txt',
+            'feather': '.feather', 'txt': '.txt',
             'npz': '.npz', 'tensorflow': '.npz', 'arrow': '.arrow', 'pyarrow': '.arrow'
         }
         
@@ -77,18 +78,7 @@ def export_analysis():
                 df.to_feather(export_path)
             else:
                 return jsonify({'error': 'Cannot export analysis to Feather format'}), 400
-        
-        elif export_format == 'duckdb':
-            if df is not None:
-                import duckdb
-                conn = duckdb.connect(export_path)
-                conn.register('analysis_data', df)
-                conn.execute("CREATE TABLE IF NOT EXISTS analysis_results AS SELECT * FROM analysis_data")
-                conn.unregister('analysis_data')
-                conn.close()
-            else:
-                return jsonify({'error': 'Cannot export analysis to DuckDB format'}), 400
-        
+
         elif export_format == 'txt':
             if df is not None:
                 df.to_csv(export_path, sep='\t', index=False)

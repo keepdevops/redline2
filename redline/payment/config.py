@@ -46,9 +46,13 @@ class PaymentConfig:
         
         if not cls.STRIPE_SECRET_KEY:
             errors.append("STRIPE_SECRET_KEY is not set")
+        elif cls.STRIPE_SECRET_KEY.startswith('sk_test_your-') or cls.STRIPE_SECRET_KEY.startswith('sk_live_your-') or 'your-secret-key' in cls.STRIPE_SECRET_KEY.lower():
+            errors.append("STRIPE_SECRET_KEY appears to be a placeholder - please set a real Stripe key")
         
         if not cls.STRIPE_PUBLISHABLE_KEY:
             errors.append("STRIPE_PUBLISHABLE_KEY is not set")
+        elif cls.STRIPE_PUBLISHABLE_KEY.startswith('pk_test_your-') or cls.STRIPE_PUBLISHABLE_KEY.startswith('pk_live_your-') or 'your-publishable-key' in cls.STRIPE_PUBLISHABLE_KEY.lower():
+            errors.append("STRIPE_PUBLISHABLE_KEY appears to be a placeholder - please set a real Stripe key")
         
         if cls.HOURS_PER_DOLLAR <= 0:
             errors.append("HOURS_PER_DOLLAR must be greater than 0")

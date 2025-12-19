@@ -27,18 +27,18 @@ if STRIPE_AVAILABLE and PaymentConfig.STRIPE_SECRET_KEY:
 
 @payments_webhook_bp.route('/webhook', methods=['POST'])
 def stripe_webhook():
-    """Handle Stripe webhook events"""
+    """Handle Stripe webhook events (payment completion)"""
     if not STRIPE_AVAILABLE:
         logger.warning("Stripe webhook received but Stripe is not available")
         return jsonify({'error': 'Stripe is not available'}), 503
-    
+
     if not PaymentConfig.STRIPE_WEBHOOK_SECRET:
         logger.warning("Stripe webhook received but STRIPE_WEBHOOK_SECRET is not set")
         return jsonify({'error': 'Webhook secret not configured'}), 500
-    
+
     payload = request.data
     sig_header = request.headers.get('Stripe-Signature')
-    
+
     try:
         event = stripe.Webhook.construct_event(
             payload, sig_header, PaymentConfig.STRIPE_WEBHOOK_SECRET
@@ -49,59 +49,28 @@ def stripe_webhook():
     except stripe.error.SignatureVerificationError as e:
         logger.error(f"Invalid signature: {str(e)}")
         return jsonify({'error': 'Invalid signature'}), 400
-    
+
     # Handle the event
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
-        license_key = session['metadata'].get('license_key')
+        user_id = session['metadata'].get('user_id')
         hours = float(session['metadata'].get('hours', 0))
-        
-        if license_key and hours > 0:
-            # Add hours to license
-            license_server_url = PaymentConfig.LICENSE_SERVER_URL
-            require_license_server = os.environ.get('REQUIRE_LICENSE_SERVER', 'false').lower() == 'true'
-            
+
+        if user_id and hours > 0:
             try:
-                response = requests.post(
-                    f'{license_server_url}/api/licenses/{license_key}/hours',
-                    json={'hours': hours},
-                    timeout=10
-                )
-            except requests.exceptions.ConnectionError:
-                # License server unavailable - log payment but can't add hours
-                if not require_license_server:
-                    logger.warning(f"License server unavailable, payment processed but hours not added to server for {license_key}")
-                    # Log payment anyway
+                # Add hours to Supabase user_hours table
+                from redline.auth.supabase_auth import supabase_auth
+                success = supabase_auth.add_hours(user_id, hours)
+
+                if success:
+                    # Log payment to DuckDB
                     try:
                         from redline.database.usage_storage import usage_storage
                         if usage_storage:
                             usage_storage.log_payment(
-                                license_key=license_key,
-                                hours=hours,
-                                amount=session['amount_total'] / 100,
-                                currency=session['currency'],
-                                payment_id=session['id'],
-                                status='completed'
-                            )
-                    except Exception as e:
-                        logger.warning(f"Failed to log payment: {str(e)}")
-                    return jsonify({'received': True}), 200
-                else:
-                    logger.error(f"License server unavailable and REQUIRE_LICENSE_SERVER=true")
-                    return jsonify({'received': True, 'warning': 'License server unavailable'}), 200
-            
-            try:
-                if response.status_code == 200:
-                    result = response.json()
-                    
-                    # Log payment to persistent storage
-                    try:
-                        from redline.database.usage_storage import usage_storage
-                        if usage_storage:
-                            usage_storage.log_payment(
-                                license_key=license_key,
+                                user_id=user_id,
                                 hours_purchased=hours,
-                                amount_paid=session.get('amount_total', 0) / 100.0,  # Convert cents to dollars
+                                amount_paid=session.get('amount_total', 0) / 100.0,
                                 stripe_session_id=session.get('id'),
                                 payment_id=session.get('payment_intent'),
                                 payment_status='completed',
@@ -109,12 +78,13 @@ def stripe_webhook():
                             )
                     except Exception as e:
                         logger.warning(f"Failed to log payment to storage: {str(e)}")
-                    
-                    logger.info(f"Added {hours} hours to license {license_key} via webhook")
+
+                    logger.info(f"Added {hours} hours to user {user_id} via webhook")
                 else:
-                    logger.error(f"Failed to add hours via webhook: {response.text}")
+                    logger.error(f"Failed to add hours to user {user_id}")
+
             except Exception as e:
-                logger.error(f"Error adding hours via webhook: {str(e)}")
-    
+                logger.error(f"Error processing webhook for user {user_id}: {str(e)}")
+
     return jsonify({'received': True}), 200
 

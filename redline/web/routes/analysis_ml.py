@@ -70,11 +70,6 @@ def prepare_ml_data():
             df = pd.read_feather(data_path)
         elif format_type_file == 'json':
             df = pd.read_json(data_path)
-        elif format_type_file == 'duckdb':
-            import duckdb
-            conn = duckdb.connect(data_path)
-            df = conn.execute("SELECT * FROM tickers_data").fetchdf()
-            conn.close()
         elif format_type_file in ('tensorflow', 'npz'):
             import numpy as np
             # Use allow_pickle=True for .npz files that may contain object arrays
@@ -325,11 +320,6 @@ def prepare_rl_state():
             df = pd.read_feather(data_path)
         elif format_type_file == 'json':
             df = pd.read_json(data_path)
-        elif format_type_file == 'duckdb':
-            import duckdb
-            conn = duckdb.connect(data_path)
-            df = conn.execute("SELECT * FROM tickers_data").fetchdf()
-            conn.close()
         elif format_type_file in ('tensorflow', 'npz'):
             import numpy as np
             # Use allow_pickle=True for .npz files that may contain object arrays

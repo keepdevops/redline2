@@ -28,12 +28,9 @@ except ImportError:
     pa = None
     PYARROW_AVAILABLE = False
 
-try:
-    import duckdb
-    DUCKDB_AVAILABLE = True
-except ImportError:
-    duckdb = None
-    DUCKDB_AVAILABLE = False
+# DuckDB operations now handled by Modal serverless functions
+# Local DuckDB no longer required
+DUCKDB_AVAILABLE = False
 
 try:
     import tensorflow as tf
@@ -244,70 +241,13 @@ class FormatConverter:
                     raise Exception(f"Failed to save JSON file: {str(e)}")
                     
             elif format == 'duckdb':
-                if not DUCKDB_AVAILABLE:
-                    raise ImportError("duckdb not available. Please install duckdb to use DuckDB format.")
-                
-                # Ensure directory exists
-                output_dir = os.path.dirname(file_path)
-                if output_dir:
-                    os.makedirs(output_dir, exist_ok=True)
-                
-                conn = None
-                try:
-                    conn = duckdb.connect(file_path)
-                    self.logger.info(f"Saving data to DuckDB database: {file_path}")
-                    
-                    if isinstance(data, pd.DataFrame):
-                        # Register the DataFrame with DuckDB and create table
-                        if data.empty:
-                            self.logger.warning("DataFrame is empty, creating empty table")
-                        conn.register('temp_data', data)
-                        conn.execute("DROP TABLE IF EXISTS tickers_data")
-                        conn.execute("CREATE TABLE tickers_data AS SELECT * FROM temp_data")
-                        self.logger.info(f"Saved {len(data)} rows to DuckDB")
-                        
-                    elif POLARS_AVAILABLE and isinstance(data, pl.DataFrame):
-                        # Register the Polars DataFrame with DuckDB and create table
-                        if data.is_empty():
-                            self.logger.warning("Polars DataFrame is empty, creating empty table")
-                        conn.register('temp_data', data)
-                        conn.execute("DROP TABLE IF EXISTS tickers_data")
-                        conn.execute("CREATE TABLE tickers_data AS SELECT * FROM temp_data")
-                        self.logger.info(f"Saved Polars DataFrame to DuckDB")
-                        
-                    else:
-                        # For other data types, convert to DataFrame first
-                        self.logger.info(f"Converting {type(data)} to pandas DataFrame")
-                        if hasattr(data, 'to_pandas'):
-                            df = data.to_pandas()
-                        else:
-                            df = pd.DataFrame(data)
-                        conn.register('temp_data', df)
-                        conn.execute("DROP TABLE IF EXISTS tickers_data")
-                        conn.execute("CREATE TABLE tickers_data AS SELECT * FROM temp_data")
-                        self.logger.info(f"Saved {len(df)} rows to DuckDB")
-                        
-                except Exception as e:
-                    self.logger.error(f"Error saving to DuckDB database: {str(e)}")
-                    self.logger.error(f"Data type: {type(data)}")
-                    if hasattr(data, 'shape'):
-                        self.logger.error(f"Data shape: {data.shape}")
-                    # Ensure connection is closed even on error
-                    if conn:
-                        try:
-                            conn.close()
-                        except:
-                            pass
-                    raise Exception(f"Failed to save to DuckDB: {str(e)}")
-                    
-                finally:
-                    # Always close the connection
-                    if conn:
-                        try:
-                            conn.close()
-                            self.logger.debug("Closed DuckDB connection")
-                        except Exception as close_error:
-                            self.logger.warning(f"Error closing DuckDB connection: {close_error}")
+                # DuckDB format is not supported in cloud deployment
+                # Use Parquet format instead for cloud storage
+                raise ValueError(
+                    "DuckDB format is not supported in cloud deployment. "
+                    "Please use Parquet format instead (better compression, cloud-native). "
+                    "DuckDB processing is handled by Modal serverless functions."
+                )
                 
             elif format == 'txt':
                 try:
@@ -471,22 +411,13 @@ class FormatConverter:
                     except:
                         raise txt_error
             elif format == 'duckdb':
-                import duckdb
-                conn = duckdb.connect(file_path)
-                try:
-                    result = conn.execute("SELECT * FROM tickers_data").fetchdf()
-                    return result
-                except Exception as e:
-                    try:
-                        conn.close()
-                    except:
-                        pass
-                    raise e
-                finally:
-                    try:
-                        conn.close()
-                    except Exception as close_error:
-                        self.logger.warning(f"Error closing DuckDB connection: {close_error}")
+                # DuckDB format is not supported in cloud deployment
+                # Use Parquet format instead for cloud storage
+                raise ValueError(
+                    "DuckDB format is not supported in cloud deployment. "
+                    "Please use Parquet format instead (better compression, cloud-native). "
+                    "DuckDB processing is handled by Modal serverless functions."
+                )
             elif format == 'keras' and TENSORFLOW_AVAILABLE:
                 return tf.keras.models.load_model(file_path)
             elif format == 'tensorflow' and NUMPY_AVAILABLE:
@@ -601,7 +532,9 @@ class FormatConverter:
     
     def get_supported_formats(self) -> List[str]:
         """Get list of supported file formats."""
-        formats = ['csv', 'parquet', 'feather', 'json', 'duckdb', 'txt']
+        # DuckDB format removed - use Parquet for cloud storage
+        # DuckDB processing handled by Modal serverless functions
+        formats = ['csv', 'parquet', 'feather', 'json', 'txt']
         if TENSORFLOW_AVAILABLE:
             formats.extend(['keras', 'tensorflow'])
         if PYARROW_AVAILABLE:

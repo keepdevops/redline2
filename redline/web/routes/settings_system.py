@@ -69,18 +69,24 @@ def get_logs():
     """Get application logs."""
     try:
         # Check multiple possible log file locations
-        # Note: web_app.py uses 'redline_web.log' as the log file name
+        # Note: web_app.py uses 'variosync_web.log' as the log file name
         possible_log_files = [
-            os.path.join(os.getcwd(), 'redline_web.log'),  # Primary log file (from web_app.py)
+            os.path.join(os.getcwd(), 'variosync_web.log'),  # Primary log file (from web_app.py)
+            os.path.join(os.getcwd(), 'redline_web.log'),  # Fallback
             os.path.join(os.getcwd(), 'redline.log'),  # Fallback
+            os.path.join(os.getcwd(), 'logs', 'variosync_web.log'),
             os.path.join(os.getcwd(), 'logs', 'redline_web.log'),
             os.path.join(os.getcwd(), 'logs', 'redline.log'),
+            os.path.join(os.getcwd(), 'data', 'logs', 'variosync_web.log'),
             os.path.join(os.getcwd(), 'data', 'logs', 'redline_web.log'),
             os.path.join(os.getcwd(), 'data', 'logs', 'redline.log'),
+            '/var/log/variosync_web.log',
             '/var/log/redline_web.log',
             '/var/log/redline.log',
+            '/app/variosync_web.log',  # Docker container location
             '/app/redline_web.log',
             '/app/redline.log',
+            '/app/logs/variosync_web.log',
             '/app/logs/redline_web.log',
             '/app/logs/redline.log'
         ]
@@ -108,10 +114,24 @@ def get_logs():
             
             logs = []
             for line in recent_lines:
+                line_stripped = line.strip()
+                # Parse log format: "timestamp - logger_name - LEVEL - message"
+                # Example: "2025-12-18 02:22:15,829 - redline.payment.config - WARNING - Payment configuration issues..."
+                parts = line_stripped.split(' - ')
+                timestamp = parts[0] if len(parts) > 0 else ''
+                logger_name = parts[1] if len(parts) > 1 else ''
+                # Level is the first word after the second ' - '
+                level = 'INFO'  # Default
+                if len(parts) > 2:
+                    level_part = parts[2].strip().split(' ')[0]
+                    if level_part in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
+                        level = level_part
+                
                 logs.append({
-                    'line': line.strip(),
-                    'timestamp': line.split(' - ')[0] if ' - ' in line else '',
-                    'level': line.split(' - ')[1].split(' ')[0] if ' - ' in line else 'INFO'
+                    'line': line_stripped,
+                    'timestamp': timestamp,
+                    'level': level,
+                    'logger': logger_name
                 })
             
             return jsonify({

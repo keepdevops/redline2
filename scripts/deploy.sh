@@ -14,7 +14,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
-PROJECT_NAME="redline-web"
+PROJECT_NAME="variosync-web"
 COMPOSE_FILE="docker-compose.yml"
 ENV_FILE=".env"
 CONFIG_DIR="config"
@@ -25,7 +25,7 @@ SSL_DIR="ssl"
 # Function to print colored output
 print_header() {
     echo -e "${PURPLE}================================${NC}"
-    echo -e "${PURPLE}  REDLINE Web GUI Deployment${NC}"
+    echo -e "${PURPLE}  VarioSync Web GUI Deployment${NC}"
     echo -e "${PURPLE}================================${NC}"
 }
 
@@ -125,8 +125,8 @@ create_env_file() {
 # Generated on $(date)
 
 # Security
-SECRET_KEY=$(openssl rand -base64 32 2>/dev/null || echo "redline-secret-key-$(date +%s)")
-REDIS_PASSWORD=$(openssl rand -base64 16 2>/dev/null || echo "redline-redis-password")
+SECRET_KEY=$(openssl rand -base64 32 2>/dev/null || echo "generated-secret-$(date +%s)")
+REDIS_PASSWORD=$(openssl rand -base64 16 2>/dev/null || echo "generated-redis-$(date +%s)")
 
 # Database
 DB_PATH=/opt/redline/data/redline_data.duckdb
@@ -244,7 +244,7 @@ server {
 EOF
 
     # Redis configuration
-    cat > "$CONFIG_DIR/redis.conf" << 'EOF'
+    cat > "$CONFIG_DIR/redis.conf" << EOF
 # Redis configuration for REDLINE
 bind 0.0.0.0
 port 6379
@@ -265,7 +265,7 @@ loglevel notice
 logfile /var/log/redis/redis.log
 
 # Security
-requirepass redline-redis-password
+requirepass ${REDIS_PASSWORD}
 
 # Performance
 tcp-keepalive 300
@@ -287,9 +287,9 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  - job_name: 'redline-web'
+  - job_name: 'variosync-web'
     static_configs:
-      - targets: ['redline-web:8080']
+      - targets: ['variosync-web:8080']
     metrics_path: '/metrics'
     scrape_interval: 30s
 
@@ -298,11 +298,11 @@ scrape_configs:
       - targets: ['redis:6379']
     scrape_interval: 30s
 
-  - job_name: 'nginx'
-    static_configs:
-      - targets: ['nginx-proxy:80']
-    metrics_path: '/nginx_status'
-    scrape_interval: 30s
+  # - job_name: 'nginx'
+  #   static_configs:
+  #     - targets: ['nginx-proxy:80']
+  #   metrics_path: '/nginx_status'
+  #   scrape_interval: 30s
 EOF
 
     # Fluentd configuration
@@ -359,7 +359,7 @@ start_services() {
 wait_for_services() {
     print_step "Waiting for services to be ready..."
     
-    local services=("redline-web" "redis" "nginx-proxy")
+    local services=("variosync-web" "redis")
     local max_wait=300
     local wait_time=0
     
@@ -400,7 +400,7 @@ run_health_checks() {
     
     while [[ $attempt -lt $max_attempts ]]; do
         if curl -f http://localhost:8080/health >/dev/null 2>&1; then
-            print_success "REDLINE web service is healthy"
+            print_success "VarioSync web service is healthy"
             break
         fi
         
@@ -436,7 +436,7 @@ show_deployment_info() {
     print_step "Deployment Information"
     
     echo -e "${CYAN}Service URLs:${NC}"
-    echo "  • REDLINE Web GUI: http://localhost:8080"
+    echo "  • VarioSync Web GUI: http://localhost:8080"
     echo "  • Nginx Proxy: http://localhost:8081"
     echo "  • Prometheus: http://localhost:9090"
     echo "  • Redis: localhost:6379"

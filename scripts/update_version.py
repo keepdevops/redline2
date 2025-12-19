@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-REDLINE Version Management Script
+VarioSync Version Management Script
 Handles version updates across all configuration files
 """
 
@@ -38,7 +38,7 @@ def update_version_file(version):
     version_file.parent.mkdir(exist_ok=True)
     
     content = f'''"""
-REDLINE Version Information
+VarioSync Version Information
 """
 
 __version__ = "{version}"
@@ -102,7 +102,7 @@ def update_docker_compose(version):
     
     # Update image version
     pattern = r'image:\s*redline:[^\s]+'
-    replacement = f'image: redline:{version}'
+    replacement = f'image: variosync:{version}'
     new_content = re.sub(pattern, replacement, content)
     
     with open(compose_file, 'w') as f:

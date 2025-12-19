@@ -35,32 +35,31 @@ class UsageTracker:
         # Local license storage for development (when license server unavailable)
         self.local_licenses: Dict[str, Dict] = {}
         
-    def start_session(self, license_key: str, user_id: Optional[str] = None) -> str:
-        """Start a new usage session"""
+    def start_session(self, user_id: str) -> str:
+        """Start a new usage session for user_id (UUID)"""
         # Use microseconds and a small random component to ensure uniqueness
         import secrets
         timestamp = time.time()
         microsecond_component = int((timestamp - int(timestamp)) * 1000000)
         random_component = secrets.token_hex(2)  # 4 hex characters for uniqueness
-        session_id = f"{license_key}_{int(timestamp)}_{microsecond_component}_{random_component}"
-        
+        session_id = f"{user_id}_{int(timestamp)}_{microsecond_component}_{random_component}"
+
         with self.session_lock:
             self.active_sessions[session_id] = {
-                'license_key': license_key,
                 'user_id': user_id,
                 'start_time': datetime.now(),
                 'last_check': datetime.now(),
                 'total_seconds': 0.0
             }
-        
+
         # Log to persistent storage
         if STORAGE_AVAILABLE and usage_storage:
             try:
-                usage_storage.log_session_start(session_id, license_key, user_id)
+                usage_storage.log_session_start(session_id, user_id)
             except Exception as e:
                 logger.warning(f"Failed to log session start to storage: {str(e)}")
-        
-        logger.debug(f"Started usage session {session_id} for license {license_key}")
+
+        logger.debug(f"Started usage session {session_id} for user {user_id}")
         return session_id
     
     def update_session(self, session_id: str) -> Optional[Dict]:
@@ -86,11 +85,11 @@ class UsageTracker:
             # Calculate hours used since last check
             hours_used = time_since_check / 3600.0  # Convert seconds to hours
             session['total_seconds'] += time_since_check
-            
+
             # Deduct hours (no minimum threshold - deduct every check interval)
             # Since check_interval is 30 seconds, this will deduct every 30 seconds
-            self._deduct_hours(session['license_key'], hours_used, session_id)
-            
+            self._deduct_hours(session['user_id'], hours_used, session_id)
+
             return session
     
     def end_session(self, session_id: str) -> Optional[Dict]:
@@ -103,10 +102,10 @@ class UsageTracker:
             now = datetime.now()
             total_time = (now - session['start_time']).total_seconds()
             hours_used = total_time / 3600.0
-            
+
             # Deduct remaining hours
             if hours_used > 0:
-                self._deduct_hours(session['license_key'], hours_used)
+                self._deduct_hours(session['user_id'], hours_used)
             
             # Remove session
             del self.active_sessions[session_id]
@@ -126,63 +125,38 @@ class UsageTracker:
                 'total_seconds': total_time
             }
     
-    def _deduct_hours(self, license_key: str, hours: float, session_id: Optional[str] = None):
-        """Deduct hours from license via license server"""
+    def _deduct_hours(self, user_id: str, hours: float, session_id: Optional[str] = None):
+        """Deduct hours from user via Supabase"""
         try:
             # Get current balance before deduction
             hours_before = None
-            if STORAGE_AVAILABLE and usage_storage:
-                try:
-                    balance_response = requests.get(
-                        f'{self.license_server_url}/api/licenses/{license_key}/hours',
-                        timeout=5
-                    )
-                    if balance_response.status_code == 200:
-                        balance_data = balance_response.json()
-                        hours_before = balance_data.get('hours_remaining', 0)
-                except:
-                    pass
-            
-            response = requests.post(
-                f'{self.license_server_url}/api/licenses/{license_key}/usage',
-                json={'hours': hours},
-                timeout=5
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                hours_after = result.get('hours_remaining', 0)
-                
+            try:
+                from redline.auth.supabase_auth import supabase_auth
+                hours_before = supabase_auth.get_user_hours(user_id)
+            except:
+                pass
+
+            # Deduct hours from Supabase
+            from redline.auth.supabase_auth import supabase_auth
+            success = supabase_auth.deduct_hours(user_id, hours)
+
+            if success:
+                hours_after = supabase_auth.get_user_hours(user_id)
+
                 # Log to persistent storage
                 if STORAGE_AVAILABLE and usage_storage:
                     try:
                         usage_storage.log_hour_deduction(
-                            license_key, hours, session_id,
+                            user_id, hours, session_id,
                             hours_before, hours_after
                         )
                     except Exception as e:
                         logger.warning(f"Failed to log hour deduction to storage: {str(e)}")
-                
-                logger.info(f"Deducted {hours:.4f} hours from license {license_key}. Remaining: {hours_after}")
+
+                logger.info(f"Deducted {hours:.4f} hours from user {user_id}. Remaining: {hours_after}")
             else:
-                logger.warning(f"Failed to deduct hours: {response.text}")
-                
-        except requests.exceptions.ConnectionError:
-            # License server unavailable - use local tracking if not required
-            if not self.require_license_server:
-                logger.debug(f"License server unavailable, tracking hours locally for {license_key}")
-                # Initialize local license if not exists
-                if license_key not in self.local_licenses:
-                    self.local_licenses[license_key] = {
-                        'hours_remaining': 0.0,
-                        'used_hours': 0.0
-                    }
-                
-                # Track locally (don't actually deduct, just log)
-                self.local_licenses[license_key]['used_hours'] += hours
-                logger.debug(f"Tracked {hours:.4f} hours locally for {license_key}")
-            else:
-                logger.error(f"License server unavailable and REQUIRE_LICENSE_SERVER=true")
+                logger.warning(f"Failed to deduct hours from user {user_id}")
+
         except Exception as e:
             logger.error(f"Error deducting hours: {str(e)}")
     

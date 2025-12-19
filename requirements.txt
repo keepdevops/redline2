@@ -10,7 +10,6 @@ massive>=2.0.1  # Massive.com client library (optional - falls back to REST API 
 pyarrow>=22.0.0  # Updated for security patches
 fastparquet>=2024.11.0  # Updated for security patches
 polars>=1.35.2  # Updated for security patches
-duckdb>=1.4.2  # Updated for security patches
 
 # GUI Framework (built into Python)
 # tkinter - included with Python standard library
@@ -84,7 +83,17 @@ platformdirs>=4.5.0  # Updated for security patches
 # Updated for security vulnerabilities (Jan 2025)
 stripe>=14.0.1
 
+# Authentication and Backend Services
+supabase>=2.10.1
+
+# Serverless Compute (Modal)
+modal>=0.63.0
+
 # Cloud Storage (optional)
-# Updated for security vulnerabilities (Jan 2025) - using latest available version
-boto3>=1.41.2  # Updated: 1.41.2 (fixes security issues)
+# Updated for security vulnerabilities (Jan 2025) - using latest compatible versions
+# boto3 and botocore must be compatible versions - let pip resolve automatically
+# Using flexible version range to allow pip to resolve compatible versions
+boto3>=1.41.2,<1.44.0  # Compatible with botocore - let pip resolve automatically
+# Note: botocore is installed automatically as a dependency of boto3
+# Explicitly pinning botocore can cause conflicts - let boto3 manage it
 watchdog>=6.0.0  # File system monitoring for auto-copy functionality

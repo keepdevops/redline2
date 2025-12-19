@@ -72,12 +72,9 @@ def get_chart_data():
             df = pd.read_feather(data_path)
         elif format_type == 'json':
             df = pd.read_json(data_path)
-        elif format_type == 'duckdb':
-            import duckdb
-            conn = duckdb.connect(data_path)
-            df = conn.execute("SELECT * FROM tickers_data").fetchdf()
-            conn.close()
         else:
+            # Use FormatConverter for all other formats
+            # Note: DuckDB format is no longer supported in cloud deployment
             df = converter.load_file_by_type(data_path, format_type)
         
         if not isinstance(df, pd.DataFrame):

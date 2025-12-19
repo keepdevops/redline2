@@ -168,8 +168,8 @@ create_env_file() {
 # Generated on $(date)
 
 # Security
-SECRET_KEY=$(openssl rand -base64 32 2>/dev/null || echo "redline-secret-key-$(date +%s)")
-REDIS_PASSWORD=$(openssl rand -base64 16 2>/dev/null || echo "redline-redis-password")
+SECRET_KEY=$(openssl rand -base64 32 2>/dev/null || echo "generated-secret-$(date +%s)")
+REDIS_PASSWORD=$(openssl rand -base64 16 2>/dev/null || echo "generated-redis-$(date +%s)")
 
 # Database
 DB_PATH=/opt/redline/data/redline_data.duckdb
@@ -288,7 +288,7 @@ server {
 EOF
 
     # Redis configuration
-    cat > "$CONFIG_DIR/redis.conf" << 'EOF'
+    cat > "$CONFIG_DIR/redis.conf" << EOF
 # Redis configuration for REDLINE
 bind 0.0.0.0
 port 6379
@@ -309,7 +309,7 @@ loglevel notice
 logfile /var/log/redis/redis.log
 
 # Security
-requirepass redline-redis-password
+requirepass ${REDIS_PASSWORD}
 
 # Performance
 tcp-keepalive 300
@@ -342,11 +342,11 @@ scrape_configs:
       - targets: ['redis:6379']
     scrape_interval: 30s
 
-  - job_name: 'nginx'
-    static_configs:
-      - targets: ['nginx-proxy:80']
-    metrics_path: '/nginx_status'
-    scrape_interval: 30s
+  # - job_name: 'nginx'
+  #   static_configs:
+  #     - targets: ['nginx-proxy:80']
+  #   metrics_path: '/nginx_status'
+  #   scrape_interval: 30s
 EOF
 
     # Fluentd configuration
@@ -423,7 +423,7 @@ start_services() {
 wait_for_services() {
     print_step "Waiting for services to be ready..."
     
-    local services=("redline-web" "redis" "nginx-proxy")
+    local services=("redline-web" "redis")
     local max_wait=300
     local wait_time=0
     
