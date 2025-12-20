@@ -11,10 +11,14 @@ import sys
 # This fixes the "Impersonating chrome136 is not supported" error
 os.environ['CURL_IMPERSONATE'] = '0'
 
+# Standard library imports
 import logging
 import secrets
-from flask import Flask, render_template, request, jsonify, g
+from datetime import datetime
+
+# Third-party imports
 from dotenv import load_dotenv
+from flask import Flask, render_template, request, jsonify, g
 from flask_compress import Compress
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -27,10 +31,24 @@ env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
 if os.path.exists(env_path):
     load_dotenv(env_path)
 
-# Import after loading environment variables
+# Redline imports (after loading environment variables)
 from redline.auth.usage_tracker import usage_tracker
 from redline.auth.supabase_auth import supabase_auth
 from redline.database.usage_storage import usage_storage
+from redline.web.routes.main import main_bp
+from redline.web.routes.api import api_bp
+from redline.web.routes.data_routes import data_bp
+from redline.web.routes.analysis import analysis_bp
+from redline.web.routes.ml import ml_bp
+from redline.web.routes.download import download_bp
+from redline.web.routes.converter import converter_bp
+from redline.web.routes.settings import settings_bp
+from redline.web.routes.api_keys import api_keys_bp
+from redline.web.routes.payments import payments_bp
+from redline.web.routes.user_data import user_data_bp
+from redline.web.routes.s3_upload import s3_upload_bp
+from redline.web.routes.payments_balance import get_balance
+from redline.web.routes.api_files_list import api_list_files, api_files_list_bp
 
 LIMITER_AVAILABLE = True
 
@@ -159,7 +177,6 @@ def create_app():
             return
 
         # Session-independent tracking using last_deduction_time dict
-        from datetime import datetime
         now = datetime.now()
         last_deduction = usage_tracker.last_deduction_time.get(user_id)
 
@@ -216,19 +233,6 @@ def create_app():
         return response
     
     # Register blueprints
-    from redline.web.routes.main import main_bp
-    from redline.web.routes.api import api_bp
-    from redline.web.routes.data_routes import data_bp
-    from redline.web.routes.analysis import analysis_bp
-    from redline.web.routes.ml import ml_bp
-    from redline.web.routes.download import download_bp
-    from redline.web.routes.converter import converter_bp
-    from redline.web.routes.settings import settings_bp
-    from redline.web.routes.api_keys import api_keys_bp
-    from redline.web.routes.payments import payments_bp
-    from redline.web.routes.user_data import user_data_bp
-    from redline.web.routes.s3_upload import s3_upload_bp
-    
     app.register_blueprint(main_bp)
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(data_bp, url_prefix='/data')
@@ -244,17 +248,13 @@ def create_app():
     
     # Apply rate limits to specific routes after blueprint registration
     if limiter:
-        from redline.web.routes.payments_balance import get_balance
         # Apply custom rate limit to balance endpoint
-        get_balance = limiter.limit("1000 per hour")(get_balance)
-        # Update the route with the rate-limited function
-        payments_bp.view_functions['get_balance'] = get_balance
-        
+        get_balance_limited = limiter.limit("1000 per hour")(get_balance)
+        payments_bp.view_functions['get_balance'] = get_balance_limited
+
         # Apply generous rate limit to /api/files endpoint (read-only, frequently accessed)
-        from redline.web.routes.api_files_list import api_list_files, api_files_list_bp
-        api_list_files = limiter.limit("500 per hour")(api_list_files)
-        # Update the route with the rate-limited function
-        api_files_list_bp.view_functions['api_list_files'] = api_list_files
+        api_list_files_limited = limiter.limit("500 per hour")(api_list_files)
+        api_files_list_bp.view_functions['api_list_files'] = api_list_files_limited
     
     # Error handlers
     @app.errorhandler(404)
