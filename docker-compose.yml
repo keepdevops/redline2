@@ -5,14 +5,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: redline-web
+    container_name: variosync-web
     env_file:
       - .env
     ports:
       - "8080:8080"
-    volumes:
-      # Local uploads directory (production uses S3)
-      - ./data/uploads:/app/data/uploads
     environment:
       # Flask
       - HOST=0.0.0.0
@@ -68,4 +65,4 @@ services:
 
 networks:
   default:
-    name: redline-network
+    name: variosync-network
