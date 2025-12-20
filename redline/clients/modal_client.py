@@ -5,14 +5,36 @@ Calls Modal serverless functions for DuckDB data processing
 """
 
 import os
+import sys
 import logging
 from typing import Dict, List, Optional, Any
-import modal
 
 logger = logging.getLogger(__name__)
 
-# Modal app reference
-MODAL_APP_NAME = "variosync-duckdb-processor"
+# Try to import modal and modal functions
+try:
+    import modal
+    MODAL_AVAILABLE = True
+
+    # Add modal_processing to path if needed
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+    # Import Modal functions (these must be deployed first)
+    try:
+        from modal_processing.duckdb_service import process_csv, convert_format, generate_chart_data, run_query, get_metadata
+        MODAL_FUNCTIONS_AVAILABLE = True
+        logger.info("Modal functions imported successfully")
+    except ImportError as e:
+        MODAL_FUNCTIONS_AVAILABLE = False
+        logger.warning(f"Modal functions not available: {e}")
+        logger.warning("Deploy with: modal deploy modal_processing/duckdb_service.py")
+
+except ImportError:
+    MODAL_AVAILABLE = False
+    MODAL_FUNCTIONS_AVAILABLE = False
+    logger.warning("Modal SDK not installed - data processing will be unavailable")
 
 
 class ModalClient:
@@ -20,17 +42,18 @@ class ModalClient:
 
     def __init__(self):
         """Initialize Modal client"""
-        try:
-            # Get Modal function references
-            self.app = modal.Func.lookup(MODAL_APP_NAME, "process_csv")
+        self.available = MODAL_AVAILABLE and MODAL_FUNCTIONS_AVAILABLE
+
+        if not MODAL_AVAILABLE:
+            logger.warning("Modal SDK not available - install with: pip install modal")
+        elif not MODAL_FUNCTIONS_AVAILABLE:
+            logger.warning("Modal functions not deployed - run: modal deploy modal_processing/duckdb_service.py")
+        else:
             logger.info("Modal client initialized successfully")
-        except Exception as e:
-            logger.warning(f"Modal client initialization failed: {str(e)}")
-            self.app = None
 
     def _is_available(self) -> bool:
         """Check if Modal is available"""
-        return self.app is not None
+        return self.available
 
     def process_csv(
         self,
@@ -54,11 +77,11 @@ class ModalClient:
             Processing results
         """
         if not self._is_available():
-            return {"error": "Modal processing not available"}
+            return {"error": "Modal processing not available - deploy with: modal deploy modal_processing/duckdb_service.py"}
 
         try:
-            func = modal.Func.lookup(MODAL_APP_NAME, "process_csv")
-            result = func.remote(
+            # Call the Modal function remotely
+            result = process_csv.remote(
                 file_data=file_data,
                 filename=filename,
                 operation=operation,
@@ -93,8 +116,7 @@ class ModalClient:
             return {"error": "Modal processing not available"}
 
         try:
-            func = modal.Func.lookup(MODAL_APP_NAME, "convert_format")
-            result = func.remote(
+            result = convert_format.remote(
                 file_data=file_data,
                 input_format=input_format,
                 output_format=output_format,
@@ -134,8 +156,7 @@ class ModalClient:
             return {"error": "Modal processing not available"}
 
         try:
-            func = modal.Func.lookup(MODAL_APP_NAME, "generate_chart_data")
-            result = func.remote(
+            result = generate_chart_data.remote(
                 file_data=file_data,
                 filename=filename,
                 chart_type=chart_type,
@@ -172,8 +193,7 @@ class ModalClient:
             return {"error": "Modal processing not available"}
 
         try:
-            func = modal.Func.lookup(MODAL_APP_NAME, "run_query")
-            result = func.remote(
+            result = run_query.remote(
                 file_data=file_data,
                 filename=filename,
                 query=query,
@@ -199,8 +219,7 @@ class ModalClient:
             return {"error": "Modal processing not available"}
 
         try:
-            func = modal.Func.lookup(MODAL_APP_NAME, "get_metadata")
-            result = func.remote(file_data=file_data, filename=filename)
+            result = get_metadata.remote(file_data=file_data, filename=filename)
             return result
         except Exception as e:
             logger.error(f"Modal get_metadata error: {str(e)}")

@@ -10,7 +10,6 @@ from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Optional, Dict, Any
 from flask import current_app
-from ...core.data_loader import DataLoader
 from ...core.schema import EXT_TO_FORMAT, detect_format_from_path
 
 logger = logging.getLogger(__name__)
@@ -86,9 +85,9 @@ def load_single_file_parallel(file_path: str) -> Optional[pd.DataFrame]:
                 logger.error(f"Error loading Arrow file: {str(e)}")
                 data = pd.DataFrame({'error': [str(e)]})
         else:
-            # Fallback to loader for unsupported formats
-            loader = DataLoader()
-            data = loader.load_file_by_type(file_path, format_type)
+            # Unsupported format
+            logger.warning(f"Unsupported format: {format_type} for file {file_path}")
+            data = pd.DataFrame({'message': [f'Unsupported format: {format_type}']})
         
         return data
         

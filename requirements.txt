@@ -86,6 +86,12 @@ stripe>=14.0.1
 # Authentication and Backend Services
 supabase>=2.10.1
 
+# Database ORM & Migrations
+sqlalchemy>=2.0.25
+alembic>=1.13.1
+psycopg2-binary>=2.9.9  # PostgreSQL adapter for SQLAlchemy
+python-dotenv>=1.0.0  # Load environment variables from .env file
+
 # Serverless Compute (Modal)
 modal>=0.63.0
 

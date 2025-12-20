@@ -85,7 +85,7 @@ def create_app():
     # Initialize SocketIO for real-time updates
     # For Gunicorn compatibility, use threading mode explicitly
     try:
-        allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:8080,http://127.0.0.1:8080').split(',')
+        allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:8081,http://127.0.0.1:8081').split(',')
         # Check if running under Gunicorn
         worker_class = os.environ.get('SERVER_SOFTWARE', '').startswith('gunicorn')
         async_mode = 'eventlet' if not worker_class else 'threading'
