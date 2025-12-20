@@ -1,66 +1,71 @@
-# version: '3.8'
+version: '3.8'
 
 services:
-  variosync-web:
+  web:
     build:
       context: .
-      dockerfile: Dockerfile.webgui.bytecode
-    container_name: variosync-web
+      dockerfile: Dockerfile
+    container_name: redline-web
     env_file:
       - .env
     ports:
       - "8080:8080"
     volumes:
-      # Persistent data storage for custom APIs and user files
-      - variosync-data:/app/data
-      - variosync-logs:/app/logs
-      - variosync-config:/app/config
+      # Local uploads directory (production uses S3)
+      - ./data/uploads:/app/data/uploads
     environment:
+      # Flask
+      - HOST=0.0.0.0
+      - PORT=8080
       - FLASK_ENV=production
-      - VARIOSYNC_ENV=production
-      - GUNICORN_WORKERS=1
-      - GUNICORN_THREADS=4
-      - REQUIRE_LICENSE_SERVER=true
-      - LICENSE_SERVER_URL=http://host.docker.internal:5001
-      - POLARS_SKIP_CPU_CHECK=1
-      # Stripe Configuration (loaded from .env file via env_file)
-      # Set STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET in .env file
+      - DEBUG=false
+
+      # Gunicorn
+      - WORKERS=${WORKERS:-4}
+      - TIMEOUT=${TIMEOUT:-120}
+
+      # Security
+      - SECRET_KEY=${SECRET_KEY}
+
+      # CORS
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}
+
+      # Supabase (loaded from .env)
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - SUPABASE_DB_PASSWORD=${SUPABASE_DB_PASSWORD}
+
+      # Modal
+      - MODAL_TOKEN_ID=${MODAL_TOKEN_ID}
+      - MODAL_TOKEN_SECRET=${MODAL_TOKEN_SECRET}
+
+      # S3/Wasabi Storage
+      - USE_S3_STORAGE=${USE_S3_STORAGE:-true}
+      - S3_BUCKET=${S3_BUCKET}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - S3_REGION=${S3_REGION:-us-east-1}
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL:-https://s3.wasabisys.com}
+
+      # Payment
+      - ENFORCE_PAYMENT=${ENFORCE_PAYMENT:-true}
+      - USAGE_CHECK_INTERVAL=${USAGE_CHECK_INTERVAL:-30}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
       - HOURS_PER_DOLLAR=${HOURS_PER_DOLLAR:-0.2}
       - PAYMENT_CURRENCY=${PAYMENT_CURRENCY:-usd}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+
     restart: unless-stopped
+
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8080/health', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
-
-  # Optional Redis for enhanced performance (if using Celery)
-  redis:
-    image: redis:7-alpine
-    container_name: variosync-redis
-    volumes:
-      - redis-data:/data
-    restart: unless-stopped
-    profiles:
-      - full  # Only start with: docker-compose --profile full up
-
-volumes:
-  variosync-data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ./data
-  variosync-logs:
-    driver: local
-  variosync-config:
-    driver: local
-  redis-data:
-    driver: local
+      start_period: 40s
 
 networks:
   default:
-    name: variosync-network
+    name: redline-network

@@ -1,54 +1,87 @@
-# Ignore large data directories
-data/
-logs/
-*.duckdb
-*.db
-
-# Ignore build artifacts
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
 dist/
 build/
-__pycache__/
-*.pyc
-*.egg-info/
+*.egg
 *.pyo
 *.pyc
+
+# Virtual environments
+venv/
+env/
+ENV/
+conda_envs/
+.venv/
+
+# IDE
+.vscode/
+.idea/
 *.swp
 *.swo
+*~
+*.sublime-project
+*.sublime-workspace
 
-# Ignore git
+# Git
 .git/
 .gitignore
 .gitattributes
 
-# Ignore development files
-venv/
-.venv/
+# Environment files (set via Render/Docker environment variables)
 .env
+.env.local
+.env.production
+.env.production.sandbox
+
+# Logs
 *.log
-.DS_Store
-.vscode/
-.idea/
+variosync_web.log
+logs/
 
-# Ignore documentation
-*.md
-docs/
-*.txt
-!requirements*.txt
-
-# Ignore test files
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
 test_*.py
 *_test.py
 tests/
-*_test.py
 
-# Ignore Docker files
-dockerfiles/
+# OS
+.DS_Store
+Thumbs.db
+
+# Data directories (user data in S3, not in container)
+data/uploads/*
+data/users/*
+!data/.gitkeep
+
+# Docker
+.dockerignore
 docker-compose*.yml
 Dockerfile*
-!Dockerfile.webgui.simple
-.dockerignore
+!Dockerfile
+dockerfiles/
 
-# Ignore large files
+# Documentation
+*.md
+!README.md
+docs/
+
+# Temporary files
+tmp/
+temp/
+
+# Database files (use Supabase, not local)
+*.duckdb
+*.db
+*.sqlite
+
+# Large data files (should be in S3)
 *.csv
 *.parquet
 *.json
@@ -59,20 +92,11 @@ Dockerfile*
 *.7z
 *.rar
 
-# Ignore scripts
+# Scripts
 *.sh
 *.bash
 *.bat
 
-# Ignore OS files
-.DS_Store
-Thumbs.db
-
-# Ignore compiled files
-*.so
+# Compiled files
 *.dylib
 *.dll
-
-# Ignore IDEs
-*.sublime-project
-*.sublime-workspace
