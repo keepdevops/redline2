@@ -50,11 +50,6 @@ def health():
     """Health check endpoint for Docker."""
     return jsonify({'status': 'healthy', 'service': 'variosync-web'})
 
-@main_index_bp.route('/tasks')
-def tasks_page():
-    """Background tasks page."""
-    return render_template('tasks_tab.html')
-
 @main_index_bp.route('/data-modular')
 def data_modular():
     """Modular data tab page."""

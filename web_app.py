@@ -15,45 +15,23 @@ import logging
 import secrets
 from flask import Flask, render_template, request, jsonify, g
 from flask_socketio import SocketIO
-try:
-    from flask_compress import Compress
-    COMPRESS_AVAILABLE = True
-except ImportError:
-    COMPRESS_AVAILABLE = False
-    print("Warning: flask-compress not available, compression disabled")
-
-try:
-    from flask_limiter import Limiter
-    from flask_limiter.util import get_remote_address
-    LIMITER_AVAILABLE = True
-except ImportError:
-    LIMITER_AVAILABLE = False
-    print("Warning: flask-limiter not available, rate limiting disabled")
+from dotenv import load_dotenv
+from flask_compress import Compress
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 # Add the project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# Load .env file if it exists (before logging config to avoid issues)
-try:
-    from dotenv import load_dotenv
-    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
-    if os.path.exists(env_path):
-        load_dotenv(env_path)
-except ImportError:
-    # python-dotenv not installed, try manual loading
-    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
-    if os.path.exists(env_path):
-        with open(env_path, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
-                    # Remove inline comments (everything after #)
-                    if '#' in value:
-                        value = value.split('#')[0].strip()
-                    os.environ[key.strip()] = value.strip()
-except Exception:
-    pass  # Ignore errors loading .env
+# Load .env file BEFORE any imports that need environment variables
+env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+if os.path.exists(env_path):
+    load_dotenv(env_path)
+
+# Import after loading environment variables
+from redline.auth.usage_tracker import usage_tracker
+
+LIMITER_AVAILABLE = True
 
 # Configure logging
 logging.basicConfig(
@@ -84,87 +62,41 @@ def create_app():
     
     # Initialize SocketIO for real-time updates
     # For Gunicorn compatibility, use threading mode explicitly
-    try:
-        allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:8081,http://127.0.0.1:8081').split(',')
-        # Check if running under Gunicorn
-        worker_class = os.environ.get('SERVER_SOFTWARE', '').startswith('gunicorn')
-        async_mode = 'eventlet' if not worker_class else 'threading'
-        socketio = SocketIO(app, cors_allowed_origins=allowed_origins, async_mode=async_mode)
-        logger.info(f"SocketIO initialized with {async_mode} async_mode")
-    except Exception as e:
-        logger.warning(f"Failed to initialize SocketIO: {e}")
-        # Fallback: create a mock SocketIO object
-        class MockSocketIO:
-            def __init__(self, app, **kwargs):
-                self.app = app
-            def run(self, app, host=None, port=None, debug=None, **kwargs):
-                # Filter out unsupported parameters for Flask's app.run()
-                flask_kwargs = {k: v for k, v in kwargs.items() 
-                               if k not in ['allow_unsafe_werkzeug']}
-                # Just run the Flask app directly
-                self.app.run(host=host, port=port, debug=debug, **flask_kwargs)
-        socketio = MockSocketIO(app)
-        logger.info("Using mock SocketIO for compatibility")
+    allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:8081,http://127.0.0.1:8081').split(',')
+    # Check if running under Gunicorn
+    worker_class = os.environ.get('SERVER_SOFTWARE', '').startswith('gunicorn')
+    async_mode = 'eventlet' if not worker_class else 'threading'
+    socketio = SocketIO(app, cors_allowed_origins=allowed_origins, async_mode=async_mode)
+    logger.info(f"SocketIO initialized with {async_mode} async_mode")
     
-    # Initialize compression if available
-    if COMPRESS_AVAILABLE:
-        Compress(app)
-    
-    # Configure Jinja2 template caching for production
-    app.jinja_env.auto_reload = False
-    app.jinja_options = {
-        'cache_size': 400,
-        'auto_reload': False
-    }
+    Compress(app)
     
     # Initialize rate limiting if available
     limiter = None
-    if LIMITER_AVAILABLE:
-        # Use Redis if available, otherwise memory
-        redis_url = os.environ.get('REDIS_URL')
-        if redis_url:
-            storage_uri = redis_url
-            logger.info("Rate limiting using Redis storage")
-        else:
-            storage_uri = "memory://"
-            logger.info("Rate limiting using in-memory storage")
-        
-        limiter = Limiter(
-            app=app,
-            key_func=get_remote_address,
-            default_limits=["200 per day", "50 per hour"],
-            storage_uri=storage_uri,
-            headers_enabled=True
-        )
-        logger.info("Rate limiting enabled")
+
+    storage_uri = "memory://"
+    logger.info("Rate limiting using in-memory storage")
+    
+    limiter = Limiter(
+        app=app,
+        key_func=get_remote_address,
+        default_limits=["200 per day", "50 per hour"],
+        storage_uri=storage_uri,
+        headers_enabled=True
+    )
+    logger.info("Rate limiting enabled")
     
     # Store limiter for blueprint access
     app.config['limiter'] = limiter
-    
-    # Initialize TaskManager for background tasks
-    try:
-        from redline.background.task_manager import TaskManager
-        task_manager = TaskManager(app=app)
-        app.config['task_manager'] = task_manager
-        logger.info("TaskManager initialized successfully")
-    except Exception as e:
-        logger.warning(f"Failed to initialize TaskManager: {str(e)}")
-        app.config['task_manager'] = None
-    
+
     # Initialize Usage Tracker for time-based access
-    try:
-        from redline.auth.usage_tracker import usage_tracker
-        app.config['usage_tracker'] = usage_tracker
-        logger.info("Usage tracker initialized successfully")
-    except Exception as e:
-        logger.warning(f"Failed to initialize Usage Tracker: {str(e)}")
-        app.config['usage_tracker'] = None
+    app.config['usage_tracker'] = usage_tracker
+    logger.info("Usage tracker initialized successfully")
     
     # Access control middleware - check JWT token and hours BEFORE processing request
     @app.before_request
     def check_access():
         """Validate JWT token from Supabase Auth"""
-        from flask import jsonify
 
         # Skip auth for public endpoints
         public_endpoints = ('static', 'health', 'main.index', 'main.register',
@@ -311,7 +243,6 @@ def create_app():
     from redline.web.routes.download import download_bp
     from redline.web.routes.converter import converter_bp
     from redline.web.routes.settings import settings_bp
-    from redline.web.routes.tasks import tasks_bp
     from redline.web.routes.api_keys import api_keys_bp
     from redline.web.routes.payments import payments_bp
     from redline.web.routes.user_data import user_data_bp
@@ -325,7 +256,6 @@ def create_app():
     app.register_blueprint(download_bp, url_prefix='/download')
     app.register_blueprint(converter_bp, url_prefix='/converter')
     app.register_blueprint(settings_bp, url_prefix='/settings')
-    app.register_blueprint(tasks_bp, url_prefix='/tasks')
     app.register_blueprint(api_keys_bp, url_prefix='/api-keys')
     app.register_blueprint(payments_bp, url_prefix='/payments')
     app.register_blueprint(user_data_bp, url_prefix='/user-data')

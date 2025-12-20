@@ -31,7 +31,6 @@ export default {
       '/analysis/',
       '/converter/',
       '/settings/',
-      '/tasks/',
       '/api-keys/',
       '/user-data/',
       '/health',
