@@ -14,7 +14,6 @@ os.environ['CURL_IMPERSONATE'] = '0'
 import logging
 import secrets
 from flask import Flask, render_template, request, jsonify, g
-from flask_socketio import SocketIO
 from dotenv import load_dotenv
 from flask_compress import Compress
 from flask_limiter import Limiter
@@ -30,6 +29,8 @@ if os.path.exists(env_path):
 
 # Import after loading environment variables
 from redline.auth.usage_tracker import usage_tracker
+from redline.auth.supabase_auth import supabase_auth
+from redline.database.usage_storage import usage_storage
 
 LIMITER_AVAILABLE = True
 
@@ -59,16 +60,7 @@ def create_app():
     
     # Ensure upload directory exists
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-    
-    # Initialize SocketIO for real-time updates
-    # For Gunicorn compatibility, use threading mode explicitly
-    allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:8081,http://127.0.0.1:8081').split(',')
-    # Check if running under Gunicorn
-    worker_class = os.environ.get('SERVER_SOFTWARE', '').startswith('gunicorn')
-    async_mode = 'eventlet' if not worker_class else 'threading'
-    socketio = SocketIO(app, cors_allowed_origins=allowed_origins, async_mode=async_mode)
-    logger.info(f"SocketIO initialized with {async_mode} async_mode")
-    
+
     Compress(app)
     
     # Initialize rate limiting if available
@@ -127,7 +119,7 @@ def create_app():
 
         try:
             # Validate JWT and extract user info
-            from redline.auth.supabase_auth import supabase_auth
+            
             user_data = supabase_auth.validate_jwt(token)
             g.user_id = user_data['user_id']
             g.email = user_data['email']
@@ -183,34 +175,23 @@ def create_app():
             if time_since >= check_interval:
                 hours_used = time_since / 3600.0
                 # Deduct from Supabase
-                from redline.auth.supabase_auth import supabase_auth
                 supabase_auth.deduct_hours(user_id, hours_used)
                 usage_tracker.last_deduction_time[user_id] = now
 
-                # Log to DuckDB
-                try:
-                    from redline.database.usage_storage import usage_storage
-                    if usage_storage:
-                        usage_storage.log_hour_deduction(
-                            user_id=user_id,
-                            hours=hours_used,
-                            session_id=g.get('session_id')
-                        )
-                except Exception as e:
-                    logger.debug(f"Failed to log hour deduction: {str(e)}")
-
-        # Log API access
-        try:
-            from redline.database.usage_storage import usage_storage
-            if usage_storage:
-                usage_storage.log_access(
+                # Log hour deduction to Supabase
+                usage_storage.log_hour_deduction(
                     user_id=user_id,
-                    endpoint=request.endpoint or request.path,
-                    method=request.method,
-                    ip_address=request.remote_addr
+                    hours=hours_used,
+                    session_id=g.get('session_id')
                 )
-        except Exception as e:
-            logger.debug(f"Failed to log access: {str(e)}")
+
+        # Log API access to Supabase
+        usage_storage.log_access(
+            user_id=user_id,
+            endpoint=request.endpoint or request.path,
+            method=request.method,
+            ip_address=request.remote_addr
+        )
     
     # Add cache headers to static files and session headers
     @app.after_request
@@ -294,55 +275,22 @@ def create_app():
         health = limiter.limit("10000 per hour")(health)
     
     logger.info("VarioSync Web application created successfully")
-    
-    # Store socketio for potential use
-    app.config['socketio'] = socketio
-    
-    # For Gunicorn, return only the app
+
     return app
 
 def main():
-    """Main entry point for the web application (development mode only)."""
-    try:
-        logger.info("Starting VarioSync Web Application...")
-        
-        # Create application
-        app = create_app()
-        socketio = app.config.get('socketio')
-        
-        # Get configuration from environment
-        host = os.environ.get('HOST', '0.0.0.0')
-        port = int(os.environ.get('WEB_PORT', os.environ.get('PORT', 8080)))
-        debug = os.environ.get('DEBUG', 'false').lower() == 'true'
-        
-        logger.info(f"Starting server on {host}:{port}")
-        logger.info(f"Debug mode: {debug}")
-        
-        # Start the application (development mode with SocketIO)
-        if socketio and hasattr(socketio, 'run'):
-            # Check if it's MockSocketIO (which handles allow_unsafe_werkzeug internally)
-            is_mock = type(socketio).__name__ == 'MockSocketIO'
-            
-            if is_mock:
-                # MockSocketIO filters out unsupported params
-                socketio.run(app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=(not debug))
-            else:
-                # Real SocketIO - try with allow_unsafe_werkzeug for non-debug
-                try:
-                    if not debug:
-                        socketio.run(app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=True)
-                    else:
-                        socketio.run(app, host=host, port=port, debug=debug)
-                except TypeError:
-                    # If allow_unsafe_werkzeug not supported, run without it
-                    socketio.run(app, host=host, port=port, debug=debug)
-        else:
-            # Fallback to Flask dev server
-            app.run(host=host, port=port, debug=debug)
-        
-    except Exception as e:
-        logger.error(f"Failed to start VarioSync Web Application: {str(e)}")
-        sys.exit(1)
+    """Main entry point for the web application (production mode)."""
+    logger.info("Starting VarioSync Web Application...")
+
+    # Create application
+    app = create_app()
+
+    # Get configuration from environment
+    host = os.environ.get('HOST', '0.0.0.0')
+    port = int(os.environ.get('WEB_PORT', os.environ.get('PORT', 8080)))
+
+    logger.info(f"Starting server on {host}:{port}")
+    app.run(host=host, port=port, debug=False)
 
 # Create app instance for Gunicorn
 app = create_app()
