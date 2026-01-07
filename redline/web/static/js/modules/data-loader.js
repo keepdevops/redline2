@@ -17,25 +17,33 @@ class DataLoader {
     async loadData(filename) {
         try {
             console.log(`DataLoader: Loading data for file: ${filename}`);
-            
-            // Get license key from localStorage
-            const licenseKey = localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY;
-            
+
+            // Get JWT token from localStorage
+            const authToken = localStorage.getItem('variosync_auth_token');
+
             const headers = {
                 'Content-Type': 'application/json',
             };
-            
-            // Add license key to headers
-            if (licenseKey) {
-                headers['X-License-Key'] = licenseKey;
+
+            // Add JWT token to headers
+            if (authToken) {
+                headers['Authorization'] = `Bearer ${authToken}`;
             }
-            
+
             const response = await fetch(`${this.apiBaseUrl}/data/load`, {
                 method: 'POST',
                 headers: headers,
-                body: JSON.stringify({ filename: filename, license_key: licenseKey })
+                body: JSON.stringify({ filename: filename })
             });
-            
+
+            // Handle 401 Unauthorized
+            if (response.status === 401) {
+                localStorage.removeItem('variosync_auth_token');
+                localStorage.removeItem('variosync_user_data');
+                window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
+                throw new Error('Session expired. Please log in again.');
+            }
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }

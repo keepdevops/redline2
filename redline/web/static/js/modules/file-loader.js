@@ -16,26 +16,33 @@ class FileLoader {
     async loadFiles() {
         try {
             console.log('FileLoader: Loading files from API...');
-            
-            // Get license key from localStorage
-            const licenseKey = localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY;
-            
-            const headers = {};
-            if (licenseKey) {
-                headers['X-License-Key'] = licenseKey;
+
+            // Get JWT token from localStorage
+            const authToken = localStorage.getItem('variosync_auth_token');
+
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+
+            if (authToken) {
+                headers['Authorization'] = `Bearer ${authToken}`;
             }
-            
-            // Build URL with license key as query parameter
-            let url = `${this.apiBaseUrl}/data/files`;
-            if (licenseKey) {
-                url += `?license_key=${encodeURIComponent(licenseKey)}`;
-            }
-            
+
+            const url = `${this.apiBaseUrl}/data/files`;
+
             const response = await fetch(url, {
                 method: 'GET',
                 headers: headers
             });
-            
+
+            // Handle 401 Unauthorized
+            if (response.status === 401) {
+                localStorage.removeItem('variosync_auth_token');
+                localStorage.removeItem('variosync_user_data');
+                window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
+                throw new Error('Session expired. Please log in again.');
+            }
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }

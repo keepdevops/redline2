@@ -1,196 +1,250 @@
 {% extends "base.html" %}
 
-{% block title %}Payment & Access - VarioSync{% endblock %}
+{% block title %}Subscription - VarioSync{% endblock %}
 
-{% block page_title %}Payment & Access Time{% endblock %}
-{% block page_subtitle %}Purchase access hours and manage your subscription{% endblock %}
+{% block page_title %}Subscription & Billing{% endblock %}
+{% block page_subtitle %}Manage your VarioSync subscription{% endblock %}
 
 {% block extra_css %}
 <style>
-    .card-header.bg-primary {
-        background-color: var(--primary-color) !important;
-        color: var(--text-white) !important;
+    .subscription-card {
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        transition: all 0.3s ease;
     }
-    .card {
-        background-color: var(--light-color);
-        color: var(--text-primary);
-        border-color: var(--border-color);
+    .subscription-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
     }
-    .card-body {
-        background-color: var(--light-color);
-        color: var(--text-primary);
+    .status-badge {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
     }
-    .card-header {
-        background-color: var(--light-color);
-        color: var(--text-primary);
-        border-bottom-color: var(--border-color);
+    .usage-meter {
+        height: 8px;
+        background-color: var(--border-color);
+        border-radius: 4px;
+        overflow: hidden;
     }
-    .form-label {
-        color: var(--text-primary);
-    }
-    .form-control, .form-select {
-        background-color: var(--light-color);
-        color: var(--text-primary);
-        border-color: var(--border-color);
-    }
-    .form-control:focus, .form-select:focus {
-        background-color: var(--light-color);
-        color: var(--text-primary);
-        border-color: var(--primary-color);
-    }
-    .text-muted {
-        color: var(--text-muted) !important;
-    }
-    .text-danger {
-        color: var(--danger-color) !important;
-    }
-    .text-success {
-        color: var(--success-color) !important;
-    }
-    .text-warning {
-        color: var(--warning-color) !important;
-    }
-    .alert {
-        background-color: var(--light-color);
-        color: var(--text-primary);
-        border-color: var(--border-color);
-    }
-    .alert-info {
-        background-color: var(--info-color);
-        color: var(--text-white);
-        border-color: var(--info-color);
-    }
-    .alert-warning {
-        background-color: var(--warning-color);
-        color: var(--text-white);
-        border-color: var(--warning-color);
-    }
-    .alert-success {
-        background-color: var(--success-color);
-        color: var(--text-white);
-        border-color: var(--success-color);
-    }
-    .table {
-        background-color: var(--light-color);
-        color: var(--text-primary);
-    }
-    .table th {
-        background-color: var(--dark-color);
-        color: var(--text-white);
-    }
-    .table td {
-        background-color: var(--light-color);
-        color: var(--text-primary);
+    .usage-meter-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--success-color), var(--primary-color));
+        transition: width 0.3s ease;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="row">
-    <!-- Balance Display -->
-    <div class="col-md-4">
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-clock me-2"></i>Your Balance
-                </h5>
-            </div>
-            <div class="card-body">
-                <div id="balanceInfo" class="text-center">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
+<div class="container-fluid">
+    <!-- Messages -->
+    <div id="paymentMessages"></div>
+
+    <div class="row">
+        <!-- Subscription Status -->
+        <div class="col-lg-8">
+            <div class="card subscription-card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-credit-card me-2"></i>Subscription Status
+                    </h5>
                 </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Purchase Hours -->
-    <div class="col-md-8">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-shopping-cart me-2"></i>Purchase Access Hours
-                </h5>
-            </div>
-            <div class="card-body">
-                <!-- License Key Input -->
-                <div class="mb-3">
-                    <label for="licenseKey" class="form-label">
-                        <i class="fas fa-key me-1"></i>License Key
-                        <span class="text-danger">*</span>
-                    </label>
-                    <div class="input-group">
-                        <input type="text" class="form-control" id="licenseKey" placeholder="Enter your license key (e.g., RL-XXXX-XXXX-XXXX)" autocomplete="off">
-                        <button class="btn btn-outline-secondary" type="button" id="saveLicenseKeyBtn" title="Save license key">
-                            <i class="fas fa-save"></i> Save
-                        </button>
-                    </div>
-                    <small class="form-text text-muted">
-                        <i class="fas fa-info-circle me-1"></i>
-                        Your license key is required to purchase hours and access VarioSync features.
-                        <a href="{{ url_for('main.register') }}" class="text-decoration-none">Don't have one? Register here.</a>
-                    </small>
-                    <div id="licenseKeyStatus" class="mt-2"></div>
-                </div>
-                
-                <!-- Hour Packages -->
-                <div id="packagesContainer" class="row">
-                    <div class="col-12 text-center">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading packages...</span>
+                <div class="card-body">
+                    <div id="subscriptionInfo">
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-3 text-muted">Loading subscription information...</p>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Custom Hours Input -->
-                <div class="mt-4">
-                    <h6>Or Purchase Custom Hours</h6>
-                    <div class="input-group mb-3">
-                        <input type="number" class="form-control" id="customHours" placeholder="Enter hours" min="1" step="0.5">
-                        <span class="input-group-text">hours</span>
-                        <button class="btn btn-primary" type="button" id="purchaseCustomBtn">
-                            <i class="fas fa-credit-card me-2"></i>Purchase
-                        </button>
+            </div>
+
+            <!-- Usage History -->
+            <div class="card subscription-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Usage History
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="usageHistory">
+                        <p class="text-muted">Loading usage history...</p>
                     </div>
-                    <div id="customPrice" class="text-muted"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="col-lg-4">
+            <!-- Plan Information -->
+            <div class="card subscription-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Plan Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <h6 class="mb-3">VarioSync Metered</h6>
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Pay only for what you use
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Unlimited data uploads
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Advanced analytics
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Cloud storage (S3/R2)
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Serverless processing
+                        </li>
+                    </ul>
+
+                    <hr class="my-3">
+
+                    <div class="text-center">
+                        <small class="text-muted">
+                            <i class="fas fa-calculator me-1"></i>
+                            Billed based on records processed
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Help & Support -->
+            <div class="card subscription-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-question-circle me-2"></i>Need Help?
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">Have questions about your subscription?</p>
+                    <div class="d-grid gap-2">
+                        <a href="/help" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-book me-2"></i>View Documentation
+                        </a>
+                        <a href="mailto:support@variosync.com" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-envelope me-2"></i>Contact Support
+                        </a>
+                    </div>
+
+                    <hr class="my-3">
+
+                    <div class="alert alert-info py-2 mb-0">
+                        <small>
+                            <i class="fas fa-info-circle me-1"></i>
+                            All billing managed through Stripe
+                        </small>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-<!-- Usage History -->
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-history me-2"></i>Usage History
-                </h5>
-                <button class="btn btn-sm btn-outline-primary" onclick="loadHistory()">
-                    <i class="fas fa-sync me-1"></i>Refresh
-                </button>
-            </div>
-            <div class="card-body">
-                <div id="usageHistory" class="text-muted">
-                    <p>Enter your license key above to view usage and payment history</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Payment Status Messages -->
-<div id="paymentMessages" class="mt-3"></div>
-
 {% endblock %}
 
 {% block extra_js %}
-{% if config.get('ENV') == 'production' %}
-<script src="{{ url_for('static', filename='js/payments.min.js') }}"></script>
-{% else %}
+<!-- Include payments.js for subscription management -->
 <script src="{{ url_for('static', filename='js/payments.js') }}"></script>
-{% endif %}
-{% endblock %}
 
+<script>
+// Additional page-specific functionality
+(function() {
+    'use strict';
+
+    // Load usage history
+    function loadUsageHistory() {
+        if (!window.VARIOSYNC || !window.VARIOSYNC.isAuthenticated()) {
+            document.getElementById('usageHistory').innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-lock me-2"></i>
+                    Please <a href="/auth/login" class="alert-link">log in</a> to view usage history.
+                </div>
+            `;
+            return;
+        }
+
+        const token = window.VARIOSYNC.getToken();
+
+        fetch('/payments/usage-history', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            displayUsageHistory(data);
+        })
+        .catch(error => {
+            console.error('Error loading usage history:', error);
+            document.getElementById('usageHistory').innerHTML = `
+                <p class="text-muted">No usage history available</p>
+            `;
+        });
+    }
+
+    function displayUsageHistory(data) {
+        const container = document.getElementById('usageHistory');
+
+        if (!data || !data.history || data.history.length === 0) {
+            container.innerHTML = '<p class="text-muted">No usage history yet</p>';
+            return;
+        }
+
+        let html = '<div class="table-responsive">';
+        html += '<table class="table table-sm">';
+        html += '<thead><tr><th>Date</th><th>Records</th><th>Type</th></tr></thead>';
+        html += '<tbody>';
+
+        data.history.slice(0, 20).forEach(function(entry) {
+            const date = new Date(entry.timestamp).toLocaleDateString();
+            const records = entry.quantity || 0;
+            const type = entry.type || 'Processing';
+
+            html += `<tr>
+                <td>${date}</td>
+                <td>${records.toLocaleString()}</td>
+                <td><span class="badge bg-secondary">${type}</span></td>
+            </tr>`;
+        });
+
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check authentication
+        if (!window.VARIOSYNC || !window.VARIOSYNC.isAuthenticated()) {
+            document.getElementById('subscriptionInfo').innerHTML = `
+                <div class="alert alert-warning text-center">
+                    <i class="fas fa-lock fa-3x mb-3"></i>
+                    <h5>Authentication Required</h5>
+                    <p>Please log in to manage your subscription.</p>
+                    <a href="/auth/login?redirect=/payments/payment" class="btn btn-primary">
+                        <i class="fas fa-sign-in-alt me-2"></i>Login
+                    </a>
+                </div>
+            `;
+            return;
+        }
+
+        // Load usage history
+        setTimeout(loadUsageHistory, 1000);
+    });
+})();
+</script>
+{% endblock %}

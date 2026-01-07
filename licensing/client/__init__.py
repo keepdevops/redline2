@@ -1,1 +1,0 @@
-# License client package
