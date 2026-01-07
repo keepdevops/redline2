@@ -214,18 +214,17 @@ function refreshDashboard() {
     
     // Show loading state
     $('#activityTable').html('<tr><td colspan="4" class="text-center text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</td></tr>');
-    
-    // Get license key - use global function if available, otherwise fallback
-    const licenseKey = (typeof window.getLicenseKey === 'function') 
-        ? window.getLicenseKey() 
-        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
-    
+
+    // Get JWT auth token
+    const authToken = localStorage.getItem('variosync_auth_token');
+    const authHeaders = authToken ? { 'Authorization': `Bearer ${authToken}` } : {};
+
     // Load dashboard data
     Promise.all([
         fetch('/status').catch(() => fetch('/api/status')), // Try /status first, fallback to /api/status
         fetch('/api/files', {
             method: 'GET',
-            headers: licenseKey ? { 'X-License-Key': licenseKey } : {}
+            headers: authHeaders
         }).catch(() => ({ json: () => Promise.resolve({ files: [] }) })) // Fallback for files
     ])
     .then(responses => Promise.all(responses.map(r => {
@@ -253,7 +252,7 @@ function refreshDashboard() {
         let dbInfo = null;
         try {
             const dbStatus = await fetch('/settings/database-status', {
-                headers: licenseKey ? { 'X-License-Key': licenseKey } : {}
+                headers: authHeaders
             }).catch((err) => {
                 console.error('Failed to fetch database status:', err);
                 return null;
