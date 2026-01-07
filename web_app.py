@@ -151,258 +151,139 @@ def create_app():
         logger.warning(f"Failed to initialize TaskManager: {str(e)}")
         app.config['task_manager'] = None
     
-    # Initialize Usage Tracker for time-based access
+    # Initialize Supabase Auth Manager for JWT authentication
     try:
-        from redline.auth.usage_tracker import usage_tracker
-        app.config['usage_tracker'] = usage_tracker
-        logger.info("Usage tracker initialized successfully")
+        from redline.auth.supabase_auth import auth_manager
+        app.config['auth_manager'] = auth_manager
+        if auth_manager.is_available():
+            logger.info("Supabase Auth Manager initialized successfully")
+        else:
+            logger.warning("Supabase Auth Manager not fully configured (check environment variables)")
     except Exception as e:
-        logger.warning(f"Failed to initialize Usage Tracker: {str(e)}")
-        app.config['usage_tracker'] = None
-    
-    # Access control middleware - check license and hours BEFORE processing request
+        logger.warning(f"Failed to initialize Supabase Auth Manager: {str(e)}")
+        app.config['auth_manager'] = None
+
+    # Access control middleware - check JWT token and subscription BEFORE processing request
     @app.before_request
     def check_access():
-        """Check if user has valid license and sufficient hours"""
+        """Check if user has valid JWT token and active subscription"""
         # Skip access control for public endpoints
-        public_endpoints = ('static', 'health', 'register', 'payments.payment_tab', 
-                          'payments.packages', 'payments.create_checkout', 
-                          'payments.success', 'payments.webhook', 'main.index',
-                          'main.dashboard', 'main.help', 'main.create_license_proxy')
-        
-        # Public API paths (don't require license)
-        public_api_paths = ['/api/register', '/api/status', '/health']
-        
-        # Web pages (HTML) don't require license key - only API endpoints do
-        # Allow access to web pages, but API endpoints still require license
-        if request.endpoint in public_endpoints or request.path.startswith('/static') or request.path in public_api_paths:
+        public_endpoints = ('static', 'health', 'register', 'payments.payment_tab',
+                          'payments.packages', 'payments.create_checkout',
+                          'payments.success', 'payments.cancel', 'payments.webhook',
+                          'main.index', 'main.dashboard', 'main.help',
+                          'auth.signup', 'auth.login', 'auth.logout', 'auth.status')
+
+        # Public API paths (don't require authentication)
+        public_api_paths = ['/api/register', '/api/status', '/health',
+                           '/auth/signup', '/auth/login', '/auth/logout', '/auth/status',
+                           '/payments/webhook', '/payments/subscription',
+                           '/payments/subscription-success', '/payments/subscription-cancel']
+
+        # Allow public endpoints
+        if request.endpoint in public_endpoints or request.path.startswith('/static'):
             return
-        
-        # Skip license check for web pages (HTML responses) - only enforce for API endpoints
-        # Allow base routes (like /data/, /analysis/, /download/) but require license for API endpoints
+
+        if request.path in public_api_paths:
+            return
+
+        # Allow base HTML page routes (UI pages don't require auth)
         path = request.path.rstrip('/')
-        
-        # List of base HTML page routes that don't require license key
-        base_html_routes = ['/data', '/analysis', '/download', '/converter', '/tasks', '/settings', '/api-keys', '/payments']
-        
-        # If it's exactly a base route (no sub-path), allow it
+        base_html_routes = ['/data', '/analysis', '/download', '/converter',
+                           '/tasks', '/settings', '/api-keys', '/payments']
+
         if path in base_html_routes:
-            return  # Allow HTML pages without license key
-        
-        # Exclude health/status endpoints (don't require license)
+            return  # Allow HTML pages without authentication
+
+        # Exclude health/status endpoints
         if request.path in ['/health', '/tasks/health', '/api/status', '/status']:
             return
-        
-        # Check if this is an API endpoint that requires license key
-        # API endpoints that require license:
-        api_endpoints_requiring_license = [
-            '/api/files', '/api/upload', '/api/data',  # API routes (but not /api/status, /api/register)
-            '/data/load', '/data/filter', '/data/files',  # Data API routes
-            '/analysis/analyze',  # Analysis API routes
-            '/download/download', '/download/batch-download',  # Download API routes (history doesn't require license)
-            '/user-data/',  # User data API routes
-            '/converter/convert', '/converter/batch-convert',  # Converter API routes
-            '/tasks/list', '/tasks/queue', '/tasks/submit', '/tasks/cleanup', '/tasks/cancel',  # Tasks API routes
+
+        # Check if this is an API endpoint that requires authentication
+        api_endpoints_requiring_auth = [
+            '/api/files', '/api/upload', '/api/data',
+            '/data/load', '/data/filter', '/data/files',
+            '/analysis/analyze',
+            '/download/download', '/download/batch-download',
+            '/user-data/',
+            '/converter/convert', '/converter/batch-convert',
+            '/tasks/list', '/tasks/queue', '/tasks/submit', '/tasks/cleanup', '/tasks/cancel',
+            '/processing/upload', '/processing/jobs'
         ]
-        
+
         # Check if this path matches any API endpoint
-        is_api_endpoint = False
-        for endpoint in api_endpoints_requiring_license:
-            if request.path.startswith(endpoint):
-                is_api_endpoint = True
-                break
-        
+        is_api_endpoint = any(request.path.startswith(endpoint) for endpoint in api_endpoints_requiring_auth)
+
         # Also check for /api/* routes (but exclude public ones)
-        if request.path.startswith('/api/') and request.path not in ['/api/status', '/api/register']:
+        if request.path.startswith('/api/') and request.path not in public_api_paths:
             is_api_endpoint = True
-        
+
         # If it's not an API endpoint, allow it (it's an HTML page)
         if not is_api_endpoint:
-            return  # Allow HTML pages without license key
-        
-        # Get license key from request - check multiple sources
-        license_key = None
-        
-        # Check headers first
-        license_key = request.headers.get('X-License-Key') or request.headers.get('x-license-key')
-        
-        # Check query parameters
-        if not license_key:
-            license_key = request.args.get('license_key')
-        
-        # Check form data (for file uploads)
-        if not license_key:
-            license_key = request.form.get('license_key')
-        
-        # Check JSON body - try even if request.is_json is False (sometimes Flask doesn't detect it)
-        if not license_key:
-            content_type = request.headers.get('Content-Type', '').lower()
-            if 'application/json' in content_type:
-                try:
-                    # Use silent=True and force=True to avoid errors if body was already read
-                    json_data = request.get_json(silent=True, force=True)
-                    if json_data and isinstance(json_data, dict):
-                        license_key = json_data.get('license_key')
-                        if license_key:
-                            logger.debug(f"Found license key in JSON body for {request.path}")
-                except Exception as e:
-                    logger.debug(f"Could not parse JSON body for {request.path}: {str(e)}")
-        
-        # Log license key status for debugging pagination issues
-        if request.path == '/data/load' and request.method == 'POST':
-            logger.debug(f"License key check for /data/load: found={bool(license_key)}, method={request.method}, "
-                        f"has_header={bool(request.headers.get('X-License-Key'))}, "
-                        f"content_type={request.headers.get('Content-Type', 'N/A')}")
-        
-        # For API endpoints, require license key
-        # Exception: /api/files can be called from public pages (registration) - return empty list instead of error
-        if request.path == '/api/files' and not license_key:
-            # Allow /api/files without license key (returns empty list for public pages)
-            from flask import jsonify
-            logger.debug(f"/api/files called without license key (likely from public page like /register)")
+            return
+
+        # Get auth manager
+        auth_mgr = app.config.get('auth_manager')
+        if not auth_mgr:
+            logger.error("Auth manager not initialized")
+            return jsonify({
+                'error': 'Authentication system not available',
+                'code': 'AUTH_UNAVAILABLE'
+            }), 500
+
+        # Extract JWT token from request
+        token = auth_mgr.extract_token_from_request(request)
+
+        # Special case: /api/files can be called without auth (returns empty list)
+        if request.path == '/api/files' and not token:
+            logger.debug("/api/files called without token (public page)")
             return jsonify({'files': [], 'total': 0}), 200
-        
-        if request.path.startswith('/api/') or request.path.startswith('/data/') or \
-           request.path.startswith('/analysis/') or request.path.startswith('/download/') or \
-           request.path.startswith('/user-data/') or request.path.startswith('/converter/'):
-            if not license_key:
-                from flask import jsonify
-                logger.warning(f"License key missing for {request.path}. Headers: {dict(request.headers)}")
-                return jsonify({
-                    'error': 'License key is required',
-                    'message': 'Please provide a license key in X-License-Key header, license_key query parameter, or JSON body',
-                    'debug': {
-                        'path': request.path,
-                        'method': request.method,
-                        'has_headers': bool(request.headers),
-                        'has_json': request.is_json,
-                        'headers_keys': list(request.headers.keys()) if request.headers else []
-                    }
-                }), 401
-            
-            logger.debug(f"License key found for {request.path}: {license_key[:20]}...")
-            
-            # Validate access
-            try:
-                from redline.auth.access_control import access_controller
-                is_valid, error_msg, license_info = access_controller.validate_access(license_key)
 
-                if not is_valid:
-                    from flask import jsonify
-                    logger.warning(f"Access denied for {request.path}: {error_msg} (license_key: {license_key[:20] + '...' if license_key else 'None'})")
-                    # Include more debugging info for pagination requests
-                    debug_info = {}
-                    if request.path == '/data/load' and request.method == 'POST':
-                        debug_info = {
-                            'path': request.path,
-                            'method': request.method,
-                            'has_license_in_header': bool(request.headers.get('X-License-Key')),
-                            'has_license_in_body': bool(request.get_json(silent=True) and request.get_json(silent=True).get('license_key')),
-                            'content_type': request.headers.get('Content-Type', 'N/A')
-                        }
-                    return jsonify({
-                        'error': error_msg or 'Access denied',
-                        'code': 'INSUFFICIENT_HOURS' if 'hours' in (error_msg or '').lower() else 'INVALID_LICENSE',
-                        'license_key_provided': license_key[:20] + '...' if license_key else None,
-                        'debug': debug_info
-                    }), 403
+        # Require token for all other API endpoints
+        if not token:
+            logger.warning(f"No JWT token provided for {request.path}")
+            return jsonify({
+                'error': 'Authentication required',
+                'message': 'Please provide a valid JWT token in Authorization header or cookie',
+                'code': 'NO_TOKEN'
+            }), 401
 
-                # Store license info in g for use in request
-                g.license_key = license_key
-                g.license_info = license_info
-                logger.debug(f"Access granted for {request.path} with license {license_key[:20]}...")
-            except ImportError:
-                logger.warning("Access controller not available, skipping access check")
-            except Exception as e:
-                logger.error(f"Error in access control: {str(e)}")
-                from flask import jsonify
-                return jsonify({
-                    'error': f'Access control error: {str(e)}',
-                    'code': 'ACCESS_CONTROL_ERROR'
-                }), 500
-    
-    # Usage tracking middleware (Gunicorn-compatible Flask decorator)
-    @app.before_request
-    def track_usage():
-        """Track usage time for API requests"""
-        # Skip tracking for static files and health checks
-        if request.endpoint in ('static', 'health') or request.path.startswith('/static'):
-            return
-        
-        # Get license key from request (header, session, or query param)
-        license_key = (
-            request.headers.get('X-License-Key') or
-            request.args.get('license_key') or
-            (request.json.get('license_key') if request.is_json else None) or
-            getattr(g, 'license_key', None)  # Use from access control if available
-        )
-        
-        if not license_key:
-            return  # No license key, skip tracking
-        
-        # Get or create session
-        usage_tracker = app.config.get('usage_tracker')
-        if not usage_tracker:
-            return
-        
-        # Track usage per license key (session-independent)
-        # This ensures hours are deducted even if sessions don't persist
-        from datetime import datetime
-        now = datetime.now()
-        last_deduction = usage_tracker.last_deduction_time.get(license_key)
-        
-        if last_deduction is None:
-            # First time tracking this license, initialize
-            usage_tracker.last_deduction_time[license_key] = now
-            # Create session for logging purposes
-            session_id = usage_tracker.start_session(license_key)
-            g.session_id = session_id
-        else:
-            # Check if enough time has passed since last deduction
-            time_since_deduction = (now - last_deduction).total_seconds()
-            
-            if time_since_deduction >= usage_tracker.check_interval:
-                # Enough time has passed, deduct hours
-                hours_used = time_since_deduction / 3600.0
-                usage_tracker._deduct_hours(license_key, hours_used, None)
-                # Update last deduction time
-                usage_tracker.last_deduction_time[license_key] = now
-            
-            # Get or create session ID for logging
-            session_id = request.headers.get('X-Session-ID')
-            if not session_id:
-                session_id = usage_tracker.start_session(license_key)
-            else:
-                # Try to update existing session
-                updated = usage_tracker.update_session(session_id)
-                if not updated:
-                    # Session doesn't exist, create new one
-                    session_id = usage_tracker.start_session(license_key)
-            g.session_id = session_id
-        
-        # Log access to persistent storage
-        try:
-            from redline.database.usage_storage import usage_storage
-            if usage_storage:
-                usage_storage.log_access(
-                    license_key=license_key,
-                    endpoint=request.endpoint or request.path,
-                    method=request.method,
-                    session_id=session_id,
-                    ip_address=request.remote_addr,
-                    user_agent=request.headers.get('User-Agent')
-                )
-        except Exception as e:
-            logger.debug(f"Failed to log access: {str(e)}")
-    
-    # Add cache headers to static files and session headers
+        # Verify token and get user
+        user = auth_mgr.get_user_from_token(token)
+
+        if not user:
+            logger.warning(f"Invalid or expired token for {request.path}")
+            return jsonify({
+                'error': 'Invalid or expired token',
+                'message': 'Please log in again',
+                'code': 'INVALID_TOKEN'
+            }), 401
+
+        # Check subscription status
+        subscription_status = user.get('subscription_status', 'inactive')
+
+        if subscription_status not in ['active', 'trialing']:
+            logger.warning(f"User {user.get('email')} has inactive subscription: {subscription_status}")
+            return jsonify({
+                'error': 'No active subscription',
+                'message': 'Please subscribe to access VarioSync',
+                'code': 'INACTIVE_SUBSCRIPTION',
+                'subscription_status': subscription_status
+            }), 403
+
+        # Store user context in g for use in routes
+        g.user_id = user['id']
+        g.email = user['email']
+        g.stripe_customer_id = user.get('stripe_customer_id')
+        g.subscription_status = subscription_status
+        g.user = user
+
+        logger.debug(f"Authenticated user {g.email} for {request.path}")
+
+    # Add cache headers to static files
     @app.after_request
     def add_response_headers(response):
-        """Add cache control headers and session ID to responses."""
-        # Add session ID header
-        if hasattr(g, 'session_id'):
-            response.headers['X-Session-ID'] = g.session_id
-        
+        """Add cache control headers to responses."""
         # Add cache headers for static files
         if request.endpoint == 'static':
             if '.min.' in request.path:
@@ -431,7 +312,9 @@ def create_app():
     from redline.web.routes.payments import payments_bp
     from redline.web.routes.user_data import user_data_bp
     from redline.web.routes.s3_upload import s3_upload_bp
-    
+    from redline.web.routes.auth import auth_bp
+    from redline.web.routes.processing import processing_bp
+
     app.register_blueprint(main_bp)
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(data_bp, url_prefix='/data')
@@ -445,6 +328,8 @@ def create_app():
     app.register_blueprint(payments_bp, url_prefix='/payments')
     app.register_blueprint(user_data_bp, url_prefix='/user-data')
     app.register_blueprint(s3_upload_bp, url_prefix='/s3-upload')
+    app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(processing_bp, url_prefix='/processing')
     
     # Apply rate limits to specific routes after blueprint registration
     if limiter:

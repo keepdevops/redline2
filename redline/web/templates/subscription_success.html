@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}Subscription Successful - REDLINE{% endblock %}
+
+{% block page_title %}Welcome to REDLINE!{% endblock %}
+{% block page_subtitle %}Your subscription is now active{% endblock %}
+
+{% block extra_css %}
+<style>
+    .success-card {
+        background: linear-gradient(135deg, var(--success-color) 0%, #28a745 100%);
+        border-radius: 15px;
+        padding: 50px;
+        color: var(--text-white);
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .success-icon {
+        font-size: 5rem;
+        margin-bottom: 20px;
+        animation: scaleIn 0.5s ease;
+    }
+
+    @keyframes scaleIn {
+        from {
+            transform: scale(0);
+            opacity: 0;
+        }
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    .info-box {
+        background-color: rgba(255, 255, 255, 0.15);
+        border-radius: 10px;
+        padding: 20px;
+        margin: 20px 0;
+    }
+
+    .info-box h5 {
+        color: var(--text-white);
+        margin-bottom: 10px;
+    }
+
+    .action-btn {
+        background-color: var(--text-white);
+        color: var(--success-color);
+        padding: 15px 30px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border: none;
+        border-radius: 50px;
+        margin: 10px;
+        transition: all 0.3s ease;
+    }
+
+    .action-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    .next-steps {
+        background-color: var(--light-color);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 30px;
+        margin-top: 30px;
+    }
+
+    .next-steps h4 {
+        color: var(--primary-color);
+        margin-bottom: 20px;
+    }
+
+    .step-item {
+        display: flex;
+        align-items: center;
+        padding: 15px;
+        margin-bottom: 15px;
+        background-color: var(--light-color);
+        border-left: 4px solid var(--success-color);
+    }
+
+    .step-number {
+        background-color: var(--success-color);
+        color: var(--text-white);
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        margin-right: 20px;
+        flex-shrink: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10 col-xl-8">
+
+        <!-- Success Card -->
+        <div class="success-card mb-4">
+            <div class="success-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h2>Subscription Activated!</h2>
+            <p class="lead">Thank you for subscribing to REDLINE</p>
+
+            <div class="info-box">
+                <h5><i class="fas fa-info-circle me-2"></i>Your Subscription Details</h5>
+                <p class="mb-0">
+                    <strong>Billing:</strong> Monthly (usage-based)<br>
+                    <strong>Rate:</strong> $5 per hour<br>
+                    <strong>Status:</strong> <span class="badge bg-light text-success">Active</span>
+                </p>
+            </div>
+
+            <p class="mt-4">You can start using REDLINE immediately!</p>
+
+            <div class="mt-4">
+                <a href="{{ url_for('main.dashboard') }}" class="btn action-btn">
+                    <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
+                </a>
+                <a href="https://billing.stripe.com/p/login/test_xyz" target="_blank" class="btn action-btn">
+                    <i class="fas fa-credit-card me-2"></i>Manage Billing
+                </a>
+            </div>
+        </div>
+
+        <!-- Next Steps -->
+        <div class="next-steps">
+            <h4><i class="fas fa-list-check me-2"></i>Next Steps</h4>
+
+            <div class="step-item">
+                <div class="step-number">1</div>
+                <div>
+                    <strong>Access Your Dashboard</strong>
+                    <p class="mb-0 text-muted">Navigate to the dashboard to upload and process your first dataset</p>
+                </div>
+            </div>
+
+            <div class="step-item">
+                <div class="step-number">2</div>
+                <div>
+                    <strong>Upload Your Data</strong>
+                    <p class="mb-0 text-muted">Upload CSV, Excel, Parquet, or any supported format</p>
+                </div>
+            </div>
+
+            <div class="step-item">
+                <div class="step-number">3</div>
+                <div>
+                    <strong>Process & Convert</strong>
+                    <p class="mb-0 text-muted">Use DuckDB-powered analytics to clean, merge, and convert your data</p>
+                </div>
+            </div>
+
+            <div class="step-item">
+                <div class="step-number">4</div>
+                <div>
+                    <strong>Monitor Usage</strong>
+                    <p class="mb-0 text-muted">Track your usage in real-time from the dashboard</p>
+                </div>
+            </div>
+
+            <div class="step-item">
+                <div class="step-number">5</div>
+                <div>
+                    <strong>Manage Subscription</strong>
+                    <p class="mb-0 text-muted">Update payment methods or cancel anytime via the Stripe Customer Portal</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Additional Info -->
+        <div class="alert alert-info mt-4">
+            <h5 class="alert-heading"><i class="fas fa-envelope me-2"></i>Check Your Email</h5>
+            <p class="mb-0">
+                We've sent a confirmation email with your subscription details and a link to manage your billing.
+                You'll receive monthly invoices showing your usage and charges.
+            </p>
+        </div>
+
+        <div class="text-center mt-4">
+            <p class="text-muted">
+                <i class="fas fa-question-circle me-1"></i>
+                Need help? <a href="{{ url_for('main.help') }}">Visit our Help Center</a> or contact support.
+            </p>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Confetti animation (optional - requires canvas-confetti library)
+// You can add this library via CDN if desired
+console.log('Subscription successful!');
+
+// Save subscription status to localStorage
+localStorage.setItem('redline_subscription_status', 'active');
+localStorage.setItem('redline_subscription_date', new Date().toISOString());
+
+// Get session_id from URL if available
+const urlParams = new URLSearchParams(window.location.search);
+const sessionId = urlParams.get('session_id');
+if (sessionId) {
+    console.log('Stripe session ID:', sessionId);
+    // You can use this to fetch more details from your backend if needed
+}
+</script>
+{% endblock %}

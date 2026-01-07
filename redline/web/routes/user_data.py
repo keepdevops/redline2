@@ -4,7 +4,7 @@ User Data Routes
 Handles user-specific data access, file management, and storage
 """
 
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, request, jsonify, send_file, g
 import logging
 import os
 from typing import Optional
@@ -19,28 +19,23 @@ except ImportError:
 user_data_bp = Blueprint('user_data', __name__)
 logger = logging.getLogger(__name__)
 
-def get_license_key() -> Optional[str]:
-    """Extract license key from request"""
-    return (
-        request.headers.get('X-License-Key') or
-        request.args.get('license_key') or
-        request.form.get('license_key') or  # For form data (file uploads)
-        (request.json.get('license_key') if request.is_json else None)
-    )
+def get_user_id() -> Optional[str]:
+    """Extract user_id from Flask g (set by auth middleware)"""
+    return getattr(g, 'user_id', None)
 
 @user_data_bp.route('/files', methods=['GET'])
 def list_user_files():
     """List all files for the authenticated user"""
     try:
-        license_key = get_license_key()
-        if not license_key:
-            return jsonify({'error': 'License key is required'}), 400
-        
+        user_id = get_user_id()
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
+
         if not STORAGE_AVAILABLE:
             return jsonify({'error': 'User storage not available'}), 503
-        
+
         file_type = request.args.get('type')
-        files = user_storage.list_files(license_key, file_type=file_type)
+        files = user_storage.list_files(user_id, file_type=file_type)
         
         return jsonify({
             'success': True,
@@ -56,9 +51,9 @@ def list_user_files():
 def upload_file():
     """Upload a file for the user"""
     try:
-        license_key = get_license_key()
-        if not license_key:
-            return jsonify({'error': 'License key is required'}), 400
+        user_id = get_user_id()
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
         
         if not STORAGE_AVAILABLE:
             return jsonify({'error': 'User storage not available'}), 503
@@ -77,7 +72,7 @@ def upload_file():
         
         # Save file
         result = user_storage.save_file(
-            license_key=license_key,
+            user_id=user_id,
             file_data=file_data,
             filename=filename,
             file_type=file_type,
@@ -100,14 +95,14 @@ def upload_file():
 def get_file_info(file_id: int):
     """Get file information"""
     try:
-        license_key = get_license_key()
-        if not license_key:
-            return jsonify({'error': 'License key is required'}), 400
+        user_id = get_user_id()
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
         
         if not STORAGE_AVAILABLE:
             return jsonify({'error': 'User storage not available'}), 503
         
-        file_info = user_storage.get_file(license_key, file_id)
+        file_info = user_storage.get_file(user_id, file_id)
         
         if not file_info:
             return jsonify({'error': 'File not found'}), 404
@@ -125,14 +120,14 @@ def get_file_info(file_id: int):
 def download_file(file_id: int):
     """Download a file"""
     try:
-        license_key = get_license_key()
-        if not license_key:
-            return jsonify({'error': 'License key is required'}), 400
+        user_id = get_user_id()
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
         
         if not STORAGE_AVAILABLE:
             return jsonify({'error': 'User storage not available'}), 503
         
-        file_info = user_storage.get_file(license_key, file_id)
+        file_info = user_storage.get_file(user_id, file_id)
         
         if not file_info or not file_info.get('exists'):
             return jsonify({'error': 'File not found'}), 404
@@ -151,14 +146,14 @@ def download_file(file_id: int):
 def list_data_tables():
     """List all data tables for the user"""
     try:
-        license_key = get_license_key()
-        if not license_key:
-            return jsonify({'error': 'License key is required'}), 400
+        user_id = get_user_id()
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
         
         if not STORAGE_AVAILABLE:
             return jsonify({'error': 'User storage not available'}), 503
         
-        tables = user_storage.list_data_tables(license_key)
+        tables = user_storage.list_data_tables(user_id)
         
         return jsonify({
             'success': True,
@@ -174,14 +169,14 @@ def list_data_tables():
 def get_storage_stats():
     """Get storage statistics for the user"""
     try:
-        license_key = get_license_key()
-        if not license_key:
-            return jsonify({'error': 'License key is required'}), 400
+        user_id = get_user_id()
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
         
         if not STORAGE_AVAILABLE:
             return jsonify({'error': 'User storage not available'}), 503
         
-        stats = user_storage.get_storage_stats(license_key)
+        stats = user_storage.get_storage_stats(user_id)
         
         return jsonify({
             'success': True,

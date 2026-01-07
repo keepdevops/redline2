@@ -1,0 +1,166 @@
+# syntax=docker/dockerfile:1
+# VarioSync Cloud-Native Stack
+# Integrated with: Render + Modal + Supabase + Stripe + Cloudflare R2/S3 + DuckDB
+# Multi-stage build with optimized dependencies for production
+
+# ============================================
+# Stage 1: Builder - Install dependencies
+# ============================================
+FROM python:3.11-slim AS builder
+
+# Set build arguments for version pinning
+ARG DUCKDB_VERSION=0.10.0
+ARG STRIPE_VERSION=7.11.0
+ARG SUPABASE_VERSION=2.3.0
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_DEFAULT_TIMEOUT=100
+
+# Install build dependencies
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    libpq-dev \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install Python dependencies with cache mount
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip>=25.3 setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt && \
+    # Install cloud service SDKs
+    pip install --no-cache-dir \
+        duckdb>=0.10.0 \
+        stripe>=7.11.0 \
+        supabase>=2.3.0 \
+        boto3>=1.34.0 \
+        modal>=0.56.0 \
+        pandas>=2.1.0 \
+        pyarrow>=15.0.0 \
+        fastparquet>=2024.2.0 \
+        openpyxl>=3.1.0 \
+        psycopg2-binary>=2.9.9 && \
+    echo "✅ Installed all cloud dependencies"
+
+# Copy application code
+COPY . /app
+
+# Clean up unnecessary files to reduce image size
+RUN find . -type f -name "*.pyc" -delete && \
+    find . -type d -name "__pycache__" -delete && \
+    find . -type d -name ".git" -exec rm -rf {} + 2>/dev/null || true && \
+    find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true && \
+    find . -type f -name ".DS_Store" -delete && \
+    echo "✅ Cleaned up unnecessary files"
+
+# ============================================
+# Stage 2: Runtime - Minimal production image
+# ============================================
+FROM python:3.11-slim AS runtime
+
+# Set environment variables for production
+# Cloud service variables should be set at runtime via environment
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONOPTIMIZE=2 \
+    FLASK_APP=web_app.py \
+    FLASK_ENV=production \
+    GUNICORN_WORKERS=1 \
+    GUNICORN_THREADS=4 \
+    GUNICORN_TIMEOUT=300 \
+    VARIOSYNC_VERSION=3.0.0 \
+    # Cloud Storage Configuration
+    USE_S3_STORAGE=true \
+    # DuckDB Configuration
+    DUCKDB_THREADS=4 \
+    DUCKDB_MEMORY_LIMIT=2GB \
+    # Security
+    CURL_IMPERSONATE=0
+
+# Install runtime dependencies only
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    libpq5 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* && \
+    echo "✅ Installed runtime dependencies"
+
+# Create app user for security (don't run as root)
+RUN useradd -m -u 1000 -s /bin/bash appuser && \
+    echo "✅ Created non-root user"
+
+# Set working directory
+WORKDIR /app
+
+# Copy installed packages from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy application code with proper ownership
+COPY --chown=appuser:appuser --from=builder /app /app
+
+# Create necessary directories for temporary data
+# Note: All persistent data goes to S3/R2, not local volumes
+RUN mkdir -p \
+    /app/logs \
+    /tmp/variosync \
+    /tmp/duckdb \
+    && chown -R appuser:appuser /app /tmp/variosync /tmp/duckdb && \
+    echo "✅ Created application directories"
+
+# Switch to non-root user
+USER appuser
+
+# Expose web port (Render uses PORT environment variable)
+EXPOSE 8080
+
+# Health check endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Start the web application with Gunicorn
+# Note: Render will set PORT environment variable
+CMD gunicorn \
+    --bind 0.0.0.0:${PORT:-8080} \
+    --workers ${GUNICORN_WORKERS:-1} \
+    --threads ${GUNICORN_THREADS:-4} \
+    --timeout ${GUNICORN_TIMEOUT:-300} \
+    --worker-class gthread \
+    --worker-tmp-dir /dev/shm \
+    --access-logfile - \
+    --error-logfile - \
+    --log-level info \
+    --preload \
+    "web_app:create_app()"
+
+# Labels for metadata
+LABEL maintainer="VarioSync Team <keepdevops@gmail.com>" \
+      version="3.0.0" \
+      description="VarioSync Cloud-Native Stack: Render + Modal + Supabase + Stripe + R2/S3 + DuckDB" \
+      architecture="cloud-native" \
+      services="render,modal,supabase,stripe,cloudflare-r2" \
+      storage="s3,r2,supabase-postgres" \
+      processing="modal-serverless,duckdb" \
+      formats="csv,txt,parquet,feather,excel,json" \
+      authentication="supabase-jwt" \
+      payments="stripe-subscriptions-metered" \
+      features="jwt-auth,subscription-billing,cloud-storage,serverless-processing" \
+      deployment="render.com" \
+      license="proprietary" \
+      build-date="2026-01-07"

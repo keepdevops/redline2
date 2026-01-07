@@ -5,32 +5,58 @@ let currentData = null;
 let currentFilters = {};
 let isLoading = false;
 
-// License key management (persistent across all pages)
-const LICENSE_KEY_STORAGE = 'variosync_license_key';
+// Supabase Auth Storage Keys
+const SUPABASE_TOKEN_STORAGE = 'variosync_auth_token';
+const SUPABASE_USER_STORAGE = 'variosync_user_data';
 
-// Get stored license key
-function getStoredLicenseKey() {
-    // Use global getLicenseKey if available (from base.html)
-    if (typeof window.getLicenseKey === 'function') {
-        return window.getLicenseKey();
-    }
-    // Fallback to direct localStorage access
-    return localStorage.getItem(LICENSE_KEY_STORAGE) || window.VARIOSYNC_LICENSE_KEY;
+// Get stored JWT token
+function getStoredAuthToken() {
+    return localStorage.getItem(SUPABASE_TOKEN_STORAGE);
 }
 
-// Save license key to localStorage
-function saveLicenseKey(licenseKey) {
-    if (licenseKey && licenseKey.trim()) {
-        localStorage.setItem(LICENSE_KEY_STORAGE, licenseKey.trim());
-        // Dispatch custom event so other scripts can listen
-        window.dispatchEvent(new CustomEvent('licenseKeyUpdated', { detail: { licenseKey: licenseKey.trim() } }));
+// Get stored user data
+function getStoredUser() {
+    const userData = localStorage.getItem(SUPABASE_USER_STORAGE);
+    if (userData) {
+        try {
+            return JSON.parse(userData);
+        } catch (e) {
+            console.error('Failed to parse user data:', e);
+            return null;
+        }
+    }
+    return null;
+}
+
+// Save auth token to localStorage
+function saveAuthToken(token) {
+    if (token && token.trim()) {
+        localStorage.setItem(SUPABASE_TOKEN_STORAGE, token.trim());
+        window.dispatchEvent(new CustomEvent('authTokenUpdated', { detail: { token: token.trim() } }));
     }
 }
 
-// Remove license key (logout)
-function removeLicenseKey() {
-    localStorage.removeItem(LICENSE_KEY_STORAGE);
-    window.dispatchEvent(new CustomEvent('licenseKeyUpdated', { detail: { licenseKey: null } }));
+// Save user data to localStorage
+function saveUserData(user) {
+    if (user) {
+        localStorage.setItem(SUPABASE_USER_STORAGE, JSON.stringify(user));
+        window.dispatchEvent(new CustomEvent('userDataUpdated', { detail: { user } }));
+    }
+}
+
+// Clear auth data (logout)
+function clearAuthData() {
+    localStorage.removeItem(SUPABASE_TOKEN_STORAGE);
+    localStorage.removeItem(SUPABASE_USER_STORAGE);
+    window.dispatchEvent(new CustomEvent('authTokenUpdated', { detail: { token: null } }));
+    window.dispatchEvent(new CustomEvent('userDataUpdated', { detail: { user: null } }));
+}
+
+// Check if user is authenticated
+function isAuthenticated() {
+    const token = getStoredAuthToken();
+    const user = getStoredUser();
+    return !!(token && user);
 }
 
 // Utility functions
@@ -91,21 +117,28 @@ const api = {
             },
         };
 
-        // Auto-add license key to headers if available
-        const licenseKey = getStoredLicenseKey();
-        if (licenseKey) {
-            defaultOptions.headers['X-License-Key'] = licenseKey;
+        // Auto-add JWT token to headers if available
+        const authToken = getStoredAuthToken();
+        if (authToken) {
+            defaultOptions.headers['Authorization'] = `Bearer ${authToken}`;
         }
 
         const finalOptions = { ...defaultOptions, ...options };
-        
-        // Ensure license key header is set (don't override if explicitly provided)
-        if (licenseKey && !finalOptions.headers['X-License-Key']) {
-            finalOptions.headers['X-License-Key'] = licenseKey;
+
+        // Ensure Authorization header is set (don't override if explicitly provided)
+        if (authToken && !finalOptions.headers['Authorization']) {
+            finalOptions.headers['Authorization'] = `Bearer ${authToken}`;
         }
         
         return fetch(url, finalOptions)
             .then(response => {
+                // Handle 401 Unauthorized - redirect to login
+                if (response.status === 401) {
+                    clearAuthData();
+                    window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
+                    throw new Error('Session expired. Please log in again.');
+                }
+
                 if (!response.ok) {
                     // Safari-compatible error handling - use Promise chains instead of async/await
                     // Read response body once and parse it
@@ -476,18 +509,14 @@ const fileManager = {
     uploadFile: function(file, onProgress = null) {
         const formData = new FormData();
         formData.append('file', file);
-        
-        // Get license key and add to form data
-        const licenseKey = getStoredLicenseKey();
-        if (licenseKey) {
-            formData.append('license_key', licenseKey);
-        }
-        
+
+        // Get JWT token for authorization
+        const authToken = getStoredAuthToken();
         const headers = {};
-        if (licenseKey) {
-            headers['X-License-Key'] = licenseKey;
+        if (authToken) {
+            headers['Authorization'] = `Bearer ${authToken}`;
         }
-        
+
         return fetch('/api/upload', {
             method: 'POST',
             headers: headers,
@@ -495,6 +524,13 @@ const fileManager = {
         })
         .then(async response => {
             if (!response.ok) {
+                // Handle 401 Unauthorized - redirect to login
+                if (response.status === 401) {
+                    clearAuthData();
+                    window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
+                    throw new Error('Session expired. Please log in again.');
+                }
+
                 // Use same error handling as main API call
                 let errorMessage = `HTTP error! status: ${response.status}`;
                 try {
@@ -855,6 +891,105 @@ function refreshCurrentData() {
         });
 }
 
+// Authentication helper functions
+const authHelper = {
+    // Get current user
+    getUser: function() {
+        return getStoredUser();
+    },
+
+    // Get auth token
+    getToken: function() {
+        return getStoredAuthToken();
+    },
+
+    // Check if authenticated
+    isAuthenticated: function() {
+        return isAuthenticated();
+    },
+
+    // Login with email and password
+    login: function(email, password) {
+        return fetch('/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email, password })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.access_token && data.user) {
+                saveAuthToken(data.access_token);
+                saveUserData(data.user);
+                return data;
+            } else {
+                throw new Error(data.error || 'Login failed');
+            }
+        });
+    },
+
+    // Sign up new user
+    signup: function(email, password, name) {
+        return fetch('/auth/signup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email, password, name })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.access_token && data.user) {
+                saveAuthToken(data.access_token);
+                saveUserData(data.user);
+                return data;
+            } else {
+                throw new Error(data.error || 'Signup failed');
+            }
+        });
+    },
+
+    // Logout
+    logout: function() {
+        return fetch('/auth/logout', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${getStoredAuthToken()}`
+            }
+        })
+        .finally(() => {
+            clearAuthData();
+            window.location.href = '/auth/login';
+        });
+    },
+
+    // Refresh token
+    refreshToken: function() {
+        const token = getStoredAuthToken();
+        if (!token) return Promise.reject(new Error('No token to refresh'));
+
+        return fetch('/auth/refresh', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.access_token) {
+                saveAuthToken(data.access_token);
+                if (data.user) {
+                    saveUserData(data.user);
+                }
+                return data;
+            } else {
+                throw new Error('Token refresh failed');
+            }
+        });
+    }
+};
+
 // Export global functions
 window.VARIOSYNC = {
     utils: utils,
@@ -864,9 +999,17 @@ window.VARIOSYNC = {
     fileManager: fileManager,
     chartHelper: chartHelper,
     themeSystem: themeSystem,
+    authHelper: authHelper,
     showLoading: ui.showLoading,
     hideLoading: ui.hideLoading,
     showToast: ui.showToast,
     showModal: ui.showModal,
-    confirm: ui.confirm
+    confirm: ui.confirm,
+    // Auth shortcuts
+    getUser: authHelper.getUser,
+    getToken: authHelper.getToken,
+    isAuthenticated: authHelper.isAuthenticated,
+    login: authHelper.login,
+    signup: authHelper.signup,
+    logout: authHelper.logout
 };

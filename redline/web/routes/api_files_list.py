@@ -3,7 +3,7 @@ API file listing routes for VarioSync Web GUI
 Handles file listing and metadata
 """
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, g
 import logging
 import os
 from ..utils.api_helpers import rate_limit
@@ -29,10 +29,9 @@ def api_list_files():
     """List available data files via API. Includes local and S3/R2 files."""
     try:
         from flask import request
-        import hashlib
-        
-        # Get license key for user-specific S3/R2 files
-        license_key = request.headers.get('X-License-Key') or request.args.get('license_key')
+
+        # Get user_id for user-specific S3/R2 files
+        user_id = getattr(g, 'user_id', None)
         
         data_dir = os.path.join(os.getcwd(), 'data')
         files = []
@@ -157,11 +156,11 @@ def api_list_files():
             os.environ.get('S3_BUCKET')
         ])
         
-        if use_s3 and has_s3_creds and license_key:
+        if use_s3 and has_s3_creds and user_id:
             try:
                 import boto3
                 from botocore.exceptions import ClientError
-                
+
                 # Configure S3 client
                 endpoint_url = os.environ.get('S3_ENDPOINT_URL')
                 s3_client = boto3.client(
@@ -172,10 +171,9 @@ def api_list_files():
                     endpoint_url=endpoint_url if endpoint_url else None
                 )
                 bucket = os.environ.get('S3_BUCKET')
-                
-                # Get user's S3 prefix
-                key_hash = hashlib.sha256(license_key.encode()).hexdigest()[:16]
-                s3_prefix = f"users/{key_hash}/files/"
+
+                # Get user's S3 prefix (using user_id directly)
+                s3_prefix = f"users/{user_id}/files/"
                 
                 # List objects in S3/R2
                 try:

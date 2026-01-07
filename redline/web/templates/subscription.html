@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}Subscribe to REDLINE{% endblock %}
+
+{% block page_title %}Subscribe to REDLINE{% endblock %}
+{% block page_subtitle %}Usage-based pricing for timeseries data processing{% endblock %}
+
+{% block extra_css %}
+<style>
+    .pricing-card {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        border-radius: 15px;
+        padding: 40px;
+        color: var(--text-white);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .pricing-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .pricing-price {
+        font-size: 3.5rem;
+        font-weight: 700;
+        margin: 20px 0;
+    }
+
+    .pricing-price small {
+        font-size: 1.5rem;
+        font-weight: 400;
+        opacity: 0.9;
+    }
+
+    .feature-list {
+        list-style: none;
+        padding: 0;
+        margin: 30px 0;
+    }
+
+    .feature-list li {
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .feature-list li:last-child {
+        border-bottom: none;
+    }
+
+    .feature-list li i {
+        color: var(--success-color);
+        margin-right: 10px;
+        font-size: 1.2rem;
+    }
+
+    .subscribe-btn {
+        background-color: var(--text-white);
+        color: var(--primary-color);
+        padding: 15px 40px;
+        font-size: 1.2rem;
+        font-weight: 600;
+        border: none;
+        border-radius: 50px;
+        transition: all 0.3s ease;
+    }
+
+    .subscribe-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        background-color: var(--light-color);
+    }
+
+    .subscribe-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .info-card {
+        background-color: var(--light-color);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .info-card h5 {
+        color: var(--primary-color);
+        margin-bottom: 15px;
+    }
+
+    .badge-custom {
+        background-color: var(--success-color);
+        color: var(--text-white);
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .form-control-lg {
+        padding: 15px;
+        font-size: 1.1rem;
+        border-radius: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-7">
+
+        <!-- Pricing Card -->
+        <div class="pricing-card text-center mb-5">
+            <span class="badge-custom">METERED BILLING</span>
+            <h2 class="mt-3">Pay-As-You-Go Pricing</h2>
+            <div class="pricing-price">
+                $5 <small>/ hour</small>
+            </div>
+            <p class="lead">Only pay for what you use. No minimum commitment.</p>
+
+            <ul class="feature-list text-start">
+                <li><i class="fas fa-check-circle"></i> Unlimited file conversions</li>
+                <li><i class="fas fa-check-circle"></i> All data formats supported (CSV, Parquet, JSON, Excel, etc.)</li>
+                <li><i class="fas fa-check-circle"></i> DuckDB-powered analytics</li>
+                <li><i class="fas fa-check-circle"></i> Cloud storage (S3/R2)</li>
+                <li><i class="fas fa-check-circle"></i> Serverless processing on Modal</li>
+                <li><i class="fas fa-check-circle"></i> API access included</li>
+                <li><i class="fas fa-check-circle"></i> Monthly billing based on usage</li>
+                <li><i class="fas fa-check-circle"></i> Cancel anytime</li>
+            </ul>
+
+            <!-- Email Input Form -->
+            <div class="mt-4">
+                <div class="mb-3">
+                    <input
+                        type="email"
+                        class="form-control form-control-lg"
+                        id="emailInput"
+                        placeholder="Enter your email address"
+                        required
+                    >
+                    <small class="text-white-50 d-block mt-2">
+                        <i class="fas fa-lock me-1"></i>Secure checkout powered by Stripe
+                    </small>
+                </div>
+
+                <button
+                    class="btn subscribe-btn w-100"
+                    id="subscribeBtn"
+                    onclick="createSubscription()"
+                >
+                    <i class="fas fa-credit-card me-2"></i>Subscribe Now
+                </button>
+
+                <div id="errorMessage" class="alert alert-danger mt-3 d-none"></div>
+            </div>
+        </div>
+
+        <!-- Info Cards -->
+        <div class="info-card">
+            <h5><i class="fas fa-info-circle me-2"></i>How It Works</h5>
+            <ol class="mb-0">
+                <li>Subscribe with your email address</li>
+                <li>Enter payment details securely via Stripe Checkout</li>
+                <li>Start using REDLINE immediately</li>
+                <li>Usage is tracked automatically (billed monthly)</li>
+                <li>Receive detailed invoices at the end of each billing period</li>
+            </ol>
+        </div>
+
+        <div class="info-card">
+            <h5><i class="fas fa-calculator me-2"></i>Billing Example</h5>
+            <p class="mb-2">If you process data for <strong>2.5 hours</strong> in a month:</p>
+            <p class="mb-0">
+                <strong>Total charge:</strong> 2.5 hours × $5/hour = <span class="text-success"><strong>$12.50</strong></span>
+            </p>
+            <small class="text-muted">
+                You'll only be charged at the end of your billing cycle for actual usage.
+            </small>
+        </div>
+
+        <div class="info-card">
+            <h5><i class="fas fa-shield-alt me-2"></i>Secure & Transparent</h5>
+            <ul class="mb-0">
+                <li>PCI-compliant payment processing via Stripe</li>
+                <li>No hidden fees or surprise charges</li>
+                <li>View usage in real-time</li>
+                <li>Cancel your subscription anytime</li>
+                <li>No cancellation fees</li>
+            </ul>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Stripe configuration
+const STRIPE_PUBLISHABLE_KEY = "{{ config.get('STRIPE_PUBLISHABLE_KEY', '') }}";
+
+function validateEmail(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+}
+
+async function createSubscription() {
+    const emailInput = document.getElementById('emailInput');
+    const subscribeBtn = document.getElementById('subscribeBtn');
+    const errorMessage = document.getElementById('errorMessage');
+
+    const email = emailInput.value.trim();
+
+    // Validate email
+    if (!email) {
+        showError('Please enter your email address');
+        return;
+    }
+
+    if (!validateEmail(email)) {
+        showError('Please enter a valid email address');
+        return;
+    }
+
+    // Disable button and show loading
+    subscribeBtn.disabled = true;
+    subscribeBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Creating checkout session...';
+    errorMessage.classList.add('d-none');
+
+    try {
+        // Call backend to create Stripe Checkout Session
+        const response = await fetch('/payments/create-subscription-checkout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email: email
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to create checkout session');
+        }
+
+        // Redirect to Stripe Checkout
+        if (data.checkout_url) {
+            window.location.href = data.checkout_url;
+        } else {
+            throw new Error('No checkout URL received');
+        }
+
+    } catch (error) {
+        console.error('Error:', error);
+        showError(error.message);
+
+        // Re-enable button
+        subscribeBtn.disabled = false;
+        subscribeBtn.innerHTML = '<i class="fas fa-credit-card me-2"></i>Subscribe Now';
+    }
+}
+
+function showError(message) {
+    const errorMessage = document.getElementById('errorMessage');
+    errorMessage.textContent = message;
+    errorMessage.classList.remove('d-none');
+}
+
+// Allow Enter key to submit
+document.getElementById('emailInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        createSubscription();
+    }
+});
+</script>
+{% endblock %}

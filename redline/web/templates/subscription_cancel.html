@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}Subscription Cancelled - REDLINE{% endblock %}
+
+{% block page_title %}Checkout Cancelled{% endblock %}
+{% block page_subtitle %}Your subscription was not completed{% endblock %}
+
+{% block extra_css %}
+<style>
+    .cancel-card {
+        background: linear-gradient(135deg, var(--warning-color) 0%, #ffc107 100%);
+        border-radius: 15px;
+        padding: 50px;
+        color: var(--text-white);
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .cancel-icon {
+        font-size: 5rem;
+        margin-bottom: 20px;
+    }
+
+    .info-box {
+        background-color: rgba(255, 255, 255, 0.15);
+        border-radius: 10px;
+        padding: 20px;
+        margin: 20px 0;
+    }
+
+    .action-btn {
+        background-color: var(--text-white);
+        color: var(--warning-color);
+        padding: 15px 30px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border: none;
+        border-radius: 50px;
+        margin: 10px;
+        transition: all 0.3s ease;
+    }
+
+    .action-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    .action-btn.secondary {
+        background-color: transparent;
+        border: 2px solid var(--text-white);
+    }
+
+    .faq-section {
+        background-color: var(--light-color);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 30px;
+        margin-top: 30px;
+    }
+
+    .faq-section h4 {
+        color: var(--primary-color);
+        margin-bottom: 20px;
+    }
+
+    .faq-item {
+        margin-bottom: 20px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .faq-item:last-child {
+        border-bottom: none;
+    }
+
+    .faq-item h6 {
+        color: var(--primary-color);
+        margin-bottom: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10 col-xl-8">
+
+        <!-- Cancel Card -->
+        <div class="cancel-card mb-4">
+            <div class="cancel-icon">
+                <i class="fas fa-times-circle"></i>
+            </div>
+            <h2>Checkout Cancelled</h2>
+            <p class="lead">You cancelled the subscription checkout process</p>
+
+            <div class="info-box">
+                <p class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    No charges were made to your account.
+                </p>
+            </div>
+
+            <p class="mt-3">You can try again anytime or explore our features before subscribing.</p>
+
+            <div class="mt-4">
+                <a href="{{ url_for('payments.subscription') }}" class="btn action-btn">
+                    <i class="fas fa-redo me-2"></i>Try Again
+                </a>
+                <a href="{{ url_for('main.index') }}" class="btn action-btn secondary">
+                    <i class="fas fa-home me-2"></i>Back to Home
+                </a>
+            </div>
+        </div>
+
+        <!-- FAQ Section -->
+        <div class="faq-section">
+            <h4><i class="fas fa-question-circle me-2"></i>Common Questions</h4>
+
+            <div class="faq-item">
+                <h6><i class="fas fa-chevron-right me-2 text-primary"></i>Why should I subscribe?</h6>
+                <p class="mb-0 text-muted">
+                    REDLINE provides powerful timeseries data processing with DuckDB, cloud storage,
+                    and support for 10+ file formats. You only pay for what you use with transparent
+                    metered billing at $5/hour.
+                </p>
+            </div>
+
+            <div class="faq-item">
+                <h6><i class="fas fa-chevron-right me-2 text-primary"></i>Is there a minimum commitment?</h6>
+                <p class="mb-0 text-muted">
+                    No! There's no minimum commitment. You're billed monthly based on actual usage,
+                    and you can cancel anytime without fees.
+                </p>
+            </div>
+
+            <div class="faq-item">
+                <h6><i class="fas fa-chevron-right me-2 text-primary"></i>What payment methods do you accept?</h6>
+                <p class="mb-0 text-muted">
+                    We accept all major credit cards (Visa, Mastercard, American Express) and debit cards
+                    through our secure Stripe payment processor.
+                </p>
+            </div>
+
+            <div class="faq-item">
+                <h6><i class="fas fa-chevron-right me-2 text-primary"></i>Can I try before subscribing?</h6>
+                <p class="mb-0 text-muted">
+                    Yes! You can explore the dashboard and features. When you're ready to process data,
+                    simply subscribe to activate full access.
+                </p>
+            </div>
+
+            <div class="faq-item">
+                <h6><i class="fas fa-chevron-right me-2 text-primary"></i>How do I track my usage?</h6>
+                <p class="mb-0 text-muted">
+                    Your dashboard shows real-time usage tracking. You'll also receive detailed monthly
+                    invoices from Stripe showing exactly what you used and the charges.
+                </p>
+            </div>
+
+            <div class="faq-item">
+                <h6><i class="fas fa-chevron-right me-2 text-primary"></i>Is my payment information secure?</h6>
+                <p class="mb-0 text-muted">
+                    Absolutely! All payments are processed securely through Stripe, a PCI-compliant payment
+                    processor. We never store your credit card information.
+                </p>
+            </div>
+        </div>
+
+        <!-- Contact Support -->
+        <div class="alert alert-info mt-4">
+            <h5 class="alert-heading"><i class="fas fa-headset me-2"></i>Need Help?</h5>
+            <p class="mb-0">
+                If you encountered any issues during checkout or have questions about pricing,
+                please <a href="{{ url_for('main.help') }}" class="alert-link">contact our support team</a>.
+                We're here to help!
+            </p>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Log cancellation for analytics (optional)
+console.log('User cancelled subscription checkout');
+
+// Clear any temporary data
+sessionStorage.removeItem('checkout_email');
+</script>
+{% endblock %}

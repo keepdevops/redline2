@@ -3,7 +3,7 @@ Single file loading routes for VarioSync Web GUI
 Handles loading individual files
 """
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 import logging
 import os
 from ..utils.file_loading import (
@@ -90,16 +90,15 @@ def load_data():
             ])
             
             if use_s3 and has_s3_creds:
-                # Get license key for user-specific S3/R2 files
-                license_key = request.headers.get('X-License-Key') or (data.get('license_key') if isinstance(data, dict) else None)
-                
-                if license_key:
+                # Get user_id for user-specific S3/R2 files
+                user_id = getattr(g, 'user_id', None)
+
+                if user_id:
                     try:
                         import boto3
                         from botocore.exceptions import ClientError
-                        import hashlib
                         import tempfile
-                        
+
                         # Configure S3 client
                         endpoint_url = os.environ.get('S3_ENDPOINT_URL')
                         s3_client = boto3.client(
@@ -110,10 +109,9 @@ def load_data():
                             endpoint_url=endpoint_url if endpoint_url else None
                         )
                         bucket = os.environ.get('S3_BUCKET')
-                        
-                        # Get user's S3 prefix
-                        key_hash = hashlib.sha256(license_key.encode()).hexdigest()[:16]
-                        s3_key = f"users/{key_hash}/files/{filename}"
+
+                        # Get user's S3 prefix (using user_id instead of license key hash)
+                        s3_key = f"users/{user_id}/files/{filename}"
                         
                         # Try to download from S3/R2
                         try:

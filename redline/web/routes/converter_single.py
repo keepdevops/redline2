@@ -3,7 +3,7 @@ Single file conversion routes for VarioSync Web GUI.
 Handles individual file format conversion operations.
 """
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 import logging
 import os
 import pandas as pd
@@ -287,25 +287,21 @@ def convert_file():
         # Get file info
         file_stat = os.stat(output_path)
         
-        # Save to user storage if license key provided
-        license_key = (
-            request.headers.get('X-License-Key') or
-            request.args.get('license_key') or
-            data.get('license_key')
-        )
-        
+        # Save to user storage if user authenticated
+        user_id = getattr(g, 'user_id', None)
+
         user_file_id = None
-        if license_key:
+        if user_id:
             try:
                 from redline.storage.user_storage import user_storage, STORAGE_AVAILABLE
                 if STORAGE_AVAILABLE and user_storage:
                     # Read converted file
                     with open(output_path, 'rb') as f:
                         file_data = f.read()
-                    
+
                     # Save to user storage
                     file_info = user_storage.save_file(
-                        license_key=license_key,
+                        user_id=user_id,
                         file_data=file_data,
                         filename=output_filename,
                         file_type=output_format,
@@ -317,7 +313,7 @@ def convert_file():
                         }
                     )
                     user_file_id = file_info.get('file_id')
-                    logger.info(f"Saved converted file to user storage for license {license_key[:8]}...")
+                    logger.info(f"Saved converted file to user storage for user {user_id[:8]}...")
             except Exception as e:
                 logger.warning(f"Failed to save to user storage: {str(e)}")
                 # Don't fail the conversion if storage fails

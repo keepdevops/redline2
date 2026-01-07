@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Login - VarioSync{% endblock %}
+
+{% block page_title %}Login to VarioSync{% endblock %}
+{% block page_subtitle %}Sign in to access your account{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-sign-in-alt fa-3x text-primary mb-3"></i>
+                        <h2 class="h4">Welcome Back</h2>
+                        <p class="text-muted">Enter your credentials to continue</p>
+                    </div>
+
+                    <!-- Login Form -->
+                    <form id="loginForm">
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email Address</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-envelope"></i>
+                                </span>
+                                <input type="email" class="form-control" id="email" name="email" required placeholder="you@example.com" autocomplete="email">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-lock"></i>
+                                </span>
+                                <input type="password" class="form-control" id="password" name="password" required placeholder="Enter your password" autocomplete="current-password">
+                                <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="rememberMe">
+                            <label class="form-check-label" for="rememberMe">
+                                Remember me
+                            </label>
+                        </div>
+
+                        <div id="loginMessage" class="mb-3"></div>
+
+                        <button type="submit" class="btn btn-primary w-100 mb-3" id="loginBtn">
+                            <i class="fas fa-sign-in-alt me-2"></i>Login
+                        </button>
+                    </form>
+
+                    <hr class="my-4">
+
+                    <div class="text-center">
+                        <p class="text-muted mb-2">Don't have an account?</p>
+                        <a href="/auth/signup" class="btn btn-outline-primary w-100">
+                            <i class="fas fa-user-plus me-2"></i>Create Account
+                        </a>
+                    </div>
+
+                    <div class="text-center mt-3">
+                        <small class="text-muted">
+                            <a href="/auth/reset-password" class="text-decoration-none">Forgot password?</a>
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Security Notice -->
+            <div class="alert alert-info mt-3" role="alert">
+                <i class="fas fa-shield-alt me-2"></i>
+                <small>Your connection is secured with SSL encryption. We never store your password in plain text.</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    'use strict';
+
+    const loginForm = document.getElementById('loginForm');
+    const loginBtn = document.getElementById('loginBtn');
+    const loginMessage = document.getElementById('loginMessage');
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
+
+    // Toggle password visibility
+    if (togglePassword) {
+        togglePassword.addEventListener('click', function() {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            this.querySelector('i').classList.toggle('fa-eye');
+            this.querySelector('i').classList.toggle('fa-eye-slash');
+        });
+    }
+
+    // Handle form submission
+    loginForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+
+        if (!email || !password) {
+            showMessage('Please enter both email and password', 'danger');
+            return;
+        }
+
+        // Disable form
+        loginBtn.disabled = true;
+        loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Logging in...';
+
+        // Use the authHelper from main.js
+        if (window.VARIOSYNC && window.VARIOSYNC.login) {
+            window.VARIOSYNC.login(email, password)
+                .then(function(data) {
+                    showMessage('Login successful! Redirecting...', 'success');
+
+                    // Get redirect URL from query parameter or default to dashboard
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const redirect = urlParams.get('redirect') || '/dashboard';
+
+                    setTimeout(function() {
+                        window.location.href = redirect;
+                    }, 1000);
+                })
+                .catch(function(error) {
+                    console.error('Login error:', error);
+                    showMessage(error.message || 'Login failed. Please check your credentials.', 'danger');
+                    loginBtn.disabled = false;
+                    loginBtn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Login';
+                });
+        } else {
+            console.error('VARIOSYNC.login not available');
+            showMessage('Authentication system not loaded. Please refresh the page.', 'danger');
+            loginBtn.disabled = false;
+            loginBtn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Login';
+        }
+    });
+
+    function showMessage(message, type) {
+        const alertClass = type === 'success' ? 'alert-success' : type === 'danger' ? 'alert-danger' : 'alert-info';
+        loginMessage.innerHTML = `<div class="alert ${alertClass}">${message}</div>`;
+
+        if (type === 'success') {
+            setTimeout(function() {
+                loginMessage.innerHTML = '';
+            }, 3000);
+        }
+    }
+
+    // Check if already logged in
+    if (window.VARIOSYNC && window.VARIOSYNC.isAuthenticated && window.VARIOSYNC.isAuthenticated()) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirect = urlParams.get('redirect') || '/dashboard';
+        window.location.href = redirect;
+    }
+})();
+</script>
+{% endblock %}

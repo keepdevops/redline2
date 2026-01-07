@@ -4,7 +4,7 @@ Handles direct uploads to S3/R2 storage, bypassing container storage.
 Supports presigned URLs for browser-based uploads.
 """
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 import logging
 import os
 from datetime import datetime, timedelta
@@ -66,18 +66,16 @@ def get_presigned_url():
         data = request.get_json() or {}
         filename = data.get('filename')
         file_type = data.get('file_type', 'csv')
-        license_key = data.get('license_key') or request.headers.get('X-License-Key')
-        
+        user_id = getattr(g, 'user_id', None)
+
         if not filename:
             return jsonify({'error': 'Filename is required'}), 400
-        
-        if not license_key:
-            return jsonify({'error': 'License key is required'}), 400
-        
-        # Generate S3 key based on license key (hashed for security)
-        import hashlib
-        key_hash = hashlib.sha256(license_key.encode()).hexdigest()[:16]
-        s3_key = f"users/{key_hash}/files/{filename}"
+
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        # Generate S3 key based on user_id
+        s3_key = f"users/{user_id}/files/{filename}"
         
         s3_client = get_s3_client()
         bucket = get_s3_bucket()
@@ -135,15 +133,13 @@ def direct_upload():
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
         
-        license_key = request.headers.get('X-License-Key') or request.form.get('license_key')
-        if not license_key:
-            return jsonify({'error': 'License key is required'}), 400
-        
+        user_id = getattr(g, 'user_id', None)
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
+
         # Generate S3 key
-        import hashlib
-        key_hash = hashlib.sha256(license_key.encode()).hexdigest()[:16]
         filename = file.filename
-        s3_key = f"users/{key_hash}/files/{filename}"
+        s3_key = f"users/{user_id}/files/{filename}"
         
         s3_client = get_s3_client()
         bucket = get_s3_bucket()

@@ -3,7 +3,7 @@ Multiple file loading routes for VarioSync Web GUI
 Handles loading multiple files and file uploads
 """
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 import logging
 import os
 import zipfile
@@ -148,11 +148,9 @@ def upload_file():
                 import boto3
                 from botocore.exceptions import ClientError
                 
-                # Get license key for user isolation
-                license_key = request.headers.get('X-License-Key') or request.form.get('license_key', 'default')
-                import hashlib
-                key_hash = hashlib.sha256(license_key.encode()).hexdigest()[:16]
-                
+                # Get user_id for user isolation
+                user_id = getattr(g, 'user_id', 'anonymous')
+
                 # Configure S3 client
                 endpoint_url = os.environ.get('S3_ENDPOINT_URL')
                 s3_client = boto3.client(
@@ -163,11 +161,11 @@ def upload_file():
                     endpoint_url=endpoint_url if endpoint_url else None
                 )
                 bucket = os.environ.get('S3_BUCKET')
-                
+
                 # Read file data
                 file_data = file.read()
                 filename = file.filename
-                s3_key = f"users/{key_hash}/files/{filename}"
+                s3_key = f"users/{user_id}/files/{filename}"
                 
                 # Upload to S3/R2
                 s3_client.put_object(

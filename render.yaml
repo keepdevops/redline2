@@ -1,0 +1,128 @@
+# Render Blueprint for VarioSync Cloud-Native Stack
+# Deploy to Render.com with one click: https://render.com/deploy
+# Documentation: https://render.com/docs/blueprint-spec
+
+services:
+  # Main Web Service (Flask + Gunicorn)
+  - type: web
+    name: variosync-web
+    env: docker
+    dockerfilePath: ./Dockerfile
+    branch: spring
+    plan: starter  # Change to 'standard' or 'pro' for production
+    region: oregon  # Choose: oregon, frankfurt, singapore, ohio
+
+    # Build Configuration
+    dockerContext: .
+    buildFilter:
+      paths:
+        - redline/**
+        - web_app.py
+        - requirements.txt
+        - Dockerfile
+
+    # Auto-deploy on push to spring branch
+    autoDeploy: true
+
+    # Health check endpoint
+    healthCheckPath: /health
+
+    # Environment Variables (set in Render Dashboard for security)
+    envVars:
+      # Supabase Configuration
+      - key: SUPABASE_URL
+        sync: false  # Set manually in dashboard
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+
+      # Stripe Configuration
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_ID_METERED
+        sync: false
+
+      # Cloudflare R2 / S3 Configuration
+      - key: S3_BUCKET
+        value: variosync-1
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_REGION
+        value: auto
+      - key: USE_S3_STORAGE
+        value: true
+
+      # Modal Configuration
+      - key: MODAL_TOKEN_ID
+        sync: false
+      - key: MODAL_TOKEN_SECRET
+        sync: false
+      - key: MODAL_ENVIRONMENT
+        value: main
+
+      # Flask/Gunicorn Configuration
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_DEBUG
+        value: 0
+      - key: VARIOSYNC_ENV
+        value: production
+      - key: GUNICORN_WORKERS
+        value: 1
+      - key: GUNICORN_THREADS
+        value: 4
+      - key: GUNICORN_TIMEOUT
+        value: 300
+
+      # DuckDB Configuration
+      - key: DUCKDB_THREADS
+        value: 4
+      - key: DUCKDB_MEMORY_LIMIT
+        value: 2GB
+
+      # Application Configuration
+      - key: LOG_LEVEL
+        value: INFO
+      - key: RATE_LIMIT_ENABLED
+        value: true
+      - key: VARIOSYNC_VERSION
+        value: 3.0.0
+
+      # SMTP Configuration (Optional)
+      - key: SMTP_ENABLED
+        value: false
+      - key: SMTP_SERVER
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: FROM_EMAIL
+        sync: false
+
+# Optional: Add databases if needed (for development)
+# Note: Production uses Supabase (external managed database)
+# databases:
+#   - name: variosync-postgres
+#     databaseName: variosync
+#     user: variosync
+#     plan: starter  # 256MB RAM, 1GB storage
+
+# Optional: Add Redis for caching
+# - type: redis
+#   name: variosync-redis
+#   plan: starter  # 25MB RAM
+#   maxmemoryPolicy: allkeys-lru

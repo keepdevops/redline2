@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}Sign Up - VarioSync{% endblock %}
+
+{% block page_title %}Create Your Account{% endblock %}
+{% block page_subtitle %}Start using VarioSync today{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-user-plus fa-3x text-primary mb-3"></i>
+                        <h2 class="h4">Get Started</h2>
+                        <p class="text-muted">Create your free account</p>
+                    </div>
+
+                    <!-- Signup Form -->
+                    <form id="signupForm">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Full Name</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-user"></i>
+                                </span>
+                                <input type="text" class="form-control" id="name" name="name" required placeholder="John Doe" autocomplete="name">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email Address</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-envelope"></i>
+                                </span>
+                                <input type="email" class="form-control" id="email" name="email" required placeholder="you@example.com" autocomplete="email">
+                            </div>
+                            <small class="form-text text-muted">We'll never share your email with anyone else.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-lock"></i>
+                                </span>
+                                <input type="password" class="form-control" id="password" name="password" required placeholder="Create a strong password" autocomplete="new-password" minlength="8">
+                                <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">Minimum 8 characters</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label">Confirm Password</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-lock"></i>
+                                </span>
+                                <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required placeholder="Re-enter your password" autocomplete="new-password">
+                                <button class="btn btn-outline-secondary" type="button" id="toggleConfirmPassword">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="agreeTerms" required>
+                            <label class="form-check-label" for="agreeTerms">
+                                I agree to the <a href="/terms" target="_blank">Terms of Service</a> and <a href="/privacy" target="_blank">Privacy Policy</a>
+                            </label>
+                        </div>
+
+                        <div id="signupMessage" class="mb-3"></div>
+
+                        <button type="submit" class="btn btn-primary w-100 mb-3" id="signupBtn">
+                            <i class="fas fa-user-plus me-2"></i>Create Account
+                        </button>
+                    </form>
+
+                    <hr class="my-4">
+
+                    <div class="text-center">
+                        <p class="text-muted mb-2">Already have an account?</p>
+                        <a href="/auth/login" class="btn btn-outline-primary w-100">
+                            <i class="fas fa-sign-in-alt me-2"></i>Login
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Info Card -->
+            <div class="card mt-3 border-0 bg-light">
+                <div class="card-body">
+                    <h6 class="card-title"><i class="fas fa-gift me-2 text-primary"></i>What you get:</h6>
+                    <ul class="list-unstyled small mb-0">
+                        <li><i class="fas fa-check text-success me-2"></i>Cloud data storage</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Advanced analytics</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Pay-as-you-go pricing</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Secure JWT authentication</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    'use strict';
+
+    const signupForm = document.getElementById('signupForm');
+    const signupBtn = document.getElementById('signupBtn');
+    const signupMessage = document.getElementById('signupMessage');
+    const togglePassword = document.getElementById('togglePassword');
+    const toggleConfirmPassword = document.getElementById('toggleConfirmPassword');
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+
+    // Toggle password visibility
+    if (togglePassword) {
+        togglePassword.addEventListener('click', function() {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            this.querySelector('i').classList.toggle('fa-eye');
+            this.querySelector('i').classList.toggle('fa-eye-slash');
+        });
+    }
+
+    if (toggleConfirmPassword) {
+        toggleConfirmPassword.addEventListener('click', function() {
+            const type = confirmPasswordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            confirmPasswordInput.setAttribute('type', type);
+            this.querySelector('i').classList.toggle('fa-eye');
+            this.querySelector('i').classList.toggle('fa-eye-slash');
+        });
+    }
+
+    // Password match validation
+    confirmPasswordInput.addEventListener('input', function() {
+        if (this.value && this.value !== passwordInput.value) {
+            this.setCustomValidity('Passwords do not match');
+            this.classList.add('is-invalid');
+        } else {
+            this.setCustomValidity('');
+            this.classList.remove('is-invalid');
+        }
+    });
+
+    // Handle form submission
+    signupForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const name = document.getElementById('name').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        const agreeTerms = document.getElementById('agreeTerms').checked;
+
+        // Validation
+        if (!name || !email || !password) {
+            showMessage('Please fill in all required fields', 'danger');
+            return;
+        }
+
+        if (password.length < 8) {
+            showMessage('Password must be at least 8 characters long', 'danger');
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            showMessage('Passwords do not match', 'danger');
+            return;
+        }
+
+        if (!agreeTerms) {
+            showMessage('You must agree to the Terms of Service and Privacy Policy', 'danger');
+            return;
+        }
+
+        // Disable form
+        signupBtn.disabled = true;
+        signupBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Creating account...';
+
+        // Use the authHelper from main.js
+        if (window.VARIOSYNC && window.VARIOSYNC.signup) {
+            window.VARIOSYNC.signup(email, password, name)
+                .then(function(data) {
+                    showMessage('Account created successfully! Redirecting...', 'success');
+
+                    setTimeout(function() {
+                        // Redirect to subscription page after signup
+                        window.location.href = '/payments/subscription';
+                    }, 1500);
+                })
+                .catch(function(error) {
+                    console.error('Signup error:', error);
+                    let errorMessage = 'Registration failed. ';
+
+                    if (error.message.includes('already exists')) {
+                        errorMessage += 'This email is already registered. Please login instead.';
+                    } else {
+                        errorMessage += error.message || 'Please try again.';
+                    }
+
+                    showMessage(errorMessage, 'danger');
+                    signupBtn.disabled = false;
+                    signupBtn.innerHTML = '<i class="fas fa-user-plus me-2"></i>Create Account';
+                });
+        } else {
+            console.error('VARIOSYNC.signup not available');
+            showMessage('Authentication system not loaded. Please refresh the page.', 'danger');
+            signupBtn.disabled = false;
+            signupBtn.innerHTML = '<i class="fas fa-user-plus me-2"></i>Create Account';
+        }
+    });
+
+    function showMessage(message, type) {
+        const alertClass = type === 'success' ? 'alert-success' : type === 'danger' ? 'alert-danger' : 'alert-info';
+        signupMessage.innerHTML = `<div class="alert ${alertClass}">${message}</div>`;
+
+        if (type === 'success') {
+            setTimeout(function() {
+                signupMessage.innerHTML = '';
+            }, 3000);
+        }
+    }
+
+    // Check if already logged in
+    if (window.VARIOSYNC && window.VARIOSYNC.isAuthenticated && window.VARIOSYNC.isAuthenticated()) {
+        window.location.href = '/dashboard';
+    }
+})();
+</script>
+{% endblock %}

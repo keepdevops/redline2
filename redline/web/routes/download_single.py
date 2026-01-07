@@ -4,13 +4,11 @@ Handles downloading data for a single ticker from various sources.
 """
 
 import os
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 import logging
 from datetime import datetime, timedelta
 
 from redline.web.utils.download_helpers import (
-    extract_license_key,
-    validate_license_key,
     get_default_date_range,
     save_downloaded_data
 )
@@ -23,11 +21,10 @@ logger = logging.getLogger(__name__)
 def download_data():
     """Download data from specified source."""
     try:
-        # Extract and validate license key
-        license_key = extract_license_key()
-        error_response = validate_license_key(license_key)
-        if error_response:
-            return error_response
+        # Get user_id from g (set by auth middleware)
+        user_id = getattr(g, 'user_id', None)
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
         
         data = request.get_json() or {}
         ticker = data.get('ticker')

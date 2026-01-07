@@ -1,0 +1,149 @@
+version: '3.8'
+
+# VarioSync Cloud-Native Stack
+# Uses: Render + Modal + Supabase + Stripe + Cloudflare R2/S3
+# NOTE: This is for LOCAL DEVELOPMENT only
+# Production deployment uses Render.com (no docker-compose needed)
+
+services:
+  variosync-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - DUCKDB_VERSION=0.10.0
+        - STRIPE_VERSION=7.11.0
+        - SUPABASE_VERSION=2.3.0
+    container_name: variosync-web-dev
+    ports:
+      - "8080:8080"
+    environment:
+      # Flask Configuration
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - VARIOSYNC_ENV=development
+
+      # Gunicorn Configuration
+      - GUNICORN_WORKERS=1
+      - GUNICORN_THREADS=4
+      - GUNICORN_TIMEOUT=300
+      - PORT=8080
+
+      # Supabase Configuration (load from .env file)
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
+
+      # Stripe Configuration (load from .env file)
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - STRIPE_PRICE_ID_METERED=${STRIPE_PRICE_ID_METERED}
+
+      # Cloudflare R2 / S3 Configuration (load from .env file)
+      - S3_BUCKET=${S3_BUCKET:-variosync-1}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}
+      - S3_REGION=${S3_REGION:-auto}
+      - USE_S3_STORAGE=true
+
+      # Modal Configuration (load from .env file)
+      - MODAL_TOKEN_ID=${MODAL_TOKEN_ID}
+      - MODAL_TOKEN_SECRET=${MODAL_TOKEN_SECRET}
+      - MODAL_ENVIRONMENT=${MODAL_ENVIRONMENT:-main}
+
+      # DuckDB Configuration
+      - DUCKDB_THREADS=4
+      - DUCKDB_MEMORY_LIMIT=2GB
+
+      # Application Configuration
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - RATE_LIMIT_ENABLED=true
+
+      # SMTP Configuration (optional - for emails)
+      - SMTP_ENABLED=${SMTP_ENABLED:-false}
+      - SMTP_SERVER=${SMTP_SERVER:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - FROM_EMAIL=${FROM_EMAIL:-}
+
+    # Mount logs only (all data goes to R2/S3)
+    volumes:
+      - ./logs:/app/logs
+
+    # Healthcheck
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+
+  # Optional: PostgreSQL for local development/testing
+  # NOTE: Production uses Supabase (cloud-hosted PostgreSQL)
+  postgres:
+    image: postgres:16-alpine
+    container_name: variosync-postgres-dev
+    environment:
+      - POSTGRES_DB=variosync_dev
+      - POSTGRES_USER=variosync
+      - POSTGRES_PASSWORD=dev_password_change_me
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./setup_supabase_schema.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U variosync"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    profiles:
+      - local-db  # Only start with: docker-compose --profile local-db up
+
+  # Optional: Redis for caching (production uses Render Redis)
+  redis:
+    image: redis:7-alpine
+    container_name: variosync-redis-dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    profiles:
+      - cache  # Only start with: docker-compose --profile cache up
+
+volumes:
+  # Local development volumes only
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+
+networks:
+  default:
+    name: variosync-cloud-network
+    driver: bridge
