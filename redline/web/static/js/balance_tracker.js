@@ -1,34 +1,38 @@
 /**
- * VarioSync Global Balance Tracker
- * Tracks and displays hours remaining balance across all pages
+ * VarioSync Global Subscription Tracker
+ * Tracks and displays subscription status across all pages
  */
 
 (function() {
     'use strict';
-    
+
     // Configuration
     const API_BASE = '/payments';
-    const LICENSE_KEY_STORAGE = 'variosync_license_key';
-    const BALANCE_REFRESH_INTERVAL = 60000; // 1 minute
-    const BALANCE_STORAGE = 'variosync_balance_cache';
-    const BALANCE_CACHE_TTL = 30000; // 30 seconds cache
-    
+    const REFRESH_INTERVAL = 60000; // 1 minute
+    const CACHE_STORAGE = 'variosync_subscription_cache';
+    const CACHE_TTL = 30000; // 30 seconds cache
+
     // State
-    let balanceRefreshInterval = null;
-    let lastBalanceUpdate = null;
-    let balanceUpdateInterval = null;
-    let currentBalance = null;
-    
+    let refreshInterval = null;
+    let lastUpdate = null;
+    let updateInterval = null;
+    let currentSubscription = null;
+
     /**
-     * Get stored license key
+     * Check if user is authenticated
      */
-    function getLicenseKey() {
-        if (typeof window.getLicenseKey === 'function') {
-            return window.getLicenseKey();
-        }
-        return localStorage.getItem(LICENSE_KEY_STORAGE) || window.VARIOSYNC_LICENSE_KEY;
+    function isAuthenticated() {
+        const token = localStorage.getItem('variosync_auth_token');
+        return !!token;
     }
-    
+
+    /**
+     * Get auth token
+     */
+    function getAuthToken() {
+        return localStorage.getItem('variosync_auth_token');
+    }
+
     /**
      * Format time elapsed since last update
      */
@@ -37,494 +41,258 @@
             return `${Math.floor(seconds)}s ago`;
         } else if (seconds < 3600) {
             const minutes = Math.floor(seconds / 60);
-            const secs = Math.floor(seconds % 60);
-            if (secs === 0) {
-                return `${minutes}m ago`;
-            }
-            return `${minutes}m ${secs}s ago`;
+            return `${minutes}m ago`;
         } else {
             const hours = Math.floor(seconds / 3600);
             const minutes = Math.floor((seconds % 3600) / 60);
-            let result = `${hours}h`;
-            if (minutes > 0) {
-                result += ` ${minutes}m`;
-            }
-            return result + ' ago';
+            return `${hours}h ${minutes > 0 ? minutes + 'm' : ''} ago`.trim();
         }
     }
-    
+
     /**
-     * Update balance display in navbar
-     * @param {boolean} updateTimestamp - If true, update lastBalanceUpdate timestamp (default: true)
+     * Update subscription display in navbar
      */
-    function updateBalanceDisplay(balance, updateTimestamp = true) {
-        if (!balance) return;
-        
-        const hoursRemaining = balance.hours_remaining || 0;
-        const usedHours = balance.used_hours || 0;
-        const purchasedHours = balance.purchased_hours || 0;
-        
-        // Update last balance update time only if explicitly requested
-        // This allows preserving timestamp when loading from cache
+    function updateSubscriptionDisplay(data, updateTimestamp = true) {
+        if (!data) return;
+
+        const subscription = data.subscription;
+        const usage = data.usage;
+
         if (updateTimestamp) {
-            lastBalanceUpdate = Date.now();
-        } else if (!lastBalanceUpdate) {
-            // If no timestamp exists, set it now
-            lastBalanceUpdate = Date.now();
+            lastUpdate = Date.now();
+        } else if (!lastUpdate) {
+            lastUpdate = Date.now();
         }
-        
-        // Determine status color
-        let statusClass = 'text-success';
-        let statusIcon = 'fa-clock';
-        if (hoursRemaining < 1) {
-            statusClass = 'text-danger';
-            statusIcon = 'fa-exclamation-triangle';
-        } else if (hoursRemaining < 5) {
+
+        // Determine status
+        const status = subscription ? subscription.status : 'none';
+        const isActive = ['active', 'trialing'].includes(status);
+
+        let statusClass = 'text-muted';
+        let statusIcon = 'fa-circle';
+        let statusText = 'No Subscription';
+
+        if (isActive) {
+            statusClass = 'text-success';
+            statusIcon = 'fa-check-circle';
+            statusText = status === 'trialing' ? 'Trial Active' : 'Active';
+        } else if (status === 'past_due') {
             statusClass = 'text-warning';
             statusIcon = 'fa-exclamation-circle';
+            statusText = 'Past Due';
+        } else if (status === 'canceled') {
+            statusClass = 'text-danger';
+            statusIcon = 'fa-times-circle';
+            statusText = 'Canceled';
         }
-        
-        // Find or create balance display element
-        let balanceDisplay = document.getElementById('globalBalanceDisplay');
-        if (!balanceDisplay) {
-            // Create balance display element in navbar
-            // Try multiple selectors to find navbar
-            let navbarNav = document.querySelector('.navbar-nav:last-child');
-            if (!navbarNav) {
-                navbarNav = document.querySelector('.navbar-nav');
-            }
-            if (!navbarNav) {
-                // Try to find any navbar nav
-                const navbar = document.querySelector('nav.navbar');
-                if (navbar) {
-                    navbarNav = navbar.querySelector('.navbar-nav');
-                }
-            }
-            
-            if (navbarNav) {
-                const balanceItem = document.createElement('li');
-                balanceItem.className = 'nav-item';
-                balanceItem.id = 'globalBalanceDisplay';
-                balanceItem.innerHTML = `
-                    <div class="nav-link" id="balanceWidget" style="cursor: pointer;" title="Click to refresh - Used: ${usedHours.toFixed(2)}h">
-                        <i class="fas ${statusIcon} ${statusClass} me-1"></i>
-                        <span class="balance-hours ${statusClass}" id="balanceHours">${hoursRemaining.toFixed(2)}</span>
-                        <small class="text-muted ms-1" id="balanceTime">Just now</small>
-                        <small class="text-muted ms-2" id="usedHours" style="font-size: 0.75em;">Used: ${usedHours.toFixed(2)}h</small>
-                    </div>
-                `;
-                
-                // Insert before last item (usually "Online" status) or append
-                if (navbarNav.children.length > 0) {
-                    navbarNav.insertBefore(balanceItem, navbarNav.lastChild);
-                } else {
-                    navbarNav.appendChild(balanceItem);
-                }
-                
-                // Add click handler to refresh balance
-                const widget = balanceItem.querySelector('#balanceWidget');
-                if (widget) {
-                    widget.addEventListener('click', function() {
-                        loadBalance(false);
-                    });
-                }
-                
-                balanceDisplay = balanceItem;
-            } else {
-                console.warn('Balance tracker: Navbar not found, cannot create balance display');
-                return; // Navbar not found
-            }
+
+        // Create navbar indicator (if container exists)
+        const container = document.getElementById('subscriptionStatusIndicator');
+        if (container) {
+            const usageText = usage && usage.total_usage > 0
+                ? `${usage.total_usage.toLocaleString()} records`
+                : 'No usage';
+
+            container.innerHTML = `
+                <span class="navbar-text ${statusClass}" style="cursor: pointer;"
+                      onclick="window.location.href='/payments/subscription'"
+                      title="Click to manage subscription">
+                    <i class="fas ${statusIcon} me-1"></i>${statusText}
+                    <small class="d-none d-lg-inline ms-2 text-muted">(${usageText})</small>
+                </span>
+            `;
         }
-        
-        // Update balance display
-        const balanceHoursEl = document.getElementById('balanceHours');
-        const balanceTimeEl = document.getElementById('balanceTime');
-        const usedHoursEl = document.getElementById('usedHours');
-        const balanceWidget = document.getElementById('balanceWidget');
-        
-        if (balanceHoursEl) {
-            balanceHoursEl.textContent = hoursRemaining.toFixed(2);
-            balanceHoursEl.className = `balance-hours ${statusClass}`;
-        }
-        
-        if (usedHoursEl) {
-            // Always update used hours display
-            usedHoursEl.textContent = `Used: ${usedHours.toFixed(2)}h`;
-            console.log('Updated used hours display:', usedHours.toFixed(2));
-        } else if (balanceWidget) {
-            // Create used hours element if it doesn't exist
-            const usedEl = document.createElement('small');
-            usedEl.className = 'text-muted ms-2';
-            usedEl.id = 'usedHours';
-            usedEl.style.fontSize = '0.75em';
-            usedEl.textContent = `Used: ${usedHours.toFixed(2)}h`;
-            balanceWidget.appendChild(usedEl);
-        }
-        
-        // Update tooltip
-        if (balanceWidget) {
-            balanceWidget.title = `Click to refresh - Used: ${usedHours.toFixed(2)}h / Purchased: ${purchasedHours.toFixed(2)}h`;
-            const icon = balanceWidget.querySelector('i');
-            if (icon) {
-                icon.className = `fas ${statusIcon} ${statusClass} me-1`;
-            }
-        }
-        
-        // Start time elapsed updater
-        startTimeElapsedUpdater();
-        
-        // Store balance in cache
+
+        // Store in cache
         try {
-            localStorage.setItem(BALANCE_STORAGE, JSON.stringify({
-                balance: balance,
+            localStorage.setItem(CACHE_STORAGE, JSON.stringify({
+                data: data,
                 timestamp: Date.now()
             }));
         } catch (e) {
-            console.warn('Failed to cache balance:', e);
+            console.warn('Failed to cache subscription data:', e);
+        }
+
+        // Start time elapsed updater
+        startTimeElapsedUpdater();
+    }
+
+    /**
+     * Load subscription status from cache
+     */
+    function loadFromCache() {
+        try {
+            const cached = localStorage.getItem(CACHE_STORAGE);
+            if (!cached) return null;
+
+            const { data, timestamp } = JSON.parse(cached);
+            const age = Date.now() - timestamp;
+
+            // Check if cache is still valid
+            if (age < CACHE_TTL) {
+                lastUpdate = timestamp;
+                return data;
+            }
+        } catch (e) {
+            console.warn('Failed to load subscription cache:', e);
+        }
+        return null;
+    }
+
+    /**
+     * Load subscription status from API
+     */
+    function loadSubscription(silent = false) {
+        if (!isAuthenticated()) {
+            stopRefresh();
+            return;
+        }
+
+        const token = getAuthToken();
+
+        fetch(`${API_BASE}/balance`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (response.status === 401) {
+                // Unauthorized - clear auth and redirect
+                localStorage.removeItem('variosync_auth_token');
+                localStorage.removeItem('variosync_user_data');
+                stopRefresh();
+                return null;
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data) {
+                currentSubscription = data;
+                updateSubscriptionDisplay(data, true);
+            }
+        })
+        .catch(error => {
+            if (!silent) {
+                console.error('Error loading subscription:', error);
+            }
+        });
+    }
+
+    /**
+     * Start automatic refresh
+     */
+    function startRefresh() {
+        stopRefresh();
+
+        if (isAuthenticated()) {
+            refreshInterval = setInterval(function() {
+                if (isAuthenticated()) {
+                    loadSubscription(true); // Silent refresh
+                } else {
+                    stopRefresh();
+                }
+            }, REFRESH_INTERVAL);
         }
     }
-    
+
+    /**
+     * Stop automatic refresh
+     */
+    function stopRefresh() {
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+        }
+        stopTimeElapsedUpdater();
+    }
+
     /**
      * Update time elapsed display
      */
     function updateTimeElapsed() {
-        if (!lastBalanceUpdate) return;
-        
-        const elapsed = (Date.now() - lastBalanceUpdate) / 1000; // seconds
-        const balanceTimeEl = document.getElementById('balanceTime');
-        if (balanceTimeEl) {
-            balanceTimeEl.textContent = formatTimeElapsed(elapsed);
-        }
+        if (!lastUpdate) return;
+
+        const elapsed = (Date.now() - lastUpdate) / 1000;
+        const elements = document.querySelectorAll('.subscription-time-elapsed');
+
+        elements.forEach(el => {
+            el.textContent = formatTimeElapsed(elapsed);
+        });
     }
-    
+
     /**
      * Start time elapsed updater
      */
     function startTimeElapsedUpdater() {
-        // Stop existing interval
-        if (balanceUpdateInterval) {
-            clearInterval(balanceUpdateInterval);
+        if (updateInterval) {
+            clearInterval(updateInterval);
         }
-        
-        // Update every second
-        balanceUpdateInterval = setInterval(updateTimeElapsed, 1000);
+        updateInterval = setInterval(updateTimeElapsed, 1000);
     }
-    
+
     /**
      * Stop time elapsed updater
      */
     function stopTimeElapsedUpdater() {
-        if (balanceUpdateInterval) {
-            clearInterval(balanceUpdateInterval);
-            balanceUpdateInterval = null;
+        if (updateInterval) {
+            clearInterval(updateInterval);
+            updateInterval = null;
         }
     }
-    
+
     /**
-     * Load balance from server
-     * @param {boolean} silent - If true, don't show errors (for auto-refresh)
-     */
-    function loadBalance(silent = true) {
-        const licenseKey = getLicenseKey();
-        if (!licenseKey) {
-            // Hide balance display if no license key
-            const balanceDisplay = document.getElementById('globalBalanceDisplay');
-            if (balanceDisplay) {
-                balanceDisplay.style.display = 'none';
-            }
-            return;
-        }
-        
-        // Show balance display
-        const balanceDisplay = document.getElementById('globalBalanceDisplay');
-        if (balanceDisplay) {
-            balanceDisplay.style.display = '';
-        }
-        
-        fetch(`${API_BASE}/balance?license_key=${encodeURIComponent(licenseKey)}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Ensure data has required fields with defaults
-                if (!data.purchased_hours && data.purchased_hours !== 0) {
-                    data.purchased_hours = 0.0;
-                }
-                if (!data.hours_remaining && data.hours_remaining !== 0) {
-                    data.hours_remaining = 0.0;
-                }
-                if (!data.used_hours && data.used_hours !== 0) {
-                    data.used_hours = 0.0;
-                }
-                
-                if (data.success || (data.hours_remaining !== undefined) || data.error) {
-                    // Accept both {success: true, ...} and {hours_remaining: ...} formats
-                    // Also handle error responses that include balance fields
-                    currentBalance = data;
-                    // Always update timestamp when fetching from server
-                    updateBalanceDisplay(data, true);
-                    
-                    // Dispatch custom event for other scripts
-                    window.dispatchEvent(new CustomEvent('balanceUpdated', { 
-                        detail: { balance: data } 
-                    }));
-                    
-                    // Log error if present but still display balance
-                    if (data.error && !silent) {
-                        console.warn('Balance loaded with error:', data.error);
-                    }
-                } else {
-                    if (!silent) {
-                        console.error('Failed to load balance:', data.error || data);
-                    }
-                    // Show error in display - but keep showing cached data if available
-                    if (currentBalance) {
-                        // If we have cached balance, show it with error indicator
-                        const balanceHoursEl = document.getElementById('balanceHours');
-                        if (balanceHoursEl) {
-                            balanceHoursEl.textContent = currentBalance.hours_remaining?.toFixed(2) || 'Error';
-                            balanceHoursEl.className = 'balance-hours text-warning';
-                        }
-                        // Update time to show it's stale
-                        const balanceTimeEl = document.getElementById('balanceTime');
-                        if (balanceTimeEl && lastBalanceUpdate) {
-                            const elapsed = (Date.now() - lastBalanceUpdate) / 1000;
-                            balanceTimeEl.textContent = formatTimeElapsed(elapsed) + ' (stale)';
-                            balanceTimeEl.className = 'text-warning';
-                        }
-                    } else {
-                        // No cached data - show error
-                        const balanceHoursEl = document.getElementById('balanceHours');
-                        if (balanceHoursEl) {
-                            balanceHoursEl.textContent = 'Error';
-                            balanceHoursEl.className = 'balance-hours text-danger';
-                        }
-                        // Clear time display
-                        const balanceTimeEl = document.getElementById('balanceTime');
-                        if (balanceTimeEl) {
-                            balanceTimeEl.textContent = '';
-                        }
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error loading balance:', error);
-                if (!silent) {
-                    console.error('Failed to load balance:', error);
-                }
-                // Show error in display - but keep showing cached data if available
-                if (currentBalance) {
-                    // If we have cached balance, show it with error indicator
-                    const balanceHoursEl = document.getElementById('balanceHours');
-                    if (balanceHoursEl) {
-                        balanceHoursEl.textContent = currentBalance.hours_remaining?.toFixed(2) || 'Error';
-                        balanceHoursEl.className = 'balance-hours text-warning';
-                    }
-                    // Update time to show it's stale
-                    const balanceTimeEl = document.getElementById('balanceTime');
-                    if (balanceTimeEl && lastBalanceUpdate) {
-                        const elapsed = (Date.now() - lastBalanceUpdate) / 1000;
-                        balanceTimeEl.textContent = formatTimeElapsed(elapsed) + ' (stale)';
-                        balanceTimeEl.className = 'text-warning';
-                    }
-                } else {
-                    // No cached data - show error
-                    const balanceHoursEl = document.getElementById('balanceHours');
-                    if (balanceHoursEl) {
-                        balanceHoursEl.textContent = 'Error';
-                        balanceHoursEl.className = 'balance-hours text-danger';
-                    }
-                    // Clear time display
-                    const balanceTimeEl = document.getElementById('balanceTime');
-                    if (balanceTimeEl) {
-                        balanceTimeEl.textContent = '';
-                    }
-                    // Clear used hours
-                    const usedHoursEl = document.getElementById('usedHours');
-                    if (usedHoursEl) {
-                        usedHoursEl.textContent = '';
-                    }
-                }
-            });
-    }
-    
-    /**
-     * Load balance from cache if available
-     */
-    function loadBalanceFromCache() {
-        try {
-            const cached = localStorage.getItem(BALANCE_STORAGE);
-            if (cached) {
-                const { balance, timestamp } = JSON.parse(cached);
-                const age = Date.now() - timestamp;
-                
-                // Use cache if less than TTL old
-                if (age < BALANCE_CACHE_TTL && balance) {
-                    currentBalance = balance;
-                    // Preserve the original timestamp, don't reset it
-                    lastBalanceUpdate = timestamp;
-                    updateBalanceDisplay(balance, false); // Don't reset timestamp
-                    return true;
-                }
-            }
-        } catch (e) {
-            // Ignore cache errors
-        }
-        return false;
-    }
-    
-    /**
-     * Start automatic balance refresh
-     * @param {boolean} skipInitialLoad - If true, skip immediate load (for cache-first initialization)
-     */
-    function startBalanceRefresh(skipInitialLoad = false) {
-        // Stop any existing interval
-        stopBalanceRefresh();
-        
-        const licenseKey = getLicenseKey();
-        if (!licenseKey) {
-            return;
-        }
-        
-        // Load balance immediately unless we're skipping (cache already loaded)
-        if (!skipInitialLoad) {
-            loadBalance(true);
-        }
-        
-        // Start refresh interval
-        balanceRefreshInterval = setInterval(function() {
-            const currentKey = getLicenseKey();
-            if (currentKey) {
-                loadBalance(true); // Silent refresh
-            } else {
-                stopBalanceRefresh();
-            }
-        }, BALANCE_REFRESH_INTERVAL);
-    }
-    
-    /**
-     * Stop automatic balance refresh
-     */
-    function stopBalanceRefresh() {
-        if (balanceRefreshInterval) {
-            clearInterval(balanceRefreshInterval);
-            balanceRefreshInterval = null;
-        }
-    }
-    
-    /**
-     * Initialize balance tracker
+     * Initialize subscription tracker
      */
     function init() {
-        const licenseKey = getLicenseKey();
-        if (!licenseKey) {
-            displayNoLicenseState();
+        if (!isAuthenticated()) {
+            console.log('User not authenticated - subscription tracker disabled');
             return;
         }
-        
-        // Load balance from cache first (for instant display)
-        const cacheLoaded = loadBalanceFromCache();
-        
-        // Always load balance immediately, even if cache was loaded
-        // This ensures fresh data and updates the display
-        loadBalance(false); // false = not silent, show errors
-        
-        // Start balance refresh (skip initial load since we just loaded)
-        startBalanceRefresh(true); // true = skip initial load
-        
-        // Ensure display is visible - create placeholder if needed
-        let balanceDisplay = document.getElementById('globalBalanceDisplay');
-        if (!balanceDisplay) {
-            // Create a placeholder display element if it doesn't exist
-            // This ensures the display area exists even before balance loads
-            const navbarNav = document.querySelector('.navbar-nav:last-child') || 
-                             document.querySelector('.navbar-nav') ||
-                             (document.querySelector('nav.navbar')?.querySelector('.navbar-nav'));
-            
-            if (navbarNav) {
-                const placeholder = document.createElement('li');
-                placeholder.className = 'nav-item';
-                placeholder.id = 'globalBalanceDisplay';
-                placeholder.innerHTML = `
-                    <div class="nav-link" id="balanceWidget" style="cursor: pointer;">
-                        <i class="fas fa-clock text-muted me-1"></i>
-                        <span class="balance-hours text-muted" id="balanceHours">Loading...</span>
-                        <small class="text-muted ms-1" id="balanceTime"></small>
-                        <small class="text-muted ms-2" id="usedHours" style="font-size: 0.75em;"></small>
-                    </div>
-                `;
-                
-                if (navbarNav.children.length > 0) {
-                    navbarNav.insertBefore(placeholder, navbarNav.lastChild);
-                } else {
-                    navbarNav.appendChild(placeholder);
-                }
-                
-                balanceDisplay = placeholder;
-            }
+
+        // Try loading from cache first
+        const cached = loadFromCache();
+        if (cached) {
+            updateSubscriptionDisplay(cached, false);
         }
-        
-        // Ensure display is visible
-        if (balanceDisplay) {
-            balanceDisplay.style.display = '';
-        }
-        
-        // Listen for license key updates
-        window.addEventListener('licenseKeyUpdated', function(event) {
-            const licenseKey = event.detail.licenseKey;
-            if (licenseKey) {
-                startBalanceRefresh();
+
+        // Load fresh data
+        loadSubscription(false);
+
+        // Start auto-refresh
+        startRefresh();
+
+        // Listen for auth changes
+        window.addEventListener('authTokenUpdated', function(e) {
+            if (e.detail && e.detail.token) {
+                init();
             } else {
-                stopBalanceRefresh();
-                const balanceDisplay = document.getElementById('globalBalanceDisplay');
-                if (balanceDisplay) {
-                    balanceDisplay.style.display = 'none';
-                }
+                stopRefresh();
             }
         });
-        
-        // Listen for storage changes (for multi-tab support)
-        window.addEventListener('storage', function(event) {
-            if (event.key === LICENSE_KEY_STORAGE) {
-                // License key changed in another tab
-                startBalanceRefresh();
-            }
-        });
-        
-        // Cleanup on page unload
-        window.addEventListener('beforeunload', function() {
-            stopBalanceRefresh();
-            stopTimeElapsedUpdater();
-        });
+
+        console.log('✅ Subscription tracker initialized');
     }
-    
-    // Initialize when DOM is ready
+
+    // Initialize on page load
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
-        // DOM already loaded
         init();
     }
-    
-    /**
-     * Display no license state
-     */
-    function displayNoLicenseState() {
-        const balanceDisplay = document.getElementById('globalBalanceDisplay');
-        if (balanceDisplay) {
-            balanceDisplay.style.display = 'none';
-        }
-    }
-    
-    // Expose global functions
-    window.VARIOSYNC_BALANCE = {
-        loadBalance: function() { loadBalance(false); },
-        getBalance: function() { return currentBalance; },
-        refresh: function() { loadBalance(false); }
-    };
-    
-})();
 
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        stopRefresh();
+    });
+
+    // Expose functions globally
+    window.VARIOSYNC = window.VARIOSYNC || {};
+    window.VARIOSYNC.subscriptionTracker = {
+        refresh: function() { loadSubscription(false); },
+        start: startRefresh,
+        stop: stopRefresh
+    };
+
+})();
