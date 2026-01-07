@@ -58,16 +58,6 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.register') }}">
-                            <i class="fas fa-user-plus me-1"></i>Register
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('payments.payment_tab') }}">
-                            <i class="fas fa-credit-card me-1"></i>Payment
-                        </a>
-                    </li>
-                    <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.dashboard') }}">
                             <i class="fas fa-tachometer-alt me-1"></i>Dashboard
                         </a>
@@ -152,10 +142,9 @@
                             <i class="fas fa-spinner fa-spin me-1"></i><span id="dashboardLoadingText">Loading...</span>
                         </span>
                     </li>
-                    <li class="nav-item">
-                        <span class="navbar-text" style="color: #ffffff !important; font-weight: 500;">
-                            <i class="fas fa-circle text-success me-1"></i>Online
-                        </span>
+                    <!-- User Menu -->
+                    <li class="nav-item" id="userMenuContainer">
+                        <!-- Populated by JavaScript -->
                     </li>
                 </ul>
             </div>
@@ -171,25 +160,8 @@
                     {% block sidebar %}
                     <div class="sidebar-section">
                         <h6 class="sidebar-title">Quick Actions</h6>
-                        <div class="list-group list-group-flush">
-                            <a href="{{ url_for('main.register') }}" class="list-group-item list-group-item-action">
-                                <i class="fas fa-user-plus me-2"></i>Register
-                            </a>
-                            <a href="{{ url_for('payments.payment_tab') }}" class="list-group-item list-group-item-action">
-                                <i class="fas fa-credit-card me-2"></i>Payment
-                            </a>
-                            <a href="/download/" class="list-group-item list-group-item-action">
-                                <i class="fas fa-download me-2"></i>Download ALL
-                            </a>
-                            <a href="/data/" class="list-group-item list-group-item-action">
-                                <i class="fas fa-eye me-2"></i>View Data
-                            </a>
-                            <a href="/converter/" class="list-group-item list-group-item-action">
-                                <i class="fas fa-exchange-alt me-2"></i>Convert Format
-                            </a>
-                            <a href="/analysis/" class="list-group-item list-group-item-action">
-                                <i class="fas fa-chart-bar me-2"></i>Analyze Data
-                            </a>
+                        <div class="list-group list-group-flush" id="sidebarQuickActions">
+                            <!-- Populated by JavaScript based on auth status -->
                         </div>
                     </div>
 
@@ -249,271 +221,96 @@
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     
-            <!-- License Key Auto-Load Script (MUST BE BEFORE OTHER SCRIPTS) -->
+            <!-- JWT Authentication Initialization Script (MUST BE BEFORE OTHER SCRIPTS) -->
             <script>
-            // Auto-load license key from localStorage on all pages
+            // Initialize VarioSync global object and user menu
             (function() {
-                const LICENSE_KEY_STORAGE = 'variosync_license_key';
-                
-                // Function to get license key (available immediately)
-                function getLicenseKey() {
-                    const key = localStorage.getItem(LICENSE_KEY_STORAGE) || window.VARIOSYNC_LICENSE_KEY;
-                    if (!key) {
-                        console.warn('⚠️ No license key found in localStorage or window.VARIOSYNC_LICENSE_KEY');
-                    }
-                    return key;
-                }
-                
-                // Make getLicenseKey available globally immediately
-                window.getLicenseKey = getLicenseKey;
-                
-                // Load saved key
-                const savedKey = localStorage.getItem(LICENSE_KEY_STORAGE);
-                if (savedKey) {
-                    // Make license key available globally
-                    window.VARIOSYNC_LICENSE_KEY = savedKey;
-                    console.log('✅ License key loaded from localStorage:', savedKey.substring(0, 20) + '...');
-                } else {
-                    console.log('ℹ️ No license key found in localStorage. Register or enter license key.');
-                }
-                
-                // Add diagnostic function
-                window.checkLicenseKey = function() {
-                    const key = getLicenseKey();
-                    console.log('🔑 License Key Check:');
-                    console.log('  - localStorage:', localStorage.getItem(LICENSE_KEY_STORAGE) ? 'Found' : 'Not found');
-                    console.log('  - window.VARIOSYNC_LICENSE_KEY:', window.VARIOSYNC_LICENSE_KEY ? 'Found' : 'Not found');
-                    console.log('  - Current key:', key ? key.substring(0, 20) + '...' : 'None');
-                    return key;
-                };
-                
-                // Override global fetch to automatically include license key
-                const originalFetch = window.fetch;
-                window.fetch = function(url, options = {}) {
-                    // Only add license key for same-origin requests (our API)
-                    if (typeof url === 'string' && (url.startsWith('/') || url.startsWith(window.location.origin))) {
-                        const licenseKey = getLicenseKey();
-                        
-                        if (licenseKey) {
-                            // Ensure options object exists
-                            if (!options) options = {};
-                            if (!options.headers) options.headers = {};
-                            
-                            // Add license key header if not already present
-                            if (!options.headers['X-License-Key'] && !options.headers['x-license-key']) {
-                                options.headers['X-License-Key'] = licenseKey;
-                            }
-                        }
-                    }
-                    
-                    return originalFetch.apply(this, arguments);
-                };
-                
-                // Wait for jQuery to be ready, then override
-                function setupJQueryOverride() {
-                    if (typeof $ === 'undefined' || !$.ajax) {
-                        // jQuery not loaded yet, try again
-                        setTimeout(setupJQueryOverride, 50);
-                        return;
-                    }
-                    
-                    // Override jQuery ajax to automatically include license key
-                    const originalAjax = $.ajax;
-                    $.ajax = function(urlOrOptions, options) {
-                        // Handle both $.ajax(url, options) and $.ajax(options) patterns
-                        let opts, url;
-                        
-                        if (typeof urlOrOptions === 'string') {
-                            // Called as $.ajax(url, options)
-                            url = urlOrOptions;
-                            opts = options || {};
-                            opts.url = url;
-                        } else {
-                            // Called as $.ajax(options)
-                            opts = urlOrOptions || {};
-                            url = opts.url;
-                        }
-                        
-                        // Only add license key for same-origin requests
-                        if (url && (url.startsWith('/') || url.startsWith(window.location.origin))) {
-                            const licenseKey = getLicenseKey();
-                            
-                            if (licenseKey) {
-                                // Ensure headers object exists
-                                if (!opts.headers) opts.headers = {};
-                                
-                                // Add license key header if not already present
-                                if (!opts.headers['X-License-Key'] && !opts.headers['x-license-key']) {
-                                    opts.headers['X-License-Key'] = licenseKey;
-                                    console.log('✅ Added license key to headers for:', url);
-                                }
-                                
-                                // Also add to beforeSend if it exists (as backup)
-                                const originalBeforeSend = opts.beforeSend;
-                                opts.beforeSend = function(xhr) {
-                                    const key = getLicenseKey();
-                                    if (key) {
-                                        // Set header (jqXHR has setRequestHeader method)
-                                        try {
-                                            xhr.setRequestHeader('X-License-Key', key);
-                                        } catch (e) {
-                                            // Header might already be set, ignore
-                                        }
-                                    }
-                                    // Call original beforeSend if it exists
-                                    if (originalBeforeSend) {
-                                        return originalBeforeSend.apply(this, arguments);
-                                    }
-                                };
-                                
-                                // Handle data - could be object, string (JSON), FormData, etc.
-                                if (opts.data) {
-                                    // If data is a JSON string (common for POST with contentType: 'application/json')
-                                    if (typeof opts.data === 'string' && opts.contentType && opts.contentType.includes('application/json')) {
-                                        try {
-                                            const dataObj = JSON.parse(opts.data);
-                                            if (!dataObj.license_key) {
-                                                dataObj.license_key = licenseKey;
-                                                opts.data = JSON.stringify(dataObj);
-                                                console.log('✅ Added license key to JSON string data for:', url);
-                                            }
-                                        } catch (e) {
-                                            // Not valid JSON, skip
-                                        }
-                                    }
-                                    // If data is an object
-                                    else if (typeof opts.data === 'object' && !Array.isArray(opts.data) && !(opts.data instanceof FormData)) {
-                                        if (!opts.data.license_key) {
-                                            opts.data.license_key = licenseKey;
-                                            console.log('✅ Added license key to object data for:', url);
-                                        }
-                                    }
-                                    // If data is FormData
-                                    else if (opts.data instanceof FormData) {
-                                        if (!opts.data.has('license_key')) {
-                                            opts.data.append('license_key', licenseKey);
-                                            console.log('✅ Added license key to FormData for:', url);
-                                        }
-                                    }
-                                } else if (opts.type && opts.type.toUpperCase() === 'POST') {
-                                    // For POST requests without data, add license_key as query param or create data object
-                                    if (!opts.data) {
-                                        opts.data = { license_key: licenseKey };
-                                        console.log('✅ Created data object with license key for POST:', url);
-                                    }
-                                }
-                            } else {
-                                console.warn('⚠️ No license key found in localStorage for request:', url);
-                            }
-                        }
-                        
-                        // Call original ajax with modified options
-                        if (typeof urlOrOptions === 'string') {
-                            return originalAjax.call(this, url, opts);
-                        } else {
-                            return originalAjax.call(this, opts);
-                        }
-                    };
-                    
-                    // Also override $.get and $.post
-                    const originalGet = $.get;
-                    $.get = function(url, data, success, dataType) {
-                        const licenseKey = getLicenseKey();
-                        const opts = {
-                            url: url,
-                            type: 'GET',
-                            dataType: dataType
-                        };
-                        
-                        if (licenseKey) {
-                            if (!opts.headers) opts.headers = {};
-                            opts.headers['X-License-Key'] = licenseKey;
-                            
-                            if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
-                                opts.data = Object.assign({}, data, { license_key: licenseKey });
-                            } else if (typeof data === 'string') {
-                                opts.url = url + (url.includes('?') ? '&' : '?') + 'license_key=' + encodeURIComponent(licenseKey);
-                                opts.data = data;
-                            } else {
-                                opts.url = url + (url.includes('?') ? '&' : '?') + 'license_key=' + encodeURIComponent(licenseKey);
-                                opts.data = data;
-                            }
-                        } else {
-                            opts.data = data;
-                        }
-                        
-                        if (success) opts.success = success;
-                        
-                        return originalAjax(opts);
-                    };
-                    
-                    const originalPost = $.post;
-                    $.post = function(url, data, success, dataType) {
-                        const licenseKey = getLicenseKey();
-                        const opts = {
-                            url: url,
-                            type: 'POST',
-                            dataType: dataType
-                        };
-                        
-                        if (licenseKey) {
-                            if (!opts.headers) opts.headers = {};
-                            opts.headers['X-License-Key'] = licenseKey;
-                            
-                            if (typeof data === 'object' && data !== null && !Array.isArray(data) && !(data instanceof FormData)) {
-                                opts.data = Object.assign({}, data, { license_key: licenseKey });
-                            } else if (data instanceof FormData) {
-                                if (!data.has('license_key')) {
-                                    data.append('license_key', licenseKey);
-                                }
-                                opts.data = data;
-                            } else {
-                                opts.data = data;
-                            }
-                        } else {
-                            opts.data = data;
-                        }
-                        
-                        if (success) opts.success = success;
-                        
-                        return originalAjax(opts);
-                    };
-                    
-                    // Already logged in setupJQueryOverride
-                }
-                
-                // Setup jQuery override when jQuery is ready
-                // Try multiple times to ensure it's installed before other scripts
-                function installOverride() {
-                    if (typeof $ !== 'undefined' && $.ajax) {
-                        setupJQueryOverride();
-                        console.log('✅ jQuery license key override installed');
-                    } else {
-                        // Try again after a short delay
-                        setTimeout(installOverride, 50);
-                    }
-                }
-                
-                // Start installation immediately
-                if (typeof $ !== 'undefined' && $.ajax) {
-                    installOverride();
-                } else {
-                    // Wait for jQuery to load
-                    if (document.readyState === 'loading') {
-                        document.addEventListener('DOMContentLoaded', installOverride);
-                    } else {
-                        // DOM already loaded, start immediately
-                        installOverride();
-                    }
-                    // Also try immediately in case jQuery is already loaded
-                    setTimeout(installOverride, 100);
-                    setTimeout(installOverride, 500);
-                }
-                
-                // Make license key available globally for all modules
+                'use strict';
+
+                // Initialize VARIOSYNC global object (will be extended by main.js)
                 window.VARIOSYNC = window.VARIOSYNC || {};
-                window.VARIOSYNC.getLicenseKey = getLicenseKey;
-                window.VARIOSYNC.LICENSE_KEY_STORAGE = LICENSE_KEY_STORAGE;
+
+                // Function to update user menu in navbar
+                function updateUserMenu() {
+                    const container = document.getElementById('userMenuContainer');
+                    if (!container) return;
+
+                    // Check if user is authenticated (via localStorage check)
+                    const token = localStorage.getItem('variosync_auth_token');
+                    const userDataStr = localStorage.getItem('variosync_user_data');
+
+                    if (token && userDataStr) {
+                        try {
+                            const user = JSON.parse(userDataStr);
+                            const userName = user.name || user.email || 'User';
+                            const userEmail = user.email || '';
+
+                            // User is authenticated - show user menu
+                            container.innerHTML = `
+                                <div class="dropdown">
+                                    <button class="btn btn-outline-light dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="fas fa-user-circle me-1"></i>${userName}
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                                        <li><h6 class="dropdown-header">${userEmail}</h6></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="/dashboard"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a></li>
+                                        <li><a class="dropdown-item" href="/payments/subscription"><i class="fas fa-credit-card me-2"></i>Subscription</a></li>
+                                        <li><a class="dropdown-item" href="/settings/"><i class="fas fa-cog me-2"></i>Settings</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="#" id="logoutBtn"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                                    </ul>
+                                </div>
+                            `;
+
+                            // Add logout handler
+                            const logoutBtn = document.getElementById('logoutBtn');
+                            if (logoutBtn) {
+                                logoutBtn.addEventListener('click', function(e) {
+                                    e.preventDefault();
+                                    if (window.VARIOSYNC && window.VARIOSYNC.logout) {
+                                        window.VARIOSYNC.logout();
+                                    } else {
+                                        // Fallback logout
+                                        localStorage.removeItem('variosync_auth_token');
+                                        localStorage.removeItem('variosync_user_data');
+                                        window.location.href = '/auth/login';
+                                    }
+                                });
+                            }
+                        } catch (e) {
+                            console.error('Failed to parse user data:', e);
+                            showLoginButton();
+                        }
+                    } else {
+                        // User is not authenticated - show login button
+                        showLoginButton();
+                    }
+                }
+
+                function showLoginButton() {
+                    const container = document.getElementById('userMenuContainer');
+                    if (!container) return;
+
+                    container.innerHTML = `
+                        <a href="/auth/login" class="btn btn-outline-light">
+                            <i class="fas fa-sign-in-alt me-1"></i>Login
+                        </a>
+                    `;
+                }
+
+                // Update user menu on page load
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', updateUserMenu);
+                } else {
+                    updateUserMenu();
+                }
+
+                // Listen for auth updates
+                window.addEventListener('authTokenUpdated', updateUserMenu);
+                window.addEventListener('userDataUpdated', updateUserMenu);
+
+                console.log('✅ VarioSync JWT auth initialized');
             })();
             </script>
     
@@ -537,65 +334,70 @@
     <script>
         // Initialize page
         $(document).ready(function() {
-            loadRecentFiles();
+            updateSidebarQuickActions();
             loadSystemStatus();
+
+            // Listen for auth updates
+            window.addEventListener('authTokenUpdated', updateSidebarQuickActions);
         });
-        
-        // Load recent files
-        function loadRecentFiles() {
-            // Get license key - use global function if available, otherwise fallback
-            const licenseKey = (typeof window.getLicenseKey === 'function') 
-                ? window.getLicenseKey() 
-                : (localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY);
-            
-            $.ajax({
-                url: '/api/files',
-                method: 'GET',
-                headers: licenseKey ? { 'X-License-Key': licenseKey } : {},
-                data: licenseKey ? { license_key: licenseKey } : {}
-            })
-                .done(function(data) {
-                    const container = $('#recent-files');
-                    container.empty();
-                    
-                    if (data.files && data.files.length > 0) {
-                        data.files.slice(0, 5).forEach(function(file) {
-                            const item = $(`
-                                <div class="list-group-item list-group-item-action">
-                                    <div class="d-flex w-100 justify-content-between">
-                                        <h6 class="mb-1">${file.name}</h6>
-                                        <small>${formatFileSize(file.size)}</small>
-                                    </div>
-                                    <small class="text-muted">${formatDate(file.modified)}</small>
-                                </div>
-                            `);
-                            container.append(item);
-                        });
-                    } else {
-                        container.html('<small class="text-muted">No recent files</small>');
-                    }
-                })
-                .fail(function() {
-                    $('#recent-files').html('<small class="text-danger">Error loading files</small>');
-                });
+
+        // Update sidebar quick actions based on auth status
+        function updateSidebarQuickActions() {
+            const container = $('#sidebarQuickActions');
+            if (!container.length) return;
+
+            const isAuthenticated = window.VARIOSYNC && window.VARIOSYNC.isAuthenticated && window.VARIOSYNC.isAuthenticated();
+
+            if (isAuthenticated) {
+                // Authenticated user actions
+                container.html(`
+                    <a href="/dashboard" class="list-group-item list-group-item-action">
+                        <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                    </a>
+                    <a href="/payments/subscription" class="list-group-item list-group-item-action">
+                        <i class="fas fa-credit-card me-2"></i>Subscription
+                    </a>
+                    <a href="/download/" class="list-group-item list-group-item-action">
+                        <i class="fas fa-download me-2"></i>Download Data
+                    </a>
+                    <a href="/data/" class="list-group-item list-group-item-action">
+                        <i class="fas fa-eye me-2"></i>View Data
+                    </a>
+                    <a href="/converter/" class="list-group-item list-group-item-action">
+                        <i class="fas fa-exchange-alt me-2"></i>Convert Format
+                    </a>
+                    <a href="/analysis/" class="list-group-item list-group-item-action">
+                        <i class="fas fa-chart-bar me-2"></i>Analyze Data
+                    </a>
+                `);
+            } else {
+                // Guest user actions
+                container.html(`
+                    <a href="/auth/login" class="list-group-item list-group-item-action">
+                        <i class="fas fa-sign-in-alt me-2"></i>Login
+                    </a>
+                    <a href="/auth/signup" class="list-group-item list-group-item-action">
+                        <i class="fas fa-user-plus me-2"></i>Sign Up
+                    </a>
+                    <a href="/help" class="list-group-item list-group-item-action">
+                        <i class="fas fa-question-circle me-2"></i>Help
+                    </a>
+                `);
+            }
         }
-        
+
         // Load system status
         function loadSystemStatus() {
-            // Get license key - use global function if available, otherwise fallback
-            const licenseKey = (typeof window.getLicenseKey === 'function') 
-                ? window.getLicenseKey() 
-                : (localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY);
-            
-            // Status endpoint doesn't require license key, but include it if available
-            const url = '/status';
+            // Get JWT token if available
+            const authToken = localStorage.getItem('variosync_auth_token');
+
             const options = {
-                url: url,
+                url: '/status',
                 method: 'GET',
-                headers: licenseKey ? { 'X-License-Key': licenseKey } : {},
+                headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {},
                 timeout: 5000  // 5 second timeout
             };
-            
+
             $.ajax(options)
                 .done(function(data) {
                     const container = $('#system-status');
@@ -603,9 +405,9 @@
                         console.warn('System status container not found');
                         return;
                     }
-                    
+
                     const statusIcon = data.status === 'running' ? 'fas fa-circle text-success' : 'fas fa-circle text-danger';
-                    
+
                     container.html(`
                         <div class="d-flex align-items-center mb-2">
                             <i class="${statusIcon} me-2"></i>
