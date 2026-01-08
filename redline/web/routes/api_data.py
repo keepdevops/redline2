@@ -373,28 +373,66 @@ def get_file_quick_stats_post():
 @rate_limit("30 per hour")
 def download_data(ticker):
     """Download financial data for a ticker."""
-    try:
-        data = request.get_json() or {}
-        start_date = data.get('start_date')
-        end_date = data.get('end_date')
-        source = data.get('source', 'yahoo')
-        
-        from redline.downloaders.yahoo_downloader import YahooDownloader
-        
-        downloader = YahooDownloader()
-        result = downloader.download_single_ticker(
-            ticker=ticker,
-            start_date=start_date,
-            end_date=end_date
-        )
-        
+    # Validate ticker parameter
+    if not ticker:
+        logger.warning("Download data request with empty ticker")
+        return jsonify({'error': 'Ticker is required'}), 400
+
+    if not isinstance(ticker, str):
+        logger.error(f"Download data request with invalid ticker type: {type(ticker)}")
+        return jsonify({'error': 'Ticker must be a string'}), 400
+
+    ticker = ticker.strip().upper()
+
+    if len(ticker) == 0:
+        logger.warning("Download data request with empty ticker after strip")
+        return jsonify({'error': 'Ticker cannot be empty'}), 400
+
+    if len(ticker) > 20:
+        logger.warning(f"Download data request with oversized ticker: {ticker}")
+        return jsonify({'error': 'Ticker too long (max 20 characters)'}), 400
+
+    # Get request body
+    data = request.get_json() or {}
+
+    # Validate optional parameters
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+    source = data.get('source', 'yahoo')
+
+    if source and not isinstance(source, str):
+        logger.warning(f"Download data request for {ticker} has invalid source type: {type(source)}")
+        source = 'yahoo'
+
+    logger.info(f"Processing download request: ticker={ticker}, source={source}, dates={start_date} to {end_date}")
+
+    # Import downloader
+    from redline.downloaders.yahoo_downloader import YahooDownloader
+
+    downloader = YahooDownloader()
+
+    # Download data
+    result = downloader.download_single_ticker(
+        ticker=ticker,
+        start_date=start_date,
+        end_date=end_date
+    )
+
+    # Validate result
+    if result is None:
+        logger.warning(f"Download returned None for ticker: {ticker}")
         return jsonify({
-            'message': f'Data downloaded for {ticker}',
+            'error': 'No data found',
             'ticker': ticker,
-            'records': len(result) if result is not None else 0
-        })
-        
-    except Exception as e:
-        logger.error(f"Error downloading data for {ticker}: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+            'message': f'No data available for {ticker}'
+        }), 404
+
+    records = len(result) if hasattr(result, '__len__') else 0
+    logger.info(f"Successfully downloaded {records} records for {ticker}")
+
+    return jsonify({
+        'message': f'Data downloaded for {ticker}',
+        'ticker': ticker,
+        'records': records
+    })
 
