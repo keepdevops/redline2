@@ -4,7 +4,7 @@ Authentication Routes for REDLINE
 Handles Supabase Auth integration and Stripe customer creation
 """
 
-from flask import Blueprint, request, jsonify, g, session as flask_session
+from flask import Blueprint, request, jsonify, g, session as flask_session, render_template
 from redline.database.supabase_client import supabase_client
 from redline.auth.supabase_auth import auth_manager
 import stripe
@@ -18,6 +18,22 @@ stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
 
 # Create Blueprint
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
+
+
+@auth_bp.route('/login', methods=['GET'])
+def login_page():
+    """
+    Render login page
+    """
+    return render_template('login.html')
+
+
+@auth_bp.route('/signup', methods=['GET'])
+def signup_page():
+    """
+    Render signup page
+    """
+    return render_template('signup.html')
 
 
 @auth_bp.route('/signup', methods=['POST'])
