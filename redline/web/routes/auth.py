@@ -60,9 +60,16 @@ def login():
 
         logger.info(f"Login attempt for {email}")
 
+        # Check if Supabase is available
+        if not supabase_client.is_available():
+            return jsonify({
+                'error': 'Authentication service is not configured',
+                'code': 'SERVICE_UNAVAILABLE'
+            }), 503
+
         # Authenticate with Supabase
         try:
-            auth_response = supabase_client.supabase.auth.sign_in_with_password({
+            auth_response = supabase_client.client.auth.sign_in_with_password({
                 "email": email,
                 "password": password
             })
@@ -150,9 +157,16 @@ def signup():
 
         logger.info(f"Processing signup for {email}")
 
+        # Check if Supabase is available
+        if not supabase_client.is_available():
+            return jsonify({
+                'error': 'Authentication service is not configured',
+                'code': 'SERVICE_UNAVAILABLE'
+            }), 503
+
         # Create user in Supabase Auth
         try:
-            auth_response = supabase_client.supabase.auth.sign_up({
+            auth_response = supabase_client.client.auth.sign_up({
                 "email": email,
                 "password": password,
                 "options": {
