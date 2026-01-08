@@ -25,6 +25,12 @@ logger = logging.getLogger(__name__)
 if STRIPE_AVAILABLE and PaymentConfig.STRIPE_SECRET_KEY:
     stripe.api_key = PaymentConfig.STRIPE_SECRET_KEY
 
+@payments_tab_bp.route('/subscription', methods=['GET'])
+def subscription_page():
+    """Render subscription management page"""
+    return render_template('subscription.html')
+
+
 @payments_tab_bp.route('/success', methods=['GET'])
 def payment_success():
     """DEPRECATED: Old pay-per-hour success page"""
