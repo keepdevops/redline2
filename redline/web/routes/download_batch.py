@@ -20,20 +20,84 @@ logger = logging.getLogger(__name__)
 @download_batch_bp.route('/batch-download', methods=['POST'])
 def batch_download():
     """Download data for multiple tickers."""
-    try:
-        # Get user_id from g (set by auth middleware)
-        user_id = getattr(g, 'user_id', None)
-        if not user_id:
-            return jsonify({'error': 'Authentication required'}), 401
-        
-        data = request.get_json() or {}
-        tickers = data.get('tickers', [])
-        source = data.get('source', 'yahoo')
-        start_date = data.get('start_date')
-        end_date = data.get('end_date')
-        
-        if not tickers:
-            return jsonify({'error': 'No tickers provided'}), 400
+    # Get authenticated user
+    user_id = getattr(g, 'user_id', None)
+
+    if not user_id:
+        logger.warning("Batch download request without authenticated user")
+        return jsonify({'error': 'Authentication required'}), 401
+
+    if not isinstance(user_id, str):
+        logger.error(f"Batch download request with invalid user_id type: {type(user_id)}")
+        return jsonify({'error': 'Invalid authentication data'}), 401
+
+    # Get and validate request data
+    data = request.get_json()
+
+    if not data:
+        logger.warning(f"Batch download request from {user_id} with empty body")
+        return jsonify({'error': 'Request body is required'}), 400
+
+    if not isinstance(data, dict):
+        logger.error(f"Batch download request from {user_id} with invalid data type: {type(data)}")
+        return jsonify({'error': 'Request body must be JSON object'}), 400
+
+    # Validate tickers list
+    tickers = data.get('tickers', [])
+
+    if not tickers:
+        logger.warning(f"Batch download request from {user_id} with no tickers")
+        return jsonify({'error': 'No tickers provided'}), 400
+
+    if not isinstance(tickers, list):
+        logger.error(f"Batch download request from {user_id} has invalid tickers type: {type(tickers)}")
+        return jsonify({'error': 'tickers must be an array'}), 400
+
+    if len(tickers) == 0:
+        logger.warning(f"Batch download request from {user_id} with empty tickers array")
+        return jsonify({'error': 'tickers array cannot be empty'}), 400
+
+    if len(tickers) > 500:
+        logger.warning(f"Batch download request from {user_id} with too many tickers: {len(tickers)}")
+        return jsonify({'error': 'Too many tickers. Maximum 500 tickers per batch'}), 400
+
+    # Validate each ticker
+    validated_tickers = []
+    for idx, ticker in enumerate(tickers):
+        if not isinstance(ticker, str):
+            logger.warning(f"Batch download ticker {idx} from {user_id} has invalid type: {type(ticker)}")
+            return jsonify({'error': f'Ticker at index {idx} must be a string'}), 400
+
+        ticker = ticker.strip().upper()
+        if len(ticker) == 0:
+            logger.warning(f"Batch download from {user_id} has empty ticker at index {idx}")
+            return jsonify({'error': f'Ticker at index {idx} cannot be empty'}), 400
+
+        if len(ticker) > 20:
+            logger.warning(f"Batch download from {user_id} has oversized ticker at index {idx}: {ticker}")
+            return jsonify({'error': f'Ticker at index {idx} too long (max 20 characters)'}), 400
+
+        validated_tickers.append(ticker)
+
+    tickers = validated_tickers
+
+    # Validate source
+    source = data.get('source', 'yahoo')
+
+    if not isinstance(source, str):
+        logger.error(f"Batch download from {user_id} has invalid source type: {type(source)}")
+        return jsonify({'error': 'source must be a string'}), 400
+
+    valid_sources = ['yahoo', 'stooq', 'alpha_vantage', 'finnhub', 'massive']
+    if not source.startswith('custom_') and source not in valid_sources:
+        logger.warning(f"Batch download from {user_id} has invalid source: {source}")
+        return jsonify({'error': f'Invalid source. Must be one of: {", ".join(valid_sources)} or custom_*'}), 400
+
+    # Get date parameters
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+
+    logger.info(f"Processing batch download from {user_id}: {len(tickers)} ticker(s), source={source}")
         
         results = []
         errors = []

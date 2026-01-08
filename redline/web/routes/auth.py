@@ -39,59 +39,77 @@ def reset_password():
     Returns:
         JSON with success status
     """
-    try:
-        data = request.get_json()
+    # Get request data
+    data = request.get_json()
 
-        if not data:
-            return jsonify({
-                'error': 'Request body is required',
-                'code': 'NO_DATA'
-            }), 400
-
-        email = data.get('email')
-
-        if not email:
-            return jsonify({
-                'error': 'Email address is required',
-                'code': 'MISSING_EMAIL'
-            }), 400
-
-        logger.info(f"Password reset request for {email}")
-
-        # Check if Supabase is available
-        if not supabase_client.is_available():
-            return jsonify({
-                'error': 'Authentication service is not configured',
-                'code': 'SERVICE_UNAVAILABLE'
-            }), 503
-
-        # Send password reset email via Supabase
-        try:
-            # Supabase will send an email with a reset link
-            reset_response = supabase_client.client.auth.reset_password_email(email)
-
-            logger.info(f"Password reset email sent to {email}")
-
-            return jsonify({
-                'success': True,
-                'message': 'If an account exists with that email, a password reset link has been sent.'
-            }), 200
-
-        except Exception as e:
-            logger.error(f"Supabase password reset error: {str(e)}")
-            # Return success anyway for security (don't reveal if email exists)
-            return jsonify({
-                'success': True,
-                'message': 'If an account exists with that email, a password reset link has been sent.'
-            }), 200
-
-    except Exception as e:
-        logger.error(f"Unexpected error in password reset: {str(e)}")
+    if not data:
+        logger.warning("Password reset request with empty body")
         return jsonify({
-            'error': 'Internal server error',
-            'code': 'INTERNAL_ERROR',
-            'details': str(e)
-        }), 500
+            'error': 'Request body is required',
+            'code': 'NO_DATA'
+        }), 400
+
+    if not isinstance(data, dict):
+        logger.error(f"Password reset request with invalid data type: {type(data)}")
+        return jsonify({
+            'error': 'Request body must be JSON object',
+            'code': 'INVALID_DATA_TYPE'
+        }), 400
+
+    # Validate email
+    email = data.get('email')
+
+    if not email:
+        logger.warning("Password reset request missing email field")
+        return jsonify({
+            'error': 'Email address is required',
+            'code': 'MISSING_EMAIL'
+        }), 400
+
+    if not isinstance(email, str):
+        logger.error(f"Password reset email field has invalid type: {type(email)}")
+        return jsonify({
+            'error': 'Email must be a string',
+            'code': 'INVALID_EMAIL_TYPE'
+        }), 400
+
+    if '@' not in email or len(email) < 3:
+        logger.warning(f"Password reset request with invalid email format: {email}")
+        return jsonify({
+            'error': 'Invalid email format',
+            'code': 'INVALID_EMAIL_FORMAT'
+        }), 400
+
+    logger.info(f"Processing password reset request for {email}")
+
+    # Check if Supabase is available
+    if not supabase_client.is_available():
+        logger.error("Password reset failed: Supabase client not available")
+        return jsonify({
+            'error': 'Authentication service is not configured',
+            'code': 'SERVICE_UNAVAILABLE'
+        }), 503
+
+    if not supabase_client.client:
+        logger.error("Password reset failed: Supabase client is None")
+        return jsonify({
+            'error': 'Authentication service is not configured',
+            'code': 'SERVICE_UNAVAILABLE'
+        }), 503
+
+    # Send password reset email via Supabase
+    logger.debug(f"Calling Supabase Auth API to send reset email to {email}")
+
+    # Note: For security, always return success message regardless of whether email exists
+    # This prevents email enumeration attacks
+    supabase_client.client.auth.reset_password_email(email)
+
+    logger.info(f"Password reset email request processed for {email}")
+
+    return jsonify({
+        'success': True,
+        'message': 'If an account exists with that email, a password reset link has been sent.'
+    }), 200
 
 
 @auth_bp.route('/login', methods=['GET'])
@@ -114,78 +132,130 @@ def login():
     Returns:
         JSON with access_token and user data
     """
-    try:
-        data = request.get_json()
+    # Get request data
+    data = request.get_json()
 
-        if not data:
-            return jsonify({
-                'error': 'Request body is required',
-                'code': 'NO_DATA'
-            }), 400
-
-        email = data.get('email')
-        password = data.get('password')
-
-        if not email or not password:
-            return jsonify({
-                'error': 'Email and password are required',
-                'code': 'MISSING_CREDENTIALS'
-            }), 400
-
-        logger.info(f"Login attempt for {email}")
-
-        # Check if Supabase is available
-        if not supabase_client.is_available():
-            return jsonify({
-                'error': 'Authentication service is not configured',
-                'code': 'SERVICE_UNAVAILABLE'
-            }), 503
-
-        # Authenticate with Supabase
-        try:
-            auth_response = supabase_client.client.auth.sign_in_with_password({
-                "email": email,
-                "password": password
-            })
-
-            if not auth_response.user:
-                return jsonify({
-                    'error': 'Invalid email or password',
-                    'code': 'INVALID_CREDENTIALS'
-                }), 401
-
-            # Get user profile from database
-            user_profile = supabase_client.get_user_by_id(auth_response.user.id)
-
-            logger.info(f"User {email} logged in successfully")
-
-            return jsonify({
-                'success': True,
-                'access_token': auth_response.session.access_token,
-                'refresh_token': auth_response.session.refresh_token,
-                'user': {
-                    'id': auth_response.user.id,
-                    'email': auth_response.user.email,
-                    'name': user_profile.get('name') if user_profile else email.split('@')[0],
-                    'stripe_customer_id': user_profile.get('stripe_customer_id') if user_profile else None
-                }
-            }), 200
-
-        except Exception as e:
-            logger.error(f"Supabase auth error: {str(e)}")
-            return jsonify({
-                'error': 'Invalid email or password',
-                'code': 'AUTH_FAILED',
-                'details': str(e)
-            }), 401
-
-    except Exception as e:
-        logger.error(f"Unexpected error in login: {str(e)}")
+    if not data:
+        logger.warning("Login request with empty body")
         return jsonify({
-            'error': 'Internal server error',
-            'code': 'INTERNAL_ERROR',
-            'details': str(e)
+            'error': 'Request body is required',
+            'code': 'NO_DATA'
+        }), 400
+
+    if not isinstance(data, dict):
+        logger.error(f"Login request with invalid data type: {type(data)}")
+        return jsonify({
+            'error': 'Request body must be JSON object',
+            'code': 'INVALID_DATA_TYPE'
+        }), 400
+
+    # Validate credentials
+    email = data.get('email')
+    password = data.get('password')
+
+    if not email:
+        logger.warning("Login request missing email field")
+        return jsonify({
+            'error': 'Email is required',
+            'code': 'MISSING_EMAIL'
+        }), 400
+
+    if not password:
+        logger.warning(f"Login request missing password field for email: {email}")
+        return jsonify({
+            'error': 'Password is required',
+            'code': 'MISSING_PASSWORD'
+        }), 400
+
+    if not isinstance(email, str) or not isinstance(password, str):
+        logger.error(f"Login credentials have invalid types - email: {type(email)}, password: {type(password)}")
+        return jsonify({
+            'error': 'Email and password must be strings',
+            'code': 'INVALID_CREDENTIAL_TYPE'
+        }), 400
+
+    if '@' not in email:
+        logger.warning(f"Login attempt with invalid email format: {email}")
+        return jsonify({
+            'error': 'Invalid email format',
+            'code': 'INVALID_EMAIL_FORMAT'
+        }), 400
+
+    if len(password) < 6:
+        logger.warning(f"Login attempt with password too short for email: {email}")
+        return jsonify({
+            'error': 'Invalid email or password',
+            'code': 'INVALID_CREDENTIALS'
+        }), 401
+
+    logger.info(f"Processing login attempt for {email}")
+
+    # Check if Supabase is available
+    if not supabase_client.is_available():
+        logger.error("Login failed: Supabase client not available")
+        return jsonify({
+            'error': 'Authentication service is not configured',
+            'code': 'SERVICE_UNAVAILABLE'
+        }), 503
+
+    if not supabase_client.client:
+        logger.error("Login failed: Supabase client is None")
+        return jsonify({
+            'error': 'Authentication service is not configured',
+            'code': 'SERVICE_UNAVAILABLE'
+        }), 503
+
+    # Authenticate with Supabase
+    logger.debug(f"Calling Supabase Auth API for email: {email}")
+    auth_response = supabase_client.client.auth.sign_in_with_password({
+        "email": email,
+        "password": password
+    })
+
+    # Validate auth response
+    if not auth_response:
+        logger.error(f"Supabase auth returned no response for email: {email}")
+        return jsonify({
+            'error': 'Authentication failed',
+            'code': 'AUTH_FAILED'
+        }), 401
+
+    if not hasattr(auth_response, 'user') or not auth_response.user:
+        logger.warning(f"Invalid credentials for email: {email}")
+        return jsonify({
+            'error': 'Invalid email or password',
+            'code': 'INVALID_CREDENTIALS'
+        }), 401
+
+    if not hasattr(auth_response, 'session') or not auth_response.session:
+        logger.error(f"Supabase auth succeeded but no session for email: {email}")
+        return jsonify({
+            'error': 'Authentication succeeded but session creation failed',
+            'code': 'NO_SESSION'
         }), 500
+
+    user_id = auth_response.user.id
+    logger.debug(f"User authenticated successfully: {user_id}")
+
+    # Get user profile from database
+    user_profile = supabase_client.get_user_by_id(user_id)
+
+    if not user_profile:
+        logger.warning(f"User {user_id} authenticated but profile not found in database")
+
+    logger.info(f"User {email} logged in successfully (user_id: {user_id})")
+
+    return jsonify({
+        'success': True,
+        'access_token': auth_response.session.access_token,
+        'refresh_token': auth_response.session.refresh_token,
+        'user': {
+            'id': user_id,
+            'email': auth_response.user.email,
+            'name': user_profile.get('name') if user_profile else email.split('@')[0],
+            'stripe_customer_id': user_profile.get('stripe_customer_id') if user_profile else None
+        }
+    }), 200
 
 
 @auth_bp.route('/signup', methods=['GET'])
@@ -210,72 +280,134 @@ def signup():
     Returns:
         JSON with access_token and user data
     """
-    try:
-        data = request.get_json()
+    # Get request data
+    data = request.get_json()
 
-        if not data:
-            return jsonify({
-                'error': 'Request body is required',
-                'code': 'NO_DATA'
-            }), 400
+    if not data:
+        logger.warning("Signup request with empty body")
+        return jsonify({
+            'error': 'Request body is required',
+            'code': 'NO_DATA'
+        }), 400
 
-        email = data.get('email')
-        password = data.get('password')
-        name = data.get('name')
+    if not isinstance(data, dict):
+        logger.error(f"Signup request with invalid data type: {type(data)}")
+        return jsonify({
+            'error': 'Request body must be JSON object',
+            'code': 'INVALID_DATA_TYPE'
+        }), 400
 
-        if not email or not password or not name:
-            return jsonify({
-                'error': 'Email, password, and name are required',
-                'code': 'MISSING_FIELDS'
-            }), 400
+    # Validate required fields
+    email = data.get('email')
+    password = data.get('password')
+    name = data.get('name')
 
-        logger.info(f"Processing signup for {email}")
+    if not email:
+        logger.warning("Signup request missing email field")
+        return jsonify({
+            'error': 'Email is required',
+            'code': 'MISSING_EMAIL'
+        }), 400
 
-        # Check if Supabase is available
-        if not supabase_client.is_available():
-            return jsonify({
-                'error': 'Authentication service is not configured',
-                'code': 'SERVICE_UNAVAILABLE'
-            }), 503
+    if not password:
+        logger.warning(f"Signup request missing password for email: {email}")
+        return jsonify({
+            'error': 'Password is required',
+            'code': 'MISSING_PASSWORD'
+        }), 400
 
-        # Create user in Supabase Auth
-        try:
-            auth_response = supabase_client.client.auth.sign_up({
-                "email": email,
-                "password": password,
-                "options": {
-                    "data": {
-                        "name": name
-                    }
-                }
-            })
+    if not name:
+        logger.warning(f"Signup request missing name for email: {email}")
+        return jsonify({
+            'error': 'Name is required',
+            'code': 'MISSING_NAME'
+        }), 400
 
-            if not auth_response.user:
-                return jsonify({
-                    'error': 'Failed to create user account',
-                    'code': 'SIGNUP_FAILED'
-                }), 400
+    # Validate field types
+    if not isinstance(email, str) or not isinstance(password, str) or not isinstance(name, str):
+        logger.error(f"Signup fields have invalid types - email: {type(email)}, password: {type(password)}, name: {type(name)}")
+        return jsonify({
+            'error': 'Email, password, and name must be strings',
+            'code': 'INVALID_FIELD_TYPE'
+        }), 400
 
-            user_id = auth_response.user.id
-            logger.info(f"Created Supabase user {user_id} for {email}")
+    # Validate email format
+    if '@' not in email or len(email) < 3:
+        logger.warning(f"Signup attempt with invalid email format: {email}")
+        return jsonify({
+            'error': 'Invalid email format',
+            'code': 'INVALID_EMAIL_FORMAT'
+        }), 400
 
-        except Exception as e:
-            error_msg = str(e)
-            logger.error(f"Supabase signup error: {error_msg}")
+    # Validate password strength
+    if len(password) < 6:
+        logger.warning(f"Signup attempt with weak password for email: {email}")
+        return jsonify({
+            'error': 'Password must be at least 6 characters',
+            'code': 'WEAK_PASSWORD'
+        }), 400
 
-            if 'already registered' in error_msg.lower() or 'already exists' in error_msg.lower():
-                return jsonify({
-                    'error': 'An account with this email already exists',
-                    'code': 'EMAIL_EXISTS'
-                }), 409
+    # Validate name length
+    if len(name) < 2:
+        logger.warning(f"Signup attempt with invalid name length for email: {email}")
+        return jsonify({
+            'error': 'Name must be at least 2 characters',
+            'code': 'INVALID_NAME'
+        }), 400
 
-            return jsonify({
-                'error': 'Failed to create account',
-                'code': 'AUTH_ERROR',
-                'details': error_msg
-            }), 400
+    logger.info(f"Processing signup for {email}")
 
-        # Create Stripe customer
+    # Check if Supabase is available
+    if not supabase_client.is_available():
+        logger.error("Signup failed: Supabase client not available")
+        return jsonify({
+            'error': 'Authentication service is not configured',
+            'code': 'SERVICE_UNAVAILABLE'
+        }), 503
+
+    if not supabase_client.client:
+        logger.error("Signup failed: Supabase client is None")
+        return jsonify({
+            'error': 'Authentication service is not configured',
+            'code': 'SERVICE_UNAVAILABLE'
+        }), 503
+
+    # Step 1: Create user in Supabase Auth
+    logger.debug(f"Creating Supabase Auth user for email: {email}")
+    auth_response = supabase_client.client.auth.sign_up({
+        "email": email,
+        "password": password,
+        "options": {
+            "data": {
+                "name": name
+            }
+        }
+    })
+
+    if not auth_response:
+        logger.error(f"Supabase signup returned no response for email: {email}")
+        return jsonify({
+            'error': 'Failed to create user account',
+            'code': 'SIGNUP_FAILED'
+        }), 400
+
+    if not hasattr(auth_response, 'user') or not auth_response.user:
+        logger.error(f"Supabase signup succeeded but no user for email: {email}")
+        return jsonify({
+            'error': 'Failed to create user account',
+            'code': 'SIGNUP_FAILED'
+        }), 400
+
+    user_id = auth_response.user.id
+    logger.info(f"Created Supabase Auth user {user_id} for {email}")
+
+    # Step 2: Create Stripe customer
+    logger.debug(f"Creating Stripe customer for email: {email}")
+    customer = None
+
+    if not stripe.api_key:
+        logger.warning(f"Stripe API key not configured, skipping customer creation for {email}")
+    else:
         try:
             customer = stripe.Customer.create(
                 email=email,
@@ -285,48 +417,56 @@ def signup():
                     'product': 'redline'
                 }
             )
-            logger.info(f"Created Stripe customer {customer.id} for {email}")
 
+            if customer and hasattr(customer, 'id'):
+                logger.info(f"Created Stripe customer {customer.id} for {email}")
+            else:
+                logger.warning(f"Stripe customer creation returned unexpected result for {email}")
+                customer = None
+
+        except stripe.error.InvalidRequestError as e:
+            logger.error(f"Stripe invalid request creating customer for {email}: {str(e)}")
+            customer = None
+        except stripe.error.AuthenticationError as e:
+            logger.error(f"Stripe authentication error creating customer for {email}: {str(e)}")
+            customer = None
+        except stripe.error.APIConnectionError as e:
+            logger.error(f"Stripe API connection error creating customer for {email}: {str(e)}")
+            customer = None
         except stripe.error.StripeError as e:
-            logger.error(f"Stripe error creating customer: {str(e)}")
-            # Continue without Stripe - user can still sign up
+            logger.error(f"Stripe error creating customer for {email}: {str(e)}")
             customer = None
 
-        # Create user profile in Supabase database
-        try:
-            user_profile = supabase_client.create_user_profile(
-                user_id=user_id,
-                email=email,
-                stripe_customer_id=customer.id if customer else None,
-                name=name
-            )
-            logger.info(f"Created user profile in Supabase for {email}")
+    # Step 3: Create user profile in database
+    logger.debug(f"Creating database user profile for email: {email}")
+    user_profile = supabase_client.create_user_profile(
+        user_id=user_id,
+        email=email,
+        stripe_customer_id=customer.id if customer else None,
+        name=name
+    )
 
-        except Exception as e:
-            logger.error(f"Error creating user profile: {str(e)}")
-            # Profile creation is not critical - continue
+    if user_profile:
+        logger.info(f"Created user profile in Supabase database for {email}")
+    else:
+        logger.warning(f"Failed to create user profile in database for {email} (user_id: {user_id})")
+        # Not critical - user can still log in
 
-        # Return auth data for automatic login
-        return jsonify({
-            'success': True,
-            'access_token': auth_response.session.access_token if auth_response.session else None,
-            'refresh_token': auth_response.session.refresh_token if auth_response.session else None,
-            'user': {
-                'id': user_id,
-                'email': email,
-                'name': name,
-                'stripe_customer_id': customer.id if customer else None
-            },
-            'message': 'Account created successfully'
-        }), 201
+    # Return auth data for automatic login
+    logger.info(f"Signup completed successfully for {email} (user_id: {user_id})")
 
-    except Exception as e:
-        logger.error(f"Unexpected error in signup: {str(e)}")
-        return jsonify({
-            'error': 'Internal server error',
-            'code': 'INTERNAL_ERROR',
-            'details': str(e)
-        }), 500
+    return jsonify({
+        'success': True,
+        'access_token': auth_response.session.access_token if hasattr(auth_response, 'session') and auth_response.session else None,
+        'refresh_token': auth_response.session.refresh_token if hasattr(auth_response, 'session') and auth_response.session else None,
+        'user': {
+            'id': user_id,
+            'email': email,
+            'name': name,
+            'stripe_customer_id': customer.id if customer else None
+        },
+        'message': 'Account created successfully'
+    }), 201
 
 
 @auth_bp.route('/user', methods=['GET'])

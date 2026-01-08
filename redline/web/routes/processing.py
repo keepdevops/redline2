@@ -33,166 +33,293 @@ def upload_file():
     Returns:
         JSON with job_id and status
     """
-    # User already authenticated by middleware
-    user_id = g.user_id
-    stripe_customer_id = g.stripe_customer_id
+    # Get authenticated user info from g (set by middleware)
+    user_id = getattr(g, 'user_id', None)
+    stripe_customer_id = getattr(g, 'stripe_customer_id', None)
+
+    # Validate authentication
+    if not user_id:
+        logger.error("Upload request without authenticated user")
+        return jsonify({
+            'error': 'Authentication required',
+            'code': 'AUTH_REQUIRED'
+        }), 401
+
+    if not isinstance(user_id, str):
+        logger.error(f"Upload request with invalid user_id type: {type(user_id)}")
+        return jsonify({
+            'error': 'Invalid authentication data',
+            'code': 'INVALID_AUTH'
+        }), 401
+
+    logger.info(f"Processing upload request for user: {user_id}")
+
+    # Check if file was uploaded
+    if 'file' not in request.files:
+        logger.warning(f"Upload request from {user_id} missing file in form data")
+        return jsonify({
+            'error': 'No file provided',
+            'code': 'NO_FILE'
+        }), 400
+
+    file = request.files['file']
+
+    # Validate file
+    if not file:
+        logger.error(f"Upload request from {user_id} has None file object")
+        return jsonify({
+            'error': 'Invalid file',
+            'code': 'INVALID_FILE'
+        }), 400
+
+    if not hasattr(file, 'filename') or file.filename == '':
+        logger.warning(f"Upload request from {user_id} has empty filename")
+        return jsonify({
+            'error': 'Empty filename',
+            'code': 'EMPTY_FILENAME'
+        }), 400
+
+    original_filename = file.filename
+    logger.debug(f"Upload request from {user_id} for file: {original_filename}")
+
+    # Get and validate job type
+    job_type = request.form.get('job_type', 'csv_to_parquet')
+
+    if not isinstance(job_type, str):
+        logger.error(f"Upload request from {user_id} has invalid job_type type: {type(job_type)}")
+        return jsonify({
+            'error': 'Invalid job type format',
+            'code': 'INVALID_JOB_TYPE_FORMAT'
+        }), 400
+
+    # Validate job type
+    valid_job_types = [
+        'csv_to_parquet',
+        'parquet_to_csv',
+        'aggregate_timeseries',
+        'clean_data',
+        'merge_files'
+    ]
+
+    if job_type not in valid_job_types:
+        logger.warning(f"Upload request from {user_id} has invalid job_type: {job_type}")
+        return jsonify({
+            'error': f'Invalid job type. Must be one of: {", ".join(valid_job_types)}',
+            'code': 'INVALID_JOB_TYPE'
+        }), 400
+
+    logger.debug(f"Job type validated: {job_type}")
+
+    # Check S3 manager availability
+    if not s3_manager.is_available():
+        logger.error(f"Upload request from {user_id} but S3 manager not available")
+        return jsonify({
+            'error': 'Storage service not configured',
+            'code': 'STORAGE_UNAVAILABLE'
+        }), 503
+
+    # Generate unique file ID and secure filename
+    file_id = str(uuid.uuid4())
+    filename = secure_filename(original_filename)
+
+    if not filename:
+        logger.error(f"Upload from {user_id}: secure_filename returned empty for {original_filename}")
+        filename = f"file_{file_id}"
+
+    logger.debug(f"Generated file_id: {file_id}, secure filename: {filename}")
+
+    # Generate S3 paths
+    input_s3_key = s3_manager.get_file_path(user_id, f"{file_id}_{filename}", 'raw')
+
+    # Determine output extension based on job type
+    if job_type == 'csv_to_parquet':
+        output_ext = 'parquet'
+    elif job_type == 'parquet_to_csv':
+        output_ext = 'csv'
+    else:
+        output_ext = 'parquet'  # Default to parquet for other operations
+
+    output_s3_key = s3_manager.get_file_path(user_id, f"{file_id}_output.{output_ext}", 'processed')
+
+    logger.debug(f"S3 paths - input: {input_s3_key}, output: {output_s3_key}")
+
+    # Save file temporarily
+    temp_path = f"/tmp/{file_id}_{filename}"
+
+    logger.debug(f"Saving file temporarily to: {temp_path}")
+    file.save(temp_path)
+
+    # Validate temp file was created
+    if not os.path.exists(temp_path):
+        logger.error(f"Failed to save temp file for {user_id}: {temp_path}")
+        return jsonify({
+            'error': 'Failed to save uploaded file',
+            'code': 'FILE_SAVE_ERROR'
+        }), 500
+
+    # Get file size
+    file_size = os.path.getsize(temp_path)
+
+    if file_size == 0:
+        logger.warning(f"Upload from {user_id} has zero-size file: {filename}")
+        os.remove(temp_path)
+        return jsonify({
+            'error': 'Uploaded file is empty',
+            'code': 'EMPTY_FILE'
+        }), 400
+
+    if file_size > 100 * 1024 * 1024:  # 100MB limit
+        logger.warning(f"Upload from {user_id} exceeds size limit: {file_size} bytes")
+        os.remove(temp_path)
+        return jsonify({
+            'error': 'File too large (max 100MB)',
+            'code': 'FILE_TOO_LARGE'
+        }), 413
+
+    logger.info(f"Uploading file {filename} ({file_size} bytes) to S3 for user {user_id}")
+
+    # Upload file to S3
+    input_s3_uri = s3_manager.upload_file(temp_path, input_s3_key)
+
+    # Clean up temp file immediately after upload attempt
+    if os.path.exists(temp_path):
+        os.remove(temp_path)
+        logger.debug(f"Cleaned up temp file: {temp_path}")
+
+    # Validate S3 upload
+    if not input_s3_uri:
+        logger.error(f"S3 upload failed for {user_id}, file: {filename}")
+        return jsonify({
+            'error': 'Failed to upload file to storage',
+            'code': 'S3_UPLOAD_ERROR'
+        }), 500
+
+    logger.info(f"Successfully uploaded file to S3: {input_s3_uri}")
+
+    output_s3_uri = s3_manager.get_s3_uri(output_s3_key)
+
+    # Check Supabase availability
+    if not supabase_client.is_available():
+        logger.error(f"Upload from {user_id} but Supabase client not available")
+        return jsonify({
+            'error': 'Database service not configured',
+            'code': 'DATABASE_UNAVAILABLE'
+        }), 503
+
+    # Create job record in Supabase
+    logger.debug(f"Creating job record for user {user_id}")
+    job = supabase_client.create_job(
+        user_id=user_id,
+        job_type=job_type,
+        input_s3_path=input_s3_uri,
+        output_s3_path=output_s3_uri,
+        file_size_bytes=file_size
+    )
+
+    if not job:
+        logger.error(f"Failed to create job record for {user_id}")
+        return jsonify({
+            'error': 'Failed to create job record',
+            'code': 'JOB_CREATION_ERROR'
+        }), 500
+
+    if not isinstance(job, dict) or 'id' not in job:
+        logger.error(f"Job creation returned invalid data for {user_id}: {type(job)}")
+        return jsonify({
+            'error': 'Invalid job record created',
+            'code': 'INVALID_JOB_DATA'
+        }), 500
+
+    job_id = job['id']
+    logger.info(f"Created job {job_id} for user {user_id}")
+
+    # Trigger Modal function asynchronously
+    logger.debug(f"Triggering Modal function for job {job_id}")
+
+    # Note: Modal operations can raise exceptions - legitimate exception handling
+    try:
+        import modal
+    except ImportError:
+        logger.error(f"Modal library not available for job {job_id}")
+        supabase_client.update_job_status(
+            job_id=job_id,
+            status='failed',
+            error_message="Modal processing library not available"
+        )
+        return jsonify({
+            'error': 'Processing service not available',
+            'code': 'MODAL_UNAVAILABLE',
+            'job_id': job_id
+        }), 503
 
     try:
-        # Check if file was uploaded
-        if 'file' not in request.files:
-            return jsonify({
-                'error': 'No file provided',
-                'code': 'NO_FILE'
-            }), 400
+        # Lookup the deployed Modal function
+        process_data = modal.Function.lookup("redline-processing", "process_data")
 
-        file = request.files['file']
+        if not process_data:
+            raise ValueError("Modal function lookup returned None")
 
-        if file.filename == '':
-            return jsonify({
-                'error': 'Empty filename',
-                'code': 'EMPTY_FILENAME'
-            }), 400
-
-        # Get job type
-        job_type = request.form.get('job_type', 'csv_to_parquet')
-
-        # Validate job type
-        valid_job_types = [
-            'csv_to_parquet',
-            'parquet_to_csv',
-            'aggregate_timeseries',
-            'clean_data',
-            'merge_files'
-        ]
-
-        if job_type not in valid_job_types:
-            return jsonify({
-                'error': f'Invalid job type. Must be one of: {", ".join(valid_job_types)}',
-                'code': 'INVALID_JOB_TYPE'
-            }), 400
-
-        # Generate unique file ID
-        file_id = str(uuid.uuid4())
-        filename = secure_filename(file.filename)
-
-        # Generate S3 paths
-        input_s3_key = s3_manager.get_file_path(user_id, f"{file_id}_{filename}", 'raw')
-
-        # Determine output extension based on job type
-        if job_type == 'csv_to_parquet':
-            output_ext = 'parquet'
-        elif job_type == 'parquet_to_csv':
-            output_ext = 'csv'
-        else:
-            output_ext = 'parquet'  # Default to parquet for other operations
-
-        output_s3_key = s3_manager.get_file_path(user_id, f"{file_id}_output.{output_ext}", 'processed')
-
-        # Save file temporarily
-        temp_path = f"/tmp/{file_id}_{filename}"
-        file.save(temp_path)
-
-        # Get file size
-        file_size = os.path.getsize(temp_path)
-
-        logger.info(f"Uploading file {filename} ({file_size} bytes) for user {user_id}")
-
-        # Upload file to S3
-        input_s3_uri = s3_manager.upload_file(temp_path, input_s3_key)
-
-        if not input_s3_uri:
-            # Clean up temp file
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-
-            return jsonify({
-                'error': 'Failed to upload file to S3',
-                'code': 'S3_UPLOAD_ERROR'
-            }), 500
-
-        # Clean up temp file
-        os.remove(temp_path)
-
-        output_s3_uri = s3_manager.get_s3_uri(output_s3_key)
-
-        # Create job record in Supabase
-        job = supabase_client.create_job(
+        # Spawn the function asynchronously
+        modal_call = process_data.spawn(
+            job_id=job_id,
             user_id=user_id,
-            job_type=job_type,
+            stripe_customer_id=stripe_customer_id,
             input_s3_path=input_s3_uri,
             output_s3_path=output_s3_uri,
-            file_size_bytes=file_size
+            job_type=job_type
         )
 
-        if not job:
-            return jsonify({
-                'error': 'Failed to create job record',
-                'code': 'JOB_CREATION_ERROR'
-            }), 500
+        if not modal_call or not hasattr(modal_call, 'object_id'):
+            raise ValueError("Modal spawn returned invalid call object")
 
-        job_id = job['id']
+        # Update job with Modal call ID
+        supabase_client.update_job_status(
+            job_id=job_id,
+            status='processing',
+            modal_call_id=modal_call.object_id
+        )
 
-        logger.info(f"Created job {job_id} for user {user_id}")
+        logger.info(f"Triggered Modal function for job {job_id}: {modal_call.object_id}")
 
-        # Trigger Modal function asynchronously
-        try:
-            import modal
-
-            # Lookup the deployed Modal function
-            process_data = modal.Function.lookup("redline-processing", "process_data")
-
-            # Spawn the function asynchronously
-            modal_call = process_data.spawn(
-                job_id=job_id,
-                user_id=user_id,
-                stripe_customer_id=stripe_customer_id,
-                input_s3_path=input_s3_uri,
-                output_s3_path=output_s3_uri,
-                job_type=job_type
-            )
-
-            # Update job with Modal call ID
-            supabase_client.update_job_status(
-                job_id=job_id,
-                status='processing',
-                modal_call_id=modal_call.object_id
-            )
-
-            logger.info(f"Triggered Modal function for job {job_id}: {modal_call.object_id}")
-
-        except Exception as e:
-            logger.error(f"Failed to trigger Modal function: {str(e)}")
-
-            # Update job status to failed
-            supabase_client.update_job_status(
-                job_id=job_id,
-                status='failed',
-                error_message=f"Failed to trigger processing: {str(e)}"
-            )
-
-            return jsonify({
-                'error': 'Failed to trigger processing',
-                'code': 'MODAL_TRIGGER_ERROR',
-                'details': str(e),
-                'job_id': job_id
-            }), 500
-
+    except ImportError as e:
+        logger.error(f"Failed to import Modal for job {job_id}: {str(e)}")
+        supabase_client.update_job_status(
+            job_id=job_id,
+            status='failed',
+            error_message=f"Modal import failed: {str(e)}"
+        )
         return jsonify({
-            'success': True,
-            'job_id': job_id,
-            'status': 'processing',
-            'message': 'Processing job started',
-            'job_type': job_type,
-            'input_file': filename
-        }), 202
+            'error': 'Processing service import failed',
+            'code': 'MODAL_IMPORT_ERROR',
+            'details': str(e),
+            'job_id': job_id
+        }), 500
 
     except Exception as e:
-        logger.error(f"Error in upload_file: {str(e)}")
+        logger.error(f"Failed to trigger Modal function for job {job_id}: {str(e)}")
+        supabase_client.update_job_status(
+            job_id=job_id,
+            status='failed',
+            error_message=f"Failed to trigger processing: {str(e)}"
+        )
         return jsonify({
-            'error': 'Internal server error',
-            'code': 'INTERNAL_ERROR',
-            'details': str(e)
+            'error': 'Failed to trigger processing',
+            'code': 'MODAL_TRIGGER_ERROR',
+            'details': str(e),
+            'job_id': job_id
         }), 500
+
+    logger.info(f"Successfully started processing job {job_id} for user {user_id}")
+
+    return jsonify({
+        'success': True,
+        'job_id': job_id,
+        'status': 'processing',
+        'message': 'Processing job started',
+        'job_type': job_type,
+        'input_file': original_filename,
+        'file_size_bytes': file_size
+    }), 202
 
 
 @processing_bp.route('/jobs/<job_id>', methods=['GET'])

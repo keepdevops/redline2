@@ -33,17 +33,36 @@ class SupabaseClient:
         self.service_key = os.environ.get('SUPABASE_SERVICE_KEY')  # Service key for admin operations
         self.anon_key = os.environ.get('SUPABASE_ANON_KEY')  # Anon key for client-side
 
-        if not self.url or not self.service_key:
-            logger.warning("Supabase credentials not configured. Set SUPABASE_URL and SUPABASE_SERVICE_KEY")
+        # Validate URL format
+        if not self.url:
+            logger.warning("SUPABASE_URL not set in environment variables")
             self.client = None
             return
 
-        try:
-            # Use service key for server-side operations
-            self.client: Optional[Client] = create_client(self.url, self.service_key)
+        if not self.url.startswith('https://'):
+            logger.error(f"Invalid SUPABASE_URL format: {self.url}. Must start with https://")
+            self.client = None
+            return
+
+        # Validate service key
+        if not self.service_key:
+            logger.warning("SUPABASE_SERVICE_KEY not set in environment variables")
+            self.client = None
+            return
+
+        if len(self.service_key) < 20:
+            logger.error(f"SUPABASE_SERVICE_KEY appears invalid (too short: {len(self.service_key)} chars)")
+            self.client = None
+            return
+
+        # Attempt to create client
+        logger.info(f"Initializing Supabase client with URL: {self.url}")
+        self.client: Optional[Client] = create_client(self.url, self.service_key)
+
+        if self.client:
             logger.info("Supabase client initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize Supabase client: {str(e)}")
+        else:
+            logger.error("Failed to initialize Supabase client: create_client returned None")
             self.client = None
 
     def is_available(self) -> bool:
@@ -65,16 +84,34 @@ class SupabaseClient:
             User data dict or None if not found
         """
         if not self.client:
+            logger.warning("Cannot get user by ID: Supabase client not available")
             return None
 
-        try:
-            result = self.client.table('users').select('*').eq('id', user_id).execute()
-            if result.data and len(result.data) > 0:
-                return result.data[0]
+        if not user_id:
+            logger.error("Cannot get user: user_id is empty or None")
             return None
-        except Exception as e:
-            logger.error(f"Error getting user {user_id}: {str(e)}")
+
+        if not isinstance(user_id, str):
+            logger.error(f"Cannot get user: user_id must be string, got {type(user_id)}")
             return None
+
+        logger.debug(f"Fetching user by ID: {user_id}")
+        result = self.client.table('users').select('*').eq('id', user_id).execute()
+
+        if not result:
+            logger.warning(f"User query returned no result for ID: {user_id}")
+            return None
+
+        if not hasattr(result, 'data') or result.data is None:
+            logger.warning(f"User query result has no data attribute for ID: {user_id}")
+            return None
+
+        if len(result.data) == 0:
+            logger.info(f"User not found with ID: {user_id}")
+            return None
+
+        logger.debug(f"Successfully retrieved user: {user_id}")
+        return result.data[0]
 
     def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
         """
@@ -87,16 +124,34 @@ class SupabaseClient:
             User data dict or None if not found
         """
         if not self.client:
+            logger.warning("Cannot get user by email: Supabase client not available")
             return None
 
-        try:
-            result = self.client.table('users').select('*').eq('email', email).execute()
-            if result.data and len(result.data) > 0:
-                return result.data[0]
+        if not email:
+            logger.error("Cannot get user: email is empty or None")
             return None
-        except Exception as e:
-            logger.error(f"Error getting user by email {email}: {str(e)}")
+
+        if not isinstance(email, str):
+            logger.error(f"Cannot get user: email must be string, got {type(email)}")
             return None
+
+        if '@' not in email:
+            logger.error(f"Cannot get user: email format invalid (missing @): {email}")
+            return None
+
+        logger.debug(f"Fetching user by email: {email}")
+        result = self.client.table('users').select('*').eq('email', email).execute()
+
+        if not result or not hasattr(result, 'data') or result.data is None:
+            logger.warning(f"User query returned no valid result for email: {email}")
+            return None
+
+        if len(result.data) == 0:
+            logger.info(f"User not found with email: {email}")
+            return None
+
+        logger.debug(f"Successfully retrieved user by email: {email}")
+        return result.data[0]
 
     def get_user_by_stripe_customer(self, stripe_customer_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -109,16 +164,33 @@ class SupabaseClient:
             User data dict or None if not found
         """
         if not self.client:
+            logger.warning("Cannot get user by Stripe customer: Supabase client not available")
             return None
 
-        try:
-            result = self.client.table('users').select('*').eq('stripe_customer_id', stripe_customer_id).execute()
-            if result.data and len(result.data) > 0:
-                return result.data[0]
+        if not stripe_customer_id:
+            logger.error("Cannot get user: stripe_customer_id is empty or None")
             return None
-        except Exception as e:
-            logger.error(f"Error getting user by Stripe customer {stripe_customer_id}: {str(e)}")
+
+        if not isinstance(stripe_customer_id, str):
+            logger.error(f"Cannot get user: stripe_customer_id must be string, got {type(stripe_customer_id)}")
             return None
+
+        if not stripe_customer_id.startswith('cus_'):
+            logger.warning(f"Stripe customer ID has unexpected format: {stripe_customer_id} (expected 'cus_' prefix)")
+
+        logger.debug(f"Fetching user by Stripe customer ID: {stripe_customer_id}")
+        result = self.client.table('users').select('*').eq('stripe_customer_id', stripe_customer_id).execute()
+
+        if not result or not hasattr(result, 'data') or result.data is None:
+            logger.warning(f"User query returned no valid result for Stripe customer: {stripe_customer_id}")
+            return None
+
+        if len(result.data) == 0:
+            logger.info(f"User not found with Stripe customer ID: {stripe_customer_id}")
+            return None
+
+        logger.debug(f"Successfully retrieved user by Stripe customer ID: {stripe_customer_id}")
+        return result.data[0]
 
     def create_user_profile(self, user_id: str, email: str, stripe_customer_id: str,
                            name: Optional[str] = None, company: Optional[str] = None) -> Optional[Dict[str, Any]]:
@@ -136,32 +208,60 @@ class SupabaseClient:
             Created user data or None on failure
         """
         if not self.client:
+            logger.warning("Cannot create user profile: Supabase client not available")
             return None
 
-        try:
-            user_data = {
-                'id': user_id,
-                'email': email,
-                'stripe_customer_id': stripe_customer_id,
-                'subscription_status': 'inactive',
-                'created_at': datetime.utcnow().isoformat(),
-                'updated_at': datetime.utcnow().isoformat()
-            }
-
-            if name:
-                user_data['name'] = name
-            if company:
-                user_data['company'] = company
-
-            result = self.client.table('users').insert(user_data).execute()
-
-            if result.data and len(result.data) > 0:
-                logger.info(f"Created user profile for {email} (user_id: {user_id})")
-                return result.data[0]
+        # Validate required inputs
+        if not user_id:
+            logger.error("Cannot create user profile: user_id is empty or None")
             return None
-        except Exception as e:
-            logger.error(f"Error creating user profile: {str(e)}")
+
+        if not email:
+            logger.error("Cannot create user profile: email is empty or None")
             return None
+
+        if '@' not in email:
+            logger.error(f"Cannot create user profile: invalid email format: {email}")
+            return None
+
+        if not stripe_customer_id:
+            logger.warning(f"Creating user profile without Stripe customer ID for {email}")
+
+        logger.info(f"Creating user profile for {email} (user_id: {user_id})")
+
+        user_data = {
+            'id': user_id,
+            'email': email,
+            'stripe_customer_id': stripe_customer_id,
+            'subscription_status': 'inactive',
+            'created_at': datetime.utcnow().isoformat(),
+            'updated_at': datetime.utcnow().isoformat()
+        }
+
+        if name:
+            user_data['name'] = name
+            logger.debug(f"Added name to user profile: {name}")
+
+        if company:
+            user_data['company'] = company
+            logger.debug(f"Added company to user profile: {company}")
+
+        result = self.client.table('users').insert(user_data).execute()
+
+        if not result:
+            logger.error(f"Failed to create user profile: No result from insert operation for {email}")
+            return None
+
+        if not hasattr(result, 'data') or result.data is None:
+            logger.error(f"Failed to create user profile: Result has no data attribute for {email}")
+            return None
+
+        if len(result.data) == 0:
+            logger.error(f"Failed to create user profile: Insert returned empty data for {email}")
+            return None
+
+        logger.info(f"Successfully created user profile for {email} (user_id: {user_id})")
+        return result.data[0]
 
     def update_subscription_status(self, user_id: str, status: str,
                                    subscription_id: Optional[str] = None,
@@ -181,28 +281,58 @@ class SupabaseClient:
             True if successful, False otherwise
         """
         if not self.client:
+            logger.warning("Cannot update subscription status: Supabase client not available")
             return False
 
-        try:
-            update_data = {
-                'subscription_status': status,
-                'updated_at': datetime.utcnow().isoformat()
-            }
-
-            if subscription_id:
-                update_data['stripe_subscription_id'] = subscription_id
-            if period_start:
-                update_data['current_period_start'] = period_start.isoformat()
-            if period_end:
-                update_data['current_period_end'] = period_end.isoformat()
-
-            result = self.client.table('users').update(update_data).eq('id', user_id).execute()
-
-            logger.info(f"Updated subscription status for user {user_id} to {status}")
-            return True
-        except Exception as e:
-            logger.error(f"Error updating subscription status: {str(e)}")
+        # Validate inputs
+        if not user_id:
+            logger.error("Cannot update subscription status: user_id is empty or None")
             return False
+
+        if not status:
+            logger.error("Cannot update subscription status: status is empty or None")
+            return False
+
+        valid_statuses = ['active', 'inactive', 'past_due', 'canceled', 'trialing', 'unpaid']
+        if status not in valid_statuses:
+            logger.error(f"Cannot update subscription status: invalid status '{status}'. Must be one of {valid_statuses}")
+            return False
+
+        logger.info(f"Updating subscription status for user {user_id} to {status}")
+
+        update_data = {
+            'subscription_status': status,
+            'updated_at': datetime.utcnow().isoformat()
+        }
+
+        if subscription_id:
+            if not subscription_id.startswith('sub_'):
+                logger.warning(f"Subscription ID has unexpected format: {subscription_id} (expected 'sub_' prefix)")
+            update_data['stripe_subscription_id'] = subscription_id
+            logger.debug(f"Including subscription_id in update: {subscription_id}")
+
+        if period_start:
+            if not isinstance(period_start, datetime):
+                logger.error(f"period_start must be datetime object, got {type(period_start)}")
+                return False
+            update_data['current_period_start'] = period_start.isoformat()
+            logger.debug(f"Including period_start in update: {period_start}")
+
+        if period_end:
+            if not isinstance(period_end, datetime):
+                logger.error(f"period_end must be datetime object, got {type(period_end)}")
+                return False
+            update_data['current_period_end'] = period_end.isoformat()
+            logger.debug(f"Including period_end in update: {period_end}")
+
+        result = self.client.table('users').update(update_data).eq('id', user_id).execute()
+
+        if not result:
+            logger.error(f"Failed to update subscription status: No result from update operation for user {user_id}")
+            return False
+
+        logger.info(f"Successfully updated subscription status for user {user_id} to {status}")
+        return True
 
     # ========================================================================
     # JOB TRACKING

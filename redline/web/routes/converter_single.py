@@ -16,26 +16,63 @@ logger = logging.getLogger(__name__)
 @converter_single_bp.route('/convert', methods=['POST'])
 def convert_file():
     """Convert file between formats - redirects to batch conversion."""
-    try:
-        data = request.get_json()
-        input_file = data.get('input_file')
-        output_format = data.get('output_format')
-        output_filename = data.get('output_filename')
-        overwrite = data.get('overwrite', False)
-        
-        logger.info(f"Single file convert request redirected to batch: input_file={input_file}, output_format={output_format}, output_filename={output_filename}, overwrite={overwrite}")
-        
-        if not all([input_file, output_format, output_filename]):
-            logger.error(f"Missing required parameters: input_file={input_file}, output_format={output_format}, output_filename={output_filename}")
-            return jsonify({
-                'error': 'Missing required parameters',
-                'details': {
-                    'input_file': input_file,
-                    'output_format': output_format,
-                    'output_filename': output_filename
-                },
-                'message': 'Single file conversion is no longer supported. Please use batch conversion instead.'
-            }), 400
+    # Get request data
+    data = request.get_json()
+
+    if not data:
+        logger.warning("Convert request with empty body")
+        return jsonify({'error': 'Request body is required'}), 400
+
+    if not isinstance(data, dict):
+        logger.error(f"Convert request with invalid data type: {type(data)}")
+        return jsonify({'error': 'Request body must be JSON object'}), 400
+
+    # Validate required fields
+    input_file = data.get('input_file')
+    output_format = data.get('output_format')
+    output_filename = data.get('output_filename')
+    overwrite = data.get('overwrite', False)
+
+    if not input_file:
+        logger.warning("Convert request missing input_file field")
+        return jsonify({'error': 'input_file is required'}), 400
+
+    if not output_format:
+        logger.warning(f"Convert request missing output_format field for {input_file}")
+        return jsonify({'error': 'output_format is required'}), 400
+
+    if not output_filename:
+        logger.warning(f"Convert request missing output_filename field for {input_file}")
+        return jsonify({'error': 'output_filename is required'}), 400
+
+    # Validate field types
+    if not isinstance(input_file, str):
+        logger.error(f"Convert request input_file has invalid type: {type(input_file)}")
+        return jsonify({'error': 'input_file must be a string'}), 400
+
+    if not isinstance(output_format, str):
+        logger.error(f"Convert request output_format has invalid type: {type(output_format)}")
+        return jsonify({'error': 'output_format must be a string'}), 400
+
+    if not isinstance(output_filename, str):
+        logger.error(f"Convert request output_filename has invalid type: {type(output_filename)}")
+        return jsonify({'error': 'output_filename must be a string'}), 400
+
+    # Validate output format
+    valid_formats = ['csv', 'json', 'parquet', 'feather', 'excel', 'txt', 'duckdb']
+    if output_format not in valid_formats:
+        logger.warning(f"Convert request has invalid output_format: {output_format}")
+        return jsonify({
+            'error': f'Invalid output_format. Must be one of: {", ".join(valid_formats)}'
+        }), 400
+
+    # Security check: prevent path traversal
+    for filename, field_name in [(input_file, 'input_file'), (output_filename, 'output_filename')]:
+        if '..' in filename or filename.startswith('/') or filename.startswith('\\'):
+            logger.warning(f"Convert request with suspicious {field_name}: {filename}")
+            return jsonify({'error': f'Invalid {field_name} format'}), 400
+
+    logger.info(f"Processing convert request: input={input_file}, format={output_format}, output={output_filename}, overwrite={overwrite}")
         
         # Redirect single file conversion to batch conversion
         # Convert single file request to batch format

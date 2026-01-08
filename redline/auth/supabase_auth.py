@@ -49,27 +49,68 @@ class SupabaseAuthManager:
             logger.error("Cannot verify JWT: SUPABASE_JWT_SECRET not set")
             return None
 
+        # Validate token input
+        if not token:
+            logger.error("Cannot verify JWT: token is empty or None")
+            return None
+
+        if not isinstance(token, str):
+            logger.error(f"Cannot verify JWT: token must be string, got {type(token)}")
+            return None
+
+        if len(token) < 20:
+            logger.error(f"Cannot verify JWT: token too short ({len(token)} chars), appears invalid")
+            return None
+
+        # JWT tokens typically have 3 parts separated by dots
+        token_parts = token.split('.')
+        if len(token_parts) != 3:
+            logger.error(f"Cannot verify JWT: invalid token format (expected 3 parts, got {len(token_parts)})")
+            return None
+
+        logger.debug("Attempting to decode JWT token")
+
+        # Note: jwt.decode raises specific exceptions that we need to catch
+        # This is a legitimate use of exception handling for library behavior
         try:
-            # Decode JWT token
             payload = jwt.decode(
                 token,
                 self.jwt_secret,
                 algorithms=['HS256'],
                 audience='authenticated'
             )
-
-            logger.debug(f"JWT token verified successfully for user: {payload.get('sub')}")
-            return payload
-
         except jwt.ExpiredSignatureError:
-            logger.warning("JWT token expired")
+            logger.warning("JWT token has expired")
+            return None
+        except jwt.InvalidAudienceError:
+            logger.warning("JWT token has invalid audience")
+            return None
+        except jwt.InvalidSignatureError:
+            logger.warning("JWT token has invalid signature")
+            return None
+        except jwt.DecodeError as e:
+            logger.warning(f"JWT token decode error: {str(e)}")
             return None
         except jwt.InvalidTokenError as e:
-            logger.warning(f"Invalid JWT token: {str(e)}")
+            logger.warning(f"JWT token is invalid: {str(e)}")
             return None
-        except Exception as e:
-            logger.error(f"Error verifying JWT token: {str(e)}")
+
+        # Validate decoded payload
+        if not payload:
+            logger.error("JWT decode returned empty payload")
             return None
+
+        if not isinstance(payload, dict):
+            logger.error(f"JWT decode returned unexpected type: {type(payload)}")
+            return None
+
+        user_id = payload.get('sub')
+        if not user_id:
+            logger.error("JWT token missing 'sub' claim (user ID)")
+            return None
+
+        logger.debug(f"JWT token verified successfully for user: {user_id}")
+        return payload
 
     def get_user_from_token(self, token: str) -> Optional[Dict[str, Any]]:
         """
@@ -81,32 +122,53 @@ class SupabaseAuthManager:
         Returns:
             User profile dict or None if token invalid or user not found
         """
-        # Verify token
-        payload = self.verify_jwt_token(token)
-        if not payload:
+        # Validate token input
+        if not token:
+            logger.error("Cannot get user from token: token is empty or None")
             return None
 
+        # Verify token (includes validation and decoding)
+        logger.debug("Verifying JWT token to extract user information")
+        payload = self.verify_jwt_token(token)
+
+        if not payload:
+            logger.warning("Cannot get user from token: token verification failed")
+            return None
+
+        # Extract user ID from token
         user_id = payload.get('sub')  # Supabase user ID (UUID)
         email = payload.get('email')
 
         if not user_id:
-            logger.error("No user ID found in JWT token")
+            logger.error("No user ID (sub claim) found in JWT token payload")
             return None
 
-        # Get full user profile from Supabase
-        try:
-            user = supabase_client.get_user_by_id(user_id)
+        logger.debug(f"JWT token contains user_id: {user_id}, email: {email}")
 
-            if not user:
-                logger.warning(f"User {user_id} not found in Supabase")
-                return None
-
-            logger.debug(f"Retrieved user profile for {email} ({user_id})")
-            return user
-
-        except Exception as e:
-            logger.error(f"Error getting user from Supabase: {str(e)}")
+        # Check if Supabase client is available
+        if not supabase_client.is_available():
+            logger.error("Cannot fetch user profile: Supabase client not available")
             return None
+
+        # Get full user profile from Supabase database
+        logger.debug(f"Fetching full user profile from Supabase for user_id: {user_id}")
+        user = supabase_client.get_user_by_id(user_id)
+
+        if not user:
+            logger.warning(f"User {user_id} (email: {email}) not found in Supabase database")
+            return None
+
+        # Validate user data structure
+        if not isinstance(user, dict):
+            logger.error(f"User profile returned unexpected type: {type(user)}")
+            return None
+
+        if 'id' not in user:
+            logger.error(f"User profile missing 'id' field for user {user_id}")
+            return None
+
+        logger.debug(f"Successfully retrieved user profile for {email} ({user_id})")
+        return user
 
     # ========================================================================
     # TOKEN EXTRACTION

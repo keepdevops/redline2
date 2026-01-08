@@ -20,14 +20,38 @@ logger = logging.getLogger(__name__)
 @rate_limit("200 per minute")  # Increased for pagination - users need to browse through pages
 def load_data():
     """Load data from file."""
-    try:
-        data = request.get_json()
-        filename = data.get('filename')
-        
-        logger.info(f"load_data() called with filename: {filename}")
-        
-        if not filename:
-            return jsonify({'error': 'No filename provided'}), 400
+    # Get request data
+    data = request.get_json()
+
+    if not data:
+        logger.warning("Load data request with empty body")
+        return jsonify({'error': 'Request body is required'}), 400
+
+    if not isinstance(data, dict):
+        logger.error(f"Load data request with invalid data type: {type(data)}")
+        return jsonify({'error': 'Request body must be JSON object'}), 400
+
+    # Validate filename
+    filename = data.get('filename')
+
+    if not filename:
+        logger.warning("Load data request missing filename field")
+        return jsonify({'error': 'No filename provided'}), 400
+
+    if not isinstance(filename, str):
+        logger.error(f"Load data request filename has invalid type: {type(filename)}")
+        return jsonify({'error': 'Filename must be a string'}), 400
+
+    if len(filename) == 0:
+        logger.warning("Load data request with empty filename")
+        return jsonify({'error': 'Filename cannot be empty'}), 400
+
+    # Security check: prevent path traversal
+    if '..' in filename or filename.startswith('/') or filename.startswith('\\'):
+        logger.warning(f"Load data request with suspicious filename: {filename}")
+        return jsonify({'error': 'Invalid filename format'}), 400
+
+    logger.info(f"Processing load data request for filename: {filename}")
         
         # Determine file path - check multiple locations in order
         data_dir = os.path.join(os.getcwd(), 'data')
@@ -143,28 +167,68 @@ def load_data():
                 'searched_paths': search_paths[:4]  # Don't include all converted paths
             }), 404
         
-        # Load data
-        format_type = _detect_format_from_path(data_path)
-        logger.info(f"Loading file with format: {format_type}")
-        try:
-            df = _load_file_by_format(data_path, format_type)
-        except Exception as e:
-            logger.error(f"Error loading file {data_path}: {str(e)}")
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
-            return jsonify({
-                'error': 'Failed to load file',
-                'message': str(e),
-                'format': format_type
-            }), 500
-        
-        if df.empty:
-            logger.warning(f"Loaded DataFrame is empty for {filename}")
-            return jsonify({
-                'error': 'No data found',
-                'message': f'The file "{filename}" contains no data or could not be parsed',
-                'format': format_type
-            }), 404
+    # Validate file path exists
+    if not data_path:
+        logger.error(f"data_path is None after search for {filename}")
+        return jsonify({
+            'error': 'File not found',
+            'message': f'File "{filename}" not found in data directories or S3/R2'
+        }), 404
+
+    if not os.path.exists(data_path):
+        logger.error(f"data_path does not exist: {data_path}")
+        return jsonify({
+            'error': 'File not found',
+            'message': f'File path exists but file not accessible: {data_path}'
+        }), 404
+
+    # Get file size for logging
+    try:
+        file_size = os.path.getsize(data_path)
+        logger.debug(f"File size: {file_size} bytes")
+    except OSError as e:
+        logger.warning(f"Could not get file size for {data_path}: {str(e)}")
+        file_size = None
+
+    # Detect file format
+    format_type = _detect_format_from_path(data_path)
+
+    if not format_type:
+        logger.error(f"Could not detect format for file: {data_path}")
+        return jsonify({
+            'error': 'Unknown file format',
+            'message': f'Could not determine format for file: {filename}'
+        }), 400
+
+    logger.info(f"Loading file with format: {format_type} (size: {file_size} bytes)")
+
+    # Load file data
+    df = _load_file_by_format(data_path, format_type)
+
+    # Validate loaded data
+    if df is None:
+        logger.error(f"File loading returned None for {filename}")
+        return jsonify({
+            'error': 'Failed to load file',
+            'message': f'File loading function returned None for format: {format_type}'
+        }), 500
+
+    if not hasattr(df, 'empty'):
+        logger.error(f"Loaded data is not a DataFrame for {filename}: {type(df)}")
+        return jsonify({
+            'error': 'Failed to load file',
+            'message': f'File loading returned unexpected type: {type(df)}'
+        }), 500
+
+    if df.empty:
+        logger.warning(f"Loaded DataFrame is empty for {filename}")
+        return jsonify({
+            'error': 'No data found',
+            'message': f'The file "{filename}" contains no data or could not be parsed',
+            'format': format_type
+        }), 404
+
+    logger.debug(f"Successfully loaded DataFrame with shape: {df.shape}")
         
         # Clean up malformed CSV headers - remove unnamed/empty columns
         df = clean_dataframe_columns(df)

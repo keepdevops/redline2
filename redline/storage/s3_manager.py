@@ -40,23 +40,47 @@ class S3Manager:
         secret_key = os.environ.get('R2_SECRET_ACCESS_KEY') or os.environ.get('S3_SECRET_KEY')
         region = os.environ.get('S3_REGION', 'us-east-1')
 
-        if not all([self.bucket, access_key, secret_key]):
-            logger.warning("S3 credentials not configured. Set S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY")
+        # Validate bucket name
+        if not self.bucket:
+            logger.warning("S3 bucket name not set. Set S3_BUCKET or R2_BUCKET_NAME environment variable")
             self.s3_client = None
             return
 
-        try:
-            # Initialize S3 client
-            self.s3_client = boto3.client(
-                's3',
-                endpoint_url=self.endpoint_url,
-                aws_access_key_id=access_key,
-                aws_secret_access_key=secret_key,
-                region_name=region
-            )
+        # Validate access credentials
+        if not access_key:
+            logger.warning("S3 access key not set. Set S3_ACCESS_KEY or R2_ACCESS_KEY_ID environment variable")
+            self.s3_client = None
+            return
+
+        if not secret_key:
+            logger.warning("S3 secret key not set. Set S3_SECRET_KEY or R2_SECRET_ACCESS_KEY environment variable")
+            self.s3_client = None
+            return
+
+        if len(access_key) < 10:
+            logger.error(f"S3 access key appears invalid (too short: {len(access_key)} chars)")
+            self.s3_client = None
+            return
+
+        if len(secret_key) < 20:
+            logger.error(f"S3 secret key appears invalid (too short: {len(secret_key)} chars)")
+            self.s3_client = None
+            return
+
+        # Initialize S3 client
+        logger.info(f"Initializing S3 client for bucket: {self.bucket}, endpoint: {self.endpoint_url or 'default'}, region: {region}")
+        self.s3_client = boto3.client(
+            's3',
+            endpoint_url=self.endpoint_url,
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+            region_name=region
+        )
+
+        if self.s3_client:
             logger.info(f"S3 Manager initialized successfully (bucket: {self.bucket})")
-        except Exception as e:
-            logger.error(f"Failed to initialize S3 client: {str(e)}")
+        else:
+            logger.error("Failed to initialize S3 client: boto3.client returned None")
             self.s3_client = None
 
     def is_available(self) -> bool:
@@ -125,37 +149,61 @@ class S3Manager:
             S3 URI if successful, None otherwise
         """
         if not self.s3_client:
-            logger.error("S3 client not available")
+            logger.error("Cannot upload file: S3 client not available")
             return None
 
-        try:
-            # Determine content type
-            content_type, _ = mimetypes.guess_type(local_path)
-            if not content_type:
-                content_type = 'application/octet-stream'
-
-            # Prepare extra args
-            extra_args = {'ContentType': content_type}
-            if metadata:
-                extra_args['Metadata'] = metadata
-
-            # Upload file
-            self.s3_client.upload_file(
-                local_path,
-                self.bucket,
-                s3_key,
-                ExtraArgs=extra_args
-            )
-
-            logger.info(f"Uploaded file to S3: {s3_key}")
-            return self.get_s3_uri(s3_key)
-
-        except ClientError as e:
-            logger.error(f"Error uploading file to S3: {str(e)}")
+        # Validate inputs
+        if not local_path:
+            logger.error("Cannot upload file: local_path is empty or None")
             return None
-        except Exception as e:
-            logger.error(f"Unexpected error uploading file: {str(e)}")
+
+        if not s3_key:
+            logger.error("Cannot upload file: s3_key is empty or None")
             return None
+
+        # Check if file exists
+        if not os.path.exists(local_path):
+            logger.error(f"Cannot upload file: local file does not exist: {local_path}")
+            return None
+
+        if not os.path.isfile(local_path):
+            logger.error(f"Cannot upload file: path is not a file: {local_path}")
+            return None
+
+        # Get file size
+        file_size = os.path.getsize(local_path)
+        if file_size == 0:
+            logger.warning(f"Uploading empty file: {local_path}")
+
+        logger.info(f"Uploading file to S3: {local_path} -> {s3_key} (size: {file_size} bytes)")
+
+        # Determine content type
+        content_type, _ = mimetypes.guess_type(local_path)
+        if not content_type:
+            content_type = 'application/octet-stream'
+            logger.debug(f"Could not determine content type, using default: {content_type}")
+        else:
+            logger.debug(f"Detected content type: {content_type}")
+
+        # Prepare extra args
+        extra_args = {'ContentType': content_type}
+        if metadata:
+            if not isinstance(metadata, dict):
+                logger.error(f"Metadata must be a dict, got {type(metadata)}")
+                return None
+            extra_args['Metadata'] = metadata
+            logger.debug(f"Including metadata in upload: {list(metadata.keys())}")
+
+        # Upload file
+        self.s3_client.upload_file(
+            local_path,
+            self.bucket,
+            s3_key,
+            ExtraArgs=extra_args
+        )
+
+        logger.info(f"Successfully uploaded file to S3: {s3_key}")
+        return self.get_s3_uri(s3_key)
 
     def upload_fileobj(self, file_obj, s3_key: str,
                       content_type: str = 'application/octet-stream',

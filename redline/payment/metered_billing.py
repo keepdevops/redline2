@@ -54,84 +54,130 @@ class MeteredBillingManager:
             True if successful, False otherwise
         """
         if not self.is_available():
-            logger.error("Metered billing not configured")
+            logger.error("Cannot report usage: Metered billing not configured (missing STRIPE_SECRET_KEY or STRIPE_PRICE_ID_METERED)")
+            return False
+
+        # Validate inputs
+        if not stripe_customer_id:
+            logger.error("Cannot report usage: stripe_customer_id is empty or None")
+            return False
+
+        if not isinstance(stripe_customer_id, str):
+            logger.error(f"Cannot report usage: stripe_customer_id must be string, got {type(stripe_customer_id)}")
+            return False
+
+        if not stripe_customer_id.startswith('cus_'):
+            logger.error(f"Cannot report usage: invalid Stripe customer ID format: {stripe_customer_id} (expected 'cus_' prefix)")
+            return False
+
+        if not isinstance(hours_used, (int, float)):
+            logger.error(f"Cannot report usage: hours_used must be numeric, got {type(hours_used)}")
             return False
 
         if hours_used <= 0:
-            logger.warning(f"Invalid usage amount: {hours_used} hours")
+            logger.error(f"Cannot report usage: invalid usage amount: {hours_used} hours (must be positive)")
             return False
 
-        try:
-            # Get active subscription for customer
-            subscriptions = stripe.Subscription.list(
-                customer=stripe_customer_id,
-                limit=1,
-                status='active'
-            )
+        if hours_used > 1000:
+            logger.warning(f"Unusually large usage amount: {hours_used} hours for customer {stripe_customer_id}")
 
-            if not subscriptions.data:
-                logger.warning(f"No active subscription found for customer {stripe_customer_id}")
+        logger.info(f"Reporting usage for customer {stripe_customer_id}: {hours_used} hours")
+
+        # Get active subscription for customer
+        logger.debug(f"Fetching active subscriptions for customer {stripe_customer_id}")
+        subscriptions = stripe.Subscription.list(
+            customer=stripe_customer_id,
+            limit=1,
+            status='active'
+        )
+
+        if not subscriptions:
+            logger.error(f"Stripe API returned no result for customer {stripe_customer_id}")
+            return False
+
+        if not hasattr(subscriptions, 'data') or subscriptions.data is None:
+            logger.error(f"Stripe API response has no data attribute for customer {stripe_customer_id}")
+            return False
+
+        if len(subscriptions.data) == 0:
+            logger.warning(f"No active subscription found for customer {stripe_customer_id}")
+            return False
+
+        subscription = subscriptions.data[0]
+        logger.debug(f"Found active subscription: {subscription['id']}")
+
+        # Find the metered subscription item
+        if 'items' not in subscription:
+            logger.error(f"Subscription {subscription['id']} has no items attribute")
+            return False
+
+        if 'data' not in subscription['items']:
+            logger.error(f"Subscription {subscription['id']} items have no data attribute")
+            return False
+
+        metered_item = None
+        for item in subscription['items']['data']:
+            if 'price' not in item or 'id' not in item['price']:
+                logger.warning(f"Subscription item missing price information, skipping")
+                continue
+
+            if item['price']['id'] == self.price_id:
+                metered_item = item
+                logger.debug(f"Found metered item: {item['id']}")
+                break
+
+        if not metered_item:
+            logger.error(f"Metered price {self.price_id} not found in subscription {subscription['id']}")
+            return False
+
+        subscription_item_id = metered_item['id']
+
+        # Convert hours to usage units (multiply by 100 for cents precision)
+        # Example: 0.5 hours = 50 units, 1.25 hours = 125 units
+        usage_quantity = int(hours_used * 100)
+        logger.debug(f"Converting {hours_used} hours to {usage_quantity} usage units")
+
+        # Create usage record
+        extra_params = {
+            'timestamp': int(datetime.utcnow().timestamp()),
+            'action': 'increment'
+        }
+
+        if idempotency_key:
+            if not isinstance(idempotency_key, str):
+                logger.error(f"idempotency_key must be string, got {type(idempotency_key)}")
                 return False
+            extra_params['idempotency_key'] = idempotency_key
+            logger.debug(f"Using idempotency key: {idempotency_key}")
 
-            subscription = subscriptions.data[0]
+        logger.info(f"Creating usage record: {usage_quantity} units for subscription item {subscription_item_id}")
+        usage_record = stripe.SubscriptionItem.create_usage_record(
+            subscription_item_id,
+            quantity=usage_quantity,
+            **extra_params
+        )
 
-            # Find the metered subscription item
-            metered_item = None
-            for item in subscription['items']['data']:
-                if item['price']['id'] == self.price_id:
-                    metered_item = item
-                    break
+        logger.info(
+            f"Successfully reported {hours_used} hours ({usage_quantity} units) "
+            f"for customer {stripe_customer_id}"
+        )
 
-            if not metered_item:
-                logger.error(f"Metered price {self.price_id} not found in subscription")
-                return False
-
-            subscription_item_id = metered_item['id']
-
-            # Convert hours to usage units (multiply by 100 for cents precision)
-            # Example: 0.5 hours = 50 units, 1.25 hours = 125 units
-            usage_quantity = int(hours_used * 100)
-
-            # Create usage record
-            extra_params = {
-                'timestamp': int(datetime.utcnow().timestamp()),
-                'action': 'increment'
-            }
-
-            if idempotency_key:
-                extra_params['idempotency_key'] = idempotency_key
-
-            usage_record = stripe.SubscriptionItem.create_usage_record(
-                subscription_item_id,
-                quantity=usage_quantity,
-                **extra_params
-            )
-
-            logger.info(
-                f"Reported {hours_used} hours ({usage_quantity} units) "
-                f"for customer {stripe_customer_id}"
-            )
-
-            # Log usage to Supabase if user_id provided
-            if user_id and supabase_client.is_available():
-                try:
-                    supabase_client.log_usage(
-                        user_id=user_id,
-                        stripe_customer_id=stripe_customer_id,
-                        hours_used=hours_used
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to log usage to Supabase: {str(e)}")
+        # Log usage to Supabase if user_id provided
+        if user_id:
+            if not supabase_client.is_available():
+                logger.warning("Supabase not available, skipping usage logging to database")
+            else:
+                logger.debug(f"Logging usage to Supabase for user {user_id}")
+                success = supabase_client.log_usage(
+                    user_id=user_id,
+                    stripe_customer_id=stripe_customer_id,
+                    hours_used=hours_used
+                )
+                if not success:
+                    logger.warning(f"Failed to log usage to Supabase for user {user_id}")
                     # Don't fail the whole operation if Supabase logging fails
 
-            return True
-
-        except stripe.error.StripeError as e:
-            logger.error(f"Stripe error reporting usage: {str(e)}")
-            return False
-        except Exception as e:
-            logger.error(f"Unexpected error reporting usage: {str(e)}")
-            return False
+        return True
 
     def report_usage_batch(self, usage_records: list) -> Dict[str, Any]:
         """
