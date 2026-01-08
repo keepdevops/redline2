@@ -28,6 +28,85 @@ def login_page():
     return render_template('login.html')
 
 
+@auth_bp.route('/login', methods=['POST'])
+def login():
+    """
+    Handle user login with Supabase Auth
+
+    Request JSON:
+        - email: User email
+        - password: User password
+
+    Returns:
+        JSON with access_token and user data
+    """
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                'error': 'Request body is required',
+                'code': 'NO_DATA'
+            }), 400
+
+        email = data.get('email')
+        password = data.get('password')
+
+        if not email or not password:
+            return jsonify({
+                'error': 'Email and password are required',
+                'code': 'MISSING_CREDENTIALS'
+            }), 400
+
+        logger.info(f"Login attempt for {email}")
+
+        # Authenticate with Supabase
+        try:
+            auth_response = supabase_client.supabase.auth.sign_in_with_password({
+                "email": email,
+                "password": password
+            })
+
+            if not auth_response.user:
+                return jsonify({
+                    'error': 'Invalid email or password',
+                    'code': 'INVALID_CREDENTIALS'
+                }), 401
+
+            # Get user profile from database
+            user_profile = supabase_client.get_user_by_id(auth_response.user.id)
+
+            logger.info(f"User {email} logged in successfully")
+
+            return jsonify({
+                'success': True,
+                'access_token': auth_response.session.access_token,
+                'refresh_token': auth_response.session.refresh_token,
+                'user': {
+                    'id': auth_response.user.id,
+                    'email': auth_response.user.email,
+                    'name': user_profile.get('name') if user_profile else email.split('@')[0],
+                    'stripe_customer_id': user_profile.get('stripe_customer_id') if user_profile else None
+                }
+            }), 200
+
+        except Exception as e:
+            logger.error(f"Supabase auth error: {str(e)}")
+            return jsonify({
+                'error': 'Invalid email or password',
+                'code': 'AUTH_FAILED',
+                'details': str(e)
+            }), 401
+
+    except Exception as e:
+        logger.error(f"Unexpected error in login: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'code': 'INTERNAL_ERROR',
+            'details': str(e)
+        }), 500
+
+
 @auth_bp.route('/signup', methods=['GET'])
 def signup_page():
     """
@@ -39,15 +118,16 @@ def signup_page():
 @auth_bp.route('/signup', methods=['POST'])
 def signup():
     """
-    Complete user signup after Supabase Auth
-    Creates Stripe customer and user profile in Supabase
+    Handle user signup with Supabase Auth and Stripe
+    Creates user account, Stripe customer, and user profile
 
     Request JSON:
-        - user_id: Supabase user ID (from Supabase Auth)
         - email: User email
+        - password: User password
+        - name: User full name
 
     Returns:
-        JSON with stripe_customer_id and success status
+        JSON with access_token and user data
     """
     try:
         data = request.get_json()
@@ -58,21 +138,60 @@ def signup():
                 'code': 'NO_DATA'
             }), 400
 
-        user_id = data.get('user_id')
         email = data.get('email')
+        password = data.get('password')
+        name = data.get('name')
 
-        if not user_id or not email:
+        if not email or not password or not name:
             return jsonify({
-                'error': 'user_id and email are required',
+                'error': 'Email, password, and name are required',
                 'code': 'MISSING_FIELDS'
             }), 400
 
-        logger.info(f"Processing signup for user {email} ({user_id})")
+        logger.info(f"Processing signup for {email}")
+
+        # Create user in Supabase Auth
+        try:
+            auth_response = supabase_client.supabase.auth.sign_up({
+                "email": email,
+                "password": password,
+                "options": {
+                    "data": {
+                        "name": name
+                    }
+                }
+            })
+
+            if not auth_response.user:
+                return jsonify({
+                    'error': 'Failed to create user account',
+                    'code': 'SIGNUP_FAILED'
+                }), 400
+
+            user_id = auth_response.user.id
+            logger.info(f"Created Supabase user {user_id} for {email}")
+
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"Supabase signup error: {error_msg}")
+
+            if 'already registered' in error_msg.lower() or 'already exists' in error_msg.lower():
+                return jsonify({
+                    'error': 'An account with this email already exists',
+                    'code': 'EMAIL_EXISTS'
+                }), 409
+
+            return jsonify({
+                'error': 'Failed to create account',
+                'code': 'AUTH_ERROR',
+                'details': error_msg
+            }), 400
 
         # Create Stripe customer
         try:
             customer = stripe.Customer.create(
                 email=email,
+                name=name,
                 metadata={
                     'supabase_user_id': user_id,
                     'product': 'redline'
@@ -82,43 +201,35 @@ def signup():
 
         except stripe.error.StripeError as e:
             logger.error(f"Stripe error creating customer: {str(e)}")
-            return jsonify({
-                'error': 'Failed to create Stripe customer',
-                'code': 'STRIPE_ERROR',
-                'details': str(e)
-            }), 500
+            # Continue without Stripe - user can still sign up
+            customer = None
 
-        # Create user profile in Supabase
+        # Create user profile in Supabase database
         try:
             user_profile = supabase_client.create_user_profile(
                 user_id=user_id,
                 email=email,
-                stripe_customer_id=customer.id
+                stripe_customer_id=customer.id if customer else None,
+                name=name
             )
-
             logger.info(f"Created user profile in Supabase for {email}")
 
         except Exception as e:
             logger.error(f"Error creating user profile: {str(e)}")
+            # Profile creation is not critical - continue
 
-            # Rollback: Delete Stripe customer if user profile creation failed
-            try:
-                stripe.Customer.delete(customer.id)
-                logger.info(f"Rolled back Stripe customer {customer.id}")
-            except Exception as rollback_error:
-                logger.error(f"Failed to rollback Stripe customer: {str(rollback_error)}")
-
-            return jsonify({
-                'error': 'Failed to create user profile',
-                'code': 'PROFILE_CREATION_ERROR',
-                'details': str(e)
-            }), 500
-
+        # Return auth data for automatic login
         return jsonify({
             'success': True,
-            'stripe_customer_id': customer.id,
-            'user_id': user_id,
-            'message': 'User signup completed successfully'
+            'access_token': auth_response.session.access_token if auth_response.session else None,
+            'refresh_token': auth_response.session.refresh_token if auth_response.session else None,
+            'user': {
+                'id': user_id,
+                'email': email,
+                'name': name,
+                'stripe_customer_id': customer.id if customer else None
+            },
+            'message': 'Account created successfully'
         }), 201
 
     except Exception as e:
