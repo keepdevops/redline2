@@ -1,5 +1,5 @@
 /**
- * Virtual Scrolling Component for VarioSync Web GUI
+ * Virtual Scrolling Component for VARIOSYNC Web GUI
  * Provides high-performance scrolling for large datasets
  */
 
@@ -158,14 +158,9 @@ if (typeof window.VirtualScrollTable === 'undefined') {
                 ...params
             };
             
-            // Get license key from localStorage
-            const licenseKey = localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY;
-            
-            // Add license key to request params
-            if (licenseKey) {
-                requestParams.license_key = licenseKey;
-            }
-            
+            // Get JWT auth token from localStorage
+            const authToken = localStorage.getItem('variosync_auth_token');
+
             // Determine HTTP method based on URL or use POST for /data/load
             const usePost = url.includes('/data/load') || url.includes('/load');
             const response = await $.ajax({
@@ -174,7 +169,7 @@ if (typeof window.VirtualScrollTable === 'undefined') {
                 data: usePost ? JSON.stringify(requestParams) : requestParams,
                 contentType: usePost ? 'application/json' : 'application/x-www-form-urlencoded',
                 dataType: 'json',
-                headers: licenseKey ? { 'X-License-Key': licenseKey } : {}
+                headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
             });
             
             if (response.error) {
@@ -193,6 +188,15 @@ if (typeof window.VirtualScrollTable === 'undefined') {
             
         } catch (error) {
             console.error('Error loading data:', error);
+
+            // Handle 401 authentication errors
+            if (error.status === 401) {
+                localStorage.removeItem('variosync_auth_token');
+                localStorage.removeItem('variosync_user_data');
+                window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
+                return;
+            }
+
             this.showError('Failed to load data: ' + error.message);
         } finally {
             this.hideLoading();

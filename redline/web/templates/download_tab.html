@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Download Tab - VarioSync{% endblock %}
+{% block title %}Download Tab - VARIOSYNC{% endblock %}
 
 {% block page_title %}Download Financial Data{% endblock %}
 {% block page_subtitle %}Download data from various financial sources{% endblock %}
@@ -134,9 +134,9 @@
                             <li>Open the Stooq Database Browser link above</li>
                             <li>Search for your ticker symbol and select the data you want</li>
                             <li>Download the file to your computer (files from Stooq have a <code>.txt</code> extension)</li>
-                            <li>Go to the <strong>Data</strong> tab in VarioSync</li>
+                            <li>Go to the <strong>Data</strong> tab in VARIOSYNC</li>
                             <li>Click <strong>Upload File</strong> or use <strong>File Browser</strong> to load the downloaded <code>.txt</code> file</li>
-                            <li>VarioSync will automatically detect and load the Stooq data format</li>
+                            <li>VARIOSYNC will automatically detect and load the Stooq data format</li>
                             <li><strong>Note:</strong> Stooq files are text-based CSV format, so they load just like CSV files</li>
                         </ol>
                     </div>
@@ -187,15 +187,15 @@
 
 {% block extra_js %}
 <script>
-// Ensure VarioSync object exists (from main.js)
-if (typeof VarioSync === 'undefined') {
-    // Create VarioSync object if not defined
-    window.VarioSync = {
+// Ensure VARIOSYNC object exists (from main.js)
+if (typeof VARIOSYNC === 'undefined') {
+    // Create VARIOSYNC object if not defined
+    window.VARIOSYNC = {
         api: {
             post: function(url, data) {
-                // Get license key from localStorage
-                const licenseKey = localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY;
-                
+                // Get JWT auth token from localStorage
+                const authToken = localStorage.getItem('variosync_auth_token');
+
                 const options = {
                     method: 'POST',
                     headers: {
@@ -203,14 +203,20 @@ if (typeof VarioSync === 'undefined') {
                     },
                     body: JSON.stringify(data)
                 };
-                
-                // Add license key to headers
-                if (licenseKey) {
-                    options.headers['X-License-Key'] = licenseKey;
+
+                // Add JWT token to headers
+                if (authToken) {
+                    options.headers['Authorization'] = `Bearer ${authToken}`;
                 }
-                
+
                 return fetch(url, options)
                     .then(response => {
+                        if (response.status === 401) {
+                            localStorage.removeItem('variosync_auth_token');
+                            localStorage.removeItem('variosync_user_data');
+                            window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
+                            throw new Error('Session expired. Please log in again.');
+                        }
                         if (!response.ok) {
                             return response.json().then(err => Promise.reject(new Error(err.error || err.message || 'Request failed')));
                         }
@@ -218,18 +224,24 @@ if (typeof VarioSync === 'undefined') {
                     });
             },
             get: function(url) {
-                const licenseKey = localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY;
+                const authToken = localStorage.getItem('variosync_auth_token');
                 const options = {
                     method: 'GET',
                     headers: {}
                 };
-                
-                if (licenseKey) {
-                    options.headers['X-License-Key'] = licenseKey;
+
+                if (authToken) {
+                    options.headers['Authorization'] = `Bearer ${authToken}`;
                 }
-                
+
                 return fetch(url, options)
                     .then(response => {
+                        if (response.status === 401) {
+                            localStorage.removeItem('variosync_auth_token');
+                            localStorage.removeItem('variosync_user_data');
+                            window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
+                            throw new Error('Session expired. Please log in again.');
+                        }
                         if (!response.ok) {
                             return response.json().then(err => Promise.reject(new Error(err.error || err.message || 'Request failed')));
                         }
@@ -335,14 +347,12 @@ function showStooqInstructions() {
 
 // Load saved API keys and custom APIs
 function loadSavedApiKeys() {
-    // Get license key - use global function if available, otherwise fallback
-    const licenseKey = (typeof window.getLicenseKey === 'function') 
-        ? window.getLicenseKey() 
-        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
-    
+    // Get JWT auth token
+    const authToken = localStorage.getItem('variosync_auth_token');
+
     fetch('/api-keys/load', {
         method: 'GET',
-        headers: licenseKey ? { 'X-License-Key': licenseKey } : {}
+        headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
     })
     .then(response => response.json())
     .then(data => {
@@ -462,24 +472,22 @@ function downloadData() {
     
     // Check if Stooq download is already in progress
     if (source === 'stooq' && stooqDownloadInProgress) {
-        VarioSync.ui.showToast('A Stooq download is already in progress. Please wait for it to complete.', 'warning');
+        VARIOSYNC.ui.showToast('A Stooq download is already in progress. Please wait for it to complete.', 'warning');
         return;
     }
-    
+
     if (!ticker) {
-        VarioSync.ui.showToast('Please enter a ticker symbol', 'error');
+        VARIOSYNC.ui.showToast('Please enter a ticker symbol', 'error');
         return;
     }
-    
-    // Get license key - use global function if available, otherwise fallback
-    const licenseKey = (typeof window.getLicenseKey === 'function') 
-        ? window.getLicenseKey() 
-        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
-    if (!licenseKey) {
-        VarioSync.ui.showToast('License key is required. Please register or enter your license key.', 'error');
+
+    // Get JWT auth token
+    const authToken = localStorage.getItem('variosync_auth_token');
+    if (!authToken) {
+        VARIOSYNC.ui.showToast('Please log in to download data.', 'error');
         return;
     }
-    console.log('Downloading with license key:', licenseKey.substring(0, 20) + '...');
+    console.log('Downloading with JWT authentication');
     
     // Set Stooq download flag if source is Stooq
     if (source === 'stooq') {
@@ -488,7 +496,7 @@ function downloadData() {
         $('#downloadBtn').prop('disabled', true).text('Downloading...');
     }
     
-    VarioSync.ui.showLoading('Downloading data...');
+    VARIOSYNC.ui.showLoading('Downloading data...');
     
     // Get API key if source requires it
     let apiKey = null;
@@ -496,38 +504,37 @@ function downloadData() {
     if (sourcesRequiringApiKey.includes(source)) {
         apiKey = $('#apiKeySelect').val();
         if (!apiKey) {
-            VarioSync.ui.showToast('Please select an API key for this data source', 'error');
-            VarioSync.ui.hideLoading();
+            VARIOSYNC.ui.showToast('Please select an API key for this data source', 'error');
+            VARIOSYNC.ui.hideLoading();
             return;
         }
     }
-    
+
     const downloadData = {
         ticker: ticker,
         source: source,
         start_date: startDate,
         end_date: endDate,
         interval: interval,
-        license_key: licenseKey,  // Include license key in request body as backup
         api_key: apiKey  // Include API key if provided
     };
-    
-    VarioSync.api.post('/download/download', downloadData)
+
+    VARIOSYNC.api.post('/download/download', downloadData)
         .then(response => {
-            VarioSync.ui.hideLoading();
-            
+            VARIOSYNC.ui.hideLoading();
+
             // Reset Stooq download flag
             if (source === 'stooq') {
                 stooqDownloadInProgress = false;
                 $('#downloadBtn').prop('disabled', false).text('Download');
             }
-            
+
             showDownloadResults([response]);
-            VarioSync.ui.showToast(`Successfully downloaded ${response.records} records for ${ticker}`, 'success');
+            VARIOSYNC.ui.showToast(`Successfully downloaded ${response.records} records for ${ticker}`, 'success');
             loadDownloadHistory();
         })
         .catch(error => {
-            VarioSync.ui.hideLoading();
+            VARIOSYNC.ui.hideLoading();
             
             // Reset Stooq download flag on error
             if (source === 'stooq') {
@@ -571,7 +578,7 @@ function downloadData() {
             } else if (error.status === 403) {
                 // Forbidden error
                 if (isGenericError) {
-                    errorMessage = 'Access denied. Please check your license key or permissions.';
+                    errorMessage = 'Access denied. Please check your authentication or permissions.';
                 }
             } else if (error.status === 503) {
                 // Service unavailable - usually yfinance/library errors
@@ -585,20 +592,20 @@ function downloadData() {
                 }
             }
             
-            VarioSync.ui.showToast('Error downloading data: ' + errorMessage, 'error');
+            VARIOSYNC.ui.showToast('Error downloading data: ' + errorMessage, 'error');
         });
 }
 
 function batchDownload() {
     const tickersText = $('#batchTickers').val().trim();
     if (!tickersText) {
-        VarioSync.ui.showToast('Please enter ticker symbols', 'error');
+        VARIOSYNC.ui.showToast('Please enter ticker symbols', 'error');
         return;
     }
     
     const tickers = tickersText.split('\n').map(t => t.trim().toUpperCase()).filter(t => t);
     if (tickers.length === 0) {
-        VarioSync.ui.showToast('No valid ticker symbols found', 'error');
+        VARIOSYNC.ui.showToast('No valid ticker symbols found', 'error');
         return;
     }
     
@@ -606,58 +613,55 @@ function batchDownload() {
     
     // Check if Stooq download is already in progress
     if (source === 'stooq' && stooqDownloadInProgress) {
-        VarioSync.ui.showToast('A Stooq download is already in progress. Please wait for it to complete.', 'warning');
+        VARIOSYNC.ui.showToast('A Stooq download is already in progress. Please wait for it to complete.', 'warning');
         return;
     }
     
-    // Get license key - use global function if available, otherwise fallback
-    const licenseKey = (typeof window.getLicenseKey === 'function') 
-        ? window.getLicenseKey() 
-        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
-    if (!licenseKey) {
-        VarioSync.ui.showToast('License key is required. Please register or enter your license key.', 'error');
+    // Get JWT auth token
+    const authToken = localStorage.getItem('variosync_auth_token');
+    if (!authToken) {
+        VARIOSYNC.ui.showToast('Please log in to download data.', 'error');
         return;
     }
-    console.log('Downloading with license key:', licenseKey.substring(0, 20) + '...');
-    
+    console.log('Downloading batch with JWT authentication');
+
     const startDate = $('#startDate').val();
     const endDate = $('#endDate').val();
-    
+
     // Set Stooq download flag if source is Stooq
     if (source === 'stooq') {
         stooqDownloadInProgress = true;
         // Disable download button
         $('#downloadForm button[type="submit"]').prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Downloading...');
     }
-    
-    VarioSync.ui.showLoading(`Downloading data for ${tickers.length} tickers...`);
-    
+
+    VARIOSYNC.ui.showLoading(`Downloading data for ${tickers.length} tickers...`);
+
     // Get API key if source requires it
     let apiKey = null;
     const sourcesRequiringApiKey = ['alpha_vantage', 'finnhub'];
     const isCustomApi = source && source.startsWith('custom_');
-    
+
     if (sourcesRequiringApiKey.includes(source) || isCustomApi) {
         apiKey = $('#apiKeySelect').val();
         if (!apiKey) {
-            VarioSync.ui.showToast('Please select an API key for this data source', 'error');
-            VarioSync.ui.hideLoading();
+            VARIOSYNC.ui.showToast('Please select an API key for this data source', 'error');
+            VARIOSYNC.ui.hideLoading();
             return;
         }
     }
-    
+
     const batchData = {
         tickers: tickers,
         source: source,
         api_key: apiKey,  // Include API key if provided
         start_date: startDate,
-        end_date: endDate,
-        license_key: licenseKey  // Include license key in request body as backup
+        end_date: endDate
     };
     
-    VarioSync.api.post('/download/batch-download', batchData)
+    VARIOSYNC.api.post('/download/batch-download', batchData)
         .then(response => {
-            VarioSync.ui.hideLoading();
+            VARIOSYNC.ui.hideLoading();
             
             // Reset Stooq download flag
             if (source === 'stooq') {
@@ -666,11 +670,11 @@ function batchDownload() {
             }
             
             showBatchResults(response);
-            VarioSync.ui.showToast(`Batch download completed: ${response.successful} successful, ${response.failed} failed`, 'success');
+            VARIOSYNC.ui.showToast(`Batch download completed: ${response.successful} successful, ${response.failed} failed`, 'success');
             loadDownloadHistory();
         })
         .catch(error => {
-            VarioSync.ui.hideLoading();
+            VARIOSYNC.ui.hideLoading();
             
             // Reset Stooq download flag on error
             if (source === 'stooq') {
@@ -705,7 +709,7 @@ function batchDownload() {
             } else if (error.status === 403) {
                 // Forbidden error
                 if (isGenericError) {
-                    errorMessage = 'Access denied. Please check your license key or permissions.';
+                    errorMessage = 'Access denied. Please check your authentication or permissions.';
                 }
             } else if (error.status === 503) {
                 // Service unavailable - usually yfinance/library errors
@@ -719,7 +723,7 @@ function batchDownload() {
                 }
             }
             
-            VarioSync.ui.showToast('Error in batch download: ' + errorMessage, 'error');
+            VARIOSYNC.ui.showToast('Error in batch download: ' + errorMessage, 'error');
         });
 }
 
@@ -773,7 +777,7 @@ function showBatchResults(response) {
 }
 
 function loadDownloadHistory() {
-    VarioSync.api.get('/download/history')
+    VARIOSYNC.api.get('/download/history')
         .then(response => {
             const container = $('#downloadHistory');
             container.empty();
@@ -784,9 +788,9 @@ function loadDownloadHistory() {
                         <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
                             <div>
                                 <small class="text-primary">${download.filename}</small><br>
-                                <small class="text-muted">${VarioSync.utils.formatFileSize(download.size)}</small>
+                                <small class="text-muted">${VARIOSYNC.utils.formatFileSize(download.size)}</small>
                             </div>
-                            <small class="text-muted">${VarioSync.utils.formatDate(download.modified)}</small>
+                            <small class="text-muted">${VARIOSYNC.utils.formatDate(download.modified)}</small>
                         </div>
                     `);
                     container.append(item);

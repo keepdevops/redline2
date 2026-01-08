@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Analysis Tab - VarioSync{% endblock %}
+{% block title %}Analysis Tab - VARIOSYNC{% endblock %}
 
 {% block page_title %}Data Analysis{% endblock %}
 {% block page_subtitle %}Perform statistical and financial analysis on your data{% endblock %}
@@ -205,9 +205,9 @@ $(document).ready(function() {
 });
 
 function loadAvailableFiles() {
-    VarioSync.ui.showLoading('Loading available files...');
+    VARIOSYNC.ui.showLoading('Loading available files...');
     
-    VarioSync.api.get('/api/files')
+    VARIOSYNC.api.get('/api/files')
         .then(response => {
             const select = $('#analysisFile');
             select.empty();
@@ -217,7 +217,7 @@ function loadAvailableFiles() {
                 response.files.forEach(file => {
                     // Validate file name before adding to dropdown
                     if (file.name && typeof file.name === 'string') {
-                        const fileSize = file.size ? VarioSync.utils.formatFileSize(file.size) : 'Unknown size';
+                        const fileSize = file.size ? VARIOSYNC.utils.formatFileSize(file.size) : 'Unknown size';
                         const safePath = file.path ? file.path : '';
                         select.append(`<option value="${file.name}" data-path="${safePath}">${file.name} (${fileSize})</option>`);
                     }
@@ -226,13 +226,13 @@ function loadAvailableFiles() {
                 select.append('<option value="" disabled>No files available</option>');
             }
             
-            VarioSync.ui.hideLoading();
+            VARIOSYNC.ui.hideLoading();
         })
         .catch(error => {
-            VarioSync.ui.hideLoading();
+            VARIOSYNC.ui.hideLoading();
             console.error('Error loading files:', error);
             const errorMessage = error.message || error.error || 'Unknown error occurred';
-            VarioSync.ui.showToast('Error loading files: ' + errorMessage, 'error');
+            VARIOSYNC.ui.showToast('Error loading files: ' + errorMessage, 'error');
         });
 }
 
@@ -250,10 +250,10 @@ function loadQuickStats(filename) {
     // Get license key - use global function if available, otherwise fallback
     const licenseKey = (typeof window.getLicenseKey === 'function') 
         ? window.getLicenseKey() 
-        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
+        : (localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY);
     
     // Get quick stats via data loader to avoid missing legacy endpoints
-    VarioSync.api.post('/data/load', { 
+    VARIOSYNC.api.post('/data/load', { 
         filename: filename, 
         file_path: filePath,
         license_key: licenseKey
@@ -261,7 +261,7 @@ function loadQuickStats(filename) {
         .then(response => {
             const statsHtml = `
                 <div class="mb-2">
-                    <strong>Rows:</strong> ${VarioSync.utils.formatNumber(response.total_rows || 0)}
+                    <strong>Rows:</strong> ${VARIOSYNC.utils.formatNumber(response.total_rows || 0)}
                 </div>
                 <div class="mb-2">
                     <strong>Columns:</strong> ${response.columns ? response.columns.length : 'N/A'}
@@ -287,26 +287,26 @@ function runAnalysis() {
     const analysisType = $('#analysisType').val();
     
     if (!filename || !analysisType) {
-        VarioSync.ui.showToast('Please select both file and analysis type', 'error');
+        VARIOSYNC.ui.showToast('Please select both file and analysis type', 'error');
         return;
     }
     
     // Validate filename format - allow most common filename characters
     if (!filename || filename.length === 0 || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
-        VarioSync.ui.showToast('Invalid filename format', 'error');
+        VARIOSYNC.ui.showToast('Invalid filename format', 'error');
         return;
     }
     
     // Get license key - use global function if available, otherwise fallback
     const licenseKey = (typeof window.getLicenseKey === 'function') 
         ? window.getLicenseKey() 
-        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
+        : (localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY);
     if (!licenseKey) {
-        VarioSync.ui.showToast('License key is required. Please register or enter your license key.', 'error');
+        VARIOSYNC.ui.showToast('License key is required. Please register or enter your license key.', 'error');
         return;
     }
     
-    VarioSync.ui.showLoading('Running analysis...');
+    VARIOSYNC.ui.showLoading('Running analysis...');
     console.log('Running analysis with license key:', licenseKey.substring(0, 20) + '...');
     
     // Include file_path hint to support converted files in subdirectories
@@ -319,15 +319,15 @@ function runAnalysis() {
         license_key: licenseKey  // Include license key in request body
     };
     
-    VarioSync.api.post('/analysis/analyze', analysisData)
+    VARIOSYNC.api.post('/analysis/analyze', analysisData)
         .then(response => {
             currentAnalysisData = response;
             displayAnalysisResults(response);
-            VarioSync.ui.hideLoading();
-            VarioSync.ui.showToast('Analysis completed successfully', 'success');
+            VARIOSYNC.ui.hideLoading();
+            VARIOSYNC.ui.showToast('Analysis completed successfully', 'success');
         })
         .catch(error => {
-            VarioSync.ui.hideLoading();
+            VARIOSYNC.ui.hideLoading();
             console.error('Analysis error:', error);
             console.error('Error type:', typeof error);
             console.error('Error keys:', Object.keys(error));
@@ -340,7 +340,7 @@ function runAnalysis() {
                 errorMessage = error;
             }
             
-            VarioSync.ui.showToast('Error running analysis: ' + errorMessage, 'error');
+            VARIOSYNC.ui.showToast('Error running analysis: ' + errorMessage, 'error');
         });
 }
 
@@ -415,7 +415,7 @@ function displayBasicAnalysis(result) {
                         <h6>Dataset Shape</h6>
                         <p><strong>Rows:</strong> ${result.shape.rows}</p>
                         <p><strong>Columns:</strong> ${result.shape.columns}</p>
-                        <p><strong>Memory Usage:</strong> ${VarioSync.utils.formatFileSize(result.memory_usage)}</p>
+                        <p><strong>Memory Usage:</strong> ${VARIOSYNC.utils.formatFileSize(result.memory_usage)}</p>
                     </div>
                 </div>
             </div>
@@ -681,9 +681,9 @@ function loadPriceChart(filename, filePath) {
     // Get sample price data for charting
     const licenseKey = (typeof window.getLicenseKey === 'function') 
         ? window.getLicenseKey() 
-        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
+        : (localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY);
     
-    VarioSync.api.post('/analysis/chart-data', {
+    VARIOSYNC.api.post('/analysis/chart-data', {
         filename: filename,
         file_path: filePath,
         chart_type: 'price',
@@ -785,7 +785,7 @@ function createCorrelationChart(result) {
 
 function generateBackendChart() {
     if (!window.currentAnalysisResponse) {
-        VarioSync.ui.showToast('No analysis data available', 'error');
+        VARIOSYNC.ui.showToast('No analysis data available', 'error');
         return;
     }
     
@@ -794,11 +794,11 @@ function generateBackendChart() {
     const filePath = response.file_path;
     const analysisType = response.analysis_type;
     
-    VarioSync.ui.showLoading('Generating chart...');
+    VARIOSYNC.ui.showLoading('Generating chart...');
     
     const licenseKey = (typeof window.getLicenseKey === 'function') 
         ? window.getLicenseKey() 
-        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
+        : (localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY);
     
     let endpoint = '';
     let chartData = { filename: filename, file_path: filePath, license_key: licenseKey };
@@ -810,14 +810,14 @@ function generateBackendChart() {
     } else if (analysisType === 'statistical') {
         endpoint = '/analysis/distribution-chart';
     } else {
-        VarioSync.ui.hideLoading();
-        VarioSync.ui.showToast('Chart generation not available for this analysis type', 'error');
+        VARIOSYNC.ui.hideLoading();
+        VARIOSYNC.ui.showToast('Chart generation not available for this analysis type', 'error');
         return;
     }
     
-    VarioSync.api.post(endpoint, chartData)
+    VARIOSYNC.api.post(endpoint, chartData)
         .then(function(response) {
-            VarioSync.ui.hideLoading();
+            VARIOSYNC.ui.hideLoading();
             // Safari-compatible: Check response structure
             var imageData = response.image || (response.data && response.data.image) || null;
             if (imageData) {
@@ -826,14 +826,14 @@ function generateBackendChart() {
             } else {
                 // Debug: Log response structure
                 console.log('Chart response structure:', response);
-                VarioSync.ui.showToast('Chart generated but no image returned. Check console for details.', 'error');
+                VARIOSYNC.ui.showToast('Chart generated but no image returned. Check console for details.', 'error');
             }
         })
         .catch(function(error) {
-            VarioSync.ui.hideLoading();
+            VARIOSYNC.ui.hideLoading();
             var errorMsg = error.message || error.error || 'Unknown error';
             console.error('Chart generation error:', error);
-            VarioSync.ui.showToast('Error generating chart: ' + errorMsg, 'error');
+            VARIOSYNC.ui.showToast('Error generating chart: ' + errorMsg, 'error');
         });
 }
 
@@ -855,14 +855,14 @@ function displayBackendChart(imageData, analysisType) {
     
     // Append to results or show in modal
     $('#resultsContent').prepend(chartHtml);
-    VarioSync.ui.showToast('Chart generated successfully', 'success');
+    VARIOSYNC.ui.showToast('Chart generated successfully', 'success');
 }
 
 // ML functions moved to /ml/ tab
 
 function exportAnalysis(format = null) {
     if (!currentAnalysisData) {
-        VarioSync.ui.showToast('No analysis data to export', 'error');
+        VARIOSYNC.ui.showToast('No analysis data to export', 'error');
         return;
     }
     
@@ -871,7 +871,7 @@ function exportAnalysis(format = null) {
         const formatOptions = ['json', 'csv', 'parquet', 'feather', 'duckdb', 'txt', 'npz', 'arrow'];
         const selectedFormat = prompt(`Enter export format:\n${formatOptions.join(', ')}`, 'json');
         if (!selectedFormat || !formatOptions.includes(selectedFormat.toLowerCase())) {
-            VarioSync.ui.showToast('Invalid format selected', 'error');
+            VARIOSYNC.ui.showToast('Invalid format selected', 'error');
             return;
         }
         format = selectedFormat.toLowerCase();
@@ -893,7 +893,7 @@ function exportAnalysis(format = null) {
     const filename = prompt(`Enter export filename for ${formatNames[format]} format (without extension):`, baseFilename);
     if (!filename) return;
     
-    VarioSync.ui.showLoading(`Exporting analysis as ${formatNames[format]}...`);
+    VARIOSYNC.ui.showLoading(`Exporting analysis as ${formatNames[format]}...`);
     
     const exportData = {
         analysis_result: currentAnalysisData.result,
@@ -901,15 +901,15 @@ function exportAnalysis(format = null) {
         format: format.toLowerCase()
     };
     
-    VarioSync.api.post('/analysis/export-analysis', exportData)
+    VARIOSYNC.api.post('/analysis/export-analysis', exportData)
         .then(response => {
-            VarioSync.ui.hideLoading();
-            VarioSync.ui.showToast(`Analysis exported successfully: ${response.export_filename}`, 'success');
+            VARIOSYNC.ui.hideLoading();
+            VARIOSYNC.ui.showToast(`Analysis exported successfully: ${response.export_filename}`, 'success');
         })
         .catch(error => {
-            VarioSync.ui.hideLoading();
+            VARIOSYNC.ui.hideLoading();
             const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
-            VarioSync.ui.showToast('Error exporting analysis: ' + errorMsg, 'error');
+            VARIOSYNC.ui.showToast('Error exporting analysis: ' + errorMsg, 'error');
         });
 }
 </script>
