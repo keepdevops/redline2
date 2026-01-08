@@ -28,6 +28,72 @@ def reset_password_page():
     return render_template('reset_password.html')
 
 
+@auth_bp.route('/reset-password', methods=['POST'])
+def reset_password():
+    """
+    Send password reset email via Supabase Auth
+
+    Request JSON:
+        - email: User email address
+
+    Returns:
+        JSON with success status
+    """
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                'error': 'Request body is required',
+                'code': 'NO_DATA'
+            }), 400
+
+        email = data.get('email')
+
+        if not email:
+            return jsonify({
+                'error': 'Email address is required',
+                'code': 'MISSING_EMAIL'
+            }), 400
+
+        logger.info(f"Password reset request for {email}")
+
+        # Check if Supabase is available
+        if not supabase_client.is_available():
+            return jsonify({
+                'error': 'Authentication service is not configured',
+                'code': 'SERVICE_UNAVAILABLE'
+            }), 503
+
+        # Send password reset email via Supabase
+        try:
+            # Supabase will send an email with a reset link
+            reset_response = supabase_client.client.auth.reset_password_email(email)
+
+            logger.info(f"Password reset email sent to {email}")
+
+            return jsonify({
+                'success': True,
+                'message': 'If an account exists with that email, a password reset link has been sent.'
+            }), 200
+
+        except Exception as e:
+            logger.error(f"Supabase password reset error: {str(e)}")
+            # Return success anyway for security (don't reveal if email exists)
+            return jsonify({
+                'success': True,
+                'message': 'If an account exists with that email, a password reset link has been sent.'
+            }), 200
+
+    except Exception as e:
+        logger.error(f"Unexpected error in password reset: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'code': 'INTERNAL_ERROR',
+            'details': str(e)
+        }), 500
+
+
 @auth_bp.route('/login', methods=['GET'])
 def login_page():
     """
