@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Terms of Service - VarioSync{% endblock %}
+
+{% block page_title %}Terms of Service{% endblock %}
+{% block page_subtitle %}Last updated: January 2026{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card">
+                <div class="card-body p-5">
+                    <h3 class="mb-4">1. Acceptance of Terms</h3>
+                    <p>By accessing and using VarioSync ("the Service"), you accept and agree to be bound by the terms and provisions of this agreement.</p>
+
+                    <h3 class="mb-4 mt-5">2. Description of Service</h3>
+                    <p>VarioSync provides financial data analysis, download, conversion, and visualization tools. The service is provided on a subscription basis with metered billing for usage.</p>
+
+                    <h3 class="mb-4 mt-5">3. User Accounts</h3>
+                    <p>You are responsible for:</p>
+                    <ul>
+                        <li>Maintaining the confidentiality of your account credentials</li>
+                        <li>All activities that occur under your account</li>
+                        <li>Notifying us immediately of any unauthorized use</li>
+                    </ul>
+
+                    <h3 class="mb-4 mt-5">4. Acceptable Use</h3>
+                    <p>You agree not to:</p>
+                    <ul>
+                        <li>Use the service for any illegal purpose</li>
+                        <li>Attempt to gain unauthorized access to our systems</li>
+                        <li>Interfere with or disrupt the service or servers</li>
+                        <li>Use automated scripts to access the service excessively</li>
+                    </ul>
+
+                    <h3 class="mb-4 mt-5">5. Payment Terms</h3>
+                    <p>The Service operates on a metered billing model:</p>
+                    <ul>
+                        <li>Subscription fees are charged monthly</li>
+                        <li>Usage is tracked and billed according to your plan</li>
+                        <li>Payments are processed securely through Stripe</li>
+                        <li>You can cancel your subscription at any time</li>
+                    </ul>
+
+                    <h3 class="mb-4 mt-5">6. Data and Privacy</h3>
+                    <p>Your use of VarioSync is also governed by our <a href="/privacy">Privacy Policy</a>. We collect and process data as described in the Privacy Policy.</p>
+
+                    <h3 class="mb-4 mt-5">7. Intellectual Property</h3>
+                    <p>All content, features, and functionality of VarioSync are owned by us and are protected by international copyright, trademark, and other intellectual property laws.</p>
+
+                    <h3 class="mb-4 mt-5">8. Limitation of Liability</h3>
+                    <p>VarioSync is provided "as is" without warranties of any kind. We are not liable for any damages arising from your use of the service, including but not limited to financial losses resulting from data accuracy or service availability.</p>
+
+                    <h3 class="mb-4 mt-5">9. Termination</h3>
+                    <p>We reserve the right to terminate or suspend your account and access to the service at our discretion, without notice, for conduct that we believe violates these Terms of Service.</p>
+
+                    <h3 class="mb-4 mt-5">10. Changes to Terms</h3>
+                    <p>We reserve the right to modify these terms at any time. Continued use of the service after changes constitutes acceptance of the modified terms.</p>
+
+                    <h3 class="mb-4 mt-5">11. Contact Information</h3>
+                    <p>For questions about these Terms of Service, please contact us through the support channels provided in the application.</p>
+
+                    <hr class="my-5">
+
+                    <div class="text-center">
+                        <a href="/auth/signup" class="btn btn-primary me-2">
+                            <i class="fas fa-user-plus me-2"></i>Create Account
+                        </a>
+                        <a href="/auth/login" class="btn btn-outline-primary">
+                            <i class="fas fa-sign-in-alt me-2"></i>Login
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

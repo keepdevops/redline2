@@ -44,3 +44,13 @@ def register():
 def help_page():
     """Alias for main_index.help_page - maintains backward compatibility"""
     return render_template('help.html')
+
+@main_bp.route('/terms', endpoint='terms')
+def terms():
+    """Terms of Service page"""
+    return render_template('terms.html')
+
+@main_bp.route('/privacy', endpoint='privacy')
+def privacy():
+    """Privacy Policy page"""
+    return render_template('privacy.html')

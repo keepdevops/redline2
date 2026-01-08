@@ -20,6 +20,14 @@ stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 
+@auth_bp.route('/reset-password', methods=['GET'])
+def reset_password_page():
+    """
+    Render password reset page
+    """
+    return render_template('reset_password.html')
+
+
 @auth_bp.route('/login', methods=['GET'])
 def login_page():
     """

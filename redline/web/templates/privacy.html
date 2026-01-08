@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy - VarioSync{% endblock %}
+
+{% block page_title %}Privacy Policy{% endblock %}
+{% block page_subtitle %}Last updated: January 2026{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card">
+                <div class="card-body p-5">
+                    <h3 class="mb-4">1. Information We Collect</h3>
+                    <p>We collect the following types of information:</p>
+                    <ul>
+                        <li><strong>Account Information:</strong> Email address, name, and password (encrypted)</li>
+                        <li><strong>Usage Data:</strong> Information about how you use our service, including processing jobs and file operations</li>
+                        <li><strong>Payment Information:</strong> Billing details processed securely through Stripe (we do not store full credit card numbers)</li>
+                        <li><strong>Technical Data:</strong> IP address, browser type, device information, and cookies</li>
+                    </ul>
+
+                    <h3 class="mb-4 mt-5">2. How We Use Your Information</h3>
+                    <p>We use your information to:</p>
+                    <ul>
+                        <li>Provide and maintain the VarioSync service</li>
+                        <li>Process your payments and manage subscriptions</li>
+                        <li>Send service-related notifications and updates</li>
+                        <li>Improve and optimize our service</li>
+                        <li>Detect and prevent fraud or abuse</li>
+                        <li>Comply with legal obligations</li>
+                    </ul>
+
+                    <h3 class="mb-4 mt-5">3. Data Storage and Security</h3>
+                    <p>We take data security seriously:</p>
+                    <ul>
+                        <li>All data is encrypted in transit using SSL/TLS</li>
+                        <li>Passwords are hashed and never stored in plain text</li>
+                        <li>User files are stored in secure cloud storage (Wasabi S3)</li>
+                        <li>Authentication is managed through Supabase with JWT tokens</li>
+                        <li>Payment processing is handled by Stripe (PCI DSS compliant)</li>
+                    </ul>
+
+                    <h3 class="mb-4 mt-5">4. Data Sharing</h3>
+                    <p>We do not sell your personal information. We share data only with:</p>
+                    <ul>
+                        <li><strong>Service Providers:</strong> Supabase (authentication), Stripe (payments), Wasabi (file storage), Modal (processing)</li>
+                        <li><strong>Legal Requirements:</strong> When required by law or to protect our rights</li>
+                    </ul>
+
+                    <h3 class="mb-4 mt-5">5. Your Data Rights</h3>
+                    <p>You have the right to:</p>
+                    <ul>
+                        <li>Access your personal data</li>
+                        <li>Correct inaccurate data</li>
+                        <li>Delete your account and data</li>
+                        <li>Export your data</li>
+                        <li>Opt-out of marketing communications</li>
+                    </ul>
+
+                    <h3 class="mb-4 mt-5">6. Cookies and Tracking</h3>
+                    <p>We use cookies and similar technologies to:</p>
+                    <ul>
+                        <li>Maintain your session and authentication</li>
+                        <li>Remember your preferences</li>
+                        <li>Analyze service usage and performance</li>
+                    </ul>
+
+                    <h3 class="mb-4 mt-5">7. Data Retention</h3>
+                    <p>We retain your data for as long as your account is active. After account deletion:</p>
+                    <ul>
+                        <li>User files are deleted within 30 days</li>
+                        <li>Account data is anonymized for billing records (required by law)</li>
+                        <li>Usage logs are deleted within 90 days</li>
+                    </ul>
+
+                    <h3 class="mb-4 mt-5">8. Children's Privacy</h3>
+                    <p>VarioSync is not intended for users under 18 years of age. We do not knowingly collect data from children.</p>
+
+                    <h3 class="mb-4 mt-5">9. International Data Transfers</h3>
+                    <p>Your data may be transferred to and processed in countries other than your own. We ensure appropriate safeguards are in place for such transfers.</p>
+
+                    <h3 class="mb-4 mt-5">10. Changes to Privacy Policy</h3>
+                    <p>We may update this Privacy Policy from time to time. We will notify you of significant changes via email or through the service.</p>
+
+                    <h3 class="mb-4 mt-5">11. Contact Us</h3>
+                    <p>For privacy-related questions or to exercise your data rights, please contact us through the support channels provided in the application.</p>
+
+                    <hr class="my-5">
+
+                    <div class="text-center">
+                        <a href="/auth/signup" class="btn btn-primary me-2">
+                            <i class="fas fa-user-plus me-2"></i>Create Account
+                        </a>
+                        <a href="/auth/login" class="btn btn-outline-primary">
+                            <i class="fas fa-sign-in-alt me-2"></i>Login
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
