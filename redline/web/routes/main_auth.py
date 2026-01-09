@@ -56,9 +56,18 @@ def signup():
                 'company': company
             })
             logger.info(f"Created Supabase user: {email}")
+        except AttributeError as e:
+            logger.error(f"Attribute error creating Supabase user: {str(e)}")
+            return jsonify({'error': 'Authentication service configuration error', 'code': 'ATTRIBUTE_ERROR'}), 503
+        except KeyError as e:
+            logger.error(f"Missing key creating Supabase user: {str(e)}")
+            return jsonify({'error': 'Invalid user data structure', 'code': 'KEY_ERROR'}), 400
+        except ValueError as e:
+            logger.error(f"Invalid value creating Supabase user: {str(e)}")
+            return jsonify({'error': f'Invalid registration data: {str(e)}', 'code': 'VALUE_ERROR'}), 400
         except Exception as e:
-            logger.error(f"Failed to create Supabase user: {str(e)}")
-            return jsonify({'error': f'Registration failed: {str(e)}'}), 400
+            logger.error(f"Unexpected error creating Supabase user: {str(e)}")
+            return jsonify({'error': f'Registration failed: {str(e)}', 'code': 'REGISTRATION_ERROR'}), 400
 
         # Create Stripe customer
         try:
@@ -84,8 +93,20 @@ def signup():
             logger.error("Stripe library not installed")
             # Continue without Stripe - user can still sign up
             stripe_customer = None
+        except AttributeError as e:
+            logger.error(f"Attribute error creating Stripe customer: {str(e)}")
+            # Continue without Stripe - user can still sign up
+            stripe_customer = None
+        except KeyError as e:
+            logger.error(f"Missing key creating Stripe customer: {str(e)}")
+            # Continue without Stripe - user can still sign up
+            stripe_customer = None
+        except ValueError as e:
+            logger.error(f"Invalid value creating Stripe customer: {str(e)}")
+            # Continue without Stripe - user can still sign up
+            stripe_customer = None
         except Exception as e:
-            logger.error(f"Failed to create Stripe customer: {str(e)}")
+            logger.error(f"Unexpected error creating Stripe customer: {str(e)}")
             # Continue without Stripe - user can still sign up
             stripe_customer = None
 
@@ -104,11 +125,26 @@ def signup():
             'message': 'Registration successful! Please log in to subscribe.'
         }), 201
 
-    except Exception as e:
-        logger.error(f"Error during signup: {str(e)}")
+    except AttributeError as e:
+        logger.error(f"Attribute error during signup: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
-        return jsonify({'error': f'Registration failed: {str(e)}'}), 500
+        return jsonify({'error': 'Service configuration error', 'code': 'ATTRIBUTE_ERROR'}), 503
+    except KeyError as e:
+        logger.error(f"Missing key during signup: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'error': f'Invalid data structure: {str(e)}', 'code': 'KEY_ERROR'}), 500
+    except ValueError as e:
+        logger.error(f"Value error during signup: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'error': f'Invalid value: {str(e)}', 'code': 'VALUE_ERROR'}), 400
+    except Exception as e:
+        logger.error(f"Unexpected error during signup: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'error': f'Registration failed: {str(e)}', 'code': 'SIGNUP_ERROR'}), 500
 
 
 def send_welcome_email(email, name):
@@ -194,6 +230,15 @@ The VarioSync Team
 
     except ImportError:
         logger.warning("Email libraries not available")
+    except PermissionError as e:
+        logger.error(f"Permission denied sending welcome email: {str(e)}")
+        # Don't raise - email failure shouldn't block registration
+    except OSError as e:
+        logger.error(f"OS error sending welcome email: {str(e)}")
+        # Don't raise - email failure shouldn't block registration
+    except ValueError as e:
+        logger.error(f"Invalid value sending welcome email: {str(e)}")
+        # Don't raise - email failure shouldn't block registration
     except Exception as e:
-        logger.error(f"Error sending welcome email: {str(e)}")
+        logger.error(f"Unexpected error sending welcome email: {str(e)}")
         # Don't raise - email failure shouldn't block registration

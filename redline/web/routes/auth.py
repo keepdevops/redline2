@@ -525,6 +525,19 @@ def get_current_user():
             'code': 'INVALID_USER_DATA',
             'details': str(e)
         }), 500
+    except AttributeError as e:
+        logger.error(f"Attribute error getting user {user_id}: {str(e)}")
+        return jsonify({
+            'error': 'User data access error',
+            'code': 'ATTRIBUTE_ERROR',
+            'details': str(e)
+        }), 500
+    except PermissionError as e:
+        logger.error(f"Permission denied getting user {user_id}: {str(e)}")
+        return jsonify({
+            'error': 'Permission denied',
+            'code': 'PERMISSION_DENIED'
+        }), 403
     except Exception as e:
         logger.error(f"Unexpected error getting user {user_id}: {type(e).__name__}: {str(e)}")
         return jsonify({
@@ -587,6 +600,20 @@ def get_user_usage():
             'code': 'INVALID_PARAMETER',
             'details': str(e)
         }), 400
+    except AttributeError as e:
+        logger.error(f"Attribute error getting usage for {user_id}: {str(e)}")
+        return jsonify({
+            'error': 'Usage data access error',
+            'code': 'ATTRIBUTE_ERROR',
+            'details': str(e)
+        }), 500
+    except KeyError as e:
+        logger.error(f"Missing key getting usage for {user_id}: {str(e)}")
+        return jsonify({
+            'error': 'Missing usage data field',
+            'code': 'KEY_ERROR',
+            'details': str(e)
+        }), 500
     except Exception as e:
         logger.error(f"Unexpected error getting usage for {user_id}: {type(e).__name__}: {str(e)}")
         return jsonify({
@@ -649,6 +676,20 @@ def get_user_payments():
             'code': 'INVALID_PARAMETER',
             'details': str(e)
         }), 400
+    except AttributeError as e:
+        logger.error(f"Attribute error getting payments for {user_id}: {str(e)}")
+        return jsonify({
+            'error': 'Payment data access error',
+            'code': 'ATTRIBUTE_ERROR',
+            'details': str(e)
+        }), 500
+    except KeyError as e:
+        logger.error(f"Missing key getting payments for {user_id}: {str(e)}")
+        return jsonify({
+            'error': 'Missing payment data field',
+            'code': 'KEY_ERROR',
+            'details': str(e)
+        }), 500
     except Exception as e:
         logger.error(f"Unexpected error getting payments for {user_id}: {type(e).__name__}: {str(e)}")
         return jsonify({
@@ -712,6 +753,20 @@ def get_user_subscription():
             'code': 'MODULE_ERROR',
             'details': str(e)
         }), 503
+    except AttributeError as e:
+        logger.error(f"Attribute error getting subscription for {stripe_customer_id}: {str(e)}")
+        return jsonify({
+            'error': 'Subscription data access error',
+            'code': 'ATTRIBUTE_ERROR',
+            'details': str(e)
+        }), 500
+    except KeyError as e:
+        logger.error(f"Missing key getting subscription for {stripe_customer_id}: {str(e)}")
+        return jsonify({
+            'error': 'Missing subscription data field',
+            'code': 'KEY_ERROR',
+            'details': str(e)
+        }), 500
     except Exception as e:
         logger.error(f"Unexpected error getting subscription for {stripe_customer_id}: {type(e).__name__}: {str(e)}")
         return jsonify({
@@ -790,9 +845,24 @@ def auth_status():
             'subscription_status': user.get('subscription_status', 'inactive')
         })
 
-    except Exception as e:
-        logger.error(f"Error checking auth status: {str(e)}")
+    except AttributeError as e:
+        logger.error(f"Attribute error checking auth status: {str(e)}")
         return jsonify({
             'authenticated': False,
-            'error': str(e)
+            'error': 'Auth data access error',
+            'code': 'ATTRIBUTE_ERROR'
+        })
+    except KeyError as e:
+        logger.error(f"Missing key checking auth status: {str(e)}")
+        return jsonify({
+            'authenticated': False,
+            'error': 'Missing auth data field',
+            'code': 'KEY_ERROR'
+        })
+    except Exception as e:
+        logger.error(f"Unexpected error checking auth status: {str(e)}")
+        return jsonify({
+            'authenticated': False,
+            'error': str(e),
+            'code': 'AUTH_STATUS_ERROR'
         })
