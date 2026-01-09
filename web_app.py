@@ -15,33 +15,45 @@ import logging
 import secrets
 from flask import Flask, render_template, request, jsonify, g
 from flask_socketio import SocketIO
-try:
+# Check flask_compress availability using importlib
+import importlib.util
+flask_compress_spec = importlib.util.find_spec('flask_compress')
+if flask_compress_spec is not None:
     from flask_compress import Compress
     COMPRESS_AVAILABLE = True
-except ImportError:
+    logging.info("flask-compress is available and loaded")
+else:
     COMPRESS_AVAILABLE = False
-    print("Warning: flask-compress not available, compression disabled")
+    logging.warning("flask-compress not available, compression disabled")
 
-try:
+# Check flask_limiter availability using importlib
+flask_limiter_spec = importlib.util.find_spec('flask_limiter')
+if flask_limiter_spec is not None:
     from flask_limiter import Limiter
     from flask_limiter.util import get_remote_address
     LIMITER_AVAILABLE = True
-except ImportError:
+    logging.info("flask-limiter is available and loaded")
+else:
     LIMITER_AVAILABLE = False
-    print("Warning: flask-limiter not available, rate limiting disabled")
+    logging.warning("flask-limiter not available, rate limiting disabled")
 
 # Add the project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Load .env file if it exists (before logging config to avoid issues)
-try:
+env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+dotenv_spec = importlib.util.find_spec('dotenv')
+
+if dotenv_spec is not None:
     from dotenv import load_dotenv
-    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
     if os.path.exists(env_path):
         load_dotenv(env_path)
-except ImportError:
+        logging.info(f"Loaded environment variables from {env_path} using python-dotenv")
+    else:
+        logging.debug(f".env file not found at {env_path}")
+else:
     # python-dotenv not installed, try manual loading
-    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+    logging.info("python-dotenv not installed, attempting manual .env loading")
     if os.path.exists(env_path):
         with open(env_path, 'r') as f:
             for line in f:
@@ -52,8 +64,9 @@ except ImportError:
                     if '#' in value:
                         value = value.split('#')[0].strip()
                     os.environ[key.strip()] = value.strip()
-except Exception:
-    pass  # Ignore errors loading .env
+        logging.info(f"Manually loaded environment variables from {env_path}")
+    else:
+        logging.debug(f".env file not found at {env_path}")
 
 # Configure logging
 logging.basicConfig(
@@ -84,27 +97,42 @@ def create_app():
     
     # Initialize SocketIO for real-time updates
     # For Gunicorn compatibility, use threading mode explicitly
-    try:
+    
+    # Define MockSocketIO class for fallback
+    class MockSocketIO:
+        def __init__(self, app, **kwargs):
+            self.app = app
+        def run(self, app, host=None, port=None, debug=None, **kwargs):
+            # Filter out unsupported parameters for Flask's app.run()
+            flask_kwargs = {k: v for k, v in kwargs.items() 
+                           if k not in ['allow_unsafe_werkzeug']}
+            # Just run the Flask app directly
+            self.app.run(host=host, port=port, debug=debug, **flask_kwargs)
+    
+    # Check if flask_socketio is available
+    flask_socketio_spec = importlib.util.find_spec('flask_socketio')
+    if flask_socketio_spec is None:
+        logger.warning("flask_socketio module not available, using MockSocketIO")
+        socketio = MockSocketIO(app)
+    else:
         allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:8080,http://127.0.0.1:8080').split(',')
+        if not allowed_origins or allowed_origins == ['']:
+            logger.warning("CORS_ORIGINS is empty, using default origins")
+            allowed_origins = ['http://localhost:8080', 'http://127.0.0.1:8080']
+        
         # Check if running under Gunicorn
         worker_class = os.environ.get('SERVER_SOFTWARE', '').startswith('gunicorn')
         async_mode = 'eventlet' if not worker_class else 'threading'
+        
+        # Validate async_mode choice
+        if async_mode == 'eventlet':
+            eventlet_spec = importlib.util.find_spec('eventlet')
+            if eventlet_spec is None:
+                logger.warning("eventlet not available, falling back to threading async_mode")
+                async_mode = 'threading'
+        
         socketio = SocketIO(app, cors_allowed_origins=allowed_origins, async_mode=async_mode)
         logger.info(f"SocketIO initialized with {async_mode} async_mode")
-    except Exception as e:
-        logger.warning(f"Failed to initialize SocketIO: {e}")
-        # Fallback: create a mock SocketIO object
-        class MockSocketIO:
-            def __init__(self, app, **kwargs):
-                self.app = app
-            def run(self, app, host=None, port=None, debug=None, **kwargs):
-                # Filter out unsupported parameters for Flask's app.run()
-                flask_kwargs = {k: v for k, v in kwargs.items() 
-                               if k not in ['allow_unsafe_werkzeug']}
-                # Just run the Flask app directly
-                self.app.run(host=host, port=port, debug=debug, **flask_kwargs)
-        socketio = MockSocketIO(app)
-        logger.info("Using mock SocketIO for compatibility")
     
     # Initialize compression if available
     if COMPRESS_AVAILABLE:
@@ -142,25 +170,35 @@ def create_app():
     app.config['limiter'] = limiter
     
     # Initialize TaskManager for background tasks
-    try:
+    task_manager_spec = importlib.util.find_spec('redline.background.task_manager')
+    if task_manager_spec is not None:
         from redline.background.task_manager import TaskManager
         task_manager = TaskManager(app=app)
-        app.config['task_manager'] = task_manager
-        logger.info("TaskManager initialized successfully")
-    except Exception as e:
-        logger.warning(f"Failed to initialize TaskManager: {str(e)}")
+        if task_manager is not None:
+            app.config['task_manager'] = task_manager
+            logger.info("TaskManager initialized successfully")
+        else:
+            logger.warning("TaskManager initialization returned None")
+            app.config['task_manager'] = None
+    else:
+        logger.warning("TaskManager module not available at redline.background.task_manager")
         app.config['task_manager'] = None
     
     # Initialize Supabase Auth Manager for JWT authentication
-    try:
+    auth_manager_spec = importlib.util.find_spec('redline.auth.supabase_auth')
+    if auth_manager_spec is not None:
         from redline.auth.supabase_auth import auth_manager
-        app.config['auth_manager'] = auth_manager
-        if auth_manager.is_available():
-            logger.info("Supabase Auth Manager initialized successfully")
+        if auth_manager is not None:
+            app.config['auth_manager'] = auth_manager
+            if auth_manager.is_available():
+                logger.info("Supabase Auth Manager initialized successfully")
+            else:
+                logger.warning("Supabase Auth Manager not fully configured (check environment variables)")
         else:
-            logger.warning("Supabase Auth Manager not fully configured (check environment variables)")
-    except Exception as e:
-        logger.warning(f"Failed to initialize Supabase Auth Manager: {str(e)}")
+            logger.warning("auth_manager import returned None")
+            app.config['auth_manager'] = None
+    else:
+        logger.warning("Supabase Auth module not available at redline.auth.supabase_auth")
         app.config['auth_manager'] = None
 
     # Access control middleware - check JWT token and subscription BEFORE processing request
@@ -373,46 +411,61 @@ def create_app():
 
 def main():
     """Main entry point for the web application (development mode only)."""
-    try:
-        logger.info("Starting VarioSync Web Application...")
-        
-        # Create application
-        app = create_app()
-        socketio = app.config.get('socketio')
-        
-        # Get configuration from environment
-        host = os.environ.get('HOST', '0.0.0.0')
-        port = int(os.environ.get('WEB_PORT', os.environ.get('PORT', 8080)))
-        debug = os.environ.get('DEBUG', 'false').lower() == 'true'
-        
-        logger.info(f"Starting server on {host}:{port}")
-        logger.info(f"Debug mode: {debug}")
-        
-        # Start the application (development mode with SocketIO)
-        if socketio and hasattr(socketio, 'run'):
-            # Check if it's MockSocketIO (which handles allow_unsafe_werkzeug internally)
-            is_mock = type(socketio).__name__ == 'MockSocketIO'
-            
-            if is_mock:
-                # MockSocketIO filters out unsupported params
-                socketio.run(app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=(not debug))
-            else:
-                # Real SocketIO - try with allow_unsafe_werkzeug for non-debug
-                try:
-                    if not debug:
-                        socketio.run(app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=True)
-                    else:
-                        socketio.run(app, host=host, port=port, debug=debug)
-                except TypeError:
-                    # If allow_unsafe_werkzeug not supported, run without it
-                    socketio.run(app, host=host, port=port, debug=debug)
-        else:
-            # Fallback to Flask dev server
-            app.run(host=host, port=port, debug=debug)
-        
-    except Exception as e:
-        logger.error(f"Failed to start VarioSync Web Application: {str(e)}")
+    logger.info("Starting VarioSync Web Application...")
+    
+    # Validate environment configuration before creating app
+    host = os.environ.get('HOST', '0.0.0.0')
+    port_str = os.environ.get('WEB_PORT', os.environ.get('PORT', '8080'))
+    debug = os.environ.get('DEBUG', 'false').lower() == 'true'
+    
+    # Validate port is a valid integer
+    if not port_str.isdigit():
+        logger.error(f"Invalid port value: {port_str}. Must be a numeric value.")
         sys.exit(1)
+    
+    port = int(port_str)
+    
+    # Validate port is in valid range
+    if port < 1 or port > 65535:
+        logger.error(f"Port {port} is out of valid range (1-65535)")
+        sys.exit(1)
+    
+    # Create application
+    app = create_app()
+    if app is None:
+        logger.error("Failed to create Flask application")
+        sys.exit(1)
+    
+    socketio = app.config.get('socketio')
+    
+    logger.info(f"Starting server on {host}:{port}")
+    logger.info(f"Debug mode: {debug}")
+    
+    # Start the application (development mode with SocketIO)
+    if socketio is not None and hasattr(socketio, 'run'):
+        # Check if it's MockSocketIO (which handles allow_unsafe_werkzeug internally)
+        is_mock = type(socketio).__name__ == 'MockSocketIO'
+        
+        if is_mock:
+            # MockSocketIO filters out unsupported params
+            logger.info("Using MockSocketIO for server startup")
+            socketio.run(app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=(not debug))
+        else:
+            # Real SocketIO - check if allow_unsafe_werkzeug is supported
+            import inspect
+            run_signature = inspect.signature(socketio.run)
+            supports_unsafe_werkzeug = 'allow_unsafe_werkzeug' in run_signature.parameters
+            
+            if not debug and supports_unsafe_werkzeug:
+                logger.info("Starting SocketIO with allow_unsafe_werkzeug=True")
+                socketio.run(app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=True)
+            else:
+                logger.info("Starting SocketIO in standard mode")
+                socketio.run(app, host=host, port=port, debug=debug)
+    else:
+        # Fallback to Flask dev server
+        logger.info("SocketIO not available, using Flask development server")
+        app.run(host=host, port=port, debug=debug)
 
 # Create app instance for Gunicorn
 app = create_app()

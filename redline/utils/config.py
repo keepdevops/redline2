@@ -58,16 +58,40 @@ class ConfigManager:
     
     def load_config(self):
         """Load configuration from file or create default."""
+        # Pre-validation with if-else
+        if not self.config_path:
+            self.logger.warning("Config path is empty, using default configuration")
+            self.create_default_config()
+            return
+        
+        if not isinstance(self.config_path, str):
+            self.logger.warning(f"Config path must be a string, got {type(self.config_path)}")
+            self.create_default_config()
+            return
+        
+        if not os.path.exists(self.config_path):
+            self.logger.info(f"Configuration file not found, creating default at {self.config_path}")
+            self.create_default_config()
+            return
+        
+        if not os.path.isfile(self.config_path):
+            self.logger.warning(f"Config path exists but is not a file: {self.config_path}")
+            self.create_default_config()
+            return
+        
+        if not os.access(self.config_path, os.R_OK):
+            self.logger.warning(f"Config file is not readable: {self.config_path}")
+            self.create_default_config()
+            return
+        
         try:
-            if os.path.exists(self.config_path):
-                self.config.read(self.config_path)
-                self.logger.info(f"Loaded configuration from {self.config_path}")
-            else:
-                self.logger.info(f"Configuration file not found, creating default at {self.config_path}")
-                self.create_default_config()
-                
+            self.config.read(self.config_path)
+            self.logger.info(f"Loaded configuration from {self.config_path}")
+        except configparser.Error as e:
+            self.logger.error(f"Error parsing configuration file: {str(e)}")
+            self.create_default_config()
         except Exception as e:
-            self.logger.error(f"Error loading configuration: {str(e)}")
+            self.logger.error(f"Unexpected error loading configuration: {str(e)}")
             self.create_default_config()
     
     def create_default_config(self):
@@ -110,22 +134,38 @@ class ConfigManager:
         Returns:
             Configuration value
         """
+        # Pre-validation with if-else
+        if not section or not isinstance(section, str):
+            self.logger.debug(f"Invalid section name: {section}, returning fallback")
+            return fallback
+        
+        if not option or not isinstance(option, str):
+            self.logger.debug(f"Invalid option name: {option}, returning fallback")
+            return fallback
+        
+        if not self.config.has_section(section):
+            self.logger.debug(f"Section [{section}] not found, returning fallback")
+            return fallback
+        
+        if not self.config.has_option(section, option):
+            self.logger.debug(f"Option [{section}]{option} not found, returning fallback")
+            return fallback
+        
         try:
-            if self.config.has_section(section) and self.config.has_option(section, option):
-                value = self.config.get(section, option)
+            value = self.config.get(section, option)
+            
+            # Type conversion with validation
+            if value.isdigit():
+                return int(value)
+            elif value.lower() in ('true', 'false'):
+                return value.lower() == 'true'
+            return value
                 
-                # Try to convert to appropriate type
-                if value.isdigit():
-                    return int(value)
-                elif value.lower() in ('true', 'false'):
-                    return value.lower() == 'true'
-                else:
-                    return value
-            else:
-                return fallback
-                
+        except ValueError as e:
+            self.logger.error(f"Error converting config value [{section}]{option}: {str(e)}")
+            return fallback
         except Exception as e:
-            self.logger.error(f"Error getting config value [{section}]{option}: {str(e)}")
+            self.logger.error(f"Unexpected error getting config value [{section}]{option}: {str(e)}")
             return fallback
     
     def set(self, section: str, option: str, value: Any):
@@ -137,14 +177,29 @@ class ConfigManager:
             option: Configuration option
             value: Value to set
         """
+        # Pre-validation with if-else
+        if not section or not isinstance(section, str):
+            self.logger.error(f"Invalid section name: {section}")
+            raise ValueError(f"Section name must be a non-empty string, got: {section}")
+        
+        if not option or not isinstance(option, str):
+            self.logger.error(f"Invalid option name: {option}")
+            raise ValueError(f"Option name must be a non-empty string, got: {option}")
+        
+        if value is None:
+            self.logger.warning(f"Setting None value for [{section}]{option}")
+        
         try:
             if not self.config.has_section(section):
                 self.config.add_section(section)
             
             self.config.set(section, option, str(value))
             
+        except configparser.Error as e:
+            self.logger.error(f"ConfigParser error setting [{section}]{option}: {str(e)}")
+            raise
         except Exception as e:
-            self.logger.error(f"Error setting config value [{section}]{option}: {str(e)}")
+            self.logger.error(f"Unexpected error setting config value [{section}]{option}: {str(e)}")
             raise
     
     def get_section(self, section: str) -> Dict[str, Any]:

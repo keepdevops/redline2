@@ -263,8 +263,45 @@ class S3Manager:
         Returns:
             True if successful, False otherwise
         """
+        # Pre-validation with if-else
         if not self.s3_client:
-            logger.error("S3 client not available")
+            logger.error("S3 client not available - cannot download file")
+            return False
+
+        if not s3_key:
+            logger.error("S3 key is empty or None - cannot download file")
+            return False
+
+        if not isinstance(s3_key, str):
+            logger.error(f"S3 key must be a string, got {type(s3_key)}")
+            return False
+
+        if not local_path:
+            logger.error("Local path is empty or None - cannot download file")
+            return False
+
+        if not isinstance(local_path, str):
+            logger.error(f"Local path must be a string, got {type(local_path)}")
+            return False
+
+        # Check if destination directory parent exists or can be created
+        local_dir = os.path.dirname(local_path)
+        if local_dir:
+            if os.path.exists(local_dir):
+                if not os.access(local_dir, os.W_OK):
+                    logger.error(f"Destination directory is not writable: {local_dir}")
+                    return False
+            else:
+                # Check if we can create it
+                parent_of_local_dir = os.path.dirname(local_dir)
+                if parent_of_local_dir and os.path.exists(parent_of_local_dir):
+                    if not os.access(parent_of_local_dir, os.W_OK):
+                        logger.error(f"Cannot create destination directory - parent not writable: {parent_of_local_dir}")
+                        return False
+
+        # Check if file exists in S3 before downloading
+        if not self.file_exists(s3_key):
+            logger.error(f"S3 file does not exist: {s3_key}")
             return False
 
         try:
@@ -278,10 +315,17 @@ class S3Manager:
             return True
 
         except ClientError as e:
-            logger.error(f"Error downloading file from S3: {str(e)}")
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown') if hasattr(e, 'response') else 'Unknown'
+            logger.error(f"AWS ClientError downloading file from S3 (code: {error_code}): {str(e)}")
+            return False
+        except PermissionError as e:
+            logger.error(f"Permission denied writing to local path {local_path}: {str(e)}")
+            return False
+        except OSError as e:
+            logger.error(f"OS error downloading file: {str(e)}")
             return False
         except Exception as e:
-            logger.error(f"Unexpected error downloading file: {str(e)}")
+            logger.error(f"Unexpected error downloading file: {type(e).__name__}: {str(e)}")
             return False
 
     def generate_presigned_url(self, s3_key: str, expiration: int = 3600,
@@ -297,8 +341,30 @@ class S3Manager:
         Returns:
             Presigned URL or None on failure
         """
+        # Pre-validation with if-else
         if not self.s3_client:
-            logger.error("S3 client not available")
+            logger.error("S3 client not available - cannot generate presigned URL")
+            return None
+
+        if not s3_key:
+            logger.error("S3 key is empty or None - cannot generate presigned URL")
+            return None
+
+        if not isinstance(s3_key, str):
+            logger.error(f"S3 key must be a string, got {type(s3_key)}")
+            return None
+
+        if not isinstance(expiration, int) or expiration < 1:
+            logger.warning(f"Invalid expiration value: {expiration}, using default 3600")
+            expiration = 3600
+
+        if expiration > 604800:  # 7 days max
+            logger.warning(f"Expiration {expiration} exceeds max (604800), capping at 7 days")
+            expiration = 604800
+
+        valid_methods = ['get_object', 'put_object']
+        if method not in valid_methods:
+            logger.error(f"Invalid method: {method}. Must be one of {valid_methods}")
             return None
 
         try:
@@ -312,7 +378,11 @@ class S3Manager:
             return url
 
         except ClientError as e:
-            logger.error(f"Error generating presigned URL: {str(e)}")
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown') if hasattr(e, 'response') else 'Unknown'
+            logger.error(f"AWS ClientError generating presigned URL (code: {error_code}): {str(e)}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error generating presigned URL: {type(e).__name__}: {str(e)}")
             return None
 
     # ========================================================================
@@ -329,13 +399,31 @@ class S3Manager:
         Returns:
             True if file exists, False otherwise
         """
+        # Pre-validation with if-else
         if not self.s3_client:
+            logger.debug("S3 client not available - file_exists returning False")
+            return False
+
+        if not s3_key:
+            logger.debug("S3 key is empty - file_exists returning False")
+            return False
+
+        if not isinstance(s3_key, str):
+            logger.debug(f"S3 key must be a string, got {type(s3_key)} - file_exists returning False")
             return False
 
         try:
             self.s3_client.head_object(Bucket=self.bucket, Key=s3_key)
             return True
-        except ClientError:
+        except ClientError as e:
+            # 404 is expected for non-existent files
+            error_code = e.response.get('Error', {}).get('Code', '') if hasattr(e, 'response') else ''
+            if error_code == '404':
+                return False
+            logger.debug(f"ClientError checking file existence for {s3_key}: {error_code}")
+            return False
+        except Exception as e:
+            logger.debug(f"Unexpected error checking file existence: {type(e).__name__}: {str(e)}")
             return False
 
     def get_file_metadata(self, s3_key: str) -> Optional[Dict[str, Any]]:
@@ -376,7 +464,17 @@ class S3Manager:
         Returns:
             True if successful, False otherwise
         """
+        # Pre-validation with if-else
         if not self.s3_client:
+            logger.error("S3 client not available - cannot delete file")
+            return False
+
+        if not s3_key:
+            logger.error("S3 key is empty or None - cannot delete file")
+            return False
+
+        if not isinstance(s3_key, str):
+            logger.error(f"S3 key must be a string, got {type(s3_key)}")
             return False
 
         try:
@@ -385,7 +483,11 @@ class S3Manager:
             return True
 
         except ClientError as e:
-            logger.error(f"Error deleting file: {str(e)}")
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown') if hasattr(e, 'response') else 'Unknown'
+            logger.error(f"AWS ClientError deleting file (code: {error_code}): {str(e)}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error deleting file: {type(e).__name__}: {str(e)}")
             return False
 
     def copy_file(self, source_key: str, dest_key: str) -> bool:
@@ -399,7 +501,30 @@ class S3Manager:
         Returns:
             True if successful, False otherwise
         """
+        # Pre-validation with if-else
         if not self.s3_client:
+            logger.error("S3 client not available - cannot copy file")
+            return False
+
+        if not source_key:
+            logger.error("Source key is empty or None - cannot copy file")
+            return False
+
+        if not dest_key:
+            logger.error("Destination key is empty or None - cannot copy file")
+            return False
+
+        if not isinstance(source_key, str) or not isinstance(dest_key, str):
+            logger.error("Source and destination keys must be strings")
+            return False
+
+        if source_key == dest_key:
+            logger.warning(f"Source and destination are the same: {source_key}")
+            return True  # Nothing to do
+
+        # Check if source file exists
+        if not self.file_exists(source_key):
+            logger.error(f"Source file does not exist in S3: {source_key}")
             return False
 
         try:
@@ -414,7 +539,11 @@ class S3Manager:
             return True
 
         except ClientError as e:
-            logger.error(f"Error copying file: {str(e)}")
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown') if hasattr(e, 'response') else 'Unknown'
+            logger.error(f"AWS ClientError copying file (code: {error_code}): {str(e)}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error copying file: {type(e).__name__}: {str(e)}")
             return False
 
     # ========================================================================

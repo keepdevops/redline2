@@ -30,11 +30,42 @@ class FileOperations:
         Returns:
             True if directory exists or was created successfully
         """
+        # Pre-validation with if-else
+        if not directory_path:
+            self.logger.error("Directory path cannot be empty")
+            return False
+        
+        if not isinstance(directory_path, str):
+            self.logger.error(f"Directory path must be a string, got {type(directory_path)}")
+            return False
+        
+        # Check if already exists and is a directory
+        if os.path.exists(directory_path):
+            if os.path.isdir(directory_path):
+                self.logger.debug(f"Directory already exists: {directory_path}")
+                return True
+            else:
+                self.logger.error(f"Path exists but is not a directory: {directory_path}")
+                return False
+        
+        # Check if parent directory is writable
+        parent_dir = os.path.dirname(directory_path) or '.'
+        if os.path.exists(parent_dir) and not os.access(parent_dir, os.W_OK):
+            self.logger.error(f"Parent directory is not writable: {parent_dir}")
+            return False
+        
         try:
             os.makedirs(directory_path, exist_ok=True)
+            self.logger.debug(f"Created directory: {directory_path}")
             return True
+        except PermissionError as e:
+            self.logger.error(f"Permission denied creating directory {directory_path}: {str(e)}")
+            return False
+        except OSError as e:
+            self.logger.error(f"OS error creating directory {directory_path}: {str(e)}")
+            return False
         except Exception as e:
-            self.logger.error(f"Error creating directory {directory_path}: {str(e)}")
+            self.logger.error(f"Unexpected error creating directory {directory_path}: {str(e)}")
             return False
     
     def get_file_info(self, file_path: str) -> Dict[str, Any]:
@@ -47,10 +78,20 @@ class FileOperations:
         Returns:
             Dictionary with file information
         """
+        # Pre-validation with if-else
+        if not file_path:
+            self.logger.warning("File path is empty")
+            return {'exists': False, 'error': 'File path is empty'}
+        
+        if not isinstance(file_path, str):
+            self.logger.warning(f"File path must be a string, got {type(file_path)}")
+            return {'exists': False, 'error': f'File path must be a string, got {type(file_path)}'}
+        
+        if not os.path.exists(file_path):
+            self.logger.debug(f"File does not exist: {file_path}")
+            return {'exists': False}
+        
         try:
-            if not os.path.exists(file_path):
-                return {'exists': False}
-            
             stat = os.stat(file_path)
             path_obj = Path(file_path)
             
@@ -66,8 +107,11 @@ class FileOperations:
                 'is_directory': os.path.isdir(file_path)
             }
             
+        except OSError as e:
+            self.logger.error(f"OS error getting file info for {file_path}: {str(e)}")
+            return {'exists': False, 'error': str(e)}
         except Exception as e:
-            self.logger.error(f"Error getting file info for {file_path}: {str(e)}")
+            self.logger.error(f"Unexpected error getting file info for {file_path}: {str(e)}")
             return {'exists': False, 'error': str(e)}
     
     def find_files(self, directory: str, pattern: str = "*", recursive: bool = True) -> List[str]:
@@ -82,6 +126,27 @@ class FileOperations:
         Returns:
             List of matching file paths
         """
+        # Pre-validation with if-else
+        if not directory:
+            self.logger.warning("Directory path is empty")
+            return []
+        
+        if not isinstance(directory, str):
+            self.logger.warning(f"Directory must be a string, got {type(directory)}")
+            return []
+        
+        if not os.path.exists(directory):
+            self.logger.warning(f"Directory does not exist: {directory}")
+            return []
+        
+        if not os.path.isdir(directory):
+            self.logger.warning(f"Path is not a directory: {directory}")
+            return []
+        
+        if not os.access(directory, os.R_OK):
+            self.logger.warning(f"Directory is not readable: {directory}")
+            return []
+        
         try:
             if recursive:
                 search_pattern = os.path.join(directory, "**", pattern)
@@ -95,8 +160,11 @@ class FileOperations:
             
             return sorted(files)
             
+        except OSError as e:
+            self.logger.error(f"OS error finding files in {directory}: {str(e)}")
+            return []
         except Exception as e:
-            self.logger.error(f"Error finding files in {directory}: {str(e)}")
+            self.logger.error(f"Unexpected error finding files in {directory}: {str(e)}")
             return []
     
     def copy_file(self, source: str, destination: str, overwrite: bool = False) -> bool:
@@ -111,26 +179,56 @@ class FileOperations:
         Returns:
             True if copy was successful
         """
+        # Pre-validation with if-else
+        if not source:
+            self.logger.error("Source path cannot be empty")
+            return False
+        
+        if not destination:
+            self.logger.error("Destination path cannot be empty")
+            return False
+        
+        if not isinstance(source, str) or not isinstance(destination, str):
+            self.logger.error("Source and destination must be strings")
+            return False
+        
+        if not os.path.exists(source):
+            self.logger.error(f"Source file does not exist: {source}")
+            return False
+        
+        if not os.path.isfile(source):
+            self.logger.error(f"Source is not a file: {source}")
+            return False
+        
+        if not os.access(source, os.R_OK):
+            self.logger.error(f"Source file is not readable: {source}")
+            return False
+        
+        if os.path.exists(destination) and not overwrite:
+            self.logger.error(f"Destination file exists and overwrite is False: {destination}")
+            return False
+        
+        # Ensure destination directory exists
+        dest_dir = os.path.dirname(destination)
+        if dest_dir and not self.ensure_directory(dest_dir):
+            return False
+        
         try:
-            if not os.path.exists(source):
-                self.logger.error(f"Source file does not exist: {source}")
-                return False
-            
-            if os.path.exists(destination) and not overwrite:
-                self.logger.error(f"Destination file exists and overwrite is False: {destination}")
-                return False
-            
-            # Ensure destination directory exists
-            dest_dir = os.path.dirname(destination)
-            if dest_dir and not self.ensure_directory(dest_dir):
-                return False
-            
             shutil.copy2(source, destination)
             self.logger.info(f"Copied {source} to {destination}")
             return True
             
+        except PermissionError as e:
+            self.logger.error(f"Permission denied copying {source} to {destination}: {str(e)}")
+            return False
+        except shutil.SameFileError as e:
+            self.logger.error(f"Source and destination are the same file: {str(e)}")
+            return False
+        except OSError as e:
+            self.logger.error(f"OS error copying {source} to {destination}: {str(e)}")
+            return False
         except Exception as e:
-            self.logger.error(f"Error copying file {source} to {destination}: {str(e)}")
+            self.logger.error(f"Unexpected error copying {source} to {destination}: {str(e)}")
             return False
     
     def move_file(self, source: str, destination: str, overwrite: bool = False) -> bool:
@@ -145,26 +243,56 @@ class FileOperations:
         Returns:
             True if move was successful
         """
+        # Pre-validation with if-else
+        if not source:
+            self.logger.error("Source path cannot be empty")
+            return False
+        
+        if not destination:
+            self.logger.error("Destination path cannot be empty")
+            return False
+        
+        if not isinstance(source, str) or not isinstance(destination, str):
+            self.logger.error("Source and destination must be strings")
+            return False
+        
+        if not os.path.exists(source):
+            self.logger.error(f"Source file does not exist: {source}")
+            return False
+        
+        if not os.path.isfile(source):
+            self.logger.error(f"Source is not a file: {source}")
+            return False
+        
+        if not os.access(source, os.R_OK):
+            self.logger.error(f"Source file is not readable: {source}")
+            return False
+        
+        if os.path.exists(destination) and not overwrite:
+            self.logger.error(f"Destination file exists and overwrite is False: {destination}")
+            return False
+        
+        # Ensure destination directory exists
+        dest_dir = os.path.dirname(destination)
+        if dest_dir and not self.ensure_directory(dest_dir):
+            return False
+        
         try:
-            if not os.path.exists(source):
-                self.logger.error(f"Source file does not exist: {source}")
-                return False
-            
-            if os.path.exists(destination) and not overwrite:
-                self.logger.error(f"Destination file exists and overwrite is False: {destination}")
-                return False
-            
-            # Ensure destination directory exists
-            dest_dir = os.path.dirname(destination)
-            if dest_dir and not self.ensure_directory(dest_dir):
-                return False
-            
             shutil.move(source, destination)
             self.logger.info(f"Moved {source} to {destination}")
             return True
             
+        except PermissionError as e:
+            self.logger.error(f"Permission denied moving {source} to {destination}: {str(e)}")
+            return False
+        except shutil.Error as e:
+            self.logger.error(f"Shutil error moving {source} to {destination}: {str(e)}")
+            return False
+        except OSError as e:
+            self.logger.error(f"OS error moving {source} to {destination}: {str(e)}")
+            return False
         except Exception as e:
-            self.logger.error(f"Error moving file {source} to {destination}: {str(e)}")
+            self.logger.error(f"Unexpected error moving {source} to {destination}: {str(e)}")
             return False
     
     def delete_file(self, file_path: str) -> bool:
@@ -177,17 +305,42 @@ class FileOperations:
         Returns:
             True if deletion was successful
         """
+        # Pre-validation with if-else
+        if not file_path:
+            self.logger.error("File path cannot be empty")
+            return False
+        
+        if not isinstance(file_path, str):
+            self.logger.error(f"File path must be a string, got {type(file_path)}")
+            return False
+        
+        if not os.path.exists(file_path):
+            self.logger.warning(f"File does not exist: {file_path}")
+            return True  # Consider it successful if it doesn't exist
+        
+        if not os.path.isfile(file_path):
+            self.logger.error(f"Path is not a file: {file_path}")
+            return False
+        
+        # Check if file is writable (deletable)
+        parent_dir = os.path.dirname(file_path) or '.'
+        if not os.access(parent_dir, os.W_OK):
+            self.logger.error(f"Cannot delete file - parent directory is not writable: {parent_dir}")
+            return False
+        
         try:
-            if not os.path.exists(file_path):
-                self.logger.warning(f"File does not exist: {file_path}")
-                return True  # Consider it successful if it doesn't exist
-            
             os.remove(file_path)
             self.logger.info(f"Deleted file: {file_path}")
             return True
             
+        except PermissionError as e:
+            self.logger.error(f"Permission denied deleting file {file_path}: {str(e)}")
+            return False
+        except OSError as e:
+            self.logger.error(f"OS error deleting file {file_path}: {str(e)}")
+            return False
         except Exception as e:
-            self.logger.error(f"Error deleting file {file_path}: {str(e)}")
+            self.logger.error(f"Unexpected error deleting file {file_path}: {str(e)}")
             return False
     
     def backup_file(self, file_path: str, backup_suffix: str = None) -> Optional[str]:

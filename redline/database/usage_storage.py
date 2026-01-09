@@ -126,6 +126,24 @@ class UsageStorage:
     
     def log_session_start(self, session_id: str, license_key: str, user_id: Optional[str] = None):
         """Log the start of a usage session"""
+        # Pre-validation with if-else
+        if not session_id:
+            logger.error("Session ID is required for logging session start")
+            return
+        
+        if not license_key:
+            logger.error("License key is required for logging session start")
+            return
+        
+        if not isinstance(session_id, str) or not isinstance(license_key, str):
+            logger.error("Session ID and license key must be strings")
+            return
+        
+        if not os.path.exists(os.path.dirname(self.db_path)):
+            logger.error(f"Database directory does not exist: {os.path.dirname(self.db_path)}")
+            return
+        
+        conn = None
         try:
             conn = duckdb.connect(self.db_path)
             # Check if session exists first (DuckDB doesn't support ON CONFLICT reliably)
@@ -148,13 +166,37 @@ class UsageStorage:
                     VALUES (?, ?, ?, ?, 'active')
                 """, [session_id, license_key, user_id, datetime.now()])
                 logger.debug(f"Logged session start: {session_id}")
-            conn.close()
+        except duckdb.ConnectionException as e:
+            logger.error(f"Database connection error logging session start: {str(e)}")
+        except duckdb.DataError as e:
+            logger.error(f"Data error logging session start for {session_id}: {str(e)}")
         except Exception as e:
-            logger.error(f"Error logging session start: {str(e)}")
+            logger.error(f"Unexpected error logging session start: {str(e)}")
             # Don't raise - allow session to continue even if logging fails
+        finally:
+            if conn:
+                conn.close()
     
     def log_session_end(self, session_id: str, total_hours: float, total_seconds: float):
         """Log the end of a usage session"""
+        # Pre-validation with if-else
+        if not session_id:
+            logger.error("Session ID is required for logging session end")
+            return
+        
+        if not isinstance(session_id, str):
+            logger.error("Session ID must be a string")
+            return
+        
+        if total_hours is None or not isinstance(total_hours, (int, float)):
+            logger.warning(f"Invalid total_hours value: {total_hours}, defaulting to 0")
+            total_hours = 0.0
+        
+        if total_seconds is None or not isinstance(total_seconds, (int, float)):
+            logger.warning(f"Invalid total_seconds value: {total_seconds}, defaulting to 0")
+            total_seconds = 0.0
+        
+        conn = None
         try:
             conn = duckdb.connect(self.db_path)
             conn.execute("""
@@ -162,15 +204,37 @@ class UsageStorage:
                 SET end_time = ?, total_hours = ?, total_seconds = ?, status = 'completed'
                 WHERE session_id = ?
             """, [datetime.now(), total_hours, total_seconds, session_id])
-            conn.close()
             logger.debug(f"Logged session end: {session_id}, hours: {total_hours}")
+        except duckdb.ConnectionException as e:
+            logger.error(f"Database connection error logging session end: {str(e)}")
         except Exception as e:
             logger.error(f"Error logging session end: {str(e)}")
+        finally:
+            if conn:
+                conn.close()
     
     def log_hour_deduction(self, license_key: str, hours: float, session_id: Optional[str] = None,
                           hours_before: Optional[float] = None, hours_after: Optional[float] = None,
                           api_endpoint: Optional[str] = None):
         """Log an hour deduction event"""
+        # Pre-validation with if-else
+        if not license_key:
+            logger.error("License key is required for logging hour deduction")
+            return
+        
+        if not isinstance(license_key, str):
+            logger.error("License key must be a string")
+            return
+        
+        if hours is None or not isinstance(hours, (int, float)):
+            logger.warning(f"Invalid hours value: {hours}, defaulting to 0")
+            hours = 0.0
+        
+        if hours < 0:
+            logger.warning(f"Negative hours value: {hours}, using absolute value")
+            hours = abs(hours)
+        
+        conn = None
         try:
             conn = duckdb.connect(self.db_path)
             # Get next ID from sequence
@@ -182,15 +246,49 @@ class UsageStorage:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, [next_id, license_key, session_id, hours, datetime.now(), 
                   hours_before, hours_after, api_endpoint])
-            conn.close()
             logger.debug(f"Logged hour deduction: {license_key}, {hours} hours")
+        except duckdb.ConnectionException as e:
+            logger.error(f"Database connection error logging hour deduction: {str(e)}")
         except Exception as e:
             logger.error(f"Error logging hour deduction: {str(e)}")
+        finally:
+            if conn:
+                conn.close()
     
     def log_payment(self, license_key: str, hours_purchased: float, amount_paid: float,
                    stripe_session_id: Optional[str] = None, payment_id: Optional[str] = None,
                    payment_status: str = 'completed', currency: str = 'usd'):
         """Log a payment transaction"""
+        # Pre-validation with if-else
+        if not license_key:
+            logger.error("License key is required for logging payment")
+            return
+        
+        if not isinstance(license_key, str):
+            logger.error("License key must be a string")
+            return
+        
+        if hours_purchased is None or not isinstance(hours_purchased, (int, float)):
+            logger.error(f"Invalid hours_purchased value: {hours_purchased}")
+            return
+        
+        if hours_purchased <= 0:
+            logger.warning(f"Non-positive hours_purchased value: {hours_purchased}")
+        
+        if amount_paid is None or not isinstance(amount_paid, (int, float)):
+            logger.error(f"Invalid amount_paid value: {amount_paid}")
+            return
+        
+        if amount_paid < 0:
+            logger.warning(f"Negative amount_paid value: {amount_paid}")
+        
+        # Validate currency
+        valid_currencies = ['usd', 'eur', 'gbp', 'cad', 'aud']
+        if currency and currency.lower() not in valid_currencies:
+            logger.warning(f"Unknown currency: {currency}, using 'usd'")
+            currency = 'usd'
+        
+        conn = None
         try:
             conn = duckdb.connect(self.db_path)
             # Get next ID from sequence
@@ -202,16 +300,45 @@ class UsageStorage:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, [next_id, license_key, stripe_session_id, payment_id, hours_purchased,
                   amount_paid, currency, payment_status, datetime.now()])
-            conn.close()
             logger.info(f"Logged payment: {license_key}, {hours_purchased} hours, ${amount_paid}")
+        except duckdb.ConnectionException as e:
+            logger.error(f"Database connection error logging payment: {str(e)}")
         except Exception as e:
             logger.error(f"Error logging payment: {str(e)}")
+        finally:
+            if conn:
+                conn.close()
     
     def log_access(self, license_key: str, endpoint: str, method: str,
                   session_id: Optional[str] = None, ip_address: Optional[str] = None,
                   user_agent: Optional[str] = None, response_status: Optional[int] = None,
                   response_time_ms: Optional[int] = None):
         """Log an API access event"""
+        # Pre-validation with if-else
+        if not license_key:
+            logger.debug("License key is empty for access log, skipping")
+            return
+        
+        if not endpoint:
+            logger.debug("Endpoint is empty for access log, skipping")
+            return
+        
+        if not method:
+            logger.debug("Method is empty for access log, skipping")
+            return
+        
+        # Validate method
+        valid_methods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']
+        if method.upper() not in valid_methods:
+            logger.warning(f"Unknown HTTP method: {method}")
+        
+        # Validate response status if provided
+        if response_status is not None:
+            if not isinstance(response_status, int) or response_status < 100 or response_status > 599:
+                logger.warning(f"Invalid response status: {response_status}")
+                response_status = None
+        
+        conn = None
         try:
             conn = duckdb.connect(self.db_path)
             # Get next ID from sequence
@@ -223,12 +350,34 @@ class UsageStorage:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, [next_id, license_key, session_id, endpoint, method, ip_address,
                   user_agent, response_status, response_time_ms, datetime.now()])
-            conn.close()
+        except duckdb.ConnectionException as e:
+            logger.error(f"Database connection error logging access: {str(e)}")
         except Exception as e:
             logger.error(f"Error logging access: {str(e)}")
+        finally:
+            if conn:
+                conn.close()
     
     def get_usage_history(self, license_key: str, limit: int = 100) -> List[Dict]:
         """Get usage history for a license"""
+        # Pre-validation with if-else
+        if not license_key:
+            logger.warning("License key is required for getting usage history")
+            return []
+        
+        if not isinstance(license_key, str):
+            logger.warning("License key must be a string")
+            return []
+        
+        if not isinstance(limit, int) or limit < 1:
+            logger.warning(f"Invalid limit value: {limit}, using default 100")
+            limit = 100
+        
+        if limit > 10000:
+            logger.warning(f"Limit {limit} is too large, capping at 10000")
+            limit = 10000
+        
+        conn = None
         try:
             conn = duckdb.connect(self.db_path)
             result = conn.execute("""
@@ -245,11 +394,16 @@ class UsageStorage:
             for row in result:
                 history.append(dict(zip(columns, row)))
             
-            conn.close()
             return history
+        except duckdb.ConnectionException as e:
+            logger.error(f"Database connection error getting usage history: {str(e)}")
+            return []
         except Exception as e:
             logger.error(f"Error getting usage history: {str(e)}")
             return []
+        finally:
+            if conn:
+                conn.close()
     
     def get_payment_history(self, license_key: str, limit: int = 50) -> List[Dict]:
         """Get payment history for a license"""
