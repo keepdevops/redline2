@@ -19,12 +19,28 @@ logger = logging.getLogger(__name__)
 @data_loading_multiple_bp.route('/load-multiple', methods=['POST'])
 def load_multiple_files():
     """Load multiple files at once."""
+    # Pre-validation with if-else
+    data = request.get_json()
+
+    if not data:
+        logger.warning("Load multiple files request with empty body")
+        return jsonify({'error': 'Request body is required', 'code': 'NO_BODY'}), 400
+
+    if not isinstance(data, dict):
+        logger.error(f"Load multiple files request with invalid data type: {type(data)}")
+        return jsonify({'error': 'Request body must be JSON object', 'code': 'INVALID_BODY_TYPE'}), 400
+
+    filenames = data.get('filenames', [])
+
+    if not filenames:
+        logger.warning("Load multiple files request without filenames")
+        return jsonify({'error': 'No filenames provided', 'code': 'NO_FILENAMES'}), 400
+
+    if not isinstance(filenames, list):
+        logger.error(f"Filenames must be a list, got {type(filenames)}")
+        return jsonify({'error': 'Filenames must be an array', 'code': 'INVALID_FILENAMES_TYPE'}), 400
+
     try:
-        data = request.get_json()
-        filenames = data.get('filenames', [])
-        
-        if not filenames:
-            return jsonify({'error': 'No filenames provided'}), 400
         
         results = {}
         errors = {}
@@ -102,10 +118,26 @@ def load_multiple_files():
                     'filename': filename
                 }
                 success_count += 1
-                
+
+            except PermissionError as e:
+                logger.error(f"Permission denied loading file {filename}: {str(e)}")
+                errors[filename] = f"Permission denied: {str(e)}"
+                error_count += 1
+            except OSError as e:
+                logger.error(f"OS error loading file {filename}: {str(e)}")
+                errors[filename] = f"File system error: {str(e)}"
+                error_count += 1
+            except KeyError as e:
+                logger.error(f"Missing column in data for {filename}: {str(e)}")
+                errors[filename] = f"Data error: {str(e)}"
+                error_count += 1
+            except ValueError as e:
+                logger.error(f"Value error loading file {filename}: {str(e)}")
+                errors[filename] = f"Data format error: {str(e)}"
+                error_count += 1
             except Exception as e:
-                logger.error(f"Error loading file {filename}: {str(e)}")
-                errors[filename] = str(e)
+                logger.error(f"Unexpected error loading file {filename}: {str(e)}")
+                errors[filename] = f"Internal error: {str(e)}"
                 error_count += 1
         
         return jsonify({
@@ -114,10 +146,22 @@ def load_multiple_files():
             'results': results,
             'errors': errors
         })
-        
+
+    except PermissionError as e:
+        logger.error(f"Permission denied in load_multiple_files: {str(e)}")
+        return jsonify({'error': 'Permission denied', 'code': 'PERMISSION_DENIED'}), 403
+    except OSError as e:
+        logger.error(f"OS error in load_multiple_files: {str(e)}")
+        return jsonify({'error': 'File system error', 'code': 'OS_ERROR'}), 500
+    except KeyError as e:
+        logger.error(f"Missing key in load_multiple_files: {str(e)}")
+        return jsonify({'error': f'Missing data: {str(e)}', 'code': 'KEY_ERROR'}), 500
+    except ValueError as e:
+        logger.error(f"Value error in load_multiple_files: {str(e)}")
+        return jsonify({'error': f'Data format error: {str(e)}', 'code': 'VALUE_ERROR'}), 400
     except Exception as e:
-        logger.error(f"Error in load_multiple_files: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Unexpected error in load_multiple_files: {str(e)}")
+        return jsonify({'error': 'Internal server error', 'code': 'INTERNAL_ERROR'}), 500
 
 @data_loading_multiple_bp.route('/upload', methods=['POST'])
 def upload_file():
@@ -126,13 +170,22 @@ def upload_file():
     Handles ZIP extraction for Stooq files.
     If S3/R2 is configured, uploads directly to cloud storage.
     """
+    # Pre-validation with if-else
+    if 'file' not in request.files:
+        logger.warning("Upload file request without file")
+        return jsonify({'error': 'No file provided', 'code': 'NO_FILE'}), 400
+
+    file = request.files['file']
+
+    if not file or file.filename == '':
+        logger.warning("Upload file request with empty filename")
+        return jsonify({'error': 'No file selected', 'code': 'EMPTY_FILENAME'}), 400
+
+    if not isinstance(file.filename, str):
+        logger.error(f"Invalid filename type: {type(file.filename)}")
+        return jsonify({'error': 'Invalid filename type', 'code': 'INVALID_FILENAME_TYPE'}), 400
+
     try:
-        if 'file' not in request.files:
-            return jsonify({'error': 'No file provided'}), 400
-        
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({'error': 'No file selected'}), 400
         
         # Check if S3/R2 is configured and should be used
         use_s3 = os.environ.get('USE_S3_STORAGE', 'false').lower() == 'true'
@@ -203,11 +256,15 @@ def upload_file():
                     'storage': 'r2' if endpoint_url and 'r2.cloudflarestorage.com' in endpoint_url else 's3',
                     'size': len(file_data)
                 })
-                
-            except ImportError:
-                logger.warning("boto3 not available, falling back to local storage")
+
+            except ImportError as e:
+                logger.warning(f"boto3 not available, falling back to local storage: {str(e)}")
+            except PermissionError as e:
+                logger.error(f"Permission denied uploading to S3/R2: {str(e)}, falling back to local storage")
+            except OSError as e:
+                logger.error(f"OS error uploading to S3/R2: {str(e)}, falling back to local storage")
             except Exception as e:
-                logger.error(f"Error uploading to S3/R2: {str(e)}, falling back to local storage")
+                logger.error(f"Unexpected error uploading to S3/R2: {str(e)}, falling back to local storage")
         
         # Fallback to local storage
         # Save uploaded file temporarily
@@ -237,11 +294,21 @@ def upload_file():
                     final_path = extracted_files[0] if len(extracted_files) == 1 else extracted_files
                     message = f'ZIP file extracted successfully. {len(extracted_files)} file(s) extracted to data/stooq directory.'
                 else:
-                    return jsonify({'error': 'ZIP file extraction failed or contained no files'}), 400
-                    
+                    logger.warning(f"ZIP file extraction produced no files: {file.filename}")
+                    return jsonify({'error': 'ZIP file extraction failed or contained no files', 'code': 'EMPTY_ZIP'}), 400
+
+            except ImportError as e:
+                logger.error(f"Import error extracting ZIP file {file.filename}: {str(e)}")
+                return jsonify({'error': f'Failed to import extraction module: {str(e)}', 'code': 'IMPORT_ERROR'}), 500
+            except PermissionError as e:
+                logger.error(f"Permission denied extracting ZIP file {file.filename}: {str(e)}")
+                return jsonify({'error': 'Permission denied during extraction', 'code': 'PERMISSION_DENIED'}), 403
+            except OSError as e:
+                logger.error(f"OS error extracting ZIP file {file.filename}: {str(e)}")
+                return jsonify({'error': f'File system error during extraction: {str(e)}', 'code': 'OS_ERROR'}), 500
             except Exception as e:
-                logger.error(f"Error extracting ZIP file: {str(e)}")
-                return jsonify({'error': f'Failed to extract ZIP file: {str(e)}'}), 500
+                logger.error(f"Unexpected error extracting ZIP file {file.filename}: {str(e)}")
+                return jsonify({'error': f'Failed to extract ZIP file: {str(e)}', 'code': 'EXTRACTION_ERROR'}), 500
         else:
             # For non-ZIP files, check if it's a Stooq file and move to data/stooq
             try:
@@ -252,8 +319,17 @@ def upload_file():
                     message = f'File uploaded and moved to data/stooq directory.'
                 else:
                     message = f'File uploaded successfully.'
+            except ImportError as e:
+                logger.warning(f"Could not import Stooq handler for file {file.filename}: {str(e)}")
+                message = f'File uploaded successfully.'
+            except PermissionError as e:
+                logger.warning(f"Permission denied moving file {file.filename}: {str(e)}")
+                message = f'File uploaded successfully.'
+            except OSError as e:
+                logger.warning(f"OS error moving file {file.filename}: {str(e)}")
+                message = f'File uploaded successfully.'
             except Exception as e:
-                logger.warning(f"Could not check/move file: {str(e)}")
+                logger.warning(f"Unexpected error checking/moving file {file.filename}: {str(e)}")
                 message = f'File uploaded successfully.'
         
         response_data = {
@@ -268,8 +344,20 @@ def upload_file():
             response_data['extracted_count'] = len(extracted_files)
         
         return jsonify(response_data)
-        
+
+    except PermissionError as e:
+        logger.error(f"Permission denied uploading file: {str(e)}")
+        return jsonify({'error': 'Permission denied', 'code': 'PERMISSION_DENIED'}), 403
+    except OSError as e:
+        logger.error(f"OS error uploading file: {str(e)}")
+        return jsonify({'error': 'File system error', 'code': 'OS_ERROR'}), 500
+    except KeyError as e:
+        logger.error(f"Missing key in upload file: {str(e)}")
+        return jsonify({'error': f'Missing data: {str(e)}', 'code': 'KEY_ERROR'}), 500
+    except ValueError as e:
+        logger.error(f"Value error uploading file: {str(e)}")
+        return jsonify({'error': f'Invalid data: {str(e)}', 'code': 'VALUE_ERROR'}), 400
     except Exception as e:
-        logger.error(f"Error uploading file: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Unexpected error uploading file: {str(e)}")
+        return jsonify({'error': 'Internal server error', 'code': 'INTERNAL_ERROR'}), 500
 
