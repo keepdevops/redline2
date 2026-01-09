@@ -204,17 +204,33 @@ def delete_file(filename):
             'message': f'File "{safe_filename}" deleted successfully',
             'filename': safe_filename
         })
+    except FileNotFoundError:
+        logger.error(f"File not found for deletion: {file_path}")
+        return jsonify({
+            'error': 'File not found',
+            'message': f'File "{safe_filename}" not found',
+            'code': 'FILE_NOT_FOUND'
+        }), 404
     except PermissionError:
         logger.error(f"Permission denied deleting file: {file_path}")
         return jsonify({
             'error': 'Permission denied',
-            'message': f'Cannot delete file "{safe_filename}": Permission denied'
+            'message': f'Cannot delete file "{safe_filename}": Permission denied',
+            'code': 'PERMISSION_DENIED'
         }), 403
+    except OSError as e:
+        logger.error(f"OS error deleting file {file_path}: {str(e)}")
+        return jsonify({
+            'error': 'File system error',
+            'message': f'Failed to delete file: {str(e)}',
+            'code': 'OS_ERROR'
+        }), 500
     except Exception as e:
-        logger.error(f"Error deleting file {file_path}: {str(e)}")
+        logger.error(f"Unexpected error deleting file {file_path}: {str(e)}")
         return jsonify({
             'error': 'Failed to delete file',
-            'message': str(e)
+            'message': str(e),
+            'code': 'DELETE_ERROR'
         }), 500
 
 @api_files_operations_bp.route('/upload', methods=['POST'])
@@ -271,10 +287,13 @@ def upload_file():
         logger.info(f"File saved to: {upload_path}")
     except PermissionError as e:
         logger.error(f"Permission denied saving file {upload_path}: {str(e)}")
-        return jsonify({'error': 'Permission denied saving file', 'code': 'PERMISSION_DENIED'}), 500
+        return jsonify({'error': 'Permission denied saving file', 'code': 'PERMISSION_DENIED'}), 403
     except OSError as e:
         logger.error(f"OS error saving file {upload_path}: {str(e)}")
         return jsonify({'error': f'Failed to save file: {str(e)}', 'code': 'OS_ERROR'}), 500
+    except IOError as e:
+        logger.error(f"I/O error saving file {upload_path}: {str(e)}")
+        return jsonify({'error': 'I/O error writing file', 'code': 'IO_ERROR'}), 500
     except Exception as e:
         logger.error(f"Unexpected error saving file {upload_path}: {type(e).__name__}: {str(e)}")
         return jsonify({'error': f'Failed to save file: {str(e)}', 'code': 'SAVE_ERROR'}), 500

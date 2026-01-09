@@ -113,6 +113,9 @@ def get_data_preview(filename):
     except PermissionError as e:
         logger.error(f"Permission denied loading {filename}: {str(e)}")
         return jsonify({'error': 'Permission denied', 'code': 'PERMISSION_DENIED'}), 403
+    except IOError as e:
+        logger.error(f"I/O error loading {filename}: {str(e)}")
+        return jsonify({'error': 'I/O error reading file', 'code': 'IO_ERROR'}), 500
     except pd.errors.EmptyDataError as e:
         logger.warning(f"Empty file {filename}: {str(e)}")
         return jsonify({'error': 'File is empty', 'code': 'EMPTY_FILE'}), 400
@@ -122,6 +125,9 @@ def get_data_preview(filename):
     except ValueError as e:
         logger.error(f"Value error loading {filename}: {str(e)}")
         return jsonify({'error': f'Invalid file format: {str(e)}', 'code': 'INVALID_FORMAT'}), 400
+    except KeyError as e:
+        logger.error(f"Missing key loading {filename}: {str(e)}")
+        return jsonify({'error': f'Invalid data structure: {str(e)}', 'code': 'KEY_ERROR'}), 400
     except Exception as e:
         logger.error(f"Unexpected error loading {filename}: {type(e).__name__}: {str(e)}")
         return jsonify({'error': f'Failed to load file: {str(e)}', 'code': 'LOAD_ERROR'}), 500
@@ -146,8 +152,14 @@ def get_data_preview(filename):
         # Convert to records for pagination
         try:
             all_records = data.to_dict('records')
+        except AttributeError as e:
+            logger.error(f"Attribute error converting DataFrame to records for {filename}: {str(e)}")
+            return jsonify({'error': 'Invalid data structure', 'code': 'ATTRIBUTE_ERROR'}), 500
+        except TypeError as e:
+            logger.error(f"Type error converting DataFrame to records for {filename}: {str(e)}")
+            return jsonify({'error': 'Invalid data type', 'code': 'TYPE_ERROR'}), 500
         except Exception as e:
-            logger.error(f"Failed to convert DataFrame to records for {filename}: {str(e)}")
+            logger.error(f"Unexpected error converting DataFrame to records for {filename}: {str(e)}")
             return jsonify({'error': 'Failed to process data', 'code': 'CONVERSION_ERROR'}), 500
 
         # Paginate the data
@@ -286,9 +298,33 @@ def get_file_quick_stats(filename: str):
             'total_rows': int(len(df)),
             'preview': df.head(5).to_dict(orient='records')
         })
+    except ImportError as e:
+        logger.error(f"Import error getting quick stats for {filename}: {str(e)}")
+        return jsonify({'error': f'Required module not available: {str(e)}', 'code': 'IMPORT_ERROR'}), 500
+    except FileNotFoundError as e:
+        logger.error(f"File not found getting quick stats for {filename}: {str(e)}")
+        return jsonify({'error': 'File not found', 'code': 'FILE_NOT_FOUND'}), 404
+    except PermissionError as e:
+        logger.error(f"Permission denied getting quick stats for {filename}: {str(e)}")
+        return jsonify({'error': 'Permission denied', 'code': 'PERMISSION_DENIED'}), 403
+    except IOError as e:
+        logger.error(f"I/O error getting quick stats for {filename}: {str(e)}")
+        return jsonify({'error': 'I/O error reading file', 'code': 'IO_ERROR'}), 500
+    except pd.errors.EmptyDataError as e:
+        logger.warning(f"Empty file getting quick stats for {filename}: {str(e)}")
+        return jsonify({'error': 'File is empty', 'code': 'EMPTY_FILE'}), 400
+    except pd.errors.ParserError as e:
+        logger.error(f"Parse error getting quick stats for {filename}: {str(e)}")
+        return jsonify({'error': 'Failed to parse file', 'code': 'PARSE_ERROR'}), 400
+    except ValueError as e:
+        logger.error(f"Value error getting quick stats for {filename}: {str(e)}")
+        return jsonify({'error': f'Invalid data: {str(e)}', 'code': 'VALUE_ERROR'}), 400
+    except KeyError as e:
+        logger.error(f"Missing key getting quick stats for {filename}: {str(e)}")
+        return jsonify({'error': f'Invalid data structure: {str(e)}', 'code': 'KEY_ERROR'}), 400
     except Exception as e:
-        logger.error(f"Quick stats failed for {filename}: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Unexpected error getting quick stats for {filename}: {str(e)}")
+        return jsonify({'error': str(e), 'code': 'QUICK_STATS_ERROR'}), 500
 
 
 @api_data_bp.route('/data/quick-stats', methods=['POST'])
@@ -443,9 +479,33 @@ def get_file_quick_stats_post():
             'columns_list': list(df.columns),
             'preview': df.head(5).to_dict(orient='records')
         })
+    except ImportError as e:
+        logger.error(f"Import error getting quick stats POST for {filename}: {str(e)}")
+        return jsonify({'error': f'Required module not available: {str(e)}', 'code': 'IMPORT_ERROR'}), 500
+    except FileNotFoundError as e:
+        logger.error(f"File not found getting quick stats POST for {filename}: {str(e)}")
+        return jsonify({'error': 'File not found', 'code': 'FILE_NOT_FOUND'}), 404
+    except PermissionError as e:
+        logger.error(f"Permission denied getting quick stats POST for {filename}: {str(e)}")
+        return jsonify({'error': 'Permission denied', 'code': 'PERMISSION_DENIED'}), 403
+    except IOError as e:
+        logger.error(f"I/O error getting quick stats POST for {filename}: {str(e)}")
+        return jsonify({'error': 'I/O error reading file', 'code': 'IO_ERROR'}), 500
+    except pd.errors.EmptyDataError as e:
+        logger.warning(f"Empty file getting quick stats POST for {filename}: {str(e)}")
+        return jsonify({'error': 'File is empty', 'code': 'EMPTY_FILE'}), 400
+    except pd.errors.ParserError as e:
+        logger.error(f"Parse error getting quick stats POST for {filename}: {str(e)}")
+        return jsonify({'error': 'Failed to parse file', 'code': 'PARSE_ERROR'}), 400
+    except ValueError as e:
+        logger.error(f"Value error getting quick stats POST for {filename}: {str(e)}")
+        return jsonify({'error': f'Invalid data: {str(e)}', 'code': 'VALUE_ERROR'}), 400
+    except KeyError as e:
+        logger.error(f"Missing key getting quick stats POST for {filename}: {str(e)}")
+        return jsonify({'error': f'Invalid data structure: {str(e)}', 'code': 'KEY_ERROR'}), 400
     except Exception as e:
-        logger.error(f"Quick stats failed for {filename}: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Unexpected error getting quick stats POST for {filename}: {str(e)}")
+        return jsonify({'error': str(e), 'code': 'QUICK_STATS_ERROR'}), 500
 
 
 @api_data_bp.route('/download/<ticker>', methods=['POST'])
@@ -486,32 +546,48 @@ def download_data(ticker):
     logger.info(f"Processing download request: ticker={ticker}, source={source}, dates={start_date} to {end_date}")
 
     # Import downloader
-    from redline.downloaders.yahoo_downloader import YahooDownloader
+    try:
+        from redline.downloaders.yahoo_downloader import YahooDownloader
+    except ImportError as e:
+        logger.error(f"Failed to import YahooDownloader: {str(e)}")
+        return jsonify({'error': 'Downloader module not available', 'code': 'IMPORT_ERROR'}), 500
 
-    downloader = YahooDownloader()
+    try:
+        downloader = YahooDownloader()
 
-    # Download data
-    result = downloader.download_single_ticker(
-        ticker=ticker,
-        start_date=start_date,
-        end_date=end_date
-    )
+        # Download data
+        result = downloader.download_single_ticker(
+            ticker=ticker,
+            start_date=start_date,
+            end_date=end_date
+        )
 
-    # Validate result
-    if result is None:
-        logger.warning(f"Download returned None for ticker: {ticker}")
+        # Validate result
+        if result is None:
+            logger.warning(f"Download returned None for ticker: {ticker}")
+            return jsonify({
+                'error': 'No data found',
+                'ticker': ticker,
+                'message': f'No data available for {ticker}',
+                'code': 'NO_DATA'
+            }), 404
+
+        records = len(result) if hasattr(result, '__len__') else 0
+        logger.info(f"Successfully downloaded {records} records for {ticker}")
+
         return jsonify({
-            'error': 'No data found',
+            'message': f'Data downloaded for {ticker}',
             'ticker': ticker,
-            'message': f'No data available for {ticker}'
-        }), 404
+            'records': records
+        })
 
-    records = len(result) if hasattr(result, '__len__') else 0
-    logger.info(f"Successfully downloaded {records} records for {ticker}")
-
-    return jsonify({
-        'message': f'Data downloaded for {ticker}',
-        'ticker': ticker,
-        'records': records
-    })
+    except AttributeError as e:
+        logger.error(f"Attribute error downloading {ticker}: {str(e)}")
+        return jsonify({'error': 'Downloader configuration error', 'ticker': ticker, 'code': 'ATTRIBUTE_ERROR'}), 500
+    except ValueError as e:
+        logger.error(f"Value error downloading {ticker}: {str(e)}")
+        return jsonify({'error': f'Invalid parameter: {str(e)}', 'ticker': ticker, 'code': 'VALUE_ERROR'}), 400
+    except Exception as e:
+        logger.error(f"Unexpected error downloading {ticker}: {type(e).__name__}: {str(e)}")
+        return jsonify({'error': f'Download failed: {str(e)}', 'ticker': ticker, 'code': 'DOWNLOAD_ERROR'}), 500
 
