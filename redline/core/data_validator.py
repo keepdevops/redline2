@@ -20,14 +20,44 @@ class DataValidator:
     def validate_data(self, file_path: str, format: str) -> bool:
         """
         Validate data file format and structure.
-        
+
         Args:
             file_path: Path to the data file
             format: Expected format type
-            
+
         Returns:
             True if validation passes, False otherwise
         """
+        # Pre-validation with if-else
+        if not file_path:
+            self.logger.error("File path is empty or None")
+            return False
+
+        if not isinstance(file_path, str):
+            self.logger.error(f"File path must be a string, got {type(file_path)}")
+            return False
+
+        if not format:
+            self.logger.error("Format is empty or None")
+            return False
+
+        if not isinstance(format, str):
+            self.logger.error(f"Format must be a string, got {type(format)}")
+            return False
+
+        import os
+        if not os.path.exists(file_path):
+            self.logger.error(f"File does not exist: {file_path}")
+            return False
+
+        if not os.path.isfile(file_path):
+            self.logger.error(f"Path is not a file: {file_path}")
+            return False
+
+        if not os.access(file_path, os.R_OK):
+            self.logger.error(f"File is not readable: {file_path}")
+            return False
+
         try:
             if format == 'txt':
                 return self._validate_stooq_format(file_path)
@@ -40,13 +70,28 @@ class DataValidator:
             else:
                 # For other formats like feather, assume valid
                 return True
-                
+
+        except FileNotFoundError as e:
+            self.logger.error(f"File not found during validation {file_path}: {str(e)}")
+            return False
+        except PermissionError as e:
+            self.logger.error(f"Permission denied during validation {file_path}: {str(e)}")
+            return False
         except Exception as e:
-            self.logger.error(f"Validation failed for {file_path}: {str(e)}")
+            self.logger.error(f"Unexpected error during validation of {file_path}: {type(e).__name__}: {str(e)}")
             return False
     
     def _is_stooq_format(self, file_path: str) -> bool:
         """Detect if a file is in Stooq format by checking column names."""
+        # Pre-validation with if-else
+        if not file_path:
+            self.logger.debug("File path is empty - not Stooq format")
+            return False
+
+        if not isinstance(file_path, str):
+            self.logger.debug(f"File path must be a string, got {type(file_path)} - not Stooq format")
+            return False
+
         try:
             if file_path.endswith('.csv'):
                 df = pd.read_csv(file_path, nrows=1)  # Read only header
@@ -55,11 +100,38 @@ class DataValidator:
                 file_cols = set(df.columns)
                 return len(stooq_cols.intersection(file_cols)) >= 3  # At least 3 Stooq columns
             return False
-        except:
+        except FileNotFoundError:
+            self.logger.debug(f"File not found checking Stooq format: {file_path}")
+            return False
+        except pd.errors.EmptyDataError:
+            self.logger.debug(f"Empty file checking Stooq format: {file_path}")
+            return False
+        except pd.errors.ParserError:
+            self.logger.debug(f"Parse error checking Stooq format: {file_path}")
+            return False
+        except Exception:
             return False
     
     def _validate_stooq_format(self, file_path: str) -> bool:
         """Validate Stooq format files."""
+        # Pre-validation with if-else
+        if not file_path:
+            self.logger.error("File path is empty or None")
+            return False
+
+        if not isinstance(file_path, str):
+            self.logger.error(f"File path must be a string, got {type(file_path)}")
+            return False
+
+        import os
+        if not os.path.exists(file_path):
+            self.logger.error(f"File does not exist: {file_path}")
+            return False
+
+        if not os.access(file_path, os.R_OK):
+            self.logger.error(f"File is not readable: {file_path}")
+            return False
+
         try:
             with open(file_path, 'r') as f:
                 header = f.readline().strip()
@@ -72,15 +144,55 @@ class DataValidator:
             if missing_cols:
                 self.logger.warning(f"Missing required columns in {file_path}: {', '.join(missing_cols)}")
                 return False
-                
+
             return True
-            
+
+        except FileNotFoundError as e:
+            self.logger.error(f"File not found validating Stooq format {file_path}: {str(e)}")
+            return False
+        except PermissionError as e:
+            self.logger.error(f"Permission denied validating Stooq format {file_path}: {str(e)}")
+            return False
+        except UnicodeDecodeError as e:
+            self.logger.error(f"Unicode decode error validating Stooq format {file_path}: {str(e)}")
+            return False
         except Exception as e:
-            self.logger.error(f"Error validating Stooq format: {str(e)}")
+            self.logger.error(f"Unexpected error validating Stooq format: {type(e).__name__}: {str(e)}")
             return False
     
     def _validate_standard_format(self, file_path: str, format: str) -> bool:
         """Validate standard CSV/JSON format files."""
+        # Pre-validation with if-else
+        if not file_path:
+            self.logger.error("File path is empty or None")
+            return False
+
+        if not isinstance(file_path, str):
+            self.logger.error(f"File path must be a string, got {type(file_path)}")
+            return False
+
+        if not format:
+            self.logger.error("Format is empty or None")
+            return False
+
+        if not isinstance(format, str):
+            self.logger.error(f"Format must be a string, got {type(format)}")
+            return False
+
+        valid_formats = ['csv', 'json']
+        if format not in valid_formats:
+            self.logger.error(f"Invalid format: {format}. Must be one of {valid_formats}")
+            return False
+
+        import os
+        if not os.path.exists(file_path):
+            self.logger.error(f"File does not exist: {file_path}")
+            return False
+
+        if not os.access(file_path, os.R_OK):
+            self.logger.error(f"File is not readable: {file_path}")
+            return False
+
         try:
             if format == 'csv':
                 df = pd.read_csv(file_path)
@@ -88,15 +200,30 @@ class DataValidator:
                 df = pd.read_json(file_path)
             else:
                 return False
-                
+
             # Check for required columns
             missing_cols = [col for col in REQUIRED_COLUMNS if col not in df.columns]
             if missing_cols:
                 self.logger.warning(f"Missing required columns: {', '.join(missing_cols)}")
                 return False
-                
+
             return True
-            
+
+        except FileNotFoundError as e:
+            self.logger.error(f"File not found validating standard format {file_path}: {str(e)}")
+            return False
+        except PermissionError as e:
+            self.logger.error(f"Permission denied validating standard format {file_path}: {str(e)}")
+            return False
+        except pd.errors.EmptyDataError as e:
+            self.logger.error(f"Empty file validating standard format {file_path}: {str(e)}")
+            return False
+        except pd.errors.ParserError as e:
+            self.logger.error(f"Parse error validating standard format {file_path}: {str(e)}")
+            return False
+        except ValueError as e:
+            self.logger.error(f"Value error validating standard format {file_path}: {str(e)}")
+            return False
         except Exception as e:
             self.logger.error(f"Error validating {format} format: {str(e)}")
             return False

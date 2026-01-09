@@ -195,15 +195,30 @@ class S3Manager:
             logger.debug(f"Including metadata in upload: {list(metadata.keys())}")
 
         # Upload file
-        self.s3_client.upload_file(
-            local_path,
-            self.bucket,
-            s3_key,
-            ExtraArgs=extra_args
-        )
+        try:
+            self.s3_client.upload_file(
+                local_path,
+                self.bucket,
+                s3_key,
+                ExtraArgs=extra_args
+            )
 
-        logger.info(f"Successfully uploaded file to S3: {s3_key}")
-        return self.get_s3_uri(s3_key)
+            logger.info(f"Successfully uploaded file to S3: {s3_key}")
+            return self.get_s3_uri(s3_key)
+
+        except ClientError as e:
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown') if hasattr(e, 'response') else 'Unknown'
+            logger.error(f"AWS ClientError uploading file to S3 (code: {error_code}): {str(e)}")
+            return None
+        except FileNotFoundError as e:
+            logger.error(f"File not found during upload {local_path}: {str(e)}")
+            return None
+        except PermissionError as e:
+            logger.error(f"Permission denied reading file {local_path}: {str(e)}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error uploading file to S3: {type(e).__name__}: {str(e)}")
+            return None
 
     def upload_fileobj(self, file_obj, s3_key: str,
                       content_type: str = 'application/octet-stream',
@@ -220,9 +235,34 @@ class S3Manager:
         Returns:
             S3 URI if successful, None otherwise
         """
+        # Pre-validation with if-else
         if not self.s3_client:
-            logger.error("S3 client not available")
+            logger.error("S3 client not available - cannot upload file object")
             return None
+
+        if file_obj is None:
+            logger.error("File object is None - cannot upload")
+            return None
+
+        if not hasattr(file_obj, 'read'):
+            logger.error(f"File object must have 'read' method, got {type(file_obj)}")
+            return None
+
+        if not s3_key:
+            logger.error("S3 key is empty or None - cannot upload file object")
+            return None
+
+        if not isinstance(s3_key, str):
+            logger.error(f"S3 key must be a string, got {type(s3_key)}")
+            return None
+
+        if content_type and not isinstance(content_type, str):
+            logger.warning(f"Content type must be a string, got {type(content_type)}, using default")
+            content_type = 'application/octet-stream'
+
+        if metadata and not isinstance(metadata, dict):
+            logger.warning(f"Metadata must be a dictionary, got {type(metadata)}, ignoring")
+            metadata = None
 
         try:
             # Prepare extra args
@@ -436,7 +476,17 @@ class S3Manager:
         Returns:
             Metadata dict with size, last_modified, content_type, etc.
         """
+        # Pre-validation with if-else
         if not self.s3_client:
+            logger.error("S3 client not available - cannot get file metadata")
+            return None
+
+        if not s3_key:
+            logger.error("S3 key is empty or None - cannot get file metadata")
+            return None
+
+        if not isinstance(s3_key, str):
+            logger.error(f"S3 key must be a string, got {type(s3_key)}")
             return None
 
         try:
@@ -451,7 +501,11 @@ class S3Manager:
             }
 
         except ClientError as e:
-            logger.error(f"Error getting file metadata: {str(e)}")
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown') if hasattr(e, 'response') else 'Unknown'
+            logger.error(f"AWS ClientError getting file metadata for {s3_key} (code: {error_code}): {str(e)}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error getting file metadata: {type(e).__name__}: {str(e)}")
             return None
 
     def delete_file(self, s3_key: str) -> bool:
@@ -561,8 +615,26 @@ class S3Manager:
         Returns:
             List of file metadata dicts
         """
+        # Pre-validation with if-else
         if not self.s3_client:
+            logger.error("S3 client not available - cannot list files")
             return []
+
+        if prefix is None:
+            logger.warning("Prefix is None, using empty string")
+            prefix = ""
+
+        if not isinstance(prefix, str):
+            logger.error(f"Prefix must be a string, got {type(prefix)}")
+            return []
+
+        if not isinstance(max_keys, int) or max_keys < 1:
+            logger.warning(f"Invalid max_keys value: {max_keys}, using default 1000")
+            max_keys = 1000
+
+        if max_keys > 1000:
+            logger.warning(f"max_keys {max_keys} exceeds S3 limit, capping at 1000")
+            max_keys = 1000
 
         try:
             response = self.s3_client.list_objects_v2(
@@ -587,7 +659,11 @@ class S3Manager:
             return files
 
         except ClientError as e:
-            logger.error(f"Error listing files: {str(e)}")
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown') if hasattr(e, 'response') else 'Unknown'
+            logger.error(f"AWS ClientError listing files with prefix {prefix} (code: {error_code}): {str(e)}")
+            return []
+        except Exception as e:
+            logger.error(f"Unexpected error listing files: {type(e).__name__}: {str(e)}")
             return []
 
     def delete_folder(self, prefix: str) -> bool:
@@ -600,7 +676,17 @@ class S3Manager:
         Returns:
             True if successful, False otherwise
         """
+        # Pre-validation with if-else
         if not self.s3_client:
+            logger.error("S3 client not available - cannot delete folder")
+            return False
+
+        if not prefix:
+            logger.error("Prefix is empty or None - cannot delete folder")
+            return False
+
+        if not isinstance(prefix, str):
+            logger.error(f"Prefix must be a string, got {type(prefix)}")
             return False
 
         try:
@@ -625,7 +711,11 @@ class S3Manager:
             return True
 
         except ClientError as e:
-            logger.error(f"Error deleting folder: {str(e)}")
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown') if hasattr(e, 'response') else 'Unknown'
+            logger.error(f"AWS ClientError deleting folder {prefix} (code: {error_code}): {str(e)}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error deleting folder: {type(e).__name__}: {str(e)}")
             return False
 
     def create_folder(self, prefix: str) -> bool:
@@ -638,7 +728,17 @@ class S3Manager:
         Returns:
             True if successful, False otherwise
         """
+        # Pre-validation with if-else
         if not self.s3_client:
+            logger.error("S3 client not available - cannot create folder")
+            return False
+
+        if not prefix:
+            logger.error("Prefix is empty or None - cannot create folder")
+            return False
+
+        if not isinstance(prefix, str):
+            logger.error(f"Prefix must be a string, got {type(prefix)}")
             return False
 
         # Ensure prefix ends with /
@@ -657,7 +757,11 @@ class S3Manager:
             return True
 
         except ClientError as e:
-            logger.error(f"Error creating folder: {str(e)}")
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown') if hasattr(e, 'response') else 'Unknown'
+            logger.error(f"AWS ClientError creating folder {prefix} (code: {error_code}): {str(e)}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error creating folder: {type(e).__name__}: {str(e)}")
             return False
 
     # ========================================================================

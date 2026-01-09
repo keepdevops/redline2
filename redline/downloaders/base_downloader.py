@@ -69,21 +69,43 @@ class BaseDownloader(ABC):
     def download_multiple_tickers(self, tickers: List[str], start_date: str = None, end_date: str = None) -> Dict[str, pd.DataFrame]:
         """
         Download data for multiple tickers.
-        
+
         Args:
             tickers: List of ticker symbols
             start_date: Start date (YYYY-MM-DD)
             end_date: End date (YYYY-MM-DD)
-            
+
         Returns:
             Dictionary mapping ticker to DataFrame
         """
+        # Pre-validation with if-else
+        if not tickers:
+            self.logger.error("Tickers list is empty or None")
+            return {}
+
+        if not isinstance(tickers, list):
+            self.logger.error(f"Tickers must be a list, got {type(tickers)}")
+            return {}
+
         results = {}
         failed_tickers = []
-        
+
         self.logger.info(f"Starting download of {len(tickers)} tickers from {self.name}")
-        
+
         for i, ticker in enumerate(tickers):
+            # Pre-validation for each ticker
+            if not ticker:
+                self.logger.warning(f"Skipping empty ticker at position {i+1}")
+                failed_tickers.append(f"empty_{i+1}")
+                self.stats['failed_requests'] += 1
+                continue
+
+            if not isinstance(ticker, str):
+                self.logger.warning(f"Skipping invalid ticker type at position {i+1}: {type(ticker)}")
+                failed_tickers.append(str(ticker))
+                self.stats['failed_requests'] += 1
+                continue
+
             try:
                 self.logger.info(f"Downloading {ticker} ({i+1}/{len(tickers)})")
                 
@@ -103,9 +125,29 @@ class BaseDownloader(ABC):
                 
                 self.stats['total_requests'] += 1
                 self.stats['last_request_time'] = datetime.now()
-                
+
+            except requests.exceptions.ConnectionError as e:
+                self.logger.error(f"Connection error downloading {ticker}: {str(e)}")
+                failed_tickers.append(ticker)
+                self.stats['failed_requests'] += 1
+                self.stats['total_requests'] += 1
+            except requests.exceptions.Timeout as e:
+                self.logger.error(f"Timeout downloading {ticker}: {str(e)}")
+                failed_tickers.append(ticker)
+                self.stats['failed_requests'] += 1
+                self.stats['total_requests'] += 1
+            except requests.exceptions.RequestException as e:
+                self.logger.error(f"Request error downloading {ticker}: {str(e)}")
+                failed_tickers.append(ticker)
+                self.stats['failed_requests'] += 1
+                self.stats['total_requests'] += 1
+            except ValueError as e:
+                self.logger.error(f"Value error downloading {ticker}: {str(e)}")
+                failed_tickers.append(ticker)
+                self.stats['failed_requests'] += 1
+                self.stats['total_requests'] += 1
             except Exception as e:
-                self.logger.error(f"Failed to download {ticker}: {str(e)}")
+                self.logger.error(f"Unexpected error downloading {ticker}: {type(e).__name__}: {str(e)}")
                 failed_tickers.append(ticker)
                 self.stats['failed_requests'] += 1
                 self.stats['total_requests'] += 1
@@ -180,15 +222,32 @@ class BaseDownloader(ABC):
     def _make_request(self, url: str, params: Dict[str, Any] = None, headers: Dict[str, str] = None) -> requests.Response:
         """
         Make HTTP request with retry logic.
-        
+
         Args:
             url: Request URL
             params: Query parameters
             headers: Request headers
-            
+
         Returns:
             Response object
         """
+        # Pre-validation with if-else
+        if not url:
+            self.logger.error("URL is empty or None")
+            raise ValueError("URL cannot be empty")
+
+        if not isinstance(url, str):
+            self.logger.error(f"URL must be a string, got {type(url)}")
+            raise TypeError(f"URL must be a string, got {type(url)}")
+
+        if params and not isinstance(params, dict):
+            self.logger.error(f"Params must be a dict, got {type(params)}")
+            raise TypeError(f"Params must be a dict, got {type(params)}")
+
+        if headers and not isinstance(headers, dict):
+            self.logger.error(f"Headers must be a dict, got {type(headers)}")
+            raise TypeError(f"Headers must be a dict, got {type(headers)}")
+
         for attempt in range(self.max_retries):
             try:
                 if headers:
@@ -198,27 +257,70 @@ class BaseDownloader(ABC):
                 
                 response.raise_for_status()
                 return response
-                
-            except requests.exceptions.RequestException as e:
-                self.logger.warning(f"Request attempt {attempt + 1} failed: {str(e)}")
-                
+
+            except requests.exceptions.Timeout as e:
+                self.logger.warning(f"Timeout on attempt {attempt + 1}/{self.max_retries}: {str(e)}")
                 if attempt < self.max_retries - 1:
                     time.sleep(self.retry_delay * (attempt + 1))
                 else:
+                    self.logger.error(f"Request timed out after {self.max_retries} attempts: {url}")
+                    raise
+            except requests.exceptions.ConnectionError as e:
+                self.logger.warning(f"Connection error on attempt {attempt + 1}/{self.max_retries}: {str(e)}")
+                if attempt < self.max_retries - 1:
+                    time.sleep(self.retry_delay * (attempt + 1))
+                else:
+                    self.logger.error(f"Connection failed after {self.max_retries} attempts: {url}")
+                    raise
+            except requests.exceptions.HTTPError as e:
+                self.logger.warning(f"HTTP error on attempt {attempt + 1}/{self.max_retries}: {e.response.status_code} - {str(e)}")
+                if attempt < self.max_retries - 1 and e.response.status_code >= 500:
+                    # Retry on server errors
+                    time.sleep(self.retry_delay * (attempt + 1))
+                else:
+                    self.logger.error(f"HTTP error after attempts: {url}")
+                    raise
+            except requests.exceptions.RequestException as e:
+                self.logger.warning(f"Request exception on attempt {attempt + 1}/{self.max_retries}: {type(e).__name__}: {str(e)}")
+                if attempt < self.max_retries - 1:
+                    time.sleep(self.retry_delay * (attempt + 1))
+                else:
+                    self.logger.error(f"Request failed after {self.max_retries} attempts: {url}")
                     raise
     
     def standardize_data(self, data: pd.DataFrame, ticker: str, source: str = None) -> pd.DataFrame:
         """
         Standardize data format to REDLINE schema.
-        
+
         Args:
             data: Raw data DataFrame
             ticker: Ticker symbol
             source: Data source identifier
-            
+
         Returns:
             Standardized DataFrame
         """
+        # Pre-validation with if-else
+        if data is None:
+            self.logger.error("Data is None - cannot standardize")
+            return pd.DataFrame()
+
+        if not isinstance(data, pd.DataFrame):
+            self.logger.error(f"Data must be a pandas DataFrame, got {type(data)}")
+            return pd.DataFrame()
+
+        if data.empty:
+            self.logger.warning(f"Empty DataFrame for ticker {ticker} - nothing to standardize")
+            return pd.DataFrame()
+
+        if not ticker:
+            self.logger.error("Ticker symbol is empty or None")
+            return pd.DataFrame()
+
+        if not isinstance(ticker, str):
+            self.logger.error(f"Ticker must be a string, got {type(ticker)}")
+            return pd.DataFrame()
+
         try:
             # Create standardized DataFrame
             standardized = pd.DataFrame()
@@ -254,11 +356,20 @@ class BaseDownloader(ABC):
             
             # Clean and validate data
             standardized = self._clean_data(standardized)
-            
+
             return standardized
-            
+
+        except KeyError as e:
+            self.logger.error(f"Missing column standardizing data for {ticker}: {str(e)}")
+            return pd.DataFrame()
+        except ValueError as e:
+            self.logger.error(f"Value error standardizing data for {ticker}: {str(e)}")
+            return pd.DataFrame()
+        except pd.errors.ParserError as e:
+            self.logger.error(f"Parse error standardizing data for {ticker}: {str(e)}")
+            return pd.DataFrame()
         except Exception as e:
-            self.logger.error(f"Error standardizing data for {ticker}: {str(e)}")
+            self.logger.error(f"Unexpected error standardizing data for {ticker}: {type(e).__name__}: {str(e)}")
             return pd.DataFrame()
     
     def _get_column_mapping(self) -> Dict[str, Union[str, List[str]]]:
@@ -275,6 +386,19 @@ class BaseDownloader(ABC):
     
     def _clean_data(self, data: pd.DataFrame) -> pd.DataFrame:
         """Clean and validate data."""
+        # Pre-validation with if-else
+        if data is None:
+            self.logger.warning("Data is None - returning empty DataFrame")
+            return pd.DataFrame()
+
+        if not isinstance(data, pd.DataFrame):
+            self.logger.warning(f"Data must be a pandas DataFrame, got {type(data)} - returning empty DataFrame")
+            return pd.DataFrame()
+
+        if data.empty:
+            self.logger.debug("Empty DataFrame - nothing to clean")
+            return data
+
         try:
             # Remove rows with missing critical data
             critical_cols = ['ticker', 'close']
@@ -292,24 +416,52 @@ class BaseDownloader(ABC):
             # Sort by timestamp
             if 'timestamp' in data.columns:
                 data = data.sort_values('timestamp')
-            
+
             return data
-            
+
+        except KeyError as e:
+            self.logger.error(f"Missing column cleaning data: {str(e)}")
+            return data  # Return original data if cleaning fails
+        except ValueError as e:
+            self.logger.error(f"Value error cleaning data: {str(e)}")
+            return data
         except Exception as e:
-            self.logger.error(f"Error cleaning data: {str(e)}")
+            self.logger.error(f"Unexpected error cleaning data: {type(e).__name__}: {str(e)}")
             return data
     
     def save_data(self, data: Dict[str, pd.DataFrame], output_dir: str, format: str = 'csv'):
         """
         Save downloaded data to files.
-        
+
         Args:
             data: Dictionary of ticker -> DataFrame
             output_dir: Output directory
             format: File format ('csv', 'parquet', 'json')
         """
         import os
-        
+
+        # Pre-validation with if-else
+        if not data:
+            self.logger.warning("Data dictionary is empty - nothing to save")
+            return
+
+        if not isinstance(data, dict):
+            self.logger.error(f"Data must be a dictionary, got {type(data)}")
+            raise TypeError(f"Data must be a dictionary, got {type(data)}")
+
+        if not output_dir:
+            self.logger.error("Output directory is empty or None")
+            raise ValueError("Output directory cannot be empty")
+
+        if not isinstance(output_dir, str):
+            self.logger.error(f"Output directory must be a string, got {type(output_dir)}")
+            raise TypeError(f"Output directory must be a string, got {type(output_dir)}")
+
+        valid_formats = ['csv', 'parquet', 'json']
+        if format not in valid_formats:
+            self.logger.error(f"Invalid format: {format}. Must be one of {valid_formats}")
+            raise ValueError(f"Format must be one of {valid_formats}, got: {format}")
+
         try:
             os.makedirs(output_dir, exist_ok=True)
             
@@ -330,11 +482,20 @@ class BaseDownloader(ABC):
                     raise ValueError(f"Unsupported format: {format}")
                 
                 self.logger.info(f"Saved {ticker} data to {filepath}")
-            
+
             self.logger.info(f"Saved {len(data)} tickers to {output_dir}")
-            
+
+        except PermissionError as e:
+            self.logger.error(f"Permission denied creating/writing to directory {output_dir}: {str(e)}")
+            raise
+        except OSError as e:
+            self.logger.error(f"OS error saving data to {output_dir}: {str(e)}")
+            raise
+        except ValueError as e:
+            self.logger.error(f"Value error saving data: {str(e)}")
+            raise
         except Exception as e:
-            self.logger.error(f"Error saving data: {str(e)}")
+            self.logger.error(f"Unexpected error saving data: {type(e).__name__}: {str(e)}")
             raise
     
     def get_statistics(self) -> Dict[str, Any]:

@@ -32,6 +32,21 @@ class UsageStorage:
     
     def _initialize_schema(self):
         """Create database tables if they don't exist"""
+        # Pre-validation with if-else
+        if not self.db_path:
+            logger.error("Database path is empty, cannot initialize schema")
+            raise ValueError("Database path cannot be empty")
+
+        if not isinstance(self.db_path, str):
+            logger.error(f"Database path must be a string, got {type(self.db_path)}")
+            raise TypeError(f"Database path must be a string, got {type(self.db_path)}")
+
+        # Ensure parent directory exists
+        parent_dir = os.path.dirname(self.db_path)
+        if parent_dir and not os.path.exists(parent_dir):
+            logger.error(f"Parent directory does not exist: {parent_dir}")
+            raise FileNotFoundError(f"Parent directory does not exist: {parent_dir}")
+
         try:
             conn = duckdb.connect(self.db_path)
             
@@ -119,9 +134,15 @@ class UsageStorage:
             
             conn.close()
             logger.info(f"Usage storage database initialized: {self.db_path}")
-            
+
+        except duckdb.ConnectionException as e:
+            logger.error(f"Database connection error initializing usage storage: {str(e)}")
+            raise
+        except duckdb.CatalogException as e:
+            logger.error(f"Database catalog error initializing usage storage: {str(e)}")
+            raise
         except Exception as e:
-            logger.error(f"Error initializing usage storage: {str(e)}")
+            logger.error(f"Unexpected error initializing usage storage: {str(e)}")
             raise
     
     def log_session_start(self, session_id: str, license_key: str, user_id: Optional[str] = None):

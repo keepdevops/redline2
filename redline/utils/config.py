@@ -96,30 +96,66 @@ class ConfigManager:
     
     def create_default_config(self):
         """Create default configuration file."""
+        # Pre-validation with if-else
+        if not self.defaults:
+            self.logger.error("No default configuration values defined")
+            return
+
+        if not isinstance(self.defaults, dict):
+            self.logger.error(f"Defaults must be a dictionary, got {type(self.defaults)}")
+            return
+
         try:
             # Set default values
             for section, options in self.defaults.items():
                 if not self.config.has_section(section):
                     self.config.add_section(section)
-                
+
                 for option, value in options.items():
                     self.config.set(section, option, value)
-            
+
             # Save to file
             self.save_config()
-            
+
+        except configparser.Error as e:
+            self.logger.error(f"ConfigParser error creating default configuration: {str(e)}")
         except Exception as e:
-            self.logger.error(f"Error creating default configuration: {str(e)}")
+            self.logger.error(f"Unexpected error creating default configuration: {str(e)}")
     
     def save_config(self):
         """Save configuration to file."""
+        # Pre-validation with if-else
+        if not self.config_path:
+            self.logger.error("Config path is empty, cannot save")
+            raise ValueError("Config path cannot be empty")
+
+        if not isinstance(self.config_path, str):
+            self.logger.error(f"Config path must be a string, got {type(self.config_path)}")
+            raise TypeError(f"Config path must be a string, got {type(self.config_path)}")
+
+        # Check if parent directory exists and is writable
+        parent_dir = os.path.dirname(self.config_path)
+        if parent_dir and not os.path.exists(parent_dir):
+            self.logger.error(f"Parent directory does not exist: {parent_dir}")
+            raise FileNotFoundError(f"Parent directory does not exist: {parent_dir}")
+
+        if parent_dir and not os.access(parent_dir, os.W_OK):
+            self.logger.error(f"Parent directory is not writable: {parent_dir}")
+            raise PermissionError(f"Parent directory is not writable: {parent_dir}")
+
         try:
             with open(self.config_path, 'w') as configfile:
                 self.config.write(configfile)
             self.logger.info(f"Configuration saved to {self.config_path}")
-            
+
+        except PermissionError as e:
+            self.logger.error(f"Permission denied writing config file {self.config_path}: {str(e)}")
+            raise
+        except OSError as e:
+            self.logger.error(f"OS error writing config file {self.config_path}: {str(e)}")
+            raise
         except Exception as e:
-            self.logger.error(f"Error saving configuration: {str(e)}")
+            self.logger.error(f"Unexpected error saving configuration: {str(e)}")
             raise
     
     def get(self, section: str, option: str, fallback: Any = None) -> Any:
@@ -205,40 +241,69 @@ class ConfigManager:
     def get_section(self, section: str) -> Dict[str, Any]:
         """
         Get entire configuration section.
-        
+
         Args:
             section: Configuration section name
-            
+
         Returns:
             Dictionary of section options
         """
+        # Pre-validation with if-else
+        if not section:
+            self.logger.warning("Section name is empty, returning empty dict")
+            return {}
+
+        if not isinstance(section, str):
+            self.logger.warning(f"Section name must be a string, got {type(section)}, returning empty dict")
+            return {}
+
+        if not self.config.has_section(section):
+            self.logger.debug(f"Section [{section}] not found, returning empty dict")
+            return {}
+
         try:
-            if self.config.has_section(section):
-                return dict(self.config[section])
-            else:
-                return {}
-                
+            return dict(self.config[section])
+
+        except KeyError as e:
+            self.logger.error(f"Key error getting config section [{section}]: {str(e)}")
+            return {}
         except Exception as e:
-            self.logger.error(f"Error getting config section {section}: {str(e)}")
+            self.logger.error(f"Unexpected error getting config section [{section}]: {str(e)}")
             return {}
     
     def update_section(self, section: str, options: Dict[str, Any]):
         """
         Update entire configuration section.
-        
+
         Args:
             section: Configuration section name
             options: Dictionary of options to set
         """
+        # Pre-validation with if-else
+        if not section or not isinstance(section, str):
+            self.logger.error(f"Invalid section name: {section}")
+            raise ValueError(f"Section name must be a non-empty string, got: {section}")
+
+        if not options:
+            self.logger.warning(f"Options dictionary is empty for section [{section}]")
+            return
+
+        if not isinstance(options, dict):
+            self.logger.error(f"Options must be a dictionary, got {type(options)}")
+            raise TypeError(f"Options must be a dictionary, got {type(options)}")
+
         try:
             if not self.config.has_section(section):
                 self.config.add_section(section)
-            
+
             for option, value in options.items():
                 self.config.set(section, option, str(value))
-                
+
+        except configparser.Error as e:
+            self.logger.error(f"ConfigParser error updating section [{section}]: {str(e)}")
+            raise
         except Exception as e:
-            self.logger.error(f"Error updating config section {section}: {str(e)}")
+            self.logger.error(f"Unexpected error updating config section [{section}]: {str(e)}")
             raise
     
     def validate_config(self) -> Dict[str, List[str]]:
@@ -275,14 +340,27 @@ class ConfigManager:
     def _validate_data_section(self) -> List[str]:
         """Validate Data section configuration."""
         errors = []
-        
+
         # Check required directories
         csv_dir = self.get('Data', 'csv_dir')
         if csv_dir and not os.path.exists(csv_dir):
-            try:
-                os.makedirs(csv_dir, exist_ok=True)
-            except Exception as e:
-                errors.append(f"Cannot create CSV directory {csv_dir}: {str(e)}")
+            # Pre-validation with if-else
+            if not isinstance(csv_dir, str):
+                errors.append(f"CSV directory path must be a string, got {type(csv_dir)}")
+            else:
+                # Check if parent directory is writable
+                parent_dir = os.path.dirname(csv_dir) or '.'
+                if os.path.exists(parent_dir) and not os.access(parent_dir, os.W_OK):
+                    errors.append(f"Parent directory is not writable: {parent_dir}")
+                else:
+                    try:
+                        os.makedirs(csv_dir, exist_ok=True)
+                    except PermissionError as e:
+                        errors.append(f"Permission denied creating CSV directory {csv_dir}: {str(e)}")
+                    except OSError as e:
+                        errors.append(f"OS error creating CSV directory {csv_dir}: {str(e)}")
+                    except Exception as e:
+                        errors.append(f"Cannot create CSV directory {csv_dir}: {str(e)}")
         
         # Check numeric values
         cache_size = self.get('Data', 'cache_size', 1000)
@@ -333,36 +411,74 @@ class ConfigManager:
     
     def reset_to_defaults(self):
         """Reset configuration to default values."""
+        # Pre-validation with if-else
+        if not self.defaults:
+            self.logger.error("No default configuration values defined")
+            raise ValueError("No default configuration values defined")
+
+        if not isinstance(self.defaults, dict):
+            self.logger.error(f"Defaults must be a dictionary, got {type(self.defaults)}")
+            raise TypeError(f"Defaults must be a dictionary, got {type(self.defaults)}")
+
         try:
             self.config.clear()
             self.create_default_config()
             self.logger.info("Configuration reset to defaults")
-            
+
+        except configparser.Error as e:
+            self.logger.error(f"ConfigParser error resetting configuration: {str(e)}")
+            raise
         except Exception as e:
-            self.logger.error(f"Error resetting configuration: {str(e)}")
+            self.logger.error(f"Unexpected error resetting configuration: {str(e)}")
             raise
     
     def backup_config(self, backup_path: str = None):
         """
         Create backup of current configuration.
-        
+
         Args:
             backup_path: Path for backup file (optional)
         """
+        # Generate default backup path if not provided
+        if backup_path is None:
+            from datetime import datetime
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            backup_path = f"data_config_backup_{timestamp}.ini"
+
+        # Pre-validation with if-else
+        if not isinstance(backup_path, str):
+            self.logger.error(f"Backup path must be a string, got {type(backup_path)}")
+            raise TypeError(f"Backup path must be a string, got {type(backup_path)}")
+
+        if not backup_path:
+            self.logger.error("Backup path cannot be empty")
+            raise ValueError("Backup path cannot be empty")
+
+        # Check if parent directory exists and is writable
+        parent_dir = os.path.dirname(backup_path)
+        if parent_dir and not os.path.exists(parent_dir):
+            self.logger.error(f"Parent directory does not exist: {parent_dir}")
+            raise FileNotFoundError(f"Parent directory does not exist: {parent_dir}")
+
+        if parent_dir and not os.access(parent_dir, os.W_OK):
+            self.logger.error(f"Parent directory is not writable: {parent_dir}")
+            raise PermissionError(f"Parent directory is not writable: {parent_dir}")
+
         try:
-            if backup_path is None:
-                from datetime import datetime
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                backup_path = f"data_config_backup_{timestamp}.ini"
-            
             with open(backup_path, 'w') as backup_file:
                 self.config.write(backup_file)
-            
+
             self.logger.info(f"Configuration backed up to {backup_path}")
             return backup_path
-            
+
+        except PermissionError as e:
+            self.logger.error(f"Permission denied writing backup file {backup_path}: {str(e)}")
+            raise
+        except OSError as e:
+            self.logger.error(f"OS error writing backup file {backup_path}: {str(e)}")
+            raise
         except Exception as e:
-            self.logger.error(f"Error backing up configuration: {str(e)}")
+            self.logger.error(f"Unexpected error backing up configuration: {str(e)}")
             raise
     
     def get_all_config(self) -> Dict[str, Dict[str, Any]]:

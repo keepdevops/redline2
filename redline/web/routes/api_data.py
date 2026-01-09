@@ -16,85 +16,164 @@ logger = logging.getLogger(__name__)
 @api_data_bp.route('/data/<filename>', methods=['GET'])
 def get_data_preview(filename):
     """Get paginated preview of data file with compression."""
-    try:
-        # Check multiple locations for the file
-        data_dir = os.path.join(os.getcwd(), 'data')
-        data_path = None
-        
-        # Check in root data directory first
-        root_path = os.path.join(data_dir, filename)
-        if os.path.exists(root_path):
-            data_path = root_path
+    # Pre-validation with if-else
+    if not filename:
+        logger.warning("Data preview request with empty filename")
+        return jsonify({'error': 'Filename is required', 'code': 'EMPTY_FILENAME'}), 400
+
+    if not isinstance(filename, str):
+        logger.error(f"Data preview request with invalid filename type: {type(filename)}")
+        return jsonify({'error': 'Filename must be a string', 'code': 'INVALID_FILENAME_TYPE'}), 400
+
+    if '..' in filename:
+        logger.warning(f"Data preview request with path traversal attempt: {filename}")
+        return jsonify({'error': 'Invalid filename (path traversal not allowed)', 'code': 'PATH_TRAVERSAL'}), 400
+
+    # Check multiple locations for the file
+    data_dir = os.path.join(os.getcwd(), 'data')
+
+    if not os.path.exists(data_dir):
+        logger.error(f"Data directory not found: {data_dir}")
+        return jsonify({'error': 'Data directory not configured', 'code': 'DATA_DIR_NOT_FOUND'}), 500
+
+    data_path = None
+
+    # Check in root data directory first
+    root_path = os.path.join(data_dir, filename)
+    if os.path.exists(root_path):
+        data_path = root_path
+    else:
+        # Check in downloaded directory
+        downloaded_path = os.path.join(data_dir, 'downloaded', filename)
+        if os.path.exists(downloaded_path):
+            data_path = downloaded_path
         else:
-            # Check in downloaded directory
-            downloaded_path = os.path.join(data_dir, 'downloaded', filename)
-            if os.path.exists(downloaded_path):
-                data_path = downloaded_path
+            # Check in converted directory (and subdirectories)
+            converted_dir = os.path.join(data_dir, 'converted')
+            # Try common direct path first
+            converted_path = os.path.join(converted_dir, filename)
+            if os.path.exists(converted_path):
+                data_path = converted_path
             else:
-                # Check in converted directory (and subdirectories)
-                converted_dir = os.path.join(data_dir, 'converted')
-                # Try common direct path first
-                converted_path = os.path.join(converted_dir, filename)
-                if os.path.exists(converted_path):
-                    data_path = converted_path
-                else:
-                    # Walk converted/ recursively to find the file
-                    if os.path.exists(converted_dir):
-                        for root, dirs, files in os.walk(converted_dir):
-                            if filename in files:
-                                data_path = os.path.join(root, filename)
-                                break
-        
-        if not data_path or not os.path.exists(data_path):
-            return jsonify({'error': 'File not found', 'filename': filename}), 404
-        
-        # Get pagination parameters
-        page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', DEFAULT_PAGE_SIZE, type=int)
-        
-        # Load data
+                # Walk converted/ recursively to find the file
+                if os.path.exists(converted_dir):
+                    for root, dirs, files in os.walk(converted_dir):
+                        if filename in files:
+                            data_path = os.path.join(root, filename)
+                            break
+
+    if not data_path or not os.path.exists(data_path):
+        logger.warning(f"Data file not found: {filename}")
+        return jsonify({'error': 'File not found', 'filename': filename, 'code': 'FILE_NOT_FOUND'}), 404
+
+    # Validate file is readable
+    if not os.access(data_path, os.R_OK):
+        logger.error(f"Data file not readable: {data_path}")
+        return jsonify({'error': 'File is not readable', 'filename': filename, 'code': 'FILE_NOT_READABLE'}), 403
+
+    # Get pagination parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', DEFAULT_PAGE_SIZE, type=int)
+
+    # Validate pagination parameters
+    if not isinstance(page, int) or page < 1:
+        logger.warning(f"Invalid page parameter for {filename}: {page}")
+        page = 1
+
+    if not isinstance(per_page, int) or per_page < 1 or per_page > 10000:
+        logger.warning(f"Invalid per_page parameter for {filename}: {per_page}")
+        per_page = DEFAULT_PAGE_SIZE
+
+    logger.debug(f"Loading data preview for {filename} (page={page}, per_page={per_page})")
+
+    # Load data - Note: File I/O requires try-except for external file operation errors
+    try:
         from redline.core.format_converter import FormatConverter
         from redline.core.schema import EXT_TO_FORMAT
-        
-        converter = FormatConverter()
-        
-        # Detect format from file extension
-        ext = os.path.splitext(data_path)[1].lower()
-        format_type = EXT_TO_FORMAT.get(ext, 'csv')
-        
+    except ImportError as e:
+        logger.error(f"Failed to import required modules for {filename}: {str(e)}")
+        return jsonify({'error': 'Required modules not available', 'code': 'IMPORT_ERROR'}), 500
+
+    converter = FormatConverter()
+
+    # Detect format from file extension
+    ext = os.path.splitext(data_path)[1].lower()
+    if not ext:
+        logger.warning(f"No file extension found for {filename}")
+        ext = '.csv'  # Default to CSV
+
+    format_type = EXT_TO_FORMAT.get(ext, 'csv')
+    logger.debug(f"Detected format for {filename}: {format_type}")
+
+    try:
         data = converter.load_file_by_type(data_path, format_type)
-        
-        if isinstance(data, pd.DataFrame):
-            # Convert to records for pagination
-            all_records = data.to_dict('records')
-            
-            # Paginate the data
-            paginated_result = paginate_data(all_records, page, per_page)
-            
-            response_data = {
+    except FileNotFoundError as e:
+        logger.error(f"File not found loading {filename}: {str(e)}")
+        return jsonify({'error': 'File not found', 'code': 'FILE_NOT_FOUND'}), 404
+    except PermissionError as e:
+        logger.error(f"Permission denied loading {filename}: {str(e)}")
+        return jsonify({'error': 'Permission denied', 'code': 'PERMISSION_DENIED'}), 403
+    except pd.errors.EmptyDataError as e:
+        logger.warning(f"Empty file {filename}: {str(e)}")
+        return jsonify({'error': 'File is empty', 'code': 'EMPTY_FILE'}), 400
+    except pd.errors.ParserError as e:
+        logger.error(f"Parse error loading {filename}: {str(e)}")
+        return jsonify({'error': 'Failed to parse file', 'code': 'PARSE_ERROR'}), 400
+    except ValueError as e:
+        logger.error(f"Value error loading {filename}: {str(e)}")
+        return jsonify({'error': f'Invalid file format: {str(e)}', 'code': 'INVALID_FORMAT'}), 400
+    except Exception as e:
+        logger.error(f"Unexpected error loading {filename}: {type(e).__name__}: {str(e)}")
+        return jsonify({'error': f'Failed to load file: {str(e)}', 'code': 'LOAD_ERROR'}), 500
+
+    # Validate data was loaded
+    if data is None:
+        logger.error(f"Converter returned None for {filename}")
+        return jsonify({'error': 'Failed to load file data', 'code': 'NO_DATA'}), 500
+
+    if isinstance(data, pd.DataFrame):
+        # Validate DataFrame is not empty
+        if data.empty:
+            logger.warning(f"Loaded empty DataFrame for {filename}")
+            return jsonify({
                 'columns': list(data.columns),
-                'total_rows': len(data),
-                'filename': filename,
-                'preview': paginated_result['data'],
-                'pagination': paginated_result['pagination']
-            }
-        else:
-            # Handle non-DataFrame data
-            preview = str(data)[:1000]  # Truncate for non-DataFrame data
-            response_data = {
-                'columns': [],
                 'total_rows': 0,
                 'filename': filename,
-                'preview': preview,
-                'pagination': {'page': 1, 'per_page': 1, 'total': 1, 'pages': 1, 'has_next': False, 'has_prev': False}
-            }
-        
-        # Return normal JSON; Flask-Compress handles compression
-        return jsonify(response_data)
-        
-    except Exception as e:
-        logger.error(f"Error getting data preview for {filename}: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+                'preview': [],
+                'pagination': {'page': 1, 'per_page': per_page, 'total': 0, 'pages': 0, 'has_next': False, 'has_prev': False}
+            })
+
+        # Convert to records for pagination
+        try:
+            all_records = data.to_dict('records')
+        except Exception as e:
+            logger.error(f"Failed to convert DataFrame to records for {filename}: {str(e)}")
+            return jsonify({'error': 'Failed to process data', 'code': 'CONVERSION_ERROR'}), 500
+
+        # Paginate the data
+        paginated_result = paginate_data(all_records, page, per_page)
+
+        response_data = {
+            'columns': list(data.columns),
+            'total_rows': len(data),
+            'filename': filename,
+            'preview': paginated_result['data'],
+            'pagination': paginated_result['pagination']
+        }
+    else:
+        # Handle non-DataFrame data
+        preview = str(data)[:1000]  # Truncate for non-DataFrame data
+        response_data = {
+            'columns': [],
+            'total_rows': 0,
+            'filename': filename,
+            'preview': preview,
+            'pagination': {'page': 1, 'per_page': 1, 'total': 1, 'pages': 1, 'has_next': False, 'has_prev': False}
+        }
+
+    logger.info(f"Successfully loaded data preview for {filename} ({response_data['total_rows']} rows)")
+    # Return normal JSON; Flask-Compress handles compression
+    return jsonify(response_data)
 
 
 @api_data_bp.route('/data/quick/<path:filename>', methods=['GET'])

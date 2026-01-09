@@ -85,18 +85,29 @@ class DatabaseConnector:
     def create_connection(self, db_path: str = None):
         """
         Create a database connection.
-        
+
         Args:
             db_path: Database path (optional, uses instance path if not provided)
-            
+
         Returns:
             Database connection object
         """
+        # Pre-validation with if-else
         if not DUCKDB_AVAILABLE:
+            self.logger.error("duckdb not available - cannot create connection")
             raise ImportError("duckdb not available. Please install duckdb to use database features.")
-        
+
+        path = db_path or self.db_path
+
+        if not path:
+            self.logger.error("Database path is empty or None")
+            raise ValueError("Database path cannot be empty")
+
+        if not isinstance(path, str):
+            self.logger.error(f"Database path must be a string, got {type(path)}")
+            raise TypeError(f"Database path must be a string, got {type(path)}")
+
         try:
-            path = db_path or self.db_path
             
             # Create directory if it doesn't exist
             import os
@@ -119,21 +130,49 @@ class DatabaseConnector:
                 else:
                     raise
             return conn
+        except PermissionError as e:
+            self.logger.error(f"Permission denied accessing database {path}: {str(e)}")
+            raise
+        except OSError as e:
+            self.logger.error(f"OS error creating database connection to {path}: {str(e)}")
+            raise
         except Exception as e:
-            self.logger.error(f"Failed to create database connection: {str(e)}")
+            self.logger.error(f"Unexpected error creating database connection: {str(e)}")
             raise
     
     def read_shared_data(self, table: str, format: str = 'pandas') -> Union[pd.DataFrame, 'pl.DataFrame', 'pa.Table']:
         """
         Read data from a shared table.
-        
+
         Args:
             table: Table name
             format: Output format ('pandas', 'polars', 'pyarrow')
-            
+
         Returns:
             Data in requested format
         """
+        # Pre-validation with if-else
+        if not table:
+            self.logger.error("Table name is empty or None")
+            raise ValueError("Table name cannot be empty")
+
+        if not isinstance(table, str):
+            self.logger.error(f"Table name must be a string, got {type(table)}")
+            raise TypeError(f"Table name must be a string, got {type(table)}")
+
+        valid_formats = ['pandas', 'polars', 'pyarrow']
+        if format not in valid_formats:
+            self.logger.error(f"Invalid format: {format}. Must be one of {valid_formats}")
+            raise ValueError(f"Format must be one of {valid_formats}, got: {format}")
+
+        if format == 'polars' and not POLARS_AVAILABLE:
+            self.logger.error("Polars not available but requested")
+            raise ImportError("polars not available. Install with: pip install polars")
+
+        if format == 'pyarrow' and not PYARROW_AVAILABLE:
+            self.logger.error("PyArrow not available but requested")
+            raise ImportError("pyarrow not available. Install with: pip install pyarrow")
+
         try:
             conn = self.create_connection()
             df = conn.execute(f"SELECT * FROM {table}").fetchdf()
@@ -145,20 +184,47 @@ class DatabaseConnector:
                 return pa.Table.from_pandas(df)
             
             return df
-            
+
+        except duckdb.CatalogException as e:
+            self.logger.error(f"Table not found or catalog error reading {table}: {str(e)}")
+            raise
+        except duckdb.ConnectionException as e:
+            self.logger.error(f"Database connection error reading {table}: {str(e)}")
+            raise
         except Exception as e:
-            self.logger.error(f"Failed to read from {table}: {str(e)}")
+            self.logger.error(f"Unexpected error reading from {table}: {str(e)}")
             raise
     
     def write_shared_data(self, table: str, data: Union[pd.DataFrame, 'pl.DataFrame', 'pa.Table'], format: str) -> None:
         """
         Write data to a shared table.
-        
+
         Args:
             table: Table name
             data: Data to write
             format: Data format identifier
         """
+        # Pre-validation with if-else
+        if not table:
+            self.logger.error("Table name is empty or None")
+            raise ValueError("Table name cannot be empty")
+
+        if not isinstance(table, str):
+            self.logger.error(f"Table name must be a string, got {type(table)}")
+            raise TypeError(f"Table name must be a string, got {type(table)}")
+
+        if data is None:
+            self.logger.error("Data is None - cannot write")
+            raise ValueError("Data cannot be None")
+
+        if not isinstance(data, (pd.DataFrame, pl.DataFrame if POLARS_AVAILABLE else type(None), pa.Table if PYARROW_AVAILABLE else type(None))):
+            self.logger.error(f"Data must be pandas DataFrame, polars DataFrame, or pyarrow Table, got {type(data)}")
+            raise TypeError(f"Invalid data type: {type(data)}")
+
+        if not format:
+            self.logger.error("Format is empty or None")
+            raise ValueError("Format cannot be empty")
+
         try:
             # Convert to pandas if needed
             if POLARS_AVAILABLE and isinstance(data, pl.DataFrame):
@@ -229,9 +295,18 @@ class DatabaseConnector:
             conn.close()
             
             self.logger.info(f"Wrote data to {table} in format {format}")
-            
+
+        except duckdb.CatalogException as e:
+            self.logger.error(f"Database catalog error writing to {table}: {str(e)}")
+            raise
+        except duckdb.ConnectionException as e:
+            self.logger.error(f"Database connection error writing to {table}: {str(e)}")
+            raise
+        except ValueError as e:
+            self.logger.error(f"Value error writing to {table}: {str(e)}")
+            raise
         except Exception as e:
-            self.logger.exception(f"Failed to write to {table}: {str(e)}")
+            self.logger.exception(f"Unexpected error writing to {table}: {str(e)}")
             raise
     
     def execute_query(self, query: str, params: dict = None) -> pd.DataFrame:

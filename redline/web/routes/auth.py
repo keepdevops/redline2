@@ -487,10 +487,19 @@ def get_current_user():
             'code': 'NOT_AUTHENTICATED'
         }), 401
 
+    # Pre-validation with if-else
+    if not supabase_client or not supabase_client.is_available():
+        logger.error("Supabase client not available for get_current_user")
+        return jsonify({
+            'error': 'Authentication service unavailable',
+            'code': 'SERVICE_UNAVAILABLE'
+        }), 503
+
     try:
         user = supabase_client.get_user_by_id(user_id)
 
         if not user:
+            logger.warning(f"User not found in database: {user_id}")
             return jsonify({
                 'error': 'User not found',
                 'code': 'USER_NOT_FOUND'
@@ -509,8 +518,15 @@ def get_current_user():
 
         return jsonify(safe_user)
 
+    except KeyError as e:
+        logger.error(f"Missing required user field for {user_id}: {str(e)}")
+        return jsonify({
+            'error': 'Invalid user data structure',
+            'code': 'INVALID_USER_DATA',
+            'details': str(e)
+        }), 500
     except Exception as e:
-        logger.error(f"Error getting user: {str(e)}")
+        logger.error(f"Unexpected error getting user {user_id}: {type(e).__name__}: {str(e)}")
         return jsonify({
             'error': 'Failed to get user',
             'code': 'GET_USER_ERROR',
@@ -539,10 +555,19 @@ def get_user_usage():
             'code': 'NOT_AUTHENTICATED'
         }), 401
 
+    # Pre-validation with if-else
+    if not supabase_client or not supabase_client.is_available():
+        logger.error("Supabase client not available for get_user_usage")
+        return jsonify({
+            'error': 'Database service unavailable',
+            'code': 'SERVICE_UNAVAILABLE'
+        }), 503
+
     try:
         limit = int(request.args.get('limit', 100))
 
         if limit < 1 or limit > 1000:
+            logger.warning(f"Invalid limit value requested: {limit}")
             return jsonify({
                 'error': 'Limit must be between 1 and 1000',
                 'code': 'INVALID_LIMIT'
@@ -555,8 +580,15 @@ def get_user_usage():
             'count': len(usage_records)
         })
 
+    except ValueError as e:
+        logger.error(f"Invalid limit parameter for user {user_id}: {str(e)}")
+        return jsonify({
+            'error': 'Invalid limit parameter',
+            'code': 'INVALID_PARAMETER',
+            'details': str(e)
+        }), 400
     except Exception as e:
-        logger.error(f"Error getting usage: {str(e)}")
+        logger.error(f"Unexpected error getting usage for {user_id}: {type(e).__name__}: {str(e)}")
         return jsonify({
             'error': 'Failed to get usage',
             'code': 'GET_USAGE_ERROR',
@@ -585,10 +617,19 @@ def get_user_payments():
             'code': 'NOT_AUTHENTICATED'
         }), 401
 
+    # Pre-validation with if-else
+    if not supabase_client or not supabase_client.is_available():
+        logger.error("Supabase client not available for get_user_payments")
+        return jsonify({
+            'error': 'Database service unavailable',
+            'code': 'SERVICE_UNAVAILABLE'
+        }), 503
+
     try:
         limit = int(request.args.get('limit', 50))
 
         if limit < 1 or limit > 500:
+            logger.warning(f"Invalid payment limit requested: {limit}")
             return jsonify({
                 'error': 'Limit must be between 1 and 500',
                 'code': 'INVALID_LIMIT'
@@ -601,8 +642,15 @@ def get_user_payments():
             'count': len(payment_records)
         })
 
+    except ValueError as e:
+        logger.error(f"Invalid limit parameter for payments {user_id}: {str(e)}")
+        return jsonify({
+            'error': 'Invalid limit parameter',
+            'code': 'INVALID_PARAMETER',
+            'details': str(e)
+        }), 400
     except Exception as e:
-        logger.error(f"Error getting payments: {str(e)}")
+        logger.error(f"Unexpected error getting payments for {user_id}: {type(e).__name__}: {str(e)}")
         return jsonify({
             'error': 'Failed to get payments',
             'code': 'GET_PAYMENTS_ERROR',
@@ -623,6 +671,7 @@ def get_user_subscription():
     stripe_customer_id = getattr(g, 'stripe_customer_id', None)
 
     if not stripe_customer_id:
+        logger.warning("User requested subscription without Stripe customer ID")
         return jsonify({
             'error': 'No Stripe customer ID',
             'code': 'NO_STRIPE_CUSTOMER'
@@ -631,9 +680,18 @@ def get_user_subscription():
     try:
         from redline.payment.metered_billing import metered_billing_manager
 
+        # Pre-validation with if-else
+        if not metered_billing_manager or not metered_billing_manager.is_available():
+            logger.error("Metered billing manager not available for subscription info")
+            return jsonify({
+                'error': 'Billing service unavailable',
+                'code': 'SERVICE_UNAVAILABLE'
+            }), 503
+
         subscription_info = metered_billing_manager.get_subscription_info(stripe_customer_id)
 
         if not subscription_info:
+            logger.info(f"No active subscription found for customer: {stripe_customer_id}")
             return jsonify({
                 'error': 'No active subscription found',
                 'code': 'NO_SUBSCRIPTION'
@@ -647,8 +705,15 @@ def get_user_subscription():
             'usage': usage_info
         })
 
+    except ImportError as e:
+        logger.error(f"Import error getting subscription: {str(e)}")
+        return jsonify({
+            'error': 'Billing module not available',
+            'code': 'MODULE_ERROR',
+            'details': str(e)
+        }), 503
     except Exception as e:
-        logger.error(f"Error getting subscription: {str(e)}")
+        logger.error(f"Unexpected error getting subscription for {stripe_customer_id}: {type(e).__name__}: {str(e)}")
         return jsonify({
             'error': 'Failed to get subscription',
             'code': 'GET_SUBSCRIPTION_ERROR',
@@ -680,8 +745,15 @@ def logout():
             'message': 'Logged out successfully'
         })
 
+    except RuntimeError as e:
+        # Session-related errors
+        logger.warning(f"Runtime error during logout (session clear failed): {str(e)}")
+        return jsonify({
+            'success': True,  # Still return success even if session clear fails
+            'message': 'Logged out (session clear failed)'
+        })
     except Exception as e:
-        logger.error(f"Error during logout: {str(e)}")
+        logger.error(f"Unexpected error during logout: {type(e).__name__}: {str(e)}")
         return jsonify({
             'success': True,  # Still return success even if logging fails
             'message': 'Logged out (with warnings)'
