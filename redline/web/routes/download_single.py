@@ -102,16 +102,11 @@ def download_data():
             return jsonify({'error': f'Invalid {date_name} format. Use YYYY-MM-DD'}), 400
 
     logger.info(f"Processing download request from {user_id}: ticker={ticker}, source={source}, dates={start_date} to {end_date}")
-        
-        # Set default date range if not provided
-        if not end_date:
-            end_date = datetime.now().strftime('%Y-%m-%d')
-        if not start_date:
-            start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
-        
+
+    try:
         result = None
         downloader = None
-        
+
         if source == 'yahoo':
             from redline.downloaders.yahoo_downloader import YahooDownloader
             downloader = YahooDownloader()
@@ -169,8 +164,16 @@ def download_data():
                         with open(api_keys_file, 'r') as f:
                             saved_keys = json.load(f)
                             api_key = saved_keys.get('massive')
+                except FileNotFoundError:
+                    logger.debug(f"API keys file not found: {api_keys_file}")
+                except PermissionError as e:
+                    logger.warning(f"Permission denied reading API keys file: {e}")
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Invalid JSON in API keys file: {e}")
+                except KeyError as e:
+                    logger.debug(f"Missing key in API keys file: {e}")
                 except Exception as e:
-                    logger.debug(f"Could not load saved API keys: {e}")
+                    logger.debug(f"Unexpected error loading saved API keys: {e}")
             
             # Fallback to environment variable
             if not api_key:
@@ -185,9 +188,15 @@ def download_data():
                     start_date=start_date,
                     end_date=end_date
                 )
+            except ImportError as e:
+                logger.error(f"Import error initializing Massive.com downloader: {str(e)}")
+                return jsonify({'error': f'Massive.com import error: {str(e)}', 'code': 'IMPORT_ERROR'}), 500
+            except ValueError as e:
+                logger.error(f"Invalid parameter for Massive.com downloader: {str(e)}")
+                return jsonify({'error': f'Massive.com configuration error: {str(e)}', 'code': 'VALUE_ERROR'}), 400
             except Exception as e:
-                logger.error(f"Error initializing Massive.com downloader: {str(e)}")
-                return jsonify({'error': f'Massive.com initialization error: {str(e)}'}), 400
+                logger.error(f"Unexpected error with Massive.com downloader: {str(e)}")
+                return jsonify({'error': f'Massive.com error: {str(e)}', 'code': 'MASSIVE_ERROR'}), 400
         elif source.startswith('custom_'):
             # Custom API - load configuration
             from redline.downloaders.generic_api_downloader import GenericAPIDownloader
@@ -221,9 +230,18 @@ def download_data():
                     start_date=start_date,
                     end_date=end_date
                 )
+            except ImportError as e:
+                logger.error(f"Import error initializing custom API downloader: {str(e)}")
+                return jsonify({'error': f'Custom API import error: {str(e)}', 'code': 'IMPORT_ERROR'}), 500
+            except KeyError as e:
+                logger.error(f"Missing configuration key for custom API: {str(e)}")
+                return jsonify({'error': f'Custom API configuration missing key: {str(e)}', 'code': 'KEY_ERROR'}), 400
+            except ValueError as e:
+                logger.error(f"Invalid configuration for custom API: {str(e)}")
+                return jsonify({'error': f'Custom API configuration error: {str(e)}', 'code': 'VALUE_ERROR'}), 400
             except Exception as e:
-                logger.error(f"Error initializing custom API downloader: {str(e)}")
-                return jsonify({'error': f'Custom API configuration error: {str(e)}'}), 400
+                logger.error(f"Unexpected error with custom API downloader: {str(e)}")
+                return jsonify({'error': f'Custom API error: {str(e)}', 'code': 'CUSTOM_API_ERROR'}), 400
         elif source == 'csv':
             from redline.downloaders.csv_downloader import CSVDownloader
             downloader = CSVDownloader()
@@ -269,18 +287,64 @@ def download_data():
                 'source': source,
                 'suggestion': 'Try checking the ticker symbol or using a different data source.'
             }), 404
-            
+
     except RateLimitError as e:
         # Rate limit error from downloader - return proper 429 response
         logger.warning(f"Rate limit exceeded for {ticker} from {source}: {e.message}")
         retry_after = e.retry_after or 300  # Default to 5 minutes if not specified
-        
+
         return jsonify({
             'error': f'Rate limit exceeded for {source}. {e.message}',
             'retry_after': retry_after,
-            'source': e.source or source
+            'source': e.source or source,
+            'code': 'RATE_LIMIT_ERROR'
         }), 429
-            
+
+    except ImportError as e:
+        logger.error(f"Import error downloading {ticker}: {str(e)}")
+        return jsonify({
+            'error': f'Module import error: {str(e)}',
+            'ticker': ticker,
+            'source': source,
+            'code': 'IMPORT_ERROR'
+        }), 500
+
+    except PermissionError as e:
+        logger.error(f"Permission denied downloading {ticker}: {str(e)}")
+        return jsonify({
+            'error': 'Permission denied',
+            'ticker': ticker,
+            'source': source,
+            'code': 'PERMISSION_DENIED'
+        }), 403
+
+    except OSError as e:
+        logger.error(f"OS error downloading {ticker}: {str(e)}")
+        return jsonify({
+            'error': f'File system error: {str(e)}',
+            'ticker': ticker,
+            'source': source,
+            'code': 'OS_ERROR'
+        }), 500
+
+    except KeyError as e:
+        logger.error(f"Missing key downloading {ticker}: {str(e)}")
+        return jsonify({
+            'error': f'Configuration error: missing key {str(e)}',
+            'ticker': ticker,
+            'source': source,
+            'code': 'KEY_ERROR'
+        }), 500
+
+    except ValueError as e:
+        logger.error(f"Value error downloading {ticker}: {str(e)}")
+        return jsonify({
+            'error': f'Invalid parameter: {str(e)}',
+            'ticker': ticker,
+            'source': source,
+            'code': 'VALUE_ERROR'
+        }), 400
+
     except Exception as e:
         error_msg = str(e)
         logger.error(f"Error downloading data for {ticker}: {error_msg}")
@@ -290,19 +354,24 @@ def download_data():
         if 'rate limit' in error_lower or 'too many requests' in error_lower or '429' in error_lower:
             return jsonify({
                 'error': f'Rate limit exceeded for {source}. Please wait a few minutes before trying again. You can also try a different data source.',
-                'retry_after': 300  # Suggest 5 minutes
+                'retry_after': 300,  # Suggest 5 minutes
+                'ticker': ticker,
+                'source': source,
+                'code': 'RATE_LIMIT_DETECTED'
             }), 429
-        
+
         # Check for Stooq bandwidth limit errors
         if source.lower() == 'stooq' and ('bandwidth' in error_lower and 'limit' in error_lower):
             return jsonify({
                 'error': 'Stooq daily bandwidth limit exceeded. Please try again tomorrow or use manual download. Files downloaded to your Downloads folder will automatically appear in Data View.',
+                'ticker': ticker,
                 'source': 'stooq',
-                'suggestion': 'Use manual download from Stooq website - files will auto-copy from Downloads folder'
+                'suggestion': 'Use manual download from Stooq website - files will auto-copy from Downloads folder',
+                'code': 'STOOQ_BANDWIDTH_LIMIT'
             }), 429
-        
+
         # Check if it's a yfinance/curl library error
-        if ('yfinance' in error_lower or 'impersonating' in error_lower or 
+        if ('yfinance' in error_lower or 'impersonating' in error_lower or
             'curl' in error_lower or 'setopt' in error_lower or 'curl_cffi' in error_lower):
             # Provide helpful message about Yahoo Finance issues
             if 'temporary issue' in error_msg.lower() or 'try again' in error_msg.lower():
@@ -310,17 +379,19 @@ def download_data():
                 helpful_msg = error_msg
             else:
                 helpful_msg = f'Yahoo Finance connection error: {error_msg}. This may be a temporary issue with Yahoo Finance. Please try again in a few moments or use a different data source (e.g., Stooq).'
-            
+
             return jsonify({
                 'error': helpful_msg,
                 'ticker': ticker,
                 'source': source,
-                'suggestion': 'Try using Stooq as an alternative data source, or wait a few moments and try again.'
+                'suggestion': 'Try using Stooq as an alternative data source, or wait a few moments and try again.',
+                'code': 'YAHOO_CONNECTION_ERROR'
             }), 503  # Service Unavailable - temporary issue
-        
+
         return jsonify({
             'error': error_msg,
             'ticker': ticker,
-            'source': source
+            'source': source,
+            'code': 'INTERNAL_ERROR'
         }), 500
 
