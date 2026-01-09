@@ -85,38 +85,75 @@ class GenericAPIDownloader(BaseDownloader):
     
     def download_single_ticker(self, ticker: str, start_date: str = None, end_date: str = None) -> pd.DataFrame:
         """Download historical data for a single ticker."""
+        # Pre-validation with if-else
+        if not ticker:
+            self.logger.error("Ticker is empty or None")
+            return pd.DataFrame()
+
+        if not isinstance(ticker, str):
+            self.logger.error(f"Ticker must be a string, got {type(ticker)}")
+            return pd.DataFrame()
+
+        ticker = ticker.strip().upper()
+
+        if not ticker:
+            self.logger.error("Ticker is empty after strip")
+            return pd.DataFrame()
+
         try:
             self._rate_limit()
             url = f"{self.base_url.rstrip('/')}/{self.endpoint.lstrip('/')}"
             params = {self.ticker_param: ticker, self.api_key_param: self.api_key}
-            
+
             if start_date:
                 params[self.start_date_param] = self._format_date(start_date)
             if end_date:
                 params[self.end_date_param] = self._format_date(end_date)
-            
+
             params.update(self.api_config.get('additional_params', {}))
-            
+
             response = self.session.get(url, params=params, timeout=self.timeout)
             response.raise_for_status()
-            
+
             if self.response_format == 'csv':
                 import io
                 df = pd.read_csv(io.StringIO(response.text))
             else:
                 df = self._extract_data(response.json())
-            
+
             if df.empty:
+                self.logger.warning(f"No data returned for {ticker}")
                 return pd.DataFrame()
-            
+
             # Map columns if configured
             if self.column_mapping:
                 rename_dict = {v: k for k, v in self.column_mapping.items() if v in df.columns}
                 if rename_dict:
                     df = df.rename(columns=rename_dict)
-            
+
             return self.standardize_data(df, ticker, self.name)
-            
+
+        except requests.exceptions.Timeout as e:
+            self.logger.error(f"Timeout downloading {ticker}: {str(e)}")
+            return pd.DataFrame()
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"Connection error downloading {ticker}: {str(e)}")
+            return pd.DataFrame()
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"HTTP error downloading {ticker}: {str(e)}")
+            return pd.DataFrame()
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"Request error downloading {ticker}: {str(e)}")
+            return pd.DataFrame()
+        except ValueError as e:
+            self.logger.error(f"JSON decode error downloading {ticker}: {str(e)}")
+            return pd.DataFrame()
+        except KeyError as e:
+            self.logger.error(f"Missing expected data downloading {ticker}: {str(e)}")
+            return pd.DataFrame()
+        except pd.errors.ParserError as e:
+            self.logger.error(f"CSV parse error downloading {ticker}: {str(e)}")
+            return pd.DataFrame()
         except Exception as e:
-            self.logger.error(f"Error downloading {ticker}: {str(e)}")
+            self.logger.error(f"Unexpected error downloading {ticker}: {str(e)}")
             return pd.DataFrame()

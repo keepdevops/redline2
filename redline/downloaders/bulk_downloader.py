@@ -131,30 +131,42 @@ class BulkDownloader(BaseDownloader):
             for future in as_completed(future_to_ticker):
                 if self.cancel_requested:
                     break
-                
+
                 ticker = future_to_ticker[future]
-                
+
                 try:
                     result = future.result()
                     if not result.empty:
                         successful[ticker] = result
-                        
+
                         with self.lock:
                             self.stats['successful_requests'] += 1
                             self.stats['total_data_points'] += len(result)
                     else:
                         failed.append(ticker)
-                        
+
                         with self.lock:
                             self.stats['failed_requests'] += 1
-                
-                except Exception as e:
-                    self.logger.error(f"Error in parallel download for {ticker}: {str(e)}")
+
+                except KeyError as e:
+                    self.logger.error(f"Key error in parallel download for {ticker}: {str(e)}")
                     failed.append(ticker)
-                    
+
                     with self.lock:
                         self.stats['failed_requests'] += 1
-                
+                except AttributeError as e:
+                    self.logger.error(f"Attribute error in parallel download for {ticker}: {str(e)}")
+                    failed.append(ticker)
+
+                    with self.lock:
+                        self.stats['failed_requests'] += 1
+                except Exception as e:
+                    self.logger.error(f"Unexpected error in parallel download for {ticker}: {str(e)}")
+                    failed.append(ticker)
+
+                    with self.lock:
+                        self.stats['failed_requests'] += 1
+
                 with self.lock:
                     self.stats['total_requests'] += 1
                     self.stats['last_request_time'] = datetime.now()
@@ -163,10 +175,22 @@ class BulkDownloader(BaseDownloader):
     
     def _download_with_error_handling(self, ticker: str, start_date: str = None, end_date: str = None) -> pd.DataFrame:
         """Download a single ticker with error handling."""
+        # Pre-validation with if-else
+        if not ticker:
+            self.logger.error("Ticker is empty or None")
+            return pd.DataFrame()
+
+        if not isinstance(ticker, str):
+            self.logger.error(f"Ticker must be a string, got {type(ticker)}")
+            return pd.DataFrame()
+
         try:
             return self.multi_source.download_single_ticker(ticker, start_date, end_date)
+        except AttributeError as e:
+            self.logger.error(f"Attribute error downloading {ticker}: {str(e)}")
+            return pd.DataFrame()
         except Exception as e:
-            self.logger.error(f"Error downloading {ticker}: {str(e)}")
+            self.logger.error(f"Unexpected error downloading {ticker}: {str(e)}")
             return pd.DataFrame()
     
     def download_sector_data(self, sectors: List[str], start_date: str = None, end_date: str = None) -> Dict[str, Dict[str, pd.DataFrame]]:
