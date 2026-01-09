@@ -60,6 +60,23 @@ class StooqDownloader(BaseDownloader):
         Returns:
             DataFrame with historical data
         """
+        # Pre-validation with if-else
+        if not ticker:
+            self.logger.error("Ticker is empty or None")
+            return pd.DataFrame()
+
+        if not isinstance(ticker, str):
+            self.logger.error(f"Ticker must be a string, got {type(ticker)}")
+            return pd.DataFrame()
+
+        ticker = ticker.strip().upper()
+
+        if not ticker:
+            self.logger.error("Ticker is empty after strip")
+            return pd.DataFrame()
+
+        self.logger.debug(f"Downloading {ticker} from Stooq (start={start_date}, end={end_date})")
+
         try:
             # First, check if data already exists locally in the REDLINE data directory
             import os

@@ -34,15 +34,32 @@ class CSVDownloader(BaseDownloader):
     def download_single_ticker(self, ticker: str, start_date: str = None, end_date: str = None) -> pd.DataFrame:
         """
         Download historical data for a single ticker from CSV files or create sample data.
-        
+
         Args:
             ticker: Stock ticker symbol
             start_date: Start date (YYYY-MM-DD)
             end_date: End date (YYYY-MM-DD)
-            
+
         Returns:
             DataFrame with historical data
         """
+        # Pre-validation with if-else
+        if not ticker:
+            self.logger.error("Ticker is empty or None")
+            return pd.DataFrame()
+
+        if not isinstance(ticker, str):
+            self.logger.error(f"Ticker must be a string, got {type(ticker)}")
+            return pd.DataFrame()
+
+        ticker = ticker.strip().upper()
+
+        if not ticker:
+            self.logger.error("Ticker is empty after strip")
+            return pd.DataFrame()
+
+        self.logger.debug(f"Loading {ticker} from CSV (start={start_date}, end={end_date})")
+
         try:
             # Try to find existing CSV file
             csv_file = self._find_csv_file(ticker)
