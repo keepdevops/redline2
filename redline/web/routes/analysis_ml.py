@@ -96,13 +96,13 @@ def prepare_ml_data():
             try:
                 # Try reading as CSV first (Stooq format uses commas)
                 df = pd.read_csv(data_path)
-            except:
+            except (pd.errors.ParserError, ValueError, Exception):
                 # Try different separators for TXT files
                 for sep in ['\t', ';', ' ', '|']:
                     try:
                         df = pd.read_csv(data_path, sep=sep)
                         break
-                    except:
+                    except (pd.errors.ParserError, ValueError, Exception):
                         continue
                 else:
                     # If all separators fail, try reading as fixed-width
@@ -154,14 +154,20 @@ def prepare_ml_data():
         try:
             # Convert DataFrame to numpy array
             prepared_data = [df.select_dtypes(include=[np.number]).to_numpy()]
-            
+
             # Check if preparation was successful
             if not prepared_data or len(prepared_data) == 0:
                 logger.warning("Data preparation returned empty result")
                 return jsonify({'error': 'No numeric data available for ML training'}), 400
+        except AttributeError as e:
+            logger.error(f"Attribute error preparing training data: {str(e)}")
+            return jsonify({'error': f'Invalid data structure: {str(e)}', 'code': 'ATTRIBUTE_ERROR'}), 500
+        except ValueError as e:
+            logger.error(f"Value error preparing training data: {str(e)}")
+            return jsonify({'error': f'Invalid data values: {str(e)}', 'code': 'VALUE_ERROR'}), 400
         except Exception as e:
-            logger.error(f"Error preparing training data: {str(e)}")
-            return jsonify({'error': f'Error preparing training data: {str(e)}'}), 500
+            logger.error(f"Unexpected error preparing training data: {str(e)}")
+            return jsonify({'error': f'Error preparing training data: {str(e)}', 'code': 'PREP_ERROR'}), 500
         
         # Convert to JSON-serializable format
         if format_type == 'numpy':
@@ -199,9 +205,18 @@ def prepare_ml_data():
                     'sample_size': sample_size,
                     'data_preview': data_preview
                 }
+            except AttributeError as e:
+                logger.error(f"Attribute error converting numpy data: {str(e)}")
+                return jsonify({'error': f'Invalid numpy data structure: {str(e)}', 'code': 'ATTRIBUTE_ERROR'}), 500
+            except TypeError as e:
+                logger.error(f"Type error converting numpy data: {str(e)}")
+                return jsonify({'error': f'Invalid data type: {str(e)}', 'code': 'TYPE_ERROR'}), 500
+            except ValueError as e:
+                logger.error(f"Value error converting numpy data: {str(e)}")
+                return jsonify({'error': f'Invalid numpy values: {str(e)}', 'code': 'VALUE_ERROR'}), 400
             except Exception as e:
-                logger.error(f"Error converting numpy data: {str(e)}")
-                return jsonify({'error': f'Error converting to numpy format: {str(e)}'}), 500
+                logger.error(f"Unexpected error converting numpy data: {str(e)}")
+                return jsonify({'error': f'Error converting to numpy format: {str(e)}', 'code': 'NUMPY_ERROR'}), 500
         elif format_type == 'tensorflow':
             try:
                 import tensorflow as tf
@@ -230,15 +245,15 @@ def prepare_ml_data():
                         dataset_size = int(len(df))
                     else:
                         dataset_size = int(cardinality)
-                except:
+                except (AttributeError, TypeError, ValueError, Exception):
                     dataset_size = int(len(df))
-                
+
                 # Convert element_spec to string safely
                 element_spec_str = None
                 try:
                     if hasattr(tf_dataset, 'element_spec'):
                         element_spec_str = str(tf_dataset.element_spec)
-                except:
+                except (AttributeError, TypeError, Exception):
                     pass
                 
                 result = {
@@ -261,10 +276,28 @@ def prepare_ml_data():
             'format': format_type,
             'result': result
         })
-        
+
+    except ImportError as e:
+        logger.error(f"Import error preparing ML data: {str(e)}")
+        return jsonify({'error': f'Required module not available: {str(e)}', 'code': 'IMPORT_ERROR'}), 500
+    except FileNotFoundError as e:
+        logger.error(f"File not found preparing ML data: {str(e)}")
+        return jsonify({'error': 'File not found', 'code': 'FILE_NOT_FOUND'}), 404
+    except PermissionError as e:
+        logger.error(f"Permission denied preparing ML data: {str(e)}")
+        return jsonify({'error': 'Permission denied', 'code': 'PERMISSION_DENIED'}), 403
+    except pd.errors.ParserError as e:
+        logger.error(f"Parse error preparing ML data: {str(e)}")
+        return jsonify({'error': f'Failed to parse file: {str(e)}', 'code': 'PARSE_ERROR'}), 400
+    except ValueError as e:
+        logger.error(f"Value error preparing ML data: {str(e)}")
+        return jsonify({'error': f'Invalid data: {str(e)}', 'code': 'VALUE_ERROR'}), 400
+    except KeyError as e:
+        logger.error(f"Missing key preparing ML data: {str(e)}")
+        return jsonify({'error': f'Invalid data structure: {str(e)}', 'code': 'KEY_ERROR'}), 400
     except Exception as e:
-        logger.error(f"Error preparing ML data: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Unexpected error preparing ML data: {str(e)}")
+        return jsonify({'error': str(e), 'code': 'ML_PREP_ERROR'}), 500
 
 
 @analysis_ml_bp.route('/prepare-rl-state', methods=['POST'])
@@ -351,13 +384,13 @@ def prepare_rl_state():
             try:
                 # Try reading as CSV first (Stooq format uses commas)
                 df = pd.read_csv(data_path)
-            except:
+            except (pd.errors.ParserError, ValueError, Exception):
                 # Try different separators for TXT files
                 for sep in ['\t', ';', ' ', '|']:
                     try:
                         df = pd.read_csv(data_path, sep=sep)
                         break
-                    except:
+                    except (pd.errors.ParserError, ValueError, Exception):
                         continue
                 else:
                     # If all separators fail, try reading as fixed-width
@@ -404,9 +437,18 @@ def prepare_rl_state():
                     return jsonify({'error': 'TensorFlow is not installed. Install with: pip install tensorflow'}), 500
             else:
                 rl_state = state
+        except ImportError as e:
+            logger.error(f"Import error preparing RL state: {str(e)}")
+            return jsonify({'error': f'Required module not available: {str(e)}', 'code': 'IMPORT_ERROR'}), 500
+        except KeyError as e:
+            logger.error(f"Missing column preparing RL state: {str(e)}")
+            return jsonify({'error': f'Required column not found: {str(e)}', 'code': 'KEY_ERROR'}), 400
+        except ValueError as e:
+            logger.error(f"Value error preparing RL state: {str(e)}")
+            return jsonify({'error': f'Invalid data values: {str(e)}', 'code': 'VALUE_ERROR'}), 400
         except Exception as e:
-            logger.error(f"Error preparing RL state: {str(e)}")
-            return jsonify({'error': f'Error preparing RL state: {str(e)}'}), 500
+            logger.error(f"Unexpected error preparing RL state: {str(e)}")
+            return jsonify({'error': f'Error preparing RL state: {str(e)}', 'code': 'RL_STATE_ERROR'}), 500
         
         # Convert to JSON-serializable format
         if format_type == 'numpy':
@@ -432,10 +474,28 @@ def prepare_rl_state():
             'portfolio': portfolio,
             'result': result
         })
-        
+
+    except ImportError as e:
+        logger.error(f"Import error preparing RL state: {str(e)}")
+        return jsonify({'error': f'Required module not available: {str(e)}', 'code': 'IMPORT_ERROR'}), 500
+    except FileNotFoundError as e:
+        logger.error(f"File not found preparing RL state: {str(e)}")
+        return jsonify({'error': 'File not found', 'code': 'FILE_NOT_FOUND'}), 404
+    except PermissionError as e:
+        logger.error(f"Permission denied preparing RL state: {str(e)}")
+        return jsonify({'error': 'Permission denied', 'code': 'PERMISSION_DENIED'}), 403
+    except pd.errors.ParserError as e:
+        logger.error(f"Parse error preparing RL state: {str(e)}")
+        return jsonify({'error': f'Failed to parse file: {str(e)}', 'code': 'PARSE_ERROR'}), 400
+    except ValueError as e:
+        logger.error(f"Value error preparing RL state: {str(e)}")
+        return jsonify({'error': f'Invalid data: {str(e)}', 'code': 'VALUE_ERROR'}), 400
+    except KeyError as e:
+        logger.error(f"Missing key preparing RL state: {str(e)}")
+        return jsonify({'error': f'Invalid data structure: {str(e)}', 'code': 'KEY_ERROR'}), 400
     except Exception as e:
-        logger.error(f"Error preparing RL state: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Unexpected error preparing RL state: {str(e)}")
+        return jsonify({'error': str(e), 'code': 'RL_PREP_ERROR'}), 500
 
 
 
