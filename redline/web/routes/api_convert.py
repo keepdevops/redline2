@@ -122,6 +122,9 @@ def convert_file():
     except PermissionError as e:
         logger.error(f"Permission denied loading {input_file}: {str(e)}")
         return jsonify({'error': 'Permission denied', 'code': 'PERMISSION_DENIED'}), 403
+    except IOError as e:
+        logger.error(f"I/O error loading {input_file}: {str(e)}")
+        return jsonify({'error': 'I/O error reading input file', 'code': 'IO_ERROR'}), 500
     except pd.errors.EmptyDataError as e:
         logger.warning(f"Empty input file {input_file}: {str(e)}")
         return jsonify({'error': 'Input file is empty', 'code': 'EMPTY_FILE'}), 400
@@ -131,6 +134,9 @@ def convert_file():
     except ValueError as e:
         logger.error(f"Value error loading {input_file}: {str(e)}")
         return jsonify({'error': f'Invalid input format: {str(e)}', 'code': 'INVALID_FORMAT'}), 400
+    except KeyError as e:
+        logger.error(f"Missing key loading {input_file}: {str(e)}")
+        return jsonify({'error': f'Invalid data structure: {str(e)}', 'code': 'KEY_ERROR'}), 400
     except Exception as e:
         logger.error(f"Unexpected error loading {input_file}: {type(e).__name__}: {str(e)}")
         return jsonify({'error': f'Failed to load input file: {str(e)}', 'code': 'LOAD_ERROR'}), 500
@@ -163,9 +169,15 @@ def convert_file():
     except OSError as e:
         logger.error(f"OS error saving {output_file}: {str(e)}")
         return jsonify({'error': f'Failed to save output file: {str(e)}', 'code': 'OS_ERROR'}), 500
+    except IOError as e:
+        logger.error(f"I/O error saving {output_file}: {str(e)}")
+        return jsonify({'error': 'I/O error writing output file', 'code': 'IO_ERROR'}), 500
     except ValueError as e:
         logger.error(f"Value error saving {output_file}: {str(e)}")
         return jsonify({'error': f'Invalid output format: {str(e)}', 'code': 'INVALID_OUTPUT_FORMAT'}), 400
+    except KeyError as e:
+        logger.error(f"Missing key saving {output_file}: {str(e)}")
+        return jsonify({'error': f'Invalid data structure: {str(e)}', 'code': 'KEY_ERROR'}), 400
     except Exception as e:
         logger.error(f"Unexpected error saving {output_file}: {type(e).__name__}: {str(e)}")
         return jsonify({'error': f'Failed to save output file: {str(e)}', 'code': 'SAVE_ERROR'}), 500
