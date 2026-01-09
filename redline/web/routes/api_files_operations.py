@@ -265,18 +265,24 @@ def upload_file():
     upload_path = os.path.join(upload_folder, filename)
     logger.debug(f"Upload path: {upload_path}")
 
-    # Save file (legitimate exception handling for file operations)
+    # Save file (Note: File I/O requires try-except for external operations)
     try:
         file.save(upload_path)
         logger.info(f"File saved to: {upload_path}")
+    except PermissionError as e:
+        logger.error(f"Permission denied saving file {upload_path}: {str(e)}")
+        return jsonify({'error': 'Permission denied saving file', 'code': 'PERMISSION_DENIED'}), 500
+    except OSError as e:
+        logger.error(f"OS error saving file {upload_path}: {str(e)}")
+        return jsonify({'error': f'Failed to save file: {str(e)}', 'code': 'OS_ERROR'}), 500
     except Exception as e:
-        logger.error(f"Failed to save uploaded file: {str(e)}")
-        return jsonify({'error': f'Failed to save file: {str(e)}'}), 500
+        logger.error(f"Unexpected error saving file {upload_path}: {type(e).__name__}: {str(e)}")
+        return jsonify({'error': f'Failed to save file: {str(e)}', 'code': 'SAVE_ERROR'}), 500
 
     # Verify file was saved
     if not os.path.exists(upload_path):
         logger.error(f"File was not created after save: {upload_path}")
-        return jsonify({'error': 'Failed to save file'}), 500
+        return jsonify({'error': 'Failed to save file', 'code': 'FILE_NOT_CREATED'}), 500
 
     # Check if it's a ZIP file and extract to data/stooq
     extracted_files = []
@@ -288,45 +294,94 @@ def upload_file():
 
     if is_zip:
         logger.info(f"Detected ZIP file: {filename}, extracting to data/stooq...")
-        # Legitimate exception handling for ZIP extraction
+
+        # Import extraction utility
         try:
             from redline.utils.stooq_file_handler import extract_zip_file
+        except ImportError as e:
+            logger.error(f"Failed to import stooq_file_handler for ZIP extraction: {str(e)}")
+            # ZIP uploaded but cannot extract - return success with warning
+            return jsonify({
+                'message': 'ZIP file uploaded but extraction not available',
+                'filename': filename,
+                'path': upload_path,
+                'warning': 'ZIP extraction module not available'
+            })
+
+        # Extract ZIP file - Note: ZIP operations require try-except for file format errors
+        try:
             extracted = extract_zip_file(upload_path)
-            extracted_files = extracted if isinstance(extracted, list) else [extracted]
+
+            # Validate extraction result
+            if not extracted:
+                logger.warning(f"ZIP extraction returned no files for {filename}")
+                extracted_files = []
+            elif isinstance(extracted, list):
+                extracted_files = extracted
+            else:
+                extracted_files = [extracted]
 
             # Remove ZIP after successful extraction
-            try:
-                os.remove(upload_path)
-                logger.debug(f"Removed ZIP file after extraction: {upload_path}")
-            except Exception as remove_error:
-                logger.warning(f"Could not remove ZIP file after extraction: {str(remove_error)}")
-
             if extracted_files:
-                final_path = extracted_files[0] if len(extracted_files) == 1 else extracted_files
-                logger.info(f"Extracted {len(extracted_files)} file(s) from ZIP")
-            else:
-                logger.warning("ZIP extraction returned no files")
+                try:
+                    os.remove(upload_path)
+                    logger.debug(f"Removed ZIP file after extraction: {upload_path}")
+                except PermissionError as e:
+                    logger.warning(f"Permission denied removing ZIP file {upload_path}: {str(e)}")
+                except OSError as e:
+                    logger.warning(f"OS error removing ZIP file {upload_path}: {str(e)}")
+                except Exception as e:
+                    logger.warning(f"Unexpected error removing ZIP file {upload_path}: {str(e)}")
 
+                final_path = extracted_files[0] if len(extracted_files) == 1 else extracted_files
+                logger.info(f"Extracted {len(extracted_files)} file(s) from ZIP: {filename}")
+            else:
+                logger.warning(f"ZIP extraction returned no files for {filename}")
+
+        except zipfile.BadZipFile as e:
+            logger.error(f"Invalid ZIP file {filename}: {str(e)}")
+            return jsonify({'error': 'Invalid ZIP file format', 'code': 'BAD_ZIP'}), 400
+        except ValueError as e:
+            logger.error(f"Value error extracting ZIP {filename}: {str(e)}")
+            return jsonify({'error': f'ZIP extraction error: {str(e)}', 'code': 'EXTRACTION_ERROR'}), 400
         except Exception as e:
-            logger.error(f"Error extracting ZIP: {str(e)}")
+            logger.error(f"Unexpected error extracting ZIP {filename}: {type(e).__name__}: {str(e)}")
             # ZIP extraction failed, but original file is still saved
             extracted_files = []
     else:
         # Check if it's a Stooq file and move to data/stooq
         logger.debug(f"Non-ZIP file, checking if Stooq file: {filename}")
+
+        # Import Stooq utilities
         try:
             from redline.utils.stooq_file_handler import is_stooq_file, move_file_to_stooq_dir
+        except ImportError as e:
+            logger.debug(f"stooq_file_handler not available: {str(e)}")
+            # File uploaded successfully, just won't be moved to stooq directory
+        else:
+            # Check and move if Stooq file
+            try:
+                if is_stooq_file(filename):
+                    logger.info(f"Detected Stooq file: {filename}")
+                    final_path = move_file_to_stooq_dir(upload_path, filename)
 
-            if is_stooq_file(filename):
-                logger.info(f"Detected Stooq file: {filename}")
-                final_path = move_file_to_stooq_dir(upload_path, filename)
-                logger.info(f"Moved Stooq file to data/stooq directory: {final_path}")
-            else:
-                logger.debug(f"Not a Stooq file: {filename}")
-
-        except Exception as e:
-            logger.warning(f"Could not check/move to stooq directory: {str(e)}")
-            # File is still saved in upload folder if move fails
+                    # Validate move was successful
+                    if final_path and os.path.exists(final_path):
+                        logger.info(f"Moved Stooq file to data/stooq directory: {final_path}")
+                    else:
+                        logger.warning(f"Stooq file move returned invalid path: {final_path}")
+                        final_path = upload_path
+                else:
+                    logger.debug(f"Not a Stooq file: {filename}")
+            except PermissionError as e:
+                logger.warning(f"Permission denied moving Stooq file {filename}: {str(e)}")
+                # File is still saved in upload folder if move fails
+            except OSError as e:
+                logger.warning(f"OS error moving Stooq file {filename}: {str(e)}")
+                # File is still saved in upload folder if move fails
+            except Exception as e:
+                logger.warning(f"Unexpected error checking/moving Stooq file {filename}: {type(e).__name__}: {str(e)}")
+                # File is still saved in upload folder if move fails
 
     # Prepare response
     response = {
