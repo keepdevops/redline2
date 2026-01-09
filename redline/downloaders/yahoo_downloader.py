@@ -43,16 +43,42 @@ class YahooDownloader(BaseDownloader):
     def download_single_ticker(self, ticker: str, start_date: str = None, end_date: str = None, use_session: bool = True) -> pd.DataFrame:
         """
         Download historical data for a single ticker.
-        
+
         Args:
             ticker: Stock ticker symbol
             start_date: Start date (YYYY-MM-DD)
             end_date: End date (YYYY-MM-DD)
             use_session: Whether to reuse session for batch downloads
-            
+
         Returns:
             DataFrame with historical data
         """
+        # Pre-validation with if-else
+        if not ticker:
+            self.logger.error("Ticker is empty or None")
+            return pd.DataFrame()
+
+        if not isinstance(ticker, str):
+            self.logger.error(f"Ticker must be a string, got {type(ticker)}")
+            return pd.DataFrame()
+
+        ticker = ticker.strip().upper()
+
+        if not ticker:
+            self.logger.error("Ticker is empty after strip")
+            return pd.DataFrame()
+
+        # Validate dates if provided
+        if start_date and not isinstance(start_date, str):
+            self.logger.error(f"start_date must be a string, got {type(start_date)}")
+            return pd.DataFrame()
+
+        if end_date and not isinstance(end_date, str):
+            self.logger.error(f"end_date must be a string, got {type(end_date)}")
+            return pd.DataFrame()
+
+        self.logger.debug(f"Downloading {ticker} from Yahoo Finance (start={start_date}, end={end_date})")
+
         try:
             # Apply rate limiting (only if not in batch mode)
             if use_session:
@@ -60,10 +86,14 @@ class YahooDownloader(BaseDownloader):
                 time.sleep(0.5)  # Small delay to avoid overwhelming Yahoo
             else:
                 self._rate_limit()
-            
-            # Parse dates
-            start_dt = datetime.strptime(start_date, '%Y-%m-%d') if start_date else None
-            end_dt = datetime.strptime(end_date, '%Y-%m-%d') if end_date else None
+
+            # Parse dates - Note: Date parsing requires try-except for invalid formats
+            try:
+                start_dt = datetime.strptime(start_date, '%Y-%m-%d') if start_date else None
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d') if end_date else None
+            except ValueError as e:
+                self.logger.error(f"Invalid date format for {ticker}: {str(e)}")
+                return pd.DataFrame()
             
             # Download data using yfinance
             # For batch downloads, reuse session if available
@@ -75,7 +105,12 @@ class YahooDownloader(BaseDownloader):
                     self._session.headers.update({
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                     })
-                except:
+                    self.logger.debug(f"Created requests session for batch downloads")
+                except ImportError as e:
+                    self.logger.debug(f"requests library not available: {str(e)}")
+                    self._session = None
+                except Exception as e:
+                    self.logger.warning(f"Failed to create session for batch downloads: {str(e)}")
                     self._session = None
             
             ticker_obj = yf.Ticker(ticker)
@@ -181,14 +216,27 @@ class YahooDownloader(BaseDownloader):
     def standardize_yahoo_data(self, data: pd.DataFrame, ticker: str) -> pd.DataFrame:
         """
         Standardize Yahoo Finance data to REDLINE format.
-        
+
         Args:
             data: Raw DataFrame from Yahoo Finance
             ticker: Ticker symbol
-            
+
         Returns:
             Standardized DataFrame
         """
+        # Pre-validation with if-else
+        if data is None or not isinstance(data, pd.DataFrame):
+            self.logger.error(f"Invalid data type for standardization: {type(data)}")
+            return pd.DataFrame()
+
+        if data.empty:
+            self.logger.debug(f"Empty DataFrame for {ticker}, nothing to standardize")
+            return pd.DataFrame()
+
+        if not ticker or not isinstance(ticker, str):
+            self.logger.error(f"Invalid ticker for standardization: {ticker}")
+            return pd.DataFrame()
+
         try:
             # Create a copy to avoid modifying original
             df = data.copy()
