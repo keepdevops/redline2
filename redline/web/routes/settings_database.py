@@ -40,18 +40,33 @@ def get_database_status():
                     # Try to create connection, use read-only if locked
                     try:
                         conn = connector.create_connection()
-                    except Exception as conn_error:
+                    except PermissionError as conn_error:
+                        logger.warning(f"Permission denied connecting to database: {str(conn_error)}")
+                        raise
+                    except OSError as conn_error:
                         # If connection fails due to lock, try read-only mode
                         if 'lock' in str(conn_error).lower() or 'conflicting' in str(conn_error).lower():
                             logger.warning(f"Database locked, trying read-only mode: {str(conn_error)}")
                             try:
                                 import duckdb
                                 conn = duckdb.connect(connector.db_path, read_only=True)
-                            except Exception as read_error:
+                            except ImportError as read_error:
+                                logger.error(f"DuckDB not available: {str(read_error)}")
+                                raise conn_error
+                            except PermissionError as read_error:
+                                logger.warning(f"Permission denied in read-only mode: {str(read_error)}")
+                                raise conn_error
+                            except OSError as read_error:
                                 logger.warning(f"Could not connect in read-only mode: {str(read_error)}")
+                                raise conn_error
+                            except Exception as read_error:
+                                logger.warning(f"Unexpected error in read-only mode: {str(read_error)}")
                                 raise conn_error
                         else:
                             raise
+                    except Exception as conn_error:
+                        logger.warning(f"Unexpected error creating connection: {str(conn_error)}")
+                        raise
                     
                     if conn:
                         for table in tables:
@@ -67,24 +82,55 @@ def get_database_status():
                                     if ticker_result and ticker_result[0]:
                                         # Use the maximum ticker count across all tables (in case data is split)
                                         total_tickers = max(total_tickers, ticker_result[0])
-                                except:
+                                except KeyError:
                                     # Table might not have a ticker column, that's okay
                                     pass
+                                except Exception:
+                                    # Query failed, table might not have ticker column
+                                    pass
+                            except PermissionError as e:
+                                logger.warning(f"Permission denied counting records in table {table}: {str(e)}")
+                            except OSError as e:
+                                logger.warning(f"OS error counting records in table {table}: {str(e)}")
                             except Exception as e:
                                 logger.warning(f"Could not count records in table {table}: {str(e)}")
                         conn.close()
+                except PermissionError as e:
+                    logger.warning(f"Permission denied calculating total records: {str(e)}")
+                    if conn:
+                        try:
+                            conn.close()
+                        except Exception:
+                            pass
+                except OSError as e:
+                    logger.warning(f"OS error calculating total records: {str(e)}")
+                    if conn:
+                        try:
+                            conn.close()
+                        except Exception:
+                            pass
                 except Exception as e:
                     logger.warning(f"Could not calculate total records: {str(e)}")
                     if conn:
                         try:
                             conn.close()
-                        except:
+                        except Exception:
                             pass
                 
                 status['total_records'] = total_records
                 status['total_tickers'] = total_tickers
+            except AttributeError as e:
+                logger.warning(f"Attribute error getting database info: {str(e)}")
+                status['error'] = f'Database attribute error: {str(e)}'
+                # Keep total_records and total_tickers as 0 (already set in initial status)
+            except PermissionError as e:
+                logger.warning(f"Permission denied getting database info: {str(e)}")
+                status['error'] = 'Permission denied accessing database'
+            except OSError as e:
+                logger.warning(f"OS error getting database info: {str(e)}")
+                status['error'] = f'File system error: {str(e)}'
             except Exception as e:
-                logger.warning(f"Error getting database info: {str(e)}")
+                logger.warning(f"Unexpected error getting database info: {str(e)}")
                 status['error'] = str(e)
                 # Keep total_records and total_tickers as 0 (already set in initial status)
         
@@ -119,11 +165,25 @@ def get_database_status():
                                             for ticker_row in ticker_result:
                                                 if ticker_row and ticker_row[0]:
                                                     converted_tickers.add(ticker_row[0])
-                                        except:
+                                        except KeyError:
+                                            # Table might not have ticker column
                                             pass
+                                        except Exception:
+                                            # Query failed
+                                            pass
+                                    except PermissionError as e:
+                                        logger.debug(f"Permission denied counting records in {db_file}/{table}: {str(e)}")
+                                    except OSError as e:
+                                        logger.debug(f"OS error counting records in {db_file}/{table}: {str(e)}")
                                     except Exception as e:
                                         logger.debug(f"Could not count records in {db_file}/{table}: {str(e)}")
                                 conn.close()
+                            except ImportError as e:
+                                logger.debug(f"DuckDB not available for {db_file}: {str(e)}")
+                            except PermissionError as e:
+                                logger.debug(f"Permission denied reading converted database {db_file}: {str(e)}")
+                            except OSError as e:
+                                logger.debug(f"OS error reading converted database {db_file}: {str(e)}")
                             except Exception as e:
                                 logger.debug(f"Could not read converted database {db_file}: {str(e)}")
                     
@@ -131,16 +191,37 @@ def get_database_status():
                         status['total_records'] = converted_total
                         status['total_tickers'] = len(converted_tickers) if converted_tickers else status.get('total_tickers', 0)
                         status['converted_db_count'] = len([f for f in os.listdir(converted_dir) if f.endswith('.duckdb')])
+            except ImportError as e:
+                logger.debug(f"DuckDB not available for converted databases: {str(e)}")
+            except PermissionError as e:
+                logger.debug(f"Permission denied checking converted databases: {str(e)}")
+            except OSError as e:
+                logger.debug(f"OS error checking converted databases: {str(e)}")
             except Exception as e:
                 logger.debug(f"Could not check converted databases: {str(e)}")
-        
+
         return jsonify(status)
-        
-    except Exception as e:
-        logger.error(f"Error getting database status: {str(e)}")
+
+    except ImportError as e:
+        logger.error(f"Import error getting database status: {str(e)}")
         return jsonify({
             'available': False,
-            'error': str(e)
+            'error': f'Database module not available: {str(e)}',
+            'code': 'IMPORT_ERROR'
+        })
+    except AttributeError as e:
+        logger.error(f"Attribute error getting database status: {str(e)}")
+        return jsonify({
+            'available': False,
+            'error': f'Database configuration error: {str(e)}',
+            'code': 'ATTRIBUTE_ERROR'
+        })
+    except Exception as e:
+        logger.error(f"Unexpected error getting database status: {str(e)}")
+        return jsonify({
+            'available': False,
+            'error': str(e),
+            'code': 'DATABASE_STATUS_ERROR'
         })
 
 @settings_database_bp.route('/test-connection', methods=['POST'])
@@ -221,11 +302,33 @@ def test_connection():
                 'success': False,
                 'message': f'Unknown connection type: {connection_type}'
             })
-        
-    except Exception as e:
-        logger.error(f"Error testing connection: {str(e)}")
+
+    except ImportError as e:
+        logger.error(f"Import error testing connection: {str(e)}")
         return jsonify({
             'success': False,
-            'message': str(e)
+            'message': f'Required module not available: {str(e)}',
+            'code': 'IMPORT_ERROR'
+        })
+    except AttributeError as e:
+        logger.error(f"Attribute error testing connection: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Connection configuration error: {str(e)}',
+            'code': 'ATTRIBUTE_ERROR'
+        })
+    except PermissionError as e:
+        logger.error(f"Permission denied testing connection: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Permission denied',
+            'code': 'PERMISSION_DENIED'
+        })
+    except Exception as e:
+        logger.error(f"Unexpected error testing connection: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': str(e),
+            'code': 'CONNECTION_TEST_ERROR'
         })
 

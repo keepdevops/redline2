@@ -32,9 +32,18 @@ def get_config():
         try:
             config.read(config_file)
             logger.debug(f"Loaded config with {len(config.sections())} sections")
+        except PermissionError as e:
+            logger.error(f"Permission denied reading config file: {str(e)}")
+            return jsonify({'error': 'Permission denied reading configuration file', 'code': 'PERMISSION_DENIED'}), 403
+        except OSError as e:
+            logger.error(f"OS error reading config file: {str(e)}")
+            return jsonify({'error': f'File system error reading configuration: {str(e)}', 'code': 'OS_ERROR'}), 500
+        except configparser.Error as e:
+            logger.error(f"Config parsing error: {str(e)}")
+            return jsonify({'error': f'Invalid configuration file format: {str(e)}', 'code': 'CONFIG_PARSE_ERROR'}), 500
         except Exception as e:
-            logger.error(f"Error reading config file: {str(e)}")
-            return jsonify({'error': f'Failed to read configuration file: {str(e)}'}), 500
+            logger.error(f"Unexpected error reading config file: {str(e)}")
+            return jsonify({'error': f'Failed to read configuration file: {str(e)}', 'code': 'CONFIG_READ_ERROR'}), 500
     else:
         logger.info(f"Config file does not exist: {config_file}")
 
@@ -126,9 +135,15 @@ def update_config():
         try:
             os.rename(config_file, backup_file)
             logger.info(f"Created config backup: {backup_file}")
+        except PermissionError as e:
+            logger.error(f"Permission denied creating config backup: {str(e)}")
+            return jsonify({'error': 'Permission denied creating configuration backup', 'code': 'PERMISSION_DENIED'}), 403
+        except OSError as e:
+            logger.error(f"OS error creating config backup: {str(e)}")
+            return jsonify({'error': f'File system error creating backup: {str(e)}', 'code': 'OS_ERROR'}), 500
         except Exception as e:
-            logger.error(f"Failed to create config backup: {str(e)}")
-            return jsonify({'error': f'Failed to backup configuration: {str(e)}'}), 500
+            logger.error(f"Unexpected error creating config backup: {str(e)}")
+            return jsonify({'error': f'Failed to backup configuration: {str(e)}', 'code': 'BACKUP_ERROR'}), 500
     else:
         logger.debug("No existing config file to backup")
 
@@ -157,8 +172,14 @@ def update_config():
                     continue
                 config.set(section, key, str(value))
 
+        except configparser.DuplicateSectionError as e:
+            logger.warning(f"Duplicate section '{section}': {str(e)}")
+            continue
+        except ValueError as e:
+            logger.error(f"Invalid value in section '{section}': {str(e)}")
+            continue
         except Exception as e:
-            logger.error(f"Error adding section '{section}': {str(e)}")
+            logger.error(f"Unexpected error adding section '{section}': {str(e)}")
             continue
 
     if sections_added == 0:
@@ -170,9 +191,18 @@ def update_config():
         with open(config_file, 'w') as f:
             config.write(f)
         logger.info(f"Config file written successfully: {sections_added} sections")
+    except PermissionError as e:
+        logger.error(f"Permission denied writing config file: {str(e)}")
+        return jsonify({'error': 'Permission denied writing configuration file', 'code': 'PERMISSION_DENIED'}), 403
+    except OSError as e:
+        logger.error(f"OS error writing config file: {str(e)}")
+        return jsonify({'error': f'File system error writing configuration: {str(e)}', 'code': 'OS_ERROR'}), 500
+    except IOError as e:
+        logger.error(f"I/O error writing config file: {str(e)}")
+        return jsonify({'error': f'I/O error writing configuration: {str(e)}', 'code': 'IO_ERROR'}), 500
     except Exception as e:
-        logger.error(f"Failed to write config file: {str(e)}")
-        return jsonify({'error': f'Failed to write configuration file: {str(e)}'}), 500
+        logger.error(f"Unexpected error writing config file: {str(e)}")
+        return jsonify({'error': f'Failed to write configuration file: {str(e)}', 'code': 'CONFIG_WRITE_ERROR'}), 500
 
     # Verify file was written
     if not os.path.exists(config_file):
@@ -201,9 +231,15 @@ def reset_config():
         try:
             os.rename(config_file, backup_file)
             logger.info(f"Created timestamped config backup: {backup_file}")
+        except PermissionError as e:
+            logger.error(f"Permission denied creating config backup: {str(e)}")
+            return jsonify({'error': 'Permission denied creating configuration backup', 'code': 'PERMISSION_DENIED'}), 403
+        except OSError as e:
+            logger.error(f"OS error creating config backup: {str(e)}")
+            return jsonify({'error': f'File system error creating backup: {str(e)}', 'code': 'OS_ERROR'}), 500
         except Exception as e:
-            logger.error(f"Failed to create config backup: {str(e)}")
-            return jsonify({'error': f'Failed to backup configuration: {str(e)}'}), 500
+            logger.error(f"Unexpected error creating config backup: {str(e)}")
+            return jsonify({'error': f'Failed to backup configuration: {str(e)}', 'code': 'BACKUP_ERROR'}), 500
     else:
         logger.debug("No existing config file to backup")
 
@@ -245,8 +281,14 @@ def reset_config():
             for key, value in options.items():
                 config.set(section, key, str(value))
 
+        except configparser.DuplicateSectionError as e:
+            logger.warning(f"Duplicate default section '{section}': {str(e)}")
+            continue
+        except ValueError as e:
+            logger.error(f"Invalid value in default section '{section}': {str(e)}")
+            continue
         except Exception as e:
-            logger.error(f"Error adding default section '{section}': {str(e)}")
+            logger.error(f"Unexpected error adding default section '{section}': {str(e)}")
             continue
 
     if sections_added == 0:
@@ -258,9 +300,18 @@ def reset_config():
         with open(config_file, 'w') as f:
             config.write(f)
         logger.info(f"Default config file written successfully: {sections_added} sections")
+    except PermissionError as e:
+        logger.error(f"Permission denied writing default config file: {str(e)}")
+        return jsonify({'error': 'Permission denied writing configuration file', 'code': 'PERMISSION_DENIED'}), 403
+    except OSError as e:
+        logger.error(f"OS error writing default config file: {str(e)}")
+        return jsonify({'error': f'File system error writing configuration: {str(e)}', 'code': 'OS_ERROR'}), 500
+    except IOError as e:
+        logger.error(f"I/O error writing default config file: {str(e)}")
+        return jsonify({'error': f'I/O error writing configuration: {str(e)}', 'code': 'IO_ERROR'}), 500
     except Exception as e:
-        logger.error(f"Failed to write default config file: {str(e)}")
-        return jsonify({'error': f'Failed to write configuration file: {str(e)}'}), 500
+        logger.error(f"Unexpected error writing default config file: {str(e)}")
+        return jsonify({'error': f'Failed to write configuration file: {str(e)}', 'code': 'CONFIG_WRITE_ERROR'}), 500
 
     # Verify file was written
     if not os.path.exists(config_file):

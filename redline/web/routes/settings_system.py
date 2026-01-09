@@ -57,12 +57,19 @@ def get_system_info():
             system_info['memory'] = {'message': 'psutil not available'}
             system_info['disk'] = {'message': 'psutil not available'}
             system_info['cpu'] = {'message': 'psutil not available'}
-        
+
+
         return jsonify(system_info)
-        
+
+    except ImportError as e:
+        logger.error(f"Import error getting system info: {str(e)}")
+        return jsonify({'error': f'Required module not available: {str(e)}', 'code': 'IMPORT_ERROR'}), 500
+    except AttributeError as e:
+        logger.error(f"Attribute error getting system info: {str(e)}")
+        return jsonify({'error': f'System information access error: {str(e)}', 'code': 'ATTRIBUTE_ERROR'}), 500
     except Exception as e:
-        logger.error(f"Error getting system info: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Unexpected error getting system info: {str(e)}")
+        return jsonify({'error': str(e), 'code': 'SYSTEM_INFO_ERROR'}), 500
 
 @settings_system_bp.route('/logs')
 def get_logs():
@@ -105,7 +112,7 @@ def get_logs():
             with open(log_file, 'r') as f:
                 lines = f.readlines()
                 recent_lines = lines[-100:] if len(lines) > 100 else lines
-            
+
             logs = []
             for line in recent_lines:
                 logs.append({
@@ -113,42 +120,80 @@ def get_logs():
                     'timestamp': line.split(' - ')[0] if ' - ' in line else '',
                     'level': line.split(' - ')[1].split(' ')[0] if ' - ' in line else 'INFO'
                 })
-            
+
             return jsonify({
                 'logs': logs,
                 'total_lines': len(lines),
                 'recent_lines': len(recent_lines),
                 'log_file': log_file
             })
+        except PermissionError as read_error:
+            logger.error(f"Permission denied reading log file: {str(read_error)}")
+            return jsonify({
+                'logs': [],
+                'error': 'Permission denied reading log file',
+                'log_file': log_file,
+                'code': 'PERMISSION_DENIED'
+            }), 403
+        except OSError as read_error:
+            logger.error(f"OS error reading log file: {str(read_error)}")
+            return jsonify({
+                'logs': [],
+                'error': f'File system error reading log: {str(read_error)}',
+                'log_file': log_file,
+                'code': 'OS_ERROR'
+            }), 500
+        except IOError as read_error:
+            logger.error(f"I/O error reading log file: {str(read_error)}")
+            return jsonify({
+                'logs': [],
+                'error': f'I/O error reading log: {str(read_error)}',
+                'log_file': log_file,
+                'code': 'IO_ERROR'
+            }), 500
         except Exception as read_error:
-            logger.error(f"Error reading log file: {str(read_error)}")
+            logger.error(f"Unexpected error reading log file: {str(read_error)}")
             return jsonify({
                 'logs': [],
                 'error': f'Error reading log file: {str(read_error)}',
-                'log_file': log_file
-            })
-        
+                'log_file': log_file,
+                'code': 'LOG_READ_ERROR'
+            }), 500
+
+
+    except PermissionError as e:
+        logger.error(f"Permission denied getting logs: {str(e)}")
+        return jsonify({'error': 'Permission denied accessing logs', 'code': 'PERMISSION_DENIED'}), 403
+    except OSError as e:
+        logger.error(f"OS error getting logs: {str(e)}")
+        return jsonify({'error': f'File system error: {str(e)}', 'code': 'OS_ERROR'}), 500
     except Exception as e:
-        logger.error(f"Error getting logs: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Unexpected error getting logs: {str(e)}")
+        return jsonify({'error': str(e), 'code': 'LOGS_ERROR'}), 500
 
 @settings_system_bp.route('/clear-logs', methods=['POST'])
 def clear_logs():
     """Clear application logs."""
     try:
         log_file = os.path.join(os.getcwd(), 'redline.log')
-        
+
         if os.path.exists(log_file):
             # Create backup before clearing
             backup_file = f"{log_file}.backup.{int(time.time())}"
             os.rename(log_file, backup_file)
-        
+
         return jsonify({
             'message': 'Logs cleared successfully',
             'backup_created': os.path.exists(f"{log_file}.backup.{int(time.time())}")
         })
-        
+
+    except PermissionError as e:
+        logger.error(f"Permission denied clearing logs: {str(e)}")
+        return jsonify({'error': 'Permission denied clearing logs', 'code': 'PERMISSION_DENIED'}), 403
+    except OSError as e:
+        logger.error(f"OS error clearing logs: {str(e)}")
+        return jsonify({'error': f'File system error: {str(e)}', 'code': 'OS_ERROR'}), 500
     except Exception as e:
-        logger.error(f"Error clearing logs: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Unexpected error clearing logs: {str(e)}")
+        return jsonify({'error': str(e), 'code': 'CLEAR_LOGS_ERROR'}), 500
 
