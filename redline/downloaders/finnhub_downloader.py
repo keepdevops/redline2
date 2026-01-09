@@ -22,11 +22,19 @@ class FinnhubDownloader(BaseDownloader):
         super().__init__("Finnhub", "https://finnhub.io")
         self.output_dir = output_dir
         self.logger = logging.getLogger(__name__)
-        
+
         # Finnhub configuration
+        import os
         self.api_key = api_key or os.environ.get('FINNHUB_API_KEY')
+
+        # Pre-validation with if-else
         if not self.api_key:
+            self.logger.error("Finnhub API key is required but not provided")
             raise ValueError("Finnhub API key is required. Set FINNHUB_API_KEY environment variable or pass api_key parameter.")
+
+        if not isinstance(self.api_key, str):
+            self.logger.error(f"Finnhub API key must be a string, got {type(self.api_key)}")
+            raise TypeError(f"Finnhub API key must be a string, got {type(self.api_key)}")
         self.base_url = "https://finnhub.io/api/v1"
         self.timeout = 30
         
@@ -38,22 +46,43 @@ class FinnhubDownloader(BaseDownloader):
     def download_single_ticker(self, ticker: str, start_date: str = None, end_date: str = None) -> pd.DataFrame:
         """
         Download historical data for a single ticker from Finnhub.
-        
+
         Args:
             ticker: Stock ticker symbol
             start_date: Start date (YYYY-MM-DD)
             end_date: End date (YYYY-MM-DD)
-            
+
         Returns:
             DataFrame with historical data
         """
+        # Pre-validation with if-else
+        if not ticker:
+            self.logger.error("Ticker is empty or None")
+            return pd.DataFrame()
+
+        if not isinstance(ticker, str):
+            self.logger.error(f"Ticker must be a string, got {type(ticker)}")
+            return pd.DataFrame()
+
+        ticker = ticker.strip().upper()
+
+        if not ticker:
+            self.logger.error("Ticker is empty after strip")
+            return pd.DataFrame()
+
+        self.logger.debug(f"Downloading {ticker} from Finnhub (start={start_date}, end={end_date})")
+
         try:
             # Apply rate limiting
             self._rate_limit()
-            
-            # Convert dates to timestamps
-            start_timestamp = int(datetime.strptime(start_date, '%Y-%m-%d').timestamp()) if start_date else None
-            end_timestamp = int(datetime.strptime(end_date, '%Y-%m-%d').timestamp()) if end_date else None
+
+            # Convert dates to timestamps - Note: Date parsing requires try-except
+            try:
+                start_timestamp = int(datetime.strptime(start_date, '%Y-%m-%d').timestamp()) if start_date else None
+                end_timestamp = int(datetime.strptime(end_date, '%Y-%m-%d').timestamp()) if end_date else None
+            except ValueError as e:
+                self.logger.error(f"Invalid date format for {ticker}: {str(e)}")
+                return pd.DataFrame()
             
             # Finnhub API parameters
             params = {

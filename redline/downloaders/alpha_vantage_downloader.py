@@ -22,11 +22,19 @@ class AlphaVantageDownloader(BaseDownloader):
         super().__init__("Alpha Vantage", "https://www.alphavantage.co")
         self.output_dir = output_dir
         self.logger = logging.getLogger(__name__)
-        
+
         # Alpha Vantage configuration
+        import os
         self.api_key = api_key or os.environ.get('ALPHA_VANTAGE_API_KEY')
+
+        # Pre-validation with if-else
         if not self.api_key:
+            self.logger.error("Alpha Vantage API key is required but not provided")
             raise ValueError("Alpha Vantage API key is required. Set ALPHA_VANTAGE_API_KEY environment variable or pass api_key parameter.")
+
+        if not isinstance(self.api_key, str):
+            self.logger.error(f"Alpha Vantage API key must be a string, got {type(self.api_key)}")
+            raise TypeError(f"Alpha Vantage API key must be a string, got {type(self.api_key)}")
         self.base_url = "https://www.alphavantage.co/query"
         self.timeout = 30
         
@@ -38,15 +46,32 @@ class AlphaVantageDownloader(BaseDownloader):
     def download_single_ticker(self, ticker: str, start_date: str = None, end_date: str = None) -> pd.DataFrame:
         """
         Download historical data for a single ticker from Alpha Vantage.
-        
+
         Args:
             ticker: Stock ticker symbol
             start_date: Start date (YYYY-MM-DD) - Alpha Vantage returns all available data
             end_date: End date (YYYY-MM-DD) - Alpha Vantage returns all available data
-            
+
         Returns:
             DataFrame with historical data
         """
+        # Pre-validation with if-else
+        if not ticker:
+            self.logger.error("Ticker is empty or None")
+            return pd.DataFrame()
+
+        if not isinstance(ticker, str):
+            self.logger.error(f"Ticker must be a string, got {type(ticker)}")
+            return pd.DataFrame()
+
+        ticker = ticker.strip().upper()
+
+        if not ticker:
+            self.logger.error("Ticker is empty after strip")
+            return pd.DataFrame()
+
+        self.logger.debug(f"Downloading {ticker} from Alpha Vantage (start={start_date}, end={end_date})")
+
         try:
             # Apply rate limiting
             self._rate_limit()
