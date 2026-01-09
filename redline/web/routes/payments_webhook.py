@@ -129,8 +129,14 @@ def stripe_webhook():
                         'subscription_status': 'active' if subscription_id else 'inactive'
                     })
                     logger.info(f"Updated user {customer_email} with Stripe customer ID {customer_id}")
+            except AttributeError as e:
+                logger.error(f"Attribute error updating user with Stripe customer ID: {str(e)}")
+            except KeyError as e:
+                logger.error(f"Missing key updating user with Stripe customer ID: {str(e)}")
+            except TypeError as e:
+                logger.error(f"Type error updating user with Stripe customer ID: {str(e)}")
             except Exception as e:
-                logger.error(f"Failed to update user with Stripe customer ID: {str(e)}")
+                logger.error(f"Unexpected error updating user with Stripe customer ID: {str(e)}")
 
     # Handle subscription created
     elif event_type == 'customer.subscription.created':
@@ -148,8 +154,14 @@ def stripe_webhook():
                     'subscription_id': subscription['id']
                 })
                 logger.info(f"Updated user subscription status to {status}")
+        except AttributeError as e:
+            logger.error(f"Attribute error updating subscription status: {str(e)}")
+        except KeyError as e:
+            logger.error(f"Missing key updating subscription status: {str(e)}")
+        except TypeError as e:
+            logger.error(f"Type error updating subscription status: {str(e)}")
         except Exception as e:
-            logger.error(f"Failed to update subscription status: {str(e)}")
+            logger.error(f"Unexpected error updating subscription status: {str(e)}")
 
     # Handle subscription updated (status changes)
     elif event_type == 'customer.subscription.updated':
@@ -166,8 +178,14 @@ def stripe_webhook():
                     'subscription_status': status
                 })
                 logger.info(f"Updated user subscription status to {status}")
+        except AttributeError as e:
+            logger.error(f"Attribute error updating subscription status: {str(e)}")
+        except KeyError as e:
+            logger.error(f"Missing key updating subscription status: {str(e)}")
+        except TypeError as e:
+            logger.error(f"Type error updating subscription status: {str(e)}")
         except Exception as e:
-            logger.error(f"Failed to update subscription status: {str(e)}")
+            logger.error(f"Unexpected error updating subscription status: {str(e)}")
 
     # Handle subscription deleted (cancelled)
     elif event_type == 'customer.subscription.deleted':
@@ -183,8 +201,14 @@ def stripe_webhook():
                     'subscription_status': 'cancelled'
                 })
                 logger.info(f"Updated user subscription status to cancelled")
+        except AttributeError as e:
+            logger.error(f"Attribute error updating subscription status: {str(e)}")
+        except KeyError as e:
+            logger.error(f"Missing key updating subscription status: {str(e)}")
+        except TypeError as e:
+            logger.error(f"Type error updating subscription status: {str(e)}")
         except Exception as e:
-            logger.error(f"Failed to update subscription status: {str(e)}")
+            logger.error(f"Unexpected error updating subscription status: {str(e)}")
 
     # Handle successful invoice payment
     elif event_type == 'invoice.payment_succeeded':
@@ -206,8 +230,14 @@ def stripe_webhook():
                     status='paid'
                 )
                 logger.info(f"Logged invoice payment for user {user['email']}")
+        except AttributeError as e:
+            logger.error(f"Attribute error logging invoice payment: {str(e)}")
+        except KeyError as e:
+            logger.error(f"Missing key logging invoice payment: {str(e)}")
+        except TypeError as e:
+            logger.error(f"Type error logging invoice payment: {str(e)}")
         except Exception as e:
-            logger.error(f"Failed to log invoice payment: {str(e)}")
+            logger.error(f"Unexpected error logging invoice payment: {str(e)}")
 
     # Handle failed invoice payment
     elif event_type == 'invoice.payment_failed':
@@ -224,8 +254,14 @@ def stripe_webhook():
                     'subscription_status': 'past_due'
                 })
                 logger.info(f"Updated user subscription status to past_due")
+        except AttributeError as e:
+            logger.error(f"Attribute error updating subscription status: {str(e)}")
+        except KeyError as e:
+            logger.error(f"Missing key updating subscription status: {str(e)}")
+        except TypeError as e:
+            logger.error(f"Type error updating subscription status: {str(e)}")
         except Exception as e:
-            logger.error(f"Failed to update subscription status: {str(e)}")
+            logger.error(f"Unexpected error updating subscription status: {str(e)}")
 
     else:
         logger.info(f"Unhandled webhook event type: {event_type}")

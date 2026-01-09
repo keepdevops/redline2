@@ -235,6 +235,8 @@ def get_balance():
                 logger.debug(f"Found {len(usage_history)} usage records for user {user_id}, total: {total_hours} hours")
         except AttributeError as e:
             logger.error(f"AttributeError fetching usage history for user {user_id}: {str(e)}")
+        except TypeError as e:
+            logger.error(f"TypeError fetching usage history for user {user_id}: {str(e)}")
         except Exception as e:
             logger.error(f"Unexpected error fetching usage history for user {user_id}: {type(e).__name__}: {str(e)}")
     else:
@@ -312,6 +314,10 @@ def get_history():
                     logger.debug(f"Found {len(usage_history)} usage records for user {user_id}, total: {total_hours} hours")
             except AttributeError as e:
                 logger.error(f"AttributeError fetching usage history for user {user_id}: {str(e)}")
+                result['warnings'] = result.get('warnings', [])
+                result['warnings'].append('Failed to fetch usage history')
+            except TypeError as e:
+                logger.error(f"TypeError fetching usage history for user {user_id}: {str(e)}")
                 result['warnings'] = result.get('warnings', [])
                 result['warnings'].append('Failed to fetch usage history')
             except Exception as e:
@@ -449,8 +455,12 @@ def get_history():
                             )
                             result['total_amount_paid'] = total_paid
                             logger.debug(f"Total amount paid for customer {stripe_customer_id}: ${total_paid}")
+                        except TypeError as e:
+                            logger.warning(f"TypeError calculating payment totals for {stripe_customer_id}: {str(e)}")
+                        except KeyError as e:
+                            logger.warning(f"KeyError calculating payment totals for {stripe_customer_id}: {str(e)}")
                         except Exception as e:
-                            logger.warning(f"Error calculating payment totals for {stripe_customer_id}: {str(e)}")
+                            logger.warning(f"Unexpected error calculating payment totals for {stripe_customer_id}: {str(e)}")
 
     logger.info(f"Successfully processed history request for user {user_id} (type: {history_type})")
     return jsonify(result), 200

@@ -53,9 +53,33 @@ def subscription_success():
         # Retrieve checkout session
         try:
             session = stripe.checkout.Session.retrieve(session_id, expand=['subscription'])
+        except stripe.error.InvalidRequestError as stripe_err:
+            error_msg = str(stripe_err) if str(stripe_err) else 'Invalid subscription session'
+            logger.error(f"Stripe invalid request error: {error_msg}")
+            return render_template('subscription_success.html',
+                                 success=False,
+                                 error=f'Subscription verification error: {error_msg}'), 400
+        except stripe.error.AuthenticationError as stripe_err:
+            error_msg = 'Authentication failed'
+            logger.error(f"Stripe authentication error: {str(stripe_err)}")
+            return render_template('subscription_success.html',
+                                 success=False,
+                                 error=f'Subscription verification error: {error_msg}'), 500
+        except stripe.error.APIConnectionError as stripe_err:
+            error_msg = 'Service temporarily unavailable'
+            logger.error(f"Stripe API connection error: {str(stripe_err)}")
+            return render_template('subscription_success.html',
+                                 success=False,
+                                 error=f'Subscription verification error: {error_msg}'), 503
+        except stripe.error.StripeError as stripe_err:
+            error_msg = str(stripe_err) if str(stripe_err) else 'Payment service error'
+            logger.error(f"Stripe error: {error_msg}")
+            return render_template('subscription_success.html',
+                                 success=False,
+                                 error=f'Subscription verification error: {error_msg}'), 500
         except Exception as stripe_err:
             error_msg = str(stripe_err) if str(stripe_err) else 'Invalid subscription session'
-            logger.error(f"Stripe API error: {error_msg}")
+            logger.error(f"Unexpected error retrieving session: {error_msg}")
             return render_template('subscription_success.html',
                                  success=False,
                                  error=f'Subscription verification error: {error_msg}'), 400
@@ -78,8 +102,16 @@ def subscription_success():
                             'subscription_status': 'active'
                         })
                         logger.info(f"Updated user {customer_email} with subscription")
+            except ImportError as e:
+                logger.error(f"Import error updating user: {str(e)}")
+            except AttributeError as e:
+                logger.error(f"Attribute error updating user: {str(e)}")
+            except KeyError as e:
+                logger.error(f"Missing key updating user: {str(e)}")
+            except TypeError as e:
+                logger.error(f"Type error updating user: {str(e)}")
             except Exception as e:
-                logger.error(f"Failed to update user: {str(e)}")
+                logger.error(f"Unexpected error updating user: {str(e)}")
 
             return render_template('subscription_success.html',
                                  success=True,
@@ -90,9 +122,30 @@ def subscription_success():
                                  success=False,
                                  error=f'Subscription status: {session.status}'), 400
 
+    except AttributeError as e:
+        error_msg = str(e) if str(e) else 'Attribute access error'
+        logger.error(f"Attribute error in subscription_success: {error_msg}")
+        logger.error(traceback.format_exc())
+        return render_template('subscription_success.html',
+                             success=False,
+                             error=error_msg), 500
+    except KeyError as e:
+        error_msg = str(e) if str(e) else 'Missing data error'
+        logger.error(f"Key error in subscription_success: {error_msg}")
+        logger.error(traceback.format_exc())
+        return render_template('subscription_success.html',
+                             success=False,
+                             error=error_msg), 500
+    except TypeError as e:
+        error_msg = str(e) if str(e) else 'Type error'
+        logger.error(f"Type error in subscription_success: {error_msg}")
+        logger.error(traceback.format_exc())
+        return render_template('subscription_success.html',
+                             success=False,
+                             error=error_msg), 500
     except Exception as e:
         error_msg = str(e) if str(e) else 'Unknown error occurred'
-        logger.error(f"Error in subscription_success: {error_msg}")
+        logger.error(f"Unexpected error in subscription_success: {error_msg}")
         logger.error(traceback.format_exc())
         return render_template('subscription_success.html',
                              success=False,
