@@ -27,9 +27,12 @@ def get_status():
             'timestamp': pd.Timestamp.now().isoformat()
         }
         return jsonify(status)
+    except AttributeError as e:
+        logger.error(f"Pandas timestamp error getting status: {str(e)}")
+        return jsonify({'error': 'Timestamp generation failed', 'code': 'TIMESTAMP_ERROR'}), 500
     except Exception as e:
-        logger.error(f"Error getting status: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Unexpected error getting status: {str(e)}")
+        return jsonify({'error': 'Internal server error', 'code': 'INTERNAL_ERROR'}), 500
 
 
 @api_metadata_bp.route('/formats', methods=['GET'])
@@ -39,9 +42,15 @@ def get_supported_formats():
         from redline.core.format_converter import FormatConverter
         converter = FormatConverter()
         formats = converter.get_supported_formats()
-        
+
         return jsonify({'formats': formats})
-        
+
+    except ImportError as e:
+        logger.error(f"Failed to import FormatConverter: {str(e)}")
+        return jsonify({'error': 'Format converter not available', 'code': 'IMPORT_ERROR'}), 500
+    except AttributeError as e:
+        logger.error(f"Format converter method not found: {str(e)}")
+        return jsonify({'error': 'Format operation failed', 'code': 'ATTRIBUTE_ERROR'}), 500
     except Exception as e:
-        logger.error(f"Error getting formats: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Unexpected error getting formats: {str(e)}")
+        return jsonify({'error': 'Internal server error', 'code': 'INTERNAL_ERROR'}), 500
