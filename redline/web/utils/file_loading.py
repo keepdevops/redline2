@@ -25,7 +25,8 @@ def rate_limit(limit_string):
                 from flask_limiter import Limiter
                 return limiter.limit(limit_string)(func)
             return func
-        except:
+        except (RuntimeError, AttributeError, ImportError) as e:
+            logger.debug(f"Rate limiter not available: {str(e)}, proceeding without rate limiting")
             return func
     return decorator
 
@@ -45,17 +46,24 @@ def load_single_file_parallel(file_path: str) -> Optional[pd.DataFrame]:
             # Try to read as CSV first, then try different separators
             try:
                 data = pd.read_csv(file_path)
-            except:
+            except (pd.errors.ParserError, UnicodeDecodeError, ValueError) as e:
+                logger.debug(f"Failed to parse {file_path} as CSV: {str(e)}, trying alternative separators")
                 # Try different separators for TXT files
+                data = None
                 for sep in ['\t', ';', ' ', '|']:
                     try:
                         data = pd.read_csv(file_path, sep=sep)
                         break
-                    except:
+                    except (pd.errors.ParserError, UnicodeDecodeError, ValueError) as e:
+                        logger.debug(f"Failed to parse {file_path} with separator '{sep}': {str(e)}")
                         continue
-                else:
+                if data is None:
                     # If all separators fail, try reading as fixed-width
-                    data = pd.read_fwf(file_path)
+                    try:
+                        data = pd.read_fwf(file_path)
+                    except Exception as e:
+                        logger.warning(f"Failed to parse {file_path} as fixed-width: {str(e)}")
+                        raise
         elif format_type == 'parquet':
             data = pd.read_parquet(file_path)
         elif format_type == 'feather':
@@ -114,8 +122,8 @@ def load_files_parallel(file_paths: List[str]) -> Dict[str, Any]:
                 file_size = os.path.getsize(file_path)
                 if file_size > 100 * 1024 * 1024:  # 100MB
                     large_files.append((file_path, file_size))
-            except:
-                pass
+            except (OSError, PermissionError) as e:
+                logger.debug(f"Could not get file size for {file_path}: {str(e)}")
         
         # Use parallel processing for file loading (I/O bound, so more workers)
         with ThreadPoolExecutor(max_workers=8) as executor:
@@ -209,15 +217,18 @@ def load_file_by_format(file_path: str, format_type: str) -> pd.DataFrame:
             # Try to read as CSV first, then try different separators
             try:
                 return pd.read_csv(file_path)
-            except:
+            except (pd.errors.ParserError, UnicodeDecodeError, ValueError) as e:
+                logger.debug(f"Failed to parse {file_path} as CSV: {str(e)}, trying alternative separators")
                 # Try different separators for TXT files
                 for sep in ['\t', ';', ' ', '|']:
                     try:
                         return pd.read_csv(file_path, sep=sep)
-                    except:
+                    except (pd.errors.ParserError, UnicodeDecodeError, ValueError) as e:
+                        logger.debug(f"Failed to parse {file_path} with separator '{sep}': {str(e)}")
                         continue
                 else:
                     # If all separators fail, try reading as fixed-width
+                    logger.debug(f"All separators failed for {file_path}, trying fixed-width format")
                     return pd.read_fwf(file_path)
         elif format_type == 'json':
             # Handle JSON files that might be scalar objects (like api_keys.json)
@@ -285,8 +296,8 @@ def load_file_by_format(file_path: str, format_type: str) -> pd.DataFrame:
                 if conn:
                     try:
                         conn.close()
-                    except:
-                        pass
+                    except (AttributeError, Exception) as e:
+                        logger.debug(f"Error closing DuckDB connection: {str(e)}")
         else:
             return pd.DataFrame()
     except Exception as e:

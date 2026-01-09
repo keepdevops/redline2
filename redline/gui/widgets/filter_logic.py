@@ -97,15 +97,21 @@ class FilterLogicHelper:
                 
                 if min_val:
                     try:
-                        filtered_data = filtered_data[filtered_data[column] >= float(min_val)]
-                    except:
-                        pass
+                        min_float = float(min_val)
+                        filtered_data = filtered_data[filtered_data[column] >= min_float]
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"Invalid min value '{min_val}' for column '{column}': {str(e)}")
+                    except KeyError as e:
+                        logger.warning(f"Column '{column}' not found in data: {str(e)}")
                         
                 if max_val:
                     try:
-                        filtered_data = filtered_data[filtered_data[column] <= float(max_val)]
-                    except:
-                        pass
+                        max_float = float(max_val)
+                        filtered_data = filtered_data[filtered_data[column] <= max_float]
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"Invalid max value '{max_val}' for column '{column}': {str(e)}")
+                    except KeyError as e:
+                        logger.warning(f"Column '{column}' not found in data: {str(e)}")
                         
             # Text filters
             text_columns = data.select_dtypes(include=['object', 'string']).columns
@@ -140,8 +146,8 @@ class FilterLogicHelper:
                     limit = int(self.filter_dialog.row_limit_var.get())
                     if limit > 0:
                         filtered_data = filtered_data.head(limit)
-                except:
-                    pass
+                except (ValueError, TypeError, AttributeError) as e:
+                    logger.warning(f"Invalid row limit value: {str(e)}")
                     
             return filtered_data
             

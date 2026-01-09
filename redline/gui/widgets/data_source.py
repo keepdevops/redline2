@@ -266,7 +266,8 @@ class DataSource:
                 try:
                     result = self.connection.execute("SELECT COUNT(DISTINCT ticker) FROM tickers_data").fetchone()
                     stats['unique_tickers'] = result[0] if result else 0
-                except:
+                except (AttributeError, Exception) as e:
+                    logger.warning(f"Failed to get unique tickers count from database: {str(e)}")
                     stats['unique_tickers'] = 0
             elif self.data is not None and 'ticker' in self.data.columns:
                 stats['unique_tickers'] = self.data['ticker'].nunique()

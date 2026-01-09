@@ -107,10 +107,10 @@ FROM python:3.11-slim AS runtime
 # Note: Subscription service environment variables should be set at runtime:
 # - STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY (for payment processing)
 # - STRIPE_WEBHOOK_SECRET (for Stripe webhooks)
-# - LICENSE_SERVER_URL (license server endpoint)
-# - REQUIRE_LICENSE_SERVER (true/false - require license server connection)
+# - STRIPE_PRICE_ID_METERED (for metered billing subscriptions)
 # - S3_ENDPOINT_URL (optional - for Cloudflare R2 or S3 storage)
 # - S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY (for cloud storage)
+# - SUPABASE_URL, SUPABASE_SERVICE_KEY (for user authentication and storage)
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -120,8 +120,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
     GUNICORN_WORKERS=1 \
     GUNICORN_THREADS=4 \
     GUNICORN_TIMEOUT=120 \
-    REQUIRE_LICENSE_SERVER=false \
-    LICENSE_SERVER_URL=http://localhost:5001 \
     VARIOSYNC_VERSION=2.1.0 \
     CURL_IMPERSONATE=0
 

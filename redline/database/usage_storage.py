@@ -267,7 +267,9 @@ class UsageStorage:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, [next_id, license_key, session_id, hours, datetime.now(), 
                   hours_before, hours_after, api_endpoint])
-            logger.debug(f"Logged hour deduction: {license_key}, {hours} hours")
+            # Mask license key in logs (show only first 4 and last 4 chars)
+            masked_key = f"{license_key[:4]}...{license_key[-4:]}" if len(license_key) > 8 else "***"
+            logger.debug(f"Logged hour deduction: {masked_key}, {hours} hours")
         except duckdb.ConnectionException as e:
             logger.error(f"Database connection error logging hour deduction: {str(e)}")
         except Exception as e:
@@ -321,7 +323,9 @@ class UsageStorage:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, [next_id, license_key, stripe_session_id, payment_id, hours_purchased,
                   amount_paid, currency, payment_status, datetime.now()])
-            logger.info(f"Logged payment: {license_key}, {hours_purchased} hours, ${amount_paid}")
+            # Mask license key in logs (show only first 4 and last 4 chars)
+            masked_key = f"{license_key[:4]}...{license_key[-4:]}" if len(license_key) > 8 else "***"
+            logger.info(f"Logged payment: {masked_key}, {hours_purchased} hours, ${amount_paid}")
         except duckdb.ConnectionException as e:
             logger.error(f"Database connection error logging payment: {str(e)}")
         except Exception as e:

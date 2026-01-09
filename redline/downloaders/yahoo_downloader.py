@@ -154,8 +154,8 @@ class YahooDownloader(BaseDownloader):
                         if hasattr(history_error.response, 'status_code'):
                             if history_error.response.status_code == 429:
                                 is_rate_limit = True
-                    except:
-                        pass
+                    except (AttributeError, TypeError) as e:
+                        logger.debug(f"Error checking response status code: {str(e)}")
                 
                 if is_rate_limit:
                     self.logger.warning(f"Rate limited for {ticker} from Yahoo Finance")
@@ -249,7 +249,8 @@ class YahooDownloader(BaseDownloader):
                 df['Date'] = pd.to_datetime(df['Date'], utc=True)
                 df['Date'] = df['Date'].dt.tz_localize(None)  # Remove timezone
                 df['<DATE>'] = df['Date'].dt.strftime('%Y%m%d')
-            except:
+            except (ValueError, TypeError, pd.errors.OutOfBoundsDatetime) as e:
+                logger.debug(f"Failed to parse timezone-aware dates for {ticker}: {str(e)}, using fallback")
                 df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
                 df['<DATE>'] = df['Date'].dt.strftime('%Y%m%d')
             
@@ -365,7 +366,8 @@ class YahooDownloader(BaseDownloader):
             self._session.headers.update({
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             })
-        except:
+        except (ImportError, AttributeError, Exception) as e:
+            logger.warning(f"Failed to initialize requests session: {str(e)}, continuing without session")
             self._session = None
         
         consecutive_failures = 0
@@ -447,8 +449,8 @@ class YahooDownloader(BaseDownloader):
         if self._session:
             try:
                 self._session.close()
-            except:
-                pass
+            except (AttributeError, Exception) as e:
+                logger.debug(f"Error closing session: {str(e)}")
             self._session = None
         
         if failed_tickers:

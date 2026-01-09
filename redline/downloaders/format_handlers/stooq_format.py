@@ -100,8 +100,9 @@ class StooqFormatHandler:
             data['timestamp'] = data['timestamp'].dt.tz_localize(None)
             data['<DATE>'] = data['timestamp'].dt.strftime('%Y%m%d')
             return data
-        except:
+        except (ValueError, TypeError, pd.errors.OutOfBoundsDatetime, AttributeError) as e:
             # Fallback for timezone issues
+            self.logger.debug(f"Failed to parse timezone-aware timestamps: {str(e)}, using fallback")
             data['timestamp'] = pd.to_datetime(data['timestamp'], errors='coerce')
             data['<DATE>'] = data['timestamp'].dt.strftime('%Y%m%d')
             return data
@@ -123,7 +124,8 @@ class StooqFormatHandler:
                 return data.index.date[0].strftime('%Y%m%d')
             else:
                 return datetime.now().strftime('%Y%m%d')
-        except:
+        except (AttributeError, IndexError, ValueError, TypeError) as e:
+            self.logger.debug(f"Failed to generate date from index: {str(e)}, using current date")
             return datetime.now().strftime('%Y%m%d')
     
     def _clean_stooq_data(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -273,7 +275,8 @@ class StooqFormatHandler:
             if '<DATE>' in data.columns:
                 try:
                     pd.to_datetime(data['<DATE>'], format='%Y%m%d')
-                except:
+                except (ValueError, TypeError, pd.errors.OutOfBoundsDatetime) as e:
+                    self.logger.debug(f"Invalid date format in <DATE> column: {str(e)}")
                     validation_results['errors'].append("Invalid date format in <DATE> column")
                     validation_results['is_valid'] = False
             

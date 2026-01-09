@@ -665,7 +665,9 @@ function submitTask() {
     
     // Add license key to task data
     taskData.license_key = licenseKey;
-    console.log('Submitting task with license key:', licenseKey.substring(0, 20) + '...');
+    // Mask license key in console (show only first 4 and last 4 chars)
+    const maskedKey = licenseKey.length > 8 ? licenseKey.substring(0, 4) + '...' + licenseKey.substring(licenseKey.length - 4) : '***';
+    console.log('Submitting task with license key:', maskedKey);
     
     // Submit task
     const endpoint = taskType.replace('process_', '').replace('_', '/');

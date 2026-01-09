@@ -107,8 +107,8 @@ class CSVDownloader(BaseDownloader):
             # Try with index column
             try:
                 df = pd.read_csv(csv_file, index_col=0, parse_dates=True)
-            except:
-                pass
+            except (pd.errors.ParserError, ValueError, UnicodeDecodeError, IndexError) as e:
+                logger.debug(f"Failed to parse CSV with index_col=0 from {csv_file}: {str(e)}, trying alternative")
             
             # Try without index column
             if df is None:
@@ -121,8 +121,8 @@ class CSVDownloader(BaseDownloader):
                             df[col] = pd.to_datetime(df[col])
                             df.set_index(col, inplace=True)
                             break
-                except:
-                    pass
+                except (pd.errors.ParserError, ValueError, UnicodeDecodeError, KeyError) as e:
+                    logger.debug(f"Failed to parse CSV without index_col from {csv_file}: {str(e)}, trying REDLINE format")
             
             # Try REDLINE format (ticker, timestamp, open, high, low, close, vol)
             if df is None:

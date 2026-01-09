@@ -81,10 +81,22 @@ def detect_outliers():
             'outlier_preview': outlier_data[:10],  # Preview first 10
             'columns_analyzed': numeric_cols
         })
-        
+
+    except FileNotFoundError as e:
+        logger.error(f"File not found detecting outliers: {str(e)}")
+        return jsonify({'error': 'File not found', 'code': 'FILE_NOT_FOUND'}), 404
+    except ValueError as e:
+        logger.error(f"Value error detecting outliers: {str(e)}")
+        return jsonify({'error': f'Invalid data: {str(e)}', 'code': 'VALUE_ERROR'}), 400
+    except KeyError as e:
+        logger.error(f"Missing key detecting outliers: {str(e)}")
+        return jsonify({'error': f'Invalid data structure: {str(e)}', 'code': 'KEY_ERROR'}), 400
+    except AttributeError as e:
+        logger.error(f"Attribute error detecting outliers: {str(e)}")
+        return jsonify({'error': f'Invalid data structure: {str(e)}', 'code': 'ATTRIBUTE_ERROR'}), 500
     except Exception as e:
-        logger.error(f"Error detecting outliers: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Unexpected error detecting outliers: {str(e)}")
+        return jsonify({'error': str(e), 'code': 'OUTLIER_ERROR'}), 500
 
 
 @analysis_sklearn_bp.route('/cluster-data', methods=['POST'])
@@ -140,10 +152,22 @@ def cluster_data():
             'cluster_stats': cluster_stats,
             'columns_analyzed': numeric_cols
         })
-        
+
+    except FileNotFoundError as e:
+        logger.error(f"File not found clustering data: {str(e)}")
+        return jsonify({'error': 'File not found', 'code': 'FILE_NOT_FOUND'}), 404
+    except ValueError as e:
+        logger.error(f"Value error clustering data: {str(e)}")
+        return jsonify({'error': f'Invalid data: {str(e)}', 'code': 'VALUE_ERROR'}), 400
+    except KeyError as e:
+        logger.error(f"Missing key clustering data: {str(e)}")
+        return jsonify({'error': f'Invalid data structure: {str(e)}', 'code': 'KEY_ERROR'}), 400
+    except AttributeError as e:
+        logger.error(f"Attribute error clustering data: {str(e)}")
+        return jsonify({'error': f'Invalid data structure: {str(e)}', 'code': 'ATTRIBUTE_ERROR'}), 500
     except Exception as e:
-        logger.error(f"Error clustering data: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Unexpected error clustering data: {str(e)}")
+        return jsonify({'error': str(e), 'code': 'CLUSTER_ERROR'}), 500
 
 
 @analysis_sklearn_bp.route('/predict', methods=['POST'])
@@ -230,8 +254,14 @@ def predict_values():
                 weights_df.to_feather(weights_path)
                 weights_saved = True
                 logger.info(f"Model weights saved to: {weights_path}")
+            except PermissionError as e:
+                logger.error(f"Permission denied saving model weights: {str(e)}")
+            except OSError as e:
+                logger.error(f"OS error saving model weights: {str(e)}")
+            except ImportError as e:
+                logger.error(f"Import error saving model weights: {str(e)}")
             except Exception as e:
-                logger.error(f"Error saving model weights: {str(e)}")
+                logger.error(f"Unexpected error saving model weights: {str(e)}")
         
         response_data = {
             'filename': filename,
@@ -255,12 +285,27 @@ def predict_values():
             response_data['weights_saved'] = True
             response_data['weights_path'] = weights_path
             response_data['weights_filename'] = os.path.basename(weights_path)
-        
+
         return jsonify(response_data)
-        
+
+    except FileNotFoundError as e:
+        logger.error(f"File not found making predictions: {str(e)}")
+        return jsonify({'error': 'File not found', 'code': 'FILE_NOT_FOUND'}), 404
+    except ValueError as e:
+        logger.error(f"Value error making predictions: {str(e)}")
+        return jsonify({'error': f'Invalid data: {str(e)}', 'code': 'VALUE_ERROR'}), 400
+    except KeyError as e:
+        logger.error(f"Missing key making predictions: {str(e)}")
+        return jsonify({'error': f'Invalid data structure: {str(e)}', 'code': 'KEY_ERROR'}), 400
+    except AttributeError as e:
+        logger.error(f"Attribute error making predictions: {str(e)}")
+        return jsonify({'error': f'Invalid data structure: {str(e)}', 'code': 'ATTRIBUTE_ERROR'}), 500
+    except ImportError as e:
+        logger.error(f"Import error making predictions: {str(e)}")
+        return jsonify({'error': 'Required module not available', 'code': 'IMPORT_ERROR'}), 500
     except Exception as e:
-        logger.error(f"Error making predictions: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Unexpected error making predictions: {str(e)}")
+        return jsonify({'error': str(e), 'code': 'PREDICT_ERROR'}), 500
 
 
 @analysis_sklearn_bp.route('/scale-features', methods=['POST'])

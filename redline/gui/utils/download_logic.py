@@ -103,7 +103,8 @@ class DownloadLogicHelper:
                         if hasattr(df, 'index') and len(df.index) > 0:
                             try:
                                 date_range = f"{df.index.min().date()} to {df.index.max().date()}"
-                            except:
+                            except (AttributeError, ValueError, TypeError) as e:
+                                logger.debug(f"Failed to get date range from DataFrame index: {str(e)}")
                                 date_range = "N/A"
                         else:
                             date_range = "N/A"

@@ -80,11 +80,11 @@ class WindowHelpHelper:
                         if hasattr(widget, '_help_window'):
                             try:
                                 widget.unbind("<MouseWheel>")
-                            except:
-                                pass
+                            except (tk.TclError, AttributeError) as e:
+                                logger.debug(f"Error unbinding MouseWheel from widget: {str(e)}")
                     help_window.destroy()
-                except:
-                    pass
+                except (tk.TclError, RuntimeError) as e:
+                    logger.debug(f"Error closing help window: {str(e)}")
             
             close_btn = ttk.Button(main_frame, text="Close", command=close_help)
             close_btn.pack(pady=(10, 0))
@@ -147,8 +147,8 @@ class WindowHelpHelper:
                     canvas.unbind("<MouseWheel>")
                     if hasattr(canvas, '_help_window'):
                         canvas._help_window.unbind("<MouseWheel>")
-                except:
-                    pass
+                except (tk.TclError, AttributeError) as e:
+                    logger.debug(f"Error unbinding MouseWheel: {str(e)}")
         
         canvas.bind("<MouseWheel>", _on_mousewheel)
         
@@ -156,8 +156,8 @@ class WindowHelpHelper:
             try:
                 canvas.unbind("<MouseWheel>")
                 help_window.unbind("<MouseWheel>")
-            except:
-                pass
+            except (tk.TclError, AttributeError) as e:
+                logger.debug(f"Error unbinding MouseWheel on window close: {str(e)}")
         
         help_window.protocol("WM_DELETE_WINDOW", _on_window_close)
     

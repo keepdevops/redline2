@@ -296,8 +296,8 @@ class FormatConverter:
                     if conn:
                         try:
                             conn.close()
-                        except:
-                            pass
+                        except (AttributeError, Exception) as close_err:
+                            self.logger.debug(f"Error closing DuckDB connection during error handling: {str(close_err)}")
                     raise Exception(f"Failed to save to DuckDB: {str(e)}")
                     
                 finally:
@@ -425,7 +425,8 @@ class FormatConverter:
                     try:
                         self.logger.info(f"Attempting to read {file_path} as CSV fallback")
                         return pd.read_csv(file_path)
-                    except:
+                    except (pd.errors.ParserError, UnicodeDecodeError, ValueError, FileNotFoundError) as csv_error:
+                        self.logger.debug(f"CSV fallback also failed for {file_path}: {str(csv_error)}")
                         raise parquet_error
             elif format == 'feather':
                 try:
@@ -458,8 +459,9 @@ class FormatConverter:
                         try:
                             self.logger.info(f"Attempting tab-separated format for {file_path}")
                             return pd.read_csv(file_path, sep='\t')
-                        except:
+                        except (pd.errors.ParserError, UnicodeDecodeError, ValueError) as tab_error:
                             # Fallback to comma-separated
+                            self.logger.debug(f"Tab-separated format failed for {file_path}: {str(tab_error)}, falling back to comma-separated")
                             self.logger.info(f"Falling back to comma-separated format for {file_path}")
                             return pd.read_csv(file_path, sep=',')
                 except Exception as txt_error:
@@ -468,7 +470,8 @@ class FormatConverter:
                     try:
                         self.logger.info(f"Attempting CSV fallback for {file_path}")
                         return pd.read_csv(file_path)
-                    except:
+                    except (pd.errors.ParserError, UnicodeDecodeError, ValueError, FileNotFoundError) as csv_fallback_error:
+                        self.logger.debug(f"CSV fallback also failed for {file_path}: {str(csv_fallback_error)}")
                         raise txt_error
             elif format == 'duckdb':
                 import duckdb
@@ -479,8 +482,8 @@ class FormatConverter:
                 except Exception as e:
                     try:
                         conn.close()
-                    except:
-                        pass
+                    except (AttributeError, Exception) as close_err:
+                        self.logger.debug(f"Error closing DuckDB connection during error handling: {str(close_err)}")
                     raise e
                 finally:
                     try:
@@ -559,7 +562,8 @@ class FormatConverter:
                     result['timestamp'] = pd.to_datetime(result['timestamp'], utc=True)
                     result['timestamp'] = result['timestamp'].dt.tz_localize(None)
                     result['<DATE>'] = result['timestamp'].dt.strftime('%Y%m%d')
-                except:
+                except (ValueError, TypeError, pd.errors.OutOfBoundsDatetime, AttributeError) as e:
+                    self.logger.debug(f"Failed to parse timezone-aware timestamps: {str(e)}, using fallback")
                     result['timestamp'] = pd.to_datetime(result['timestamp'], errors='coerce')
                     result['<DATE>'] = result['timestamp'].dt.strftime('%Y%m%d')
             

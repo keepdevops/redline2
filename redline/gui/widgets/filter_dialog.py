@@ -172,8 +172,8 @@ class FilterDialog:
             # Recursively bind to children
             for child in widget.winfo_children():
                 self._bind_widget_changes(child)
-        except:
-            pass  # Ignore binding errors
+        except (tk.TclError, AttributeError, RuntimeError) as e:
+            logger.debug(f"Error binding widget changes: {str(e)}")
         
     def set_date_preset(self, days: int):
         """Set date filter to last N days."""

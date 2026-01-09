@@ -62,7 +62,8 @@ def convert_numpy_types(obj):
     # Fallback: convert to string for anything else
     try:
         return str(obj)
-    except:
+    except (TypeError, ValueError, AttributeError) as e:
+        logger.debug(f"Failed to convert object to string: {str(e)}")
         return None
 
 
@@ -204,7 +205,8 @@ def detect_ticker_column(df):
             if score > best_score:
                 best_score = score
                 best_col = col
-        except:
+        except (KeyError, TypeError, ValueError, AttributeError) as e:
+            logger.debug(f"Error analyzing column for ticker detection: {str(e)}")
             continue
     
     return best_col
@@ -231,8 +233,8 @@ def detect_timestamp_column(df):
                 test_convert = pd.to_datetime(df[col].head(10), errors='coerce')
                 if test_convert.notna().sum() > 5:  # Most values convertible
                     return col
-            except:
-                pass
+            except (ValueError, TypeError, pd.errors.OutOfBoundsDatetime) as e:
+                logger.debug(f"Failed to test datetime conversion for column {col}: {str(e)}")
     
     # Priority 2: Check datetime dtypes
     for col in df.columns:
@@ -340,7 +342,8 @@ def detect_price_column(df):
             if score > best_score:
                 best_score = score
                 best_col = col
-        except:
+        except (KeyError, TypeError, ValueError, AttributeError) as e:
+            logger.debug(f"Error analyzing column for ticker detection: {str(e)}")
             continue
     
     return best_col
@@ -414,7 +417,8 @@ def detect_volume_column(df):
             if score > best_score:
                 best_score = score
                 best_col = col
-        except:
+        except (KeyError, TypeError, ValueError, AttributeError) as e:
+            logger.debug(f"Error analyzing column for ticker detection: {str(e)}")
             continue
     
     return best_col
@@ -521,16 +525,20 @@ def _load_data_file(filename, file_path_hint=None):
         try:
             # Try reading as CSV first (Stooq format uses commas)
             df = pd.read_csv(data_path)
-        except:
+        except (pd.errors.ParserError, UnicodeDecodeError, ValueError) as e:
+            logger.debug(f"Failed to parse {data_path} as CSV: {str(e)}, trying alternative separators")
             # Try different separators for TXT files
+            df = None
             for sep in ['\t', ';', ' ', '|']:
                 try:
                     df = pd.read_csv(data_path, sep=sep)
                     break
-                except:
+                except (pd.errors.ParserError, UnicodeDecodeError, ValueError) as e:
+                    logger.debug(f"Failed to parse {data_path} with separator '{sep}': {str(e)}")
                     continue
-            else:
+            if df is None:
                 # If all separators fail, try reading as fixed-width
+                logger.debug(f"All separators failed for {data_path}, trying fixed-width format")
                 df = pd.read_fwf(data_path)
     elif format_type in ('keras', 'h5'):
         raise ValueError('Keras model files (.h5) cannot be used for data analysis operations. Use the Analysis tab for model operations.')

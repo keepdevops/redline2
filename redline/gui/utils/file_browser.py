@@ -58,8 +58,9 @@ class FileBrowserHelper:
         # Try tuple format first (better macOS support)
         try:
             filetypes.append(("All supported files", tuple(all_extensions_list)))
-        except:
+        except (TypeError, ValueError) as e:
             # Fallback to space-separated string if tuple doesn't work
+            logger.debug(f"Tuple format failed for file types: {str(e)}, using space-separated string")
             all_extensions = " ".join(all_extensions_list)
             filetypes.append(("All supported files", all_extensions))
         

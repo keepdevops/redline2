@@ -85,8 +85,8 @@ class StockAnalyzerGUI:
                 try:
                     if scrollbar.winfo_exists():
                         scrollbar.destroy()
-                except:
-                    pass  # Ignore errors if widget is already destroyed
+                except (tk.TclError, AttributeError, RuntimeError) as e:
+                    logger.debug(f"Error destroying scrollbar widget: {str(e)}")
             del self.scrollbars[frame_name]
     
     def safe_update_widget(self, widget_name: str, update_func):

@@ -559,5 +559,9 @@ class OptimizedDatabaseConnector:
         """Destructor to ensure resources are cleaned up."""
         try:
             self.close()
-        except:
-            pass
+        except (AttributeError, RuntimeError, Exception) as e:
+            # Logger may not be available during destruction, so use print as fallback
+            try:
+                self.logger.debug(f"Error during connector cleanup: {str(e)}")
+            except (AttributeError, RuntimeError):
+                pass  # Logger not available during destruction

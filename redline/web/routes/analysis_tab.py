@@ -95,7 +95,8 @@ def analyze_data():
                     if len(test_df.columns) > 1:
                         df = test_df
                         break
-                except:
+                except (pd.errors.ParserError, UnicodeDecodeError, ValueError) as e:
+                    logger.debug(f"Failed to parse {data_path} with separator '{sep}': {str(e)}")
                     continue
             
             if df is None:

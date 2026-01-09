@@ -116,7 +116,9 @@
     const licenseKey = "{{ license_key }}";
     if (licenseKey && licenseKey !== 'None' && licenseKey.trim()) {
         localStorage.setItem('variosync_license_key', licenseKey.trim());
-        console.log('License key saved to localStorage:', licenseKey);
+        // Mask license key in console (show only first 4 and last 4 chars)
+        const maskedKey = licenseKey.length > 8 ? licenseKey.substring(0, 4) + '...' + licenseKey.substring(licenseKey.length - 4) : '***';
+        console.log('License key saved to localStorage:', maskedKey);
     }
     
     let countdown = 3;

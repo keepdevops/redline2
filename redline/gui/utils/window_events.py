@@ -66,8 +66,8 @@ class WindowEventsHelper:
             try:
                 if hasattr(self.main_window, 'memory_label'):
                     self.main_window.memory_label.config(text=f"Window: {width}x{height}")
-            except:
-                pass
+            except (tk.TclError, AttributeError) as e:
+                logger.debug(f"Error updating memory label: {str(e)}")
             
             # Notify tabs of resize event
             self.main_window.tab_manager.notify_tabs_of_resize()

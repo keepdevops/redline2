@@ -275,8 +275,8 @@ class MassiveDownloader(BaseDownloader):
         if 'date' in df.columns:
             try:
                 df['date'] = pd.to_datetime(df['date'])
-            except:
-                pass
+            except (ValueError, TypeError, pd.errors.OutOfBoundsDatetime) as e:
+                logger.debug(f"Failed to convert date column to datetime for {ticker}: {str(e)}, keeping original format")
         return df
     
     def query_sql(self, sql: str) -> pd.DataFrame:

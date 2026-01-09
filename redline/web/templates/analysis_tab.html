@@ -307,7 +307,9 @@ function runAnalysis() {
     }
     
     VARIOSYNC.ui.showLoading('Running analysis...');
-    console.log('Running analysis with license key:', licenseKey.substring(0, 20) + '...');
+    // Mask license key in console (show only first 4 and last 4 chars)
+    const maskedKey = licenseKey.length > 8 ? licenseKey.substring(0, 4) + '...' + licenseKey.substring(licenseKey.length - 4) : '***';
+    console.log('Running analysis with license key:', maskedKey);
     
     // Include file_path hint to support converted files in subdirectories
     const opt = $('#analysisFile option:selected');

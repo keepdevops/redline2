@@ -41,8 +41,8 @@ class DownloadEventsHelper:
                     canvas_items = self.download_tab.left_canvas.find_all()
                     if canvas_items:
                         self.download_tab.left_canvas.itemconfig(canvas_items[0], width=canvas_width)
-                except:
-                    pass  # Ignore errors if canvas items not found
+                except (tk.TclError, IndexError, AttributeError) as e:
+                    logger.debug(f"Error configuring canvas items: {str(e)}")
     
     def _on_mousewheel(self, event):
         """Handle mouse wheel scrolling."""

@@ -36,9 +36,6 @@ class PaymentConfig:
     # Currency
     CURRENCY = os.environ.get('PAYMENT_CURRENCY', 'usd')
     
-    # License server URL (for adding hours after payment)
-    LICENSE_SERVER_URL = os.environ.get('LICENSE_SERVER_URL', 'http://localhost:5001')
-    
     @classmethod
     def validate(cls):
         """Validate payment configuration"""

@@ -7,7 +7,7 @@
 set -e
 
 # Configuration
-IMAGE_NAME="keepdevops/variosync"
+IMAGE_NAME="keepdevops/variosync1"
 VERSION="v2.1.0-bytecode-multiplatform"
 PLATFORMS="linux/amd64,linux/arm64"
 
@@ -59,7 +59,7 @@ echo "# Production deployment with persistent data (recommended):"
 echo "docker run -d -p 8080:8080 -v variosync-data:/app/data ${IMAGE_NAME}:bytecode"
 echo ""
 echo "# Production with custom environment variables:"
-echo "docker run -d -p 8080:8080 -v redline-data:/app/data \\"
+echo "docker run -d -p 8080:8080 -v variosync-data:/app/data \\"
 echo "  -e FLASK_ENV=production \\"
 echo "  -e GUNICORN_WORKERS=2 \\"
 echo "  ${IMAGE_NAME}:bytecode"

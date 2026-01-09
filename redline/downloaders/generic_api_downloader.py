@@ -53,15 +53,29 @@ class GenericAPIDownloader(BaseDownloader):
     
     def _format_date(self, date_str: str) -> Any:
         """Format date according to API requirements."""
+        # Pre-validation with if-else
+        if not date_str or not isinstance(date_str, str):
+            logger.warning(f"Invalid date string: {date_str}, returning as-is")
+            return date_str
+        
         if self.date_format == 'timestamp':
-            return int(datetime.strptime(date_str, '%Y-%m-%d').timestamp())
+            try:
+                return int(datetime.strptime(date_str, '%Y-%m-%d').timestamp())
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Failed to convert date '{date_str}' to timestamp: {str(e)}, returning as-is")
+                return date_str
         elif self.date_format == 'iso':
-            return datetime.strptime(date_str, '%Y-%m-%d').isoformat()
+            try:
+                return datetime.strptime(date_str, '%Y-%m-%d').isoformat()
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Failed to convert date '{date_str}' to ISO format: {str(e)}, returning as-is")
+                return date_str
         elif self.date_format == 'YYYY-MM-DD':
             return date_str
         try:
             return datetime.strptime(date_str, '%Y-%m-%d').strftime(self.date_format)
-        except:
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Failed to format date '{date_str}' with format '{self.date_format}': {str(e)}, returning as-is")
             return date_str
     
     def _extract_data(self, response_data: Dict) -> pd.DataFrame:

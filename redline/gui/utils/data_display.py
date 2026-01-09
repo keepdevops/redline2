@@ -169,8 +169,8 @@ class DataDisplayHelper:
                                         return f"{day:02d}-{month:02d}-{year:04d}"
                                     elif date_format == 'MM-DD-YYYY':
                                         return f"{month:02d}-{day:02d}-{year:04d}"
-                        except:
-                            pass
+                        except (ValueError, TypeError, AttributeError, KeyError) as e:
+                            logger.debug(f"Error formatting date value '{val}': {str(e)}")
                         return val
                     
                     data[col] = data[col].apply(format_date)
