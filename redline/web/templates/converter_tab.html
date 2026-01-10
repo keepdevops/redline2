@@ -741,12 +741,10 @@ function mergeConvertedFiles() {
         
         modal.hide();
         
-        // Get license key
-        const licenseKey = (typeof window.getLicenseKey === 'function') 
-            ? window.getLicenseKey() 
-            : (localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY);
-        if (!licenseKey) {
-            VARIOSYNC.ui.showToast('License key is required', 'error');
+        // Get JWT token for authentication
+        const authToken = localStorage.getItem('variosync_auth_token');
+        if (!authToken) {
+            VARIOSYNC.ui.showToast('Authentication required. Please log in.', 'error');
             return;
         }
         

@@ -3,34 +3,79 @@ Helper functions for download routes.
 """
 
 import os
+import logging
 from datetime import datetime, timedelta
-from flask import request
+from flask import request, jsonify
+from typing import Optional, Dict, Any, Tuple
+
+logger = logging.getLogger(__name__)
+
+# Initialize auth manager
+try:
+    from redline.auth.supabase_auth import supabase_auth_manager
+    AUTH_AVAILABLE = True
+except ImportError:
+    logger.warning("Supabase auth not available")
+    AUTH_AVAILABLE = False
+    supabase_auth_manager = None
 
 
-def extract_license_key():
-    """Extract license key from headers, query params, or JSON body."""
-    license_key = (
-        request.headers.get('X-License-Key') or
-        request.args.get('license_key') or
-        None
-    )
+def extract_jwt_token() -> Optional[str]:
+    """
+    Extract JWT token from Authorization header.
     
-    # Also check in JSON body if available
-    data = request.get_json() or {}
-    if not license_key and data:
-        license_key = data.get('license_key')
+    Returns:
+        JWT token string or None if not found
+    """
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        return auth_header.replace('Bearer ', '').strip()
+    return None
+
+
+def verify_jwt_auth() -> Tuple[Optional[Dict[str, Any]], Optional[Tuple[Dict, int]]]:
+    """
+    Verify JWT authentication and return user info or error response.
     
-    return license_key
+    Returns:
+        Tuple of (user_payload, error_response)
+        - user_payload: Decoded JWT payload with user info, or None if invalid
+        - error_response: Flask response tuple (jsonify(...), status_code) if auth failed, or None if successful
+    """
+    if not AUTH_AVAILABLE or not supabase_auth_manager:
+        logger.error("JWT authentication not available")
+        return None, (jsonify({
+            'error': 'Authentication not configured',
+            'message': 'JWT authentication is not available'
+        }), 503)
+    
+    token = extract_jwt_token()
+    if not token:
+        return None, (jsonify({
+            'error': 'Authentication required',
+            'message': 'Please provide a JWT token in Authorization header (Bearer token)'
+        }), 401)
+    
+    user = supabase_auth_manager.verify_jwt_token(token)
+    if not user:
+        return None, (jsonify({
+            'error': 'Invalid authentication',
+            'message': 'JWT token is invalid or expired'
+        }), 401)
+    
+    return user, None
 
 
-def validate_license_key(license_key):
-    """Validate license key and return error response if missing."""
-    if not license_key:
-        from flask import jsonify
-        return jsonify({
-            'error': 'License key is required',
-            'message': 'Please provide a license key in X-License-Key header, license_key query parameter, or JSON body'
-        }), 401
+def get_user_id_from_request() -> Optional[str]:
+    """
+    Extract user ID from JWT token in request.
+    
+    Returns:
+        User ID string or None if not authenticated
+    """
+    user, _ = verify_jwt_auth()
+    if user:
+        return user.get('sub')
     return None
 
 

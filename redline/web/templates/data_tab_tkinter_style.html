@@ -461,17 +461,15 @@ document.addEventListener('DOMContentLoaded', function() {
 function refreshFileList() {
     console.log('Refreshing file list...');
     
-    // Get license key - use global function if available, otherwise fallback
-    const licenseKey = (typeof window.getLicenseKey === 'function') 
-        ? window.getLicenseKey() 
-        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
+    // Get JWT token for authentication
+    const authToken = localStorage.getItem('variosync_auth_token');
     
     const fileListDiv = document.getElementById('fileList');
     fileListDiv.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading files...</div>';
     
     fetch('/api/files', {
         method: 'GET',
-        headers: licenseKey ? { 'X-License-Key': licenseKey } : {}
+        headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
     })
         .then(response => {
             // Check if response is OK
@@ -548,13 +546,11 @@ async function deleteFile(filename, event) {
         return;
     }
     
-    // Get license key
-    const licenseKey = (typeof window.getLicenseKey === 'function') 
-        ? window.getLicenseKey() 
-        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
+    // Get JWT token for authentication
+    const authToken = localStorage.getItem('variosync_auth_token');
     
-    if (!licenseKey) {
-        alert('License key is required to delete files.');
+    if (!authToken) {
+        alert('Authentication required. Please log in.');
         return;
     }
     
@@ -562,7 +558,7 @@ async function deleteFile(filename, event) {
         const response = await fetch(`/api/files/${encodeURIComponent(filename)}`, {
             method: 'DELETE',
             headers: {
-                'X-License-Key': licenseKey
+                'Authorization': `Bearer ${authToken}`
             }
         });
         
@@ -636,16 +632,14 @@ function loadFileData(filename, page = 1) {
         </div>
     `;
     
-    // Get license key - use global function if available, otherwise fallback
-    const licenseKey = (typeof window.getLicenseKey === 'function') 
-        ? window.getLicenseKey() 
-        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
+    // Get JWT token for authentication
+    const authToken = localStorage.getItem('variosync_auth_token');
     
-    if (!licenseKey) {
-        console.error('No license key found!');
+    if (!authToken) {
+        console.error('No authentication token found!');
         dataDisplay.innerHTML = `
             <div class="text-center text-danger">
-                <i class="fas fa-exclamation-triangle"></i> License key is required. Please register or enter your license key.
+                <i class="fas fa-exclamation-triangle"></i> Authentication required. Please log in.
             </div>
         `;
         return;
@@ -656,11 +650,10 @@ function loadFileData(filename, page = 1) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-License-Key': licenseKey
+            'Authorization': `Bearer ${authToken}`
         },
         body: JSON.stringify({ 
             filename: filename,
-            license_key: licenseKey,
             page: page,
             per_page: window.pageSize || 500
         })
@@ -932,13 +925,8 @@ function displayDataTable(data) {
         });
         
         // Load data from API with pagination
-        const licenseKey = (typeof window.getLicenseKey === 'function') 
-            ? window.getLicenseKey() 
-            : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
-        
         window.virtualScrollTable.loadDataFromAPI(`/data/load`, {
-            filename: filename,
-            license_key: licenseKey
+            filename: filename
         });
         
     } else if (data.data && data.data.length > 0 && columnCount > 0) {
@@ -1259,15 +1247,13 @@ async function handleFileUpload(event) {
     const formData = new FormData();
     formData.append('file', file);
     
-    // Get license key if available
-    const licenseKey = (typeof window.getLicenseKey === 'function') 
-        ? window.getLicenseKey() 
-        : (localStorage.getItem('variosync_license_key') || window.VarioSync_LICENSE_KEY);
+    // Get JWT token for authentication
+    const authToken = localStorage.getItem('variosync_auth_token');
     
     // Prepare headers
     const headers = {};
-    if (licenseKey) {
-        headers['X-License-Key'] = licenseKey;
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
     }
     
     try {

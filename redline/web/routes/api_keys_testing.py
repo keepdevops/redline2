@@ -4,16 +4,22 @@ API Keys testing routes for VarioSync Web GUI
 Handles testing API keys by making sample requests
 """
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 import logging
+from redline.auth.supabase_auth import auth_manager
 
 api_keys_testing_bp = Blueprint('api_keys_testing', __name__)
 logger = logging.getLogger(__name__)
 
 @api_keys_testing_bp.route('/test', methods=['POST'])
+@auth_manager.require_auth
 def test_api_keys():
-    """Test API keys by making a sample request."""
+    """Test API keys by making a sample request. Requires JWT authentication."""
     try:
+        # Get authenticated user ID from g (set by @require_auth decorator)
+        user_id = getattr(g, 'user_id', None)
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
         data = request.get_json()
         source = data.get('source')
         api_key = data.get('api_key')

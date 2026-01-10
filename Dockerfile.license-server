@@ -1,5 +1,7 @@
 # REDLINE License Server Dockerfile
-# Lightweight container for running the license server
+# DEPRECATED: This Dockerfile is for the old license server which is no longer used.
+# VarioSync now uses JWT authentication with Supabase and Stripe subscriptions.
+# This file is kept for reference only and should not be used for new deployments.
 
 FROM python:3.11-slim
 

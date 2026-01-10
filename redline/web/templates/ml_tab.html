@@ -551,16 +551,11 @@ function confirmMLFeatures() {
     
     VARIOSYNC.ui.showLoading('Preparing ML data...');
     
-    const licenseKey = (typeof window.getLicenseKey === 'function') 
-        ? window.getLicenseKey() 
-        : (localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY);
-    
     VARIOSYNC.api.post('/analysis/prepare-ml-data', {
         filename: fileInfo.filename,
         file_path: fileInfo.file_path,
         format: formatType,
-        selected_features: selectedFeatures,
-        license_key: licenseKey
+        selected_features: selectedFeatures
     })
     .then(response => {
         VARIOSYNC.ui.hideLoading();
@@ -629,15 +624,10 @@ function detectOutliers() {
     
     VARIOSYNC.ui.showLoading('Detecting outliers...');
     
-    const licenseKey = (typeof window.getLicenseKey === 'function') 
-        ? window.getLicenseKey() 
-        : (localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY);
-    
     VARIOSYNC.api.post('/analysis/detect-outliers', {
         filename: filename,
         file_path: filePath,
-        contamination: parseFloat(contamination),
-        license_key: licenseKey
+        contamination: parseFloat(contamination)
     })
     .then(response => {
         VARIOSYNC.ui.hideLoading();
@@ -696,15 +686,10 @@ function clusterData() {
     
     VARIOSYNC.ui.showLoading('Clustering data...');
     
-    const licenseKey = (typeof window.getLicenseKey === 'function') 
-        ? window.getLicenseKey() 
-        : (localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY);
-    
     VARIOSYNC.api.post('/analysis/cluster-data', {
         filename: filename,
         file_path: filePath,
-        n_clusters: parseInt(nClusters),
-        license_key: licenseKey
+        n_clusters: parseInt(nClusters)
     })
     .then(response => {
         VARIOSYNC.ui.hideLoading();
@@ -764,15 +749,10 @@ function predictValues() {
     
     VARIOSYNC.ui.showLoading('Training model and making predictions...');
     
-    const licenseKey = (typeof window.getLicenseKey === 'function') 
-        ? window.getLicenseKey() 
-        : (localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY);
-    
     VARIOSYNC.api.post('/analysis/predict', {
         save_weights: saveWeights,
         filename: filename,
-        file_path: filePath,
-        license_key: licenseKey
+        file_path: filePath
     })
     .then(response => {
         VARIOSYNC.ui.hideLoading();
@@ -958,16 +938,11 @@ function confirmScaleFeatures() {
     
     VARIOSYNC.ui.showLoading('Scaling features...');
     
-    const licenseKey = (typeof window.getLicenseKey === 'function') 
-        ? window.getLicenseKey() 
-        : (localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY);
-    
     VARIOSYNC.api.post('/analysis/scale-features', {
         filename: fileInfo.filename,
         file_path: fileInfo.file_path,
         method: methodType,
-        columns: selectedFeatures,
-        license_key: licenseKey
+        columns: selectedFeatures
     })
     .then(response => {
         VARIOSYNC.ui.hideLoading();

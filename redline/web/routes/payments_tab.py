@@ -31,14 +31,6 @@ def subscription_page():
     return render_template('subscription.html')
 
 
-@payments_tab_bp.route('/success', methods=['GET'])
-def payment_success():
-    """DEPRECATED: Old pay-per-hour success page"""
-    return render_template('payment_success.html',
-                         success=False,
-                         error='This payment method is deprecated. Please use subscription-based billing.',
-                         redirect_url='/payments/subscription'), 410
-
 @payments_tab_bp.route('/subscription-success', methods=['GET'])
 def subscription_success():
     """Handle successful subscription signup"""
@@ -155,18 +147,6 @@ def subscription_success():
 def subscription_cancel():
     """Handle subscription cancellation page"""
     return render_template('subscription_cancel.html')
-
-@payments_tab_bp.route('/packages', methods=['GET'])
-def get_packages():
-    """
-    DEPRECATED: Old hour packages endpoint.
-    Now using subscription-based pricing with metered billing.
-    """
-    return jsonify({
-        'error': 'Hour packages are deprecated',
-        'message': 'VarioSync now uses subscription-based pricing with metered billing',
-        'redirect': '/payments/subscription'
-    }), 410
 
 # Note: payment_tab route is defined in payments.py as an alias
 # to maintain backward compatibility with templates using url_for('payments.payment_tab')

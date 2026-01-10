@@ -104,13 +104,35 @@ RUN echo "⚠️  Bytecode compilation skipped to avoid TensorFlow/Celery compat
 FROM python:3.11-slim AS runtime
 
 # Set environment variables
-# Note: Subscription service environment variables should be set at runtime:
-# - STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY (for payment processing)
-# - STRIPE_WEBHOOK_SECRET (for Stripe webhooks)
-# - STRIPE_PRICE_ID_METERED (for metered billing subscriptions)
-# - S3_ENDPOINT_URL (optional - for Cloudflare R2 or S3 storage)
-# - S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY (for cloud storage)
-# - SUPABASE_URL, SUPABASE_SERVICE_KEY (for user authentication and storage)
+# Note: JWT Authentication and Stripe Subscription environment variables should be set at runtime:
+# 
+# REQUIRED - Supabase Authentication (JWT):
+# - SUPABASE_URL (Supabase project URL)
+# - SUPABASE_SERVICE_KEY (Supabase service role key)
+# - SUPABASE_JWT_SECRET (JWT secret for token validation)
+#
+# REQUIRED - Stripe Subscription Service:
+# - STRIPE_SECRET_KEY (Stripe secret key for API calls)
+# - STRIPE_PUBLISHABLE_KEY (Stripe publishable key for frontend)
+# - STRIPE_WEBHOOK_SECRET (Stripe webhook signing secret)
+# - STRIPE_PRICE_ID_METERED (Stripe price ID for metered billing subscription)
+#
+# OPTIONAL - Cloud Storage (S3/R2):
+# - USE_S3_STORAGE (set to 'true' to enable S3/R2 storage, default: true)
+# 
+# For Cloudflare R2:
+# - S3_ENDPOINT_URL (R2 endpoint: https://<account-id>.r2.cloudflarestorage.com)
+# - S3_BUCKET (R2 bucket name)
+# - S3_ACCESS_KEY (R2 API Token)
+# - S3_SECRET_KEY (R2 API Secret)
+# - S3_REGION (set to 'auto' for R2)
+#
+# For AWS S3:
+# - S3_ENDPOINT_URL (leave empty or use standard S3 endpoint)
+# - S3_BUCKET (S3 bucket name)
+# - S3_ACCESS_KEY (AWS Access Key ID)
+# - S3_SECRET_KEY (AWS Secret Access Key)
+# - S3_REGION (AWS region, e.g., us-east-1)
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

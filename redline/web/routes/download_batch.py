@@ -13,14 +13,16 @@ from redline.web.utils.download_helpers import (
     save_downloaded_data
 )
 from redline.downloaders.exceptions import RateLimitError
+from redline.auth.supabase_auth import auth_manager
 
 download_batch_bp = Blueprint('download_batch', __name__)
 logger = logging.getLogger(__name__)
 
 @download_batch_bp.route('/batch-download', methods=['POST'])
+@auth_manager.require_auth
 def batch_download():
-    """Download data for multiple tickers."""
-    # Get authenticated user
+    """Download data for multiple tickers. Requires JWT authentication."""
+    # Get authenticated user from g (set by @require_auth decorator)
     user_id = getattr(g, 'user_id', None)
 
     if not user_id:

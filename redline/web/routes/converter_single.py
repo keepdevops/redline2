@@ -9,12 +9,19 @@ import os
 import pandas as pd
 import traceback
 from ..utils.converter_helpers import find_input_file_path, adjust_output_filename, validate_file_before_conversion
+from redline.auth.supabase_auth import auth_manager
 
 converter_single_bp = Blueprint('converter_single', __name__)
 logger = logging.getLogger(__name__)
 
 @converter_single_bp.route('/convert', methods=['POST'])
+@auth_manager.require_auth
 def convert_file():
+    """Convert a single file format. Requires JWT authentication."""
+    # Get authenticated user from g (set by @require_auth decorator)
+    user_id = getattr(g, 'user_id', None)
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
     """Convert file between formats - redirects to batch conversion."""
     # Get request data
     data = request.get_json()

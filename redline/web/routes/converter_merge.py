@@ -3,7 +3,7 @@ File merge routes for VarioSync Web GUI.
 Handles merging multiple files into one during batch conversion.
 """
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 import logging
 import os
 import pandas as pd
@@ -12,12 +12,19 @@ from ..utils.converter_helpers import (
     adjust_output_filename,
     merge_dataframes
 )
+from redline.auth.supabase_auth import auth_manager
 
 converter_merge_bp = Blueprint('converter_merge', __name__)
 logger = logging.getLogger(__name__)
 
 @converter_merge_bp.route('/batch-merge', methods=['POST'])
+@auth_manager.require_auth
 def batch_merge():
+    """Merge multiple converted files. Requires JWT authentication."""
+    # Get authenticated user from g (set by @require_auth decorator)
+    user_id = getattr(g, 'user_id', None)
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
     """Merge multiple files into one during batch conversion."""
     # Pre-validation with if-else
     data = request.get_json()

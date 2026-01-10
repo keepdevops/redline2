@@ -13,18 +13,6 @@ logger = logging.getLogger(__name__)
 # Note: register route is defined in main.py as an alias
 # to maintain backward compatibility with templates using url_for('main.register')
 
-@main_auth_bp.route('/api/register', methods=['POST'])
-def create_license_proxy():
-    """
-    DEPRECATED: Old license key registration endpoint.
-    Use /auth/signup for new Supabase-based registration.
-    """
-    return jsonify({
-        'error': 'This endpoint is deprecated',
-        'message': 'Please use /auth/signup for registration with Supabase Auth',
-        'redirect': '/auth/signup'
-    }), 410  # 410 Gone
-
 @main_auth_bp.route('/api/signup', methods=['POST'])
 def signup():
     """Register new user with Supabase Auth and create Stripe customer"""

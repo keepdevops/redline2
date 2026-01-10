@@ -13,14 +13,16 @@ from redline.web.utils.download_helpers import (
     save_downloaded_data
 )
 from redline.downloaders.exceptions import RateLimitError
+from redline.auth.supabase_auth import auth_manager
 
 download_single_bp = Blueprint('download_single', __name__)
 logger = logging.getLogger(__name__)
 
 @download_single_bp.route('/download', methods=['POST'])
+@auth_manager.require_auth
 def download_data():
-    """Download data from specified source."""
-    # Get authenticated user
+    """Download data from specified source. Requires JWT authentication."""
+    # Get authenticated user from g (set by @require_auth decorator)
     user_id = getattr(g, 'user_id', None)
 
     if not user_id:
