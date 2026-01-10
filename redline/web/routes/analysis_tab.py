@@ -3,7 +3,7 @@ Analysis tab routes for VarioSync Web GUI
 Main route handlers for analysis operations
 """
 
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify, g
 import logging
 import pandas as pd
 import os
@@ -13,6 +13,7 @@ from .analysis_basic import perform_basic_analysis
 from .analysis_financial import perform_financial_analysis
 from .analysis_statistical import perform_statistical_analysis
 from .analysis_correlation import perform_correlation_analysis
+from redline.auth.supabase_auth import auth_manager
 
 analysis_tab_bp = Blueprint('analysis_tab', __name__)
 logger = logging.getLogger(__name__)
@@ -25,8 +26,14 @@ def analysis_tab():
 
 
 @analysis_tab_bp.route('/analyze', methods=['POST'])
+@auth_manager.require_auth
 def analyze_data():
-    """Perform analysis on loaded data."""
+    """Perform analysis on loaded data. Requires JWT authentication."""
+    # Get authenticated user from g (set by @require_auth decorator)
+    user_id = getattr(g, 'user_id', None)
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
+    
     try:
         data = request.get_json()
         filename = data.get('filename')

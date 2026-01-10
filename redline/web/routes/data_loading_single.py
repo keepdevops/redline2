@@ -12,14 +12,21 @@ from ..utils.file_loading import (
     load_file_by_format as _load_file_by_format
 )
 from ..utils.data_helpers import clean_dataframe_columns
+from redline.auth.supabase_auth import auth_manager
 
 data_loading_single_bp = Blueprint('data_loading_single', __name__)
 logger = logging.getLogger(__name__)
 
 @data_loading_single_bp.route('/load', methods=['POST'])
 @rate_limit("200 per minute")  # Increased for pagination - users need to browse through pages
+@auth_manager.require_auth
 def load_data():
-    """Load data from file."""
+    """Load data from file. Requires JWT authentication."""
+    # Get authenticated user from g (set by @require_auth decorator)
+    user_id = getattr(g, 'user_id', None)
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
+    
     # Get request data
     data = request.get_json()
 

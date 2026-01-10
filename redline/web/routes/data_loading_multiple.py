@@ -12,13 +12,20 @@ from ..utils.file_loading import (
     load_file_by_format as _load_file_by_format
 )
 from ..utils.data_helpers import clean_dataframe_columns
+from redline.auth.supabase_auth import auth_manager
 
 data_loading_multiple_bp = Blueprint('data_loading_multiple', __name__)
 logger = logging.getLogger(__name__)
 
 @data_loading_multiple_bp.route('/load-multiple', methods=['POST'])
+@auth_manager.require_auth
 def load_multiple_files():
-    """Load multiple files at once."""
+    """Load multiple files at once. Requires JWT authentication."""
+    # Get authenticated user from g (set by @require_auth decorator)
+    user_id = getattr(g, 'user_id', None)
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
+    
     # Pre-validation with if-else
     data = request.get_json()
 

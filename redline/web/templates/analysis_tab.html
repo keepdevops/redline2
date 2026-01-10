@@ -247,16 +247,10 @@ function loadQuickStats(filename) {
     const opt = $('#analysisFile option:selected');
     const filePath = opt.data('path') || null;
 
-    // Get license key - use global function if available, otherwise fallback
-    const licenseKey = (typeof window.getLicenseKey === 'function') 
-        ? window.getLicenseKey() 
-        : (localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY);
-    
-    // Get quick stats via data loader to avoid missing legacy endpoints
+    // Get quick stats via data loader
     VARIOSYNC.api.post('/data/load', { 
         filename: filename, 
-        file_path: filePath,
-        license_key: licenseKey
+        file_path: filePath
     })
         .then(response => {
             const statsHtml = `
@@ -297,19 +291,14 @@ function runAnalysis() {
         return;
     }
     
-    // Get license key - use global function if available, otherwise fallback
-    const licenseKey = (typeof window.getLicenseKey === 'function') 
-        ? window.getLicenseKey() 
-        : (localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY);
-    if (!licenseKey) {
-        VARIOSYNC.ui.showToast('License key is required. Please register or enter your license key.', 'error');
+    // Get JWT token for authentication
+    const authToken = localStorage.getItem('variosync_auth_token');
+    if (!authToken) {
+        VARIOSYNC.ui.showToast('Authentication required. Please log in.', 'error');
         return;
     }
     
     VARIOSYNC.ui.showLoading('Running analysis...');
-    // Mask license key in console (show only first 4 and last 4 chars)
-    const maskedKey = licenseKey.length > 8 ? licenseKey.substring(0, 4) + '...' + licenseKey.substring(licenseKey.length - 4) : '***';
-    console.log('Running analysis with license key:', maskedKey);
     
     // Include file_path hint to support converted files in subdirectories
     const opt = $('#analysisFile option:selected');
@@ -317,8 +306,7 @@ function runAnalysis() {
     const analysisData = {
         filename: filename,
         file_path: filePath,
-        analysis_type: analysisType,
-        license_key: licenseKey  // Include license key in request body
+        analysis_type: analysisType
     };
     
     VARIOSYNC.api.post('/analysis/analyze', analysisData)
@@ -681,15 +669,10 @@ function displayCorrelationAnalysis(result) {
 
 function loadPriceChart(filename, filePath) {
     // Get sample price data for charting
-    const licenseKey = (typeof window.getLicenseKey === 'function') 
-        ? window.getLicenseKey() 
-        : (localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY);
-    
     VARIOSYNC.api.post('/analysis/chart-data', {
         filename: filename,
         file_path: filePath,
-        chart_type: 'price',
-        license_key: licenseKey
+        chart_type: 'price'
     })
     .then(response => {
         if (response.data && response.data.length > 0) {
@@ -798,12 +781,8 @@ function generateBackendChart() {
     
     VARIOSYNC.ui.showLoading('Generating chart...');
     
-    const licenseKey = (typeof window.getLicenseKey === 'function') 
-        ? window.getLicenseKey() 
-        : (localStorage.getItem('variosync_license_key') || window.VARIOSYNC_LICENSE_KEY);
-    
     let endpoint = '';
-    let chartData = { filename: filename, file_path: filePath, license_key: licenseKey };
+    let chartData = { filename: filename, file_path: filePath };
     
     if (analysisType === 'financial') {
         endpoint = '/analysis/price-chart';

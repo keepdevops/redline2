@@ -101,40 +101,73 @@ class UserStorage:
             logger.error(f"Failed to initialize S3/R2: {str(e)}")
             self.use_s3 = False
     
-    def _get_user_path(self, license_key: str) -> Path:
-        """Get storage path for a user (license key)"""
-        # Hash license key for directory name (security)
-        key_hash = hashlib.sha256(license_key.encode()).hexdigest()[:16]
+    def _get_user_path(self, user_id: str, license_key: Optional[str] = None) -> Path:
+        """Get storage path for a user. Uses user_id from JWT token.
+        
+        Args:
+            user_id: User ID from JWT token (required)
+            license_key: Legacy license key (optional, for migration period only)
+        """
+        # Hash user_id for directory name (security)
+        # Use user_id as primary identifier, fallback to license_key during migration
+        identifier = user_id if user_id else license_key
+        if not identifier:
+            raise ValueError("Either user_id or license_key must be provided")
+        key_hash = hashlib.sha256(identifier.encode()).hexdigest()[:16]
         return self.base_path / key_hash
     
-    def _get_user_db_path(self, license_key: str) -> str:
-        """Get DuckDB path for a user"""
-        user_path = self._get_user_path(license_key)
+    def _get_user_db_path(self, user_id: str, license_key: Optional[str] = None) -> str:
+        """Get DuckDB path for a user. Uses user_id from JWT token.
+        
+        Args:
+            user_id: User ID from JWT token (required)
+            license_key: Legacy license key (optional, for migration period only)
+        """
+        user_path = self._get_user_path(user_id, license_key)
         user_path.mkdir(parents=True, exist_ok=True)
         return str(user_path / 'user_data.duckdb')
     
-    def _get_user_files_path(self, license_key: str) -> Path:
-        """Get files storage path for a user"""
-        user_path = self._get_user_path(license_key)
+    def _get_user_files_path(self, user_id: str, license_key: Optional[str] = None) -> Path:
+        """Get files storage path for a user. Uses user_id from JWT token.
+        
+        Args:
+            user_id: User ID from JWT token (required)
+            license_key: Legacy license key (optional, for migration period only)
+        """
+        user_path = self._get_user_path(user_id, license_key)
         files_path = user_path / 'files'
         files_path.mkdir(parents=True, exist_ok=True)
         return files_path
     
-    def _get_s3_prefix(self, license_key: str) -> str:
-        """Get S3 prefix for a user"""
-        key_hash = hashlib.sha256(license_key.encode()).hexdigest()[:16]
+    def _get_s3_prefix(self, user_id: str, license_key: Optional[str] = None) -> str:
+        """Get S3 prefix for a user. Uses user_id from JWT token.
+        
+        Args:
+            user_id: User ID from JWT token (required)
+            license_key: Legacy license key (optional, for migration period only)
+        """
+        # Use user_id as primary identifier, fallback to license_key during migration
+        identifier = user_id if user_id else license_key
+        if not identifier:
+            raise ValueError("Either user_id or license_key must be provided")
+        key_hash = hashlib.sha256(identifier.encode()).hexdigest()[:16]
         return f"users/{key_hash}/"
     
-    def initialize_user_storage(self, license_key: str):
-        """Initialize storage for a new user"""
+    def initialize_user_storage(self, user_id: str, license_key: Optional[str] = None):
+        """Initialize storage for a new user. Requires user_id from JWT token.
+        
+        Args:
+            user_id: User ID from JWT token (required)
+            license_key: Legacy license key (optional, for migration period only)
+        """
         try:
             # Create local directories
-            user_path = self._get_user_path(license_key)
+            user_path = self._get_user_path(user_id, license_key)
             user_path.mkdir(parents=True, exist_ok=True)
             (user_path / 'files').mkdir(exist_ok=True)
             
             # Initialize user database
-            db_path = self._get_user_db_path(license_key)
+            db_path = self._get_user_db_path(user_id, license_key)
             conn = duckdb.connect(db_path)
             
             # Create user data tables
@@ -180,20 +213,29 @@ class UserStorage:
             """)
             
             conn.close()
-            logger.info(f"Initialized storage for user: {license_key[:8]}...")
+            logger.info(f"Initialized storage for user: {user_id}")
             
         except Exception as e:
-            logger.error(f"Error initializing user storage: {str(e)}")
+            logger.error(f"Error initializing user storage for {user_id}: {str(e)}")
             raise
     
-    def save_file(self, license_key: str, file_data: bytes, filename: str, 
-                 file_type: str = None, metadata: Dict = None) -> Dict:
-        """Save a file for a user"""
+    def save_file(self, user_id: str, file_data: bytes, filename: str, 
+                 file_type: str = None, metadata: Dict = None, license_key: Optional[str] = None) -> Dict:
+        """Save a file for a user. Requires user_id from JWT token.
+        
+        Args:
+            user_id: User ID from JWT token (required)
+            file_data: File content as bytes
+            filename: Name of the file
+            file_type: Optional file type/format
+            metadata: Optional metadata dictionary
+            license_key: Legacy license key (optional, for migration period only)
+        """
         try:
-            self.initialize_user_storage(license_key)
+            self.initialize_user_storage(user_id, license_key)
             
             # Save locally
-            files_path = self._get_user_files_path(license_key)
+            files_path = self._get_user_files_path(user_id, license_key)
             file_path = files_path / filename
             
             with open(file_path, 'wb') as f:
@@ -204,7 +246,7 @@ class UserStorage:
             # Save to S3 if enabled
             s3_key = None
             if self.use_s3:
-                s3_key = f"{self._get_s3_prefix(license_key)}files/{filename}"
+                s3_key = f"{self._get_s3_prefix(user_id, license_key)}files/{filename}"
                 self.s3_client.put_object(
                     Bucket=self.s3_bucket,
                     Key=s3_key,
@@ -212,7 +254,7 @@ class UserStorage:
                 )
             
             # Record in database
-            db_path = self._get_user_db_path(license_key)
+            db_path = self._get_user_db_path(user_id, license_key)
             conn = duckdb.connect(db_path)
             
             conn.execute("""
@@ -238,10 +280,16 @@ class UserStorage:
             logger.error(f"Error saving file: {str(e)}")
             raise
     
-    def list_files(self, license_key: str, file_type: str = None) -> List[Dict]:
-        """List all files for a user"""
+    def list_files(self, user_id: str, file_type: str = None, license_key: Optional[str] = None) -> List[Dict]:
+        """List all files for a user. Requires user_id from JWT token.
+        
+        Args:
+            user_id: User ID from JWT token (required)
+            file_type: Optional file type filter
+            license_key: Legacy license key (optional, for migration period only)
+        """
         try:
-            db_path = self._get_user_db_path(license_key)
+            db_path = self._get_user_db_path(user_id, license_key)
             if not os.path.exists(db_path):
                 return []
             
@@ -279,10 +327,16 @@ class UserStorage:
             logger.error(f"Error listing files: {str(e)}")
             return []
     
-    def get_file(self, license_key: str, file_id: int) -> Optional[Dict]:
-        """Get file information and path"""
+    def get_file(self, user_id: str, file_id: int, license_key: Optional[str] = None) -> Optional[Dict]:
+        """Get file information and path. Requires user_id from JWT token.
+        
+        Args:
+            user_id: User ID from JWT token (required)
+            file_id: File ID to retrieve
+            license_key: Legacy license key (optional, for migration period only)
+        """
         try:
-            db_path = self._get_user_db_path(license_key)
+            db_path = self._get_user_db_path(user_id, license_key)
             if not os.path.exists(db_path):
                 return None
             
@@ -304,14 +358,14 @@ class UserStorage:
             file_dict['metadata'] = json.loads(file_dict['metadata']) if file_dict['metadata'] else {}
             
             # Get file path
-            files_path = self._get_user_files_path(license_key)
+            files_path = self._get_user_files_path(user_id, license_key)
             file_path = files_path / file_dict['filename']
             file_dict['local_path'] = str(file_path)
             file_dict['exists'] = os.path.exists(file_path)
             
             # Get S3 key if available
             if self.use_s3:
-                file_dict['s3_key'] = f"{self._get_s3_prefix(license_key)}files/{file_dict['filename']}"
+                file_dict['s3_key'] = f"{self._get_s3_prefix(user_id, license_key)}files/{file_dict['filename']}"
             
             conn.close()
             return file_dict
@@ -320,17 +374,27 @@ class UserStorage:
             logger.error(f"Error getting file: {str(e)}")
             return None
     
-    def save_converted_file(self, license_key: str, original_file_id: int,
+    def save_converted_file(self, user_id: str, original_file_id: int,
                            output_filename: str, output_format: str,
-                           file_data: bytes, metadata: Dict = None) -> Dict:
-        """Save a converted file"""
+                           file_data: bytes, metadata: Dict = None, license_key: Optional[str] = None) -> Dict:
+        """Save a converted file. Requires user_id from JWT token.
+        
+        Args:
+            user_id: User ID from JWT token (required)
+            original_file_id: ID of the original file
+            output_filename: Name of the converted file
+            output_format: Format of the converted file
+            file_data: File content as bytes
+            metadata: Optional metadata dictionary
+            license_key: Legacy license key (optional, for migration period only)
+        """
         try:
             # Save file
-            file_info = self.save_file(license_key, file_data, output_filename, 
-                                     file_type=output_format, metadata=metadata)
+            file_info = self.save_file(user_id, file_data, output_filename, 
+                                     file_type=output_format, metadata=metadata, license_key=license_key)
             
             # Record conversion
-            db_path = self._get_user_db_path(license_key)
+            db_path = self._get_user_db_path(user_id, license_key)
             conn = duckdb.connect(db_path)
             
             conn.execute("""
@@ -348,12 +412,23 @@ class UserStorage:
             logger.error(f"Error saving converted file: {str(e)}")
             raise
     
-    def save_data_table(self, license_key: str, table_name: str, ticker: str = None,
+    def save_data_table(self, user_id: str, table_name: str, ticker: str = None,
                        format: str = None, row_count: int = 0, columns: List[str] = None,
-                       metadata: Dict = None):
-        """Save data table metadata"""
+                       metadata: Dict = None, license_key: Optional[str] = None):
+        """Save data table metadata. Requires user_id from JWT token.
+        
+        Args:
+            user_id: User ID from JWT token (required)
+            table_name: Name of the data table
+            ticker: Optional ticker symbol
+            format: Optional file format
+            row_count: Number of rows in the table
+            columns: List of column names
+            metadata: Optional metadata dictionary
+            license_key: Legacy license key (optional, for migration period only)
+        """
         try:
-            db_path = self._get_user_db_path(license_key)
+            db_path = self._get_user_db_path(user_id, license_key)
             conn = duckdb.connect(db_path)
             
             conn.execute("""
@@ -369,10 +444,15 @@ class UserStorage:
             logger.error(f"Error saving data table: {str(e)}")
             raise
     
-    def list_data_tables(self, license_key: str) -> List[Dict]:
-        """List all data tables for a user"""
+    def list_data_tables(self, user_id: str, license_key: Optional[str] = None) -> List[Dict]:
+        """List all data tables for a user. Requires user_id from JWT token.
+        
+        Args:
+            user_id: User ID from JWT token (required)
+            license_key: Legacy license key (optional, for migration period only)
+        """
         try:
-            db_path = self._get_user_db_path(license_key)
+            db_path = self._get_user_db_path(user_id, license_key)
             if not os.path.exists(db_path):
                 return []
             
@@ -400,10 +480,15 @@ class UserStorage:
             logger.error(f"Error listing data tables: {str(e)}")
             return []
     
-    def get_storage_stats(self, license_key: str) -> Dict:
-        """Get storage statistics for a user"""
+    def get_storage_stats(self, user_id: str, license_key: Optional[str] = None) -> Dict:
+        """Get storage statistics for a user. Requires user_id from JWT token.
+        
+        Args:
+            user_id: User ID from JWT token (required)
+            license_key: Legacy license key (optional, for migration period only)
+        """
         try:
-            db_path = self._get_user_db_path(license_key)
+            db_path = self._get_user_db_path(user_id, license_key)
             if not os.path.exists(db_path):
                 return {'total_files': 0, 'total_size': 0, 'total_tables': 0}
             

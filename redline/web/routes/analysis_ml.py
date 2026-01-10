@@ -3,19 +3,26 @@ ML Data Preparation routes for VarioSync Web GUI
 Handles ML/RL training data preparation in numpy and tensorflow formats
 """
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 import logging
 import pandas as pd
 import os
 from ..utils.data_helpers import clean_dataframe_columns
+from redline.auth.supabase_auth import auth_manager
 
 analysis_ml_bp = Blueprint('analysis_ml', __name__)
 logger = logging.getLogger(__name__)
 
 
 @analysis_ml_bp.route('/prepare-ml-data', methods=['POST'])
+@auth_manager.require_auth
 def prepare_ml_data():
-    """Prepare data for ML/RL training in specified format."""
+    """Prepare data for ML/RL training in specified format. Requires JWT authentication."""
+    # Get authenticated user from g (set by @require_auth decorator)
+    user_id = getattr(g, 'user_id', None)
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
+    
     try:
         data = request.get_json()
         filename = data.get('filename')
@@ -301,8 +308,14 @@ def prepare_ml_data():
 
 
 @analysis_ml_bp.route('/prepare-rl-state', methods=['POST'])
+@auth_manager.require_auth
 def prepare_rl_state():
-    """Prepare reinforcement learning state from data."""
+    """Prepare reinforcement learning state from data. Requires JWT authentication."""
+    # Get authenticated user from g (set by @require_auth decorator)
+    user_id = getattr(g, 'user_id', None)
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
+    
     try:
         data = request.get_json()
         filename = data.get('filename')

@@ -3,12 +3,13 @@ API file operations routes for VarioSync Web GUI
 Handles file upload and deletion
 """
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, g
 import logging
 import os
 import zipfile
 from werkzeug.utils import secure_filename
 from ..utils.api_helpers import rate_limit, allowed_file
+from redline.auth.supabase_auth import auth_manager
 
 api_files_operations_bp = Blueprint('api_files_operations', __name__)
 logger = logging.getLogger(__name__)
@@ -27,8 +28,13 @@ PROTECTED_FILES = {
 
 @api_files_operations_bp.route('/files/<path:filename>', methods=['DELETE'])
 @rate_limit("20 per minute")
+@auth_manager.require_auth
 def delete_file(filename):
-    """Delete a data file."""
+    """Delete a data file. Requires JWT authentication."""
+    # Get authenticated user from g (set by @require_auth decorator)
+    user_id = getattr(g, 'user_id', None)
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
     # Validate filename parameter
     if not filename:
         logger.warning("Delete file request with empty filename")
@@ -235,8 +241,14 @@ def delete_file(filename):
 
 @api_files_operations_bp.route('/upload', methods=['POST'])
 @rate_limit("10 per minute")
+@auth_manager.require_auth
 def upload_file():
-    """Upload a file for processing. Handles ZIP extraction for Stooq files."""
+    """Upload a file for processing. Handles ZIP extraction for Stooq files. Requires JWT authentication."""
+    # Get authenticated user from g (set by @require_auth decorator)
+    user_id = getattr(g, 'user_id', None)
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
+    
     # Validate file presence
     if 'file' not in request.files:
         logger.warning("Upload request missing file field")

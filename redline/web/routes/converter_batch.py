@@ -3,19 +3,26 @@ Batch file conversion routes for VarioSync Web GUI.
 Handles multiple file format conversion operations.
 """
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 import logging
 import os
 import pandas as pd
 import traceback
 from ..utils.converter_helpers import find_input_file_path, adjust_output_filename, validate_file_before_conversion
+from redline.auth.supabase_auth import auth_manager
 
 converter_batch_bp = Blueprint('converter_batch', __name__)
 logger = logging.getLogger(__name__)
 
 @converter_batch_bp.route('/batch-convert', methods=['POST'])
+@auth_manager.require_auth
 def batch_convert():
-    """Convert multiple files in batch."""
+    """Convert multiple files in batch. Requires JWT authentication."""
+    # Get authenticated user from g (set by @require_auth decorator)
+    user_id = getattr(g, 'user_id', None)
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
+    
     # Get request data
     data = request.get_json()
 

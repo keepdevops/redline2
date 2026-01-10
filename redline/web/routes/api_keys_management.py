@@ -4,11 +4,12 @@ API Keys management routes for VarioSync Web GUI
 Handles saving, loading, and displaying API keys
 """
 
-from flask import Blueprint, render_template, request, jsonify, session
+from flask import Blueprint, render_template, request, jsonify, session, g
 import logging
 import os
 import json
 from ...utils.config_paths import get_api_keys_file, get_custom_apis_file, ensure_config_dir
+from redline.auth.supabase_auth import auth_manager
 
 api_keys_management_bp = Blueprint('api_keys_management', __name__)
 logger = logging.getLogger(__name__)
@@ -17,9 +18,14 @@ logger = logging.getLogger(__name__)
 # to maintain backward compatibility with templates using url_for('api_keys.api_keys_page')
 
 @api_keys_management_bp.route('/save', methods=['POST'])
+@auth_manager.require_auth
 def save_api_keys():
-    """Save API keys to user session or config file."""
+    """Save API keys to user session or config file. Requires JWT authentication."""
     try:
+        # Get authenticated user ID from g (set by @require_auth decorator)
+        user_id = getattr(g, 'user_id', None)
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
         data = request.get_json()
         api_keys = data.get('api_keys', {})
         custom_apis = data.get('custom_apis', {})  # New: custom API configurations
@@ -89,9 +95,14 @@ def save_api_keys():
         return jsonify({'error': str(e)}), 500
 
 @api_keys_management_bp.route('/load')
+@auth_manager.require_auth
 def load_api_keys():
-    """Load saved API keys and custom API configurations."""
+    """Load saved API keys and custom API configurations. Requires JWT authentication."""
     try:
+        # Get authenticated user ID from g (set by @require_auth decorator)
+        user_id = getattr(g, 'user_id', None)
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
         # Try to load from session first
         api_keys = session.get('api_keys', {})
         custom_apis = session.get('custom_apis', {})

@@ -67,10 +67,10 @@
                 <p>You now have access to VarioSync!</p>
                 
                 <div class="d-grid gap-2 mt-4">
-                    <a href="{{ url_for('main.dashboard') }}?license_key={{ license_key }}" class="btn btn-primary btn-lg" id="dashboardBtn">
+                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary btn-lg" id="dashboardBtn">
                         <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
                     </a>
-                    <a href="{{ url_for('payments.payment_tab') }}?license_key={{ license_key }}" class="btn btn-outline-secondary">
+                    <a href="{{ url_for('payments.payment_tab') }}" class="btn btn-outline-secondary">
                         <i class="fas fa-credit-card me-2"></i>View Payment History
                     </a>
                 </div>
@@ -112,15 +112,6 @@
 // Auto-redirect to dashboard after 3 seconds if successful
 {% if success %}
 (function() {
-    // Save license key to localStorage for persistent access
-    const licenseKey = "{{ license_key }}";
-    if (licenseKey && licenseKey !== 'None' && licenseKey.trim()) {
-        localStorage.setItem('variosync_license_key', licenseKey.trim());
-        // Mask license key in console (show only first 4 and last 4 chars)
-        const maskedKey = licenseKey.length > 8 ? licenseKey.substring(0, 4) + '...' + licenseKey.substring(licenseKey.length - 4) : '***';
-        console.log('License key saved to localStorage:', maskedKey);
-    }
-    
     let countdown = 3;
     const countdownEl = document.getElementById('countdown');
     const dashboardBtn = document.getElementById('dashboardBtn');
@@ -134,11 +125,11 @@
         
         if (countdown <= 0) {
             clearInterval(interval);
-            // Redirect to dashboard (license key already in localStorage)
+            // Redirect to dashboard
             if (dashboardBtn) {
                 dashboardBtn.click();
             } else {
-                window.location.href = "{{ url_for('main.dashboard') }}?license_key={{ license_key }}";
+                window.location.href = "{{ url_for('main.dashboard') }}";
             }
         }
     }, 1000);

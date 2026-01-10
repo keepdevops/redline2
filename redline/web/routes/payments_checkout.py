@@ -24,18 +24,6 @@ logger = logging.getLogger(__name__)
 if STRIPE_AVAILABLE and PaymentConfig.STRIPE_SECRET_KEY:
     stripe.api_key = PaymentConfig.STRIPE_SECRET_KEY
 
-@payments_checkout_bp.route('/create-checkout', methods=['POST'])
-def create_checkout():
-    """
-    DEPRECATED: This endpoint is for the old pay-per-hour model.
-    Use /payments/create-subscription-checkout for new subscription-based billing.
-    """
-    return jsonify({
-        'error': 'This endpoint is deprecated',
-        'message': 'Please use /payments/create-subscription-checkout for subscription-based billing',
-        'redirect': '/payments/subscription'
-    }), 410  # 410 Gone
-
 @payments_checkout_bp.route('/create-subscription-checkout', methods=['POST'])
 def create_subscription_checkout():
     """Create Stripe checkout session for subscription with metered billing"""

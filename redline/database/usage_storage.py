@@ -70,7 +70,8 @@ class UsageStorage:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS usage_history (
                     id INTEGER PRIMARY KEY,
-                    license_key VARCHAR NOT NULL,
+                    license_key VARCHAR,
+                    user_id VARCHAR,
                     session_id VARCHAR,
                     hours_deducted DOUBLE NOT NULL,
                     deduction_time TIMESTAMP NOT NULL,
@@ -81,6 +82,12 @@ class UsageStorage:
                 )
             """)
             
+            # Add user_id column if table exists but column doesn't (migration)
+            try:
+                conn.execute("ALTER TABLE usage_history ADD COLUMN IF NOT EXISTS user_id VARCHAR")
+            except Exception:
+                pass  # Column may already exist
+            
             # Create sequence for auto-increment (DuckDB doesn't support AUTO_INCREMENT)
             conn.execute("CREATE SEQUENCE IF NOT EXISTS usage_history_id_seq START 1")
             
@@ -88,7 +95,8 @@ class UsageStorage:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS payment_history (
                     id INTEGER PRIMARY KEY,
-                    license_key VARCHAR NOT NULL,
+                    license_key VARCHAR,
+                    user_id VARCHAR,
                     stripe_session_id VARCHAR,
                     payment_id VARCHAR,
                     hours_purchased DOUBLE NOT NULL,
@@ -100,6 +108,12 @@ class UsageStorage:
                 )
             """)
             
+            # Add user_id column if table exists but column doesn't (migration)
+            try:
+                conn.execute("ALTER TABLE payment_history ADD COLUMN IF NOT EXISTS user_id VARCHAR")
+            except Exception:
+                pass  # Column may already exist
+            
             # Create sequence for auto-increment
             conn.execute("CREATE SEQUENCE IF NOT EXISTS payment_history_id_seq START 1")
             
@@ -107,7 +121,8 @@ class UsageStorage:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS access_logs (
                     id INTEGER PRIMARY KEY,
-                    license_key VARCHAR NOT NULL,
+                    license_key VARCHAR,
+                    user_id VARCHAR,
                     session_id VARCHAR,
                     endpoint VARCHAR NOT NULL,
                     method VARCHAR NOT NULL,
@@ -120,16 +135,31 @@ class UsageStorage:
                 )
             """)
             
+            # Add user_id column if table exists but column doesn't (migration)
+            try:
+                conn.execute("ALTER TABLE access_logs ADD COLUMN IF NOT EXISTS user_id VARCHAR")
+            except Exception:
+                pass  # Column may already exist
+            
             # Create sequence for auto-increment
             conn.execute("CREATE SEQUENCE IF NOT EXISTS access_logs_id_seq START 1")
             
             # Create indexes for performance
+            # Legacy license_key indexes (kept for migration period)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_usage_sessions_license ON usage_sessions(license_key)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_usage_sessions_start ON usage_sessions(start_time)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_usage_history_license ON usage_history(license_key)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_usage_history_time ON usage_history(deduction_time)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_payment_history_license ON payment_history(license_key)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_access_logs_license ON access_logs(license_key)")
+            
+            # New user_id indexes (primary for JWT authentication)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_usage_sessions_user ON usage_sessions(user_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_usage_history_user ON usage_history(user_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_payment_history_user ON payment_history(user_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_access_logs_user ON access_logs(user_id)")
+            
+            # Time-based indexes
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_usage_sessions_start ON usage_sessions(start_time)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_usage_history_time ON usage_history(deduction_time)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_access_logs_time ON access_logs(access_time)")
             
             conn.close()
@@ -145,19 +175,25 @@ class UsageStorage:
             logger.error(f"Unexpected error initializing usage storage: {str(e)}")
             raise
     
-    def log_session_start(self, session_id: str, license_key: str, user_id: Optional[str] = None):
-        """Log the start of a usage session"""
+    def log_session_start(self, session_id: str, user_id: str, license_key: Optional[str] = None):
+        """Log the start of a usage session. Requires user_id from JWT token.
+        
+        Args:
+            session_id: Unique session identifier
+            user_id: User ID from JWT token (required)
+            license_key: Legacy license key (optional, for migration period only)
+        """
         # Pre-validation with if-else
         if not session_id:
             logger.error("Session ID is required for logging session start")
             return
         
-        if not license_key:
-            logger.error("License key is required for logging session start")
+        if not user_id:
+            logger.error("User ID is required for logging session start")
             return
         
-        if not isinstance(session_id, str) or not isinstance(license_key, str):
-            logger.error("Session ID and license key must be strings")
+        if not isinstance(session_id, str) or not isinstance(user_id, str):
+            logger.error("Session ID and user ID must be strings")
             return
         
         if not os.path.exists(os.path.dirname(self.db_path)):
@@ -176,17 +212,17 @@ class UsageStorage:
                 # Update existing session (duplicate detected, update instead)
                 conn.execute("""
                     UPDATE usage_sessions
-                    SET start_time = ?, status = 'active', license_key = ?, user_id = ?
+                    SET start_time = ?, status = 'active', user_id = ?, license_key = ?
                     WHERE session_id = ?
-                """, [datetime.now(), license_key, user_id, session_id])
-                logger.debug(f"Updated existing session: {session_id}")
+                """, [datetime.now(), user_id, license_key, session_id])
+                logger.debug(f"Updated existing session: {session_id} for user {user_id}")
             else:
                 # Insert new session
                 conn.execute("""
-                    INSERT INTO usage_sessions (session_id, license_key, user_id, start_time, status)
+                    INSERT INTO usage_sessions (session_id, user_id, license_key, start_time, status)
                     VALUES (?, ?, ?, ?, 'active')
-                """, [session_id, license_key, user_id, datetime.now()])
-                logger.debug(f"Logged session start: {session_id}")
+                """, [session_id, user_id, license_key, datetime.now()])
+                logger.debug(f"Logged session start: {session_id} for user {user_id}")
         except duckdb.ConnectionException as e:
             logger.error(f"Database connection error logging session start: {str(e)}")
         except duckdb.DataError as e:
@@ -234,17 +270,27 @@ class UsageStorage:
             if conn:
                 conn.close()
     
-    def log_hour_deduction(self, license_key: str, hours: float, session_id: Optional[str] = None,
+    def log_hour_deduction(self, user_id: str, hours: float, session_id: Optional[str] = None,
                           hours_before: Optional[float] = None, hours_after: Optional[float] = None,
-                          api_endpoint: Optional[str] = None):
-        """Log an hour deduction event"""
+                          api_endpoint: Optional[str] = None, license_key: Optional[str] = None):
+        """Log an hour deduction event. Requires user_id from JWT token.
+        
+        Args:
+            user_id: User ID from JWT token (required)
+            hours: Hours to deduct
+            session_id: Optional session identifier
+            hours_before: Hours remaining before deduction
+            hours_after: Hours remaining after deduction
+            api_endpoint: Optional API endpoint name
+            license_key: Legacy license key (optional, for migration period only)
+        """
         # Pre-validation with if-else
-        if not license_key:
-            logger.error("License key is required for logging hour deduction")
+        if not user_id:
+            logger.error("User ID is required for logging hour deduction")
             return
         
-        if not isinstance(license_key, str):
-            logger.error("License key must be a string")
+        if not isinstance(user_id, str):
+            logger.error("User ID must be a string")
             return
         
         if hours is None or not isinstance(hours, (int, float)):
@@ -262,14 +308,12 @@ class UsageStorage:
             next_id = conn.execute("SELECT nextval('usage_history_id_seq')").fetchone()[0]
             conn.execute("""
                 INSERT INTO usage_history 
-                (id, license_key, session_id, hours_deducted, deduction_time, 
+                (id, user_id, license_key, session_id, hours_deducted, deduction_time, 
                  hours_remaining_before, hours_remaining_after, api_endpoint)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, [next_id, license_key, session_id, hours, datetime.now(), 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, [next_id, user_id, license_key, session_id, hours, datetime.now(), 
                   hours_before, hours_after, api_endpoint])
-            # Mask license key in logs (show only first 4 and last 4 chars)
-            masked_key = f"{license_key[:4]}...{license_key[-4:]}" if len(license_key) > 8 else "***"
-            logger.debug(f"Logged hour deduction: {masked_key}, {hours} hours")
+            logger.debug(f"Logged hour deduction: user {user_id}, {hours} hours")
         except duckdb.ConnectionException as e:
             logger.error(f"Database connection error logging hour deduction: {str(e)}")
         except Exception as e:
@@ -278,17 +322,28 @@ class UsageStorage:
             if conn:
                 conn.close()
     
-    def log_payment(self, license_key: str, hours_purchased: float, amount_paid: float,
+    def log_payment(self, user_id: str, hours_purchased: float, amount_paid: float,
                    stripe_session_id: Optional[str] = None, payment_id: Optional[str] = None,
-                   payment_status: str = 'completed', currency: str = 'usd'):
-        """Log a payment transaction"""
+                   payment_status: str = 'completed', currency: str = 'usd', license_key: Optional[str] = None):
+        """Log a payment transaction. Requires user_id from JWT token.
+        
+        Args:
+            user_id: User ID from JWT token (required)
+            hours_purchased: Number of hours purchased
+            amount_paid: Amount paid in currency
+            stripe_session_id: Stripe checkout session ID
+            payment_id: Stripe payment intent ID
+            payment_status: Payment status (default: 'completed')
+            currency: Currency code (default: 'usd')
+            license_key: Legacy license key (optional, for migration period only)
+        """
         # Pre-validation with if-else
-        if not license_key:
-            logger.error("License key is required for logging payment")
+        if not user_id:
+            logger.error("User ID is required for logging payment")
             return
         
-        if not isinstance(license_key, str):
-            logger.error("License key must be a string")
+        if not isinstance(user_id, str):
+            logger.error("User ID must be a string")
             return
         
         if hours_purchased is None or not isinstance(hours_purchased, (int, float)):
@@ -318,14 +373,12 @@ class UsageStorage:
             next_id = conn.execute("SELECT nextval('payment_history_id_seq')").fetchone()[0]
             conn.execute("""
                 INSERT INTO payment_history 
-                (id, license_key, stripe_session_id, payment_id, hours_purchased, 
+                (id, user_id, license_key, stripe_session_id, payment_id, hours_purchased, 
                  amount_paid, currency, payment_status, payment_date)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, [next_id, license_key, stripe_session_id, payment_id, hours_purchased,
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, [next_id, user_id, license_key, stripe_session_id, payment_id, hours_purchased,
                   amount_paid, currency, payment_status, datetime.now()])
-            # Mask license key in logs (show only first 4 and last 4 chars)
-            masked_key = f"{license_key[:4]}...{license_key[-4:]}" if len(license_key) > 8 else "***"
-            logger.info(f"Logged payment: {masked_key}, {hours_purchased} hours, ${amount_paid}")
+            logger.info(f"Logged payment: user {user_id}, {hours_purchased} hours, ${amount_paid}")
         except duckdb.ConnectionException as e:
             logger.error(f"Database connection error logging payment: {str(e)}")
         except Exception as e:
@@ -334,14 +387,26 @@ class UsageStorage:
             if conn:
                 conn.close()
     
-    def log_access(self, license_key: str, endpoint: str, method: str,
+    def log_access(self, user_id: str, endpoint: str, method: str,
                   session_id: Optional[str] = None, ip_address: Optional[str] = None,
                   user_agent: Optional[str] = None, response_status: Optional[int] = None,
-                  response_time_ms: Optional[int] = None):
-        """Log an API access event"""
+                  response_time_ms: Optional[int] = None, license_key: Optional[str] = None):
+        """Log an API access event. Requires user_id from JWT token.
+        
+        Args:
+            user_id: User ID from JWT token (required)
+            endpoint: API endpoint path
+            method: HTTP method (GET, POST, etc.)
+            session_id: Optional session identifier
+            ip_address: Client IP address
+            user_agent: Client user agent string
+            response_status: HTTP response status code
+            response_time_ms: Response time in milliseconds
+            license_key: Legacy license key (optional, for migration period only)
+        """
         # Pre-validation with if-else
-        if not license_key:
-            logger.debug("License key is empty for access log, skipping")
+        if not user_id:
+            logger.debug("User ID is empty for access log, skipping")
             return
         
         if not endpoint:
@@ -370,10 +435,10 @@ class UsageStorage:
             next_id = conn.execute("SELECT nextval('access_logs_id_seq')").fetchone()[0]
             conn.execute("""
                 INSERT INTO access_logs 
-                (id, license_key, session_id, endpoint, method, ip_address, 
+                (id, user_id, license_key, session_id, endpoint, method, ip_address, 
                  user_agent, response_status, response_time_ms, access_time)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, [next_id, license_key, session_id, endpoint, method, ip_address,
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, [next_id, user_id, license_key, session_id, endpoint, method, ip_address,
                   user_agent, response_status, response_time_ms, datetime.now()])
         except duckdb.ConnectionException as e:
             logger.error(f"Database connection error logging access: {str(e)}")
@@ -383,15 +448,24 @@ class UsageStorage:
             if conn:
                 conn.close()
     
-    def get_usage_history(self, license_key: str, limit: int = 100) -> List[Dict]:
-        """Get usage history for a license"""
+    def get_usage_history(self, user_id: str, limit: int = 100, license_key: Optional[str] = None) -> List[Dict]:
+        """Get usage history for a user. Requires user_id from JWT token.
+        
+        Args:
+            user_id: User ID from JWT token (required)
+            limit: Maximum number of records to return (default: 100)
+            license_key: Legacy license key (optional, for migration period only)
+        
+        Returns:
+            List of usage history records
+        """
         # Pre-validation with if-else
-        if not license_key:
-            logger.warning("License key is required for getting usage history")
+        if not user_id:
+            logger.warning("User ID is required for getting usage history")
             return []
         
-        if not isinstance(license_key, str):
-            logger.warning("License key must be a string")
+        if not isinstance(user_id, str):
+            logger.warning("User ID must be a string")
             return []
         
         if not isinstance(limit, int) or limit < 1:
@@ -405,14 +479,28 @@ class UsageStorage:
         conn = None
         try:
             conn = duckdb.connect(self.db_path)
-            result = conn.execute("""
-                SELECT * FROM usage_history
-                WHERE license_key = ?
-                ORDER BY deduction_time DESC
-                LIMIT ?
-            """, [license_key, limit]).fetchall()
+            # Use user_id as primary identifier, fallback to license_key during migration
+            if user_id:
+                result = conn.execute("""
+                    SELECT * FROM usage_history
+                    WHERE user_id = ?
+                    ORDER BY deduction_time DESC
+                    LIMIT ?
+                """, [user_id, limit]).fetchall()
+            elif license_key:
+                # Fallback for migration period
+                logger.debug(f"Using license_key fallback for usage history query")
+                result = conn.execute("""
+                    SELECT * FROM usage_history
+                    WHERE license_key = ?
+                    ORDER BY deduction_time DESC
+                    LIMIT ?
+                """, [license_key, limit]).fetchall()
+            else:
+                logger.warning("Neither user_id nor license_key provided for usage history")
+                return []
             
-            columns = ['id', 'license_key', 'session_id', 'hours_deducted', 'deduction_time',
+            columns = ['id', 'license_key', 'user_id', 'session_id', 'hours_deducted', 'deduction_time',
                       'hours_remaining_before', 'hours_remaining_after', 'api_endpoint', 'created_at']
             
             history = []
@@ -430,18 +518,41 @@ class UsageStorage:
             if conn:
                 conn.close()
     
-    def get_payment_history(self, license_key: str, limit: int = 50) -> List[Dict]:
-        """Get payment history for a license"""
+    def get_payment_history(self, user_id: str, limit: int = 50, license_key: Optional[str] = None) -> List[Dict]:
+        """Get payment history for a user. Requires user_id from JWT token.
+        
+        Args:
+            user_id: User ID from JWT token (required)
+            limit: Maximum number of records to return (default: 50)
+            license_key: Legacy license key (optional, for migration period only)
+        
+        Returns:
+            List of payment history records
+        """
         try:
             conn = duckdb.connect(self.db_path)
-            result = conn.execute("""
-                SELECT * FROM payment_history
-                WHERE license_key = ?
-                ORDER BY payment_date DESC
-                LIMIT ?
-            """, [license_key, limit]).fetchall()
+            # Use user_id as primary identifier, fallback to license_key during migration
+            if user_id:
+                result = conn.execute("""
+                    SELECT * FROM payment_history
+                    WHERE user_id = ?
+                    ORDER BY payment_date DESC
+                    LIMIT ?
+                """, [user_id, limit]).fetchall()
+            elif license_key:
+                # Fallback for migration period
+                logger.debug(f"Using license_key fallback for payment history query")
+                result = conn.execute("""
+                    SELECT * FROM payment_history
+                    WHERE license_key = ?
+                    ORDER BY payment_date DESC
+                    LIMIT ?
+                """, [license_key, limit]).fetchall()
+            else:
+                logger.warning("Neither user_id nor license_key provided for payment history")
+                return []
             
-            columns = ['id', 'license_key', 'stripe_session_id', 'payment_id', 'hours_purchased',
+            columns = ['id', 'license_key', 'user_id', 'stripe_session_id', 'payment_id', 'hours_purchased',
                       'amount_paid', 'currency', 'payment_status', 'payment_date', 'created_at']
             
             history = []
@@ -454,16 +565,39 @@ class UsageStorage:
             logger.error(f"Error getting payment history: {str(e)}")
             return []
     
-    def get_session_history(self, license_key: str, limit: int = 50) -> List[Dict]:
-        """Get session history for a license"""
+    def get_session_history(self, user_id: str, limit: int = 50, license_key: Optional[str] = None) -> List[Dict]:
+        """Get session history for a user. Requires user_id from JWT token.
+        
+        Args:
+            user_id: User ID from JWT token (required)
+            limit: Maximum number of records to return (default: 50)
+            license_key: Legacy license key (optional, for migration period only)
+        
+        Returns:
+            List of session history records
+        """
         try:
             conn = duckdb.connect(self.db_path)
-            result = conn.execute("""
-                SELECT * FROM usage_sessions
-                WHERE license_key = ?
-                ORDER BY start_time DESC
-                LIMIT ?
-            """, [license_key, limit]).fetchall()
+            # Use user_id as primary identifier, fallback to license_key during migration
+            if user_id:
+                result = conn.execute("""
+                    SELECT * FROM usage_sessions
+                    WHERE user_id = ?
+                    ORDER BY start_time DESC
+                    LIMIT ?
+                """, [user_id, limit]).fetchall()
+            elif license_key:
+                # Fallback for migration period
+                logger.debug(f"Using license_key fallback for session history query")
+                result = conn.execute("""
+                    SELECT * FROM usage_sessions
+                    WHERE license_key = ?
+                    ORDER BY start_time DESC
+                    LIMIT ?
+                """, [license_key, limit]).fetchall()
+            else:
+                logger.warning("Neither user_id nor license_key provided for session history")
+                return []
             
             columns = ['session_id', 'license_key', 'user_id', 'start_time', 'end_time',
                       'total_hours', 'total_seconds', 'api_endpoints', 'status', 'created_at']
@@ -478,32 +612,73 @@ class UsageStorage:
             logger.error(f"Error getting session history: {str(e)}")
             return []
     
-    def get_access_stats(self, license_key: str, days: int = 30) -> Dict:
-        """Get access statistics for a license"""
+    def get_access_stats(self, user_id: str, days: int = 30, license_key: Optional[str] = None) -> Dict:
+        """Get access statistics for a user. Requires user_id from JWT token.
+        
+        Args:
+            user_id: User ID from JWT token (required)
+            days: Number of days to look back (default: 30)
+            license_key: Legacy license key (optional, for migration period only)
+        
+        Returns:
+            Dictionary with access statistics
+        """
         try:
             conn = duckdb.connect(self.db_path)
             
+            # Determine which identifier to use
+            if not user_id and not license_key:
+                logger.warning("Neither user_id nor license_key provided for access stats")
+                return {}
+            
+            # Use user_id as primary identifier, fallback to license_key during migration
+            identifier = user_id if user_id else license_key
+            use_user_id = bool(user_id)
+            
             # Total API calls (DuckDB doesn't support parameterized INTERVAL, use string formatting)
-            total_calls = conn.execute(f"""
-                SELECT COUNT(*) FROM access_logs
-                WHERE license_key = ? AND access_time >= CURRENT_TIMESTAMP - INTERVAL '{days}' DAYS
-            """, [license_key]).fetchone()[0]
+            if use_user_id:
+                total_calls = conn.execute(f"""
+                    SELECT COUNT(*) FROM access_logs
+                    WHERE user_id = ? AND access_time >= CURRENT_TIMESTAMP - INTERVAL '{days}' DAYS
+                """, [identifier]).fetchone()[0]
+            else:
+                logger.debug(f"Using license_key fallback for access stats query")
+                total_calls = conn.execute(f"""
+                    SELECT COUNT(*) FROM access_logs
+                    WHERE license_key = ? AND access_time >= CURRENT_TIMESTAMP - INTERVAL '{days}' DAYS
+                """, [identifier]).fetchone()[0]
             
             # Total hours used
-            total_hours = conn.execute(f"""
-                SELECT COALESCE(SUM(hours_deducted), 0) FROM usage_history
-                WHERE license_key = ? AND deduction_time >= CURRENT_TIMESTAMP - INTERVAL '{days}' DAYS
-            """, [license_key]).fetchone()[0]
+            if use_user_id:
+                total_hours = conn.execute(f"""
+                    SELECT COALESCE(SUM(hours_deducted), 0) FROM usage_history
+                    WHERE user_id = ? AND deduction_time >= CURRENT_TIMESTAMP - INTERVAL '{days}' DAYS
+                """, [identifier]).fetchone()[0]
+            else:
+                total_hours = conn.execute(f"""
+                    SELECT COALESCE(SUM(hours_deducted), 0) FROM usage_history
+                    WHERE license_key = ? AND deduction_time >= CURRENT_TIMESTAMP - INTERVAL '{days}' DAYS
+                """, [identifier]).fetchone()[0]
             
             # Most used endpoints
-            top_endpoints = conn.execute(f"""
-                SELECT endpoint, COUNT(*) as count
-                FROM access_logs
-                WHERE license_key = ? AND access_time >= CURRENT_TIMESTAMP - INTERVAL '{days}' DAYS
-                GROUP BY endpoint
-                ORDER BY count DESC
-                LIMIT 10
-            """, [license_key]).fetchall()
+            if use_user_id:
+                top_endpoints = conn.execute(f"""
+                    SELECT endpoint, COUNT(*) as count
+                    FROM access_logs
+                    WHERE user_id = ? AND access_time >= CURRENT_TIMESTAMP - INTERVAL '{days}' DAYS
+                    GROUP BY endpoint
+                    ORDER BY count DESC
+                    LIMIT 10
+                """, [identifier]).fetchall()
+            else:
+                top_endpoints = conn.execute(f"""
+                    SELECT endpoint, COUNT(*) as count
+                    FROM access_logs
+                    WHERE license_key = ? AND access_time >= CURRENT_TIMESTAMP - INTERVAL '{days}' DAYS
+                    GROUP BY endpoint
+                    ORDER BY count DESC
+                    LIMIT 10
+                """, [identifier]).fetchall()
             
             conn.close()
             

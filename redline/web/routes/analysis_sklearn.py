@@ -3,13 +3,14 @@ Scikit-learn ML features for VarioSync Web GUI
 Provides outlier detection, clustering, predictions, and feature scaling
 """
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 import logging
 import pandas as pd
 import numpy as np
 import os
 from ..utils.analysis_helpers import detect_price_column, detect_date_columns, _load_data_file
 from ..utils.data_helpers import clean_dataframe_columns
+from redline.auth.supabase_auth import auth_manager
 
 analysis_sklearn_bp = Blueprint('analysis_sklearn', __name__)
 logger = logging.getLogger(__name__)
@@ -33,8 +34,14 @@ except ImportError:
 
 
 @analysis_sklearn_bp.route('/detect-outliers', methods=['POST'])
+@auth_manager.require_auth
 def detect_outliers():
-    """Detect outliers using Isolation Forest."""
+    """Detect outliers using Isolation Forest. Requires JWT authentication."""
+    # Get authenticated user from g (set by @require_auth decorator)
+    user_id = getattr(g, 'user_id', None)
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
+    
     if not SKLEARN_AVAILABLE:
         return jsonify({'error': 'scikit-learn not available'}), 500
     
@@ -171,7 +178,13 @@ def cluster_data():
 
 
 @analysis_sklearn_bp.route('/predict', methods=['POST'])
+@auth_manager.require_auth
 def predict_values():
+    """Make predictions using Linear Regression. Requires JWT authentication."""
+    # Get authenticated user from g (set by @require_auth decorator)
+    user_id = getattr(g, 'user_id', None)
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
     """Simple linear regression prediction."""
     if not SKLEARN_AVAILABLE:
         return jsonify({'error': 'scikit-learn not available'}), 500
@@ -309,7 +322,13 @@ def predict_values():
 
 
 @analysis_sklearn_bp.route('/scale-features', methods=['POST'])
+@auth_manager.require_auth
 def scale_features():
+    """Scale features using StandardScaler or MinMaxScaler. Requires JWT authentication."""
+    # Get authenticated user from g (set by @require_auth decorator)
+    user_id = getattr(g, 'user_id', None)
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
     """Scale features using StandardScaler or MinMaxScaler."""
     if not SKLEARN_AVAILABLE:
         return jsonify({'error': 'scikit-learn not available'}), 500
