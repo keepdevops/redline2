@@ -30,17 +30,81 @@ function getStoredUser() {
 
 // Save auth token to localStorage
 function saveAuthToken(token) {
+    const currentPath = window.location.pathname;
+    const pageName = currentPath.includes('/data/') ? 'DATA' :
+                    currentPath.includes('/analysis/') ? 'Analysis' :
+                    currentPath.includes('/ml/') ? 'ML' :
+                    currentPath.includes('/download/') ? 'Download' :
+                    currentPath.includes('/converter/') ? 'Converter' :
+                    currentPath.includes('/api-keys/') ? 'API Keys' :
+                    currentPath.includes('/help') ? 'Help' :
+                    currentPath.includes('/settings/') ? 'Settings' :
+                    currentPath.includes('/dashboard') ? 'Dashboard' :
+                    currentPath.includes('/auth/login') ? 'Login' :
+                    currentPath.includes('/auth/signup') ? 'Signup' :
+                    'Unknown';
+    
     if (token && token.trim()) {
         localStorage.setItem(SUPABASE_TOKEN_STORAGE, token.trim());
+        const tokenPreview = token.trim().length > 20 ? 
+            token.trim().substring(0, 10) + '...' + token.trim().substring(token.trim().length - 10) : 
+            token.trim().substring(0, Math.min(20, token.trim().length)) + '...';
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('💾 SAVING AUTH TOKEN on', pageName, 'panel');
+        console.log('   Storage key:', SUPABASE_TOKEN_STORAGE);
+        console.log('   Token length:', token.trim().length);
+        console.log('   Token preview:', tokenPreview);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         window.dispatchEvent(new CustomEvent('authTokenUpdated', { detail: { token: token.trim() } }));
+        // Also trigger a manual update if updateUserMenu is available globally
+        if (typeof updateUserMenu === 'function') {
+            console.log('🔄 Calling updateUserMenu directly after saving token on', pageName, 'panel');
+            updateUserMenu();
+        } else {
+            console.warn('⚠️ updateUserMenu function not available on', pageName, 'panel');
+        }
+    } else {
+        console.warn('⚠️ Attempted to save empty or invalid token on', pageName, 'panel');
     }
 }
 
 // Save user data to localStorage
 function saveUserData(user) {
+    const currentPath = window.location.pathname;
+    const pageName = currentPath.includes('/data/') ? 'DATA' :
+                    currentPath.includes('/analysis/') ? 'Analysis' :
+                    currentPath.includes('/ml/') ? 'ML' :
+                    currentPath.includes('/download/') ? 'Download' :
+                    currentPath.includes('/converter/') ? 'Converter' :
+                    currentPath.includes('/api-keys/') ? 'API Keys' :
+                    currentPath.includes('/help') ? 'Help' :
+                    currentPath.includes('/settings/') ? 'Settings' :
+                    currentPath.includes('/dashboard') ? 'Dashboard' :
+                    currentPath.includes('/auth/login') ? 'Login' :
+                    currentPath.includes('/auth/signup') ? 'Signup' :
+                    'Unknown';
+    
     if (user) {
-        localStorage.setItem(SUPABASE_USER_STORAGE, JSON.stringify(user));
+        const userJson = JSON.stringify(user);
+        localStorage.setItem(SUPABASE_USER_STORAGE, userJson);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('💾 SAVING USER DATA on', pageName, 'panel');
+        console.log('   Storage key:', SUPABASE_USER_STORAGE);
+        console.log('   User ID:', user.id || 'missing');
+        console.log('   User Email:', user.email || 'missing');
+        console.log('   User Name:', user.name || 'missing');
+        console.log('   Full user object:', user);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         window.dispatchEvent(new CustomEvent('userDataUpdated', { detail: { user } }));
+        // Also trigger a manual update if updateUserMenu is available globally
+        if (typeof updateUserMenu === 'function') {
+            console.log('🔄 Calling updateUserMenu directly after saving user data on', pageName, 'panel');
+            updateUserMenu();
+        } else {
+            console.warn('⚠️ updateUserMenu function not available on', pageName, 'panel');
+        }
+    } else {
+        console.warn('⚠️ Attempted to save empty or invalid user data on', pageName, 'panel');
     }
 }
 
@@ -132,8 +196,13 @@ const api = {
         
         return fetch(url, finalOptions)
             .then(response => {
-                // Handle 401 Unauthorized - redirect to login
-                if (response.status === 401) {
+                // Handle 401 Unauthorized - redirect to login (but don't clear auth for public download endpoints)
+                const isDownloadEndpoint = url.includes('/download/download') || 
+                                          url.includes('/download/batch-download') ||
+                                          url.includes('/download/history') ||
+                                          url.includes('/download/sources') ||
+                                          url.includes('/download/validate-ticker');
+                if (response.status === 401 && !isDownloadEndpoint) {
                     clearAuthData();
                     window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
                     throw new Error('Session expired. Please log in again.');
@@ -231,6 +300,20 @@ const api = {
                         throw error;
                     });
                 }
+                
+                // Check Content-Type before parsing JSON
+                const contentType = response.headers.get('Content-Type') || '';
+                if (!contentType.includes('application/json')) {
+                    // Not JSON - read as text and throw error
+                    return response.text().then(function(text) {
+                        const error = new Error(text || 'Server returned non-JSON response');
+                        error.status = response.status;
+                        error.statusText = response.statusText;
+                        error.contentType = contentType;
+                        throw error;
+                    });
+                }
+                
                 return response.json();
             })
             .catch(error => {
@@ -910,6 +993,18 @@ const authHelper = {
 
     // Login with email and password
     login: function(email, password) {
+        const currentPath = window.location.pathname;
+        const pageName = currentPath.includes('/auth/login') ? 'Login' :
+                        currentPath.includes('/auth/signup') ? 'Signup' :
+                        currentPath.includes('/dashboard') ? 'Dashboard' :
+                        'Unknown';
+        
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('🔐 LOGIN ATTEMPT on', pageName, 'panel');
+        console.log('   Email:', email);
+        console.log('   Password length:', password ? password.length : 0);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        
         return fetch('/auth/login', {
             method: 'POST',
             headers: {
@@ -917,15 +1012,58 @@ const authHelper = {
             },
             body: JSON.stringify({ email, password })
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('📡 Login API response status:', response.status, response.statusText);
+            const contentType = response.headers.get('content-type');
+            console.log('   Content-Type:', contentType);
+            
+            // Check if response is JSON
+            if (contentType && contentType.includes('application/json')) {
+                return response.json().then(data => {
+                    // Check if response indicates an error
+                    if (!response.ok) {
+                        const errorMsg = data.error || data.message || `HTTP ${response.status}: ${response.statusText}`;
+                        console.error('❌ LOGIN API ERROR on', pageName, 'panel:', errorMsg);
+                        throw new Error(errorMsg);
+                    }
+                    return data;
+                });
+            } else {
+                // Non-JSON response (likely HTML error page)
+                console.error('❌ LOGIN API returned non-JSON response on', pageName, 'panel');
+                console.error('   Expected JSON but got:', contentType || 'unknown content type');
+                return response.text().then(text => {
+                    console.error('   Response preview (first 200 chars):', text.substring(0, 200));
+                    throw new Error(`Server error (${response.status}). Please try again later.`);
+                });
+            }
+        })
         .then(data => {
             if (data.access_token && data.user) {
+                console.log('✅ LOGIN SUCCESSFUL on', pageName, 'panel');
+                console.log('   User ID:', data.user.id || 'missing');
+                console.log('   User Email:', data.user.email || 'missing');
+                console.log('   User Name:', data.user.name || 'missing');
+                console.log('   Access token present:', !!data.access_token);
+                console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
                 saveAuthToken(data.access_token);
                 saveUserData(data.user);
+                console.log('✅ Authentication data saved, navbar should update shortly');
                 return data;
             } else {
+                console.error('❌ LOGIN FAILED on', pageName, 'panel');
+                console.error('   Error:', data.error || 'Unknown error');
+                console.error('   Response data:', data);
                 throw new Error(data.error || 'Login failed');
             }
+        })
+        .catch(error => {
+            console.error('❌ LOGIN ERROR on', pageName, 'panel:', error);
+            // Re-throw with a user-friendly message if it's a parsing error
+            if (error.message && error.message.includes('Unexpected token')) {
+                throw new Error('Server returned an invalid response. Please try again later.');
+            }
+            throw error;
         });
     },
 
@@ -938,7 +1076,25 @@ const authHelper = {
             },
             body: JSON.stringify({ email, password, name })
         })
-        .then(response => response.json())
+        .then(response => {
+            const contentType = response.headers.get('content-type') || '';
+            
+            // Check if response is JSON
+            if (contentType.includes('application/json')) {
+                return response.json().then(data => {
+                    if (!response.ok) {
+                        const errorMsg = data.error || data.message || `HTTP ${response.status}: ${response.statusText}`;
+                        throw new Error(errorMsg);
+                    }
+                    return data;
+                });
+            } else {
+                // Non-JSON response (likely HTML error page)
+                return response.text().then(text => {
+                    throw new Error(`Server error (${response.status}). Please try again later.`);
+                });
+            }
+        })
         .then(data => {
             if (data.access_token && data.user) {
                 saveAuthToken(data.access_token);
@@ -947,6 +1103,13 @@ const authHelper = {
             } else {
                 throw new Error(data.error || 'Signup failed');
             }
+        })
+        .catch(error => {
+            // Re-throw with a user-friendly message if it's a parsing error
+            if (error.message && error.message.includes('Unexpected token')) {
+                throw new Error('Server returned an invalid response. Please try again later.');
+            }
+            throw error;
         });
     },
 

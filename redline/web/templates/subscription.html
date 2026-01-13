@@ -132,6 +132,15 @@
 
             <!-- Email Input Form -->
             <div class="mt-4">
+                {% if not stripe_available %}
+                <!-- Stripe Disabled Message -->
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Payment processing is currently unavailable.</strong>
+                    <p class="mb-0 mt-2">Stripe payments are disabled or not configured. Please contact support for assistance.</p>
+                </div>
+                {% endif %}
+                
                 <div class="mb-3">
                     <input
                         type="email"
@@ -139,6 +148,7 @@
                         id="emailInput"
                         placeholder="Enter your email address"
                         required
+                        {% if not stripe_available %}disabled{% endif %}
                     >
                     <small class="text-white-50 d-block mt-2">
                         <i class="fas fa-lock me-1"></i>Secure checkout powered by Stripe
@@ -149,6 +159,7 @@
                     class="btn subscribe-btn w-100"
                     id="subscribeBtn"
                     onclick="createSubscription()"
+                    {% if not stripe_available %}disabled{% endif %}
                 >
                     <i class="fas fa-credit-card me-2"></i>Subscribe Now
                 </button>
@@ -199,6 +210,7 @@
 <script>
 // Stripe configuration
 const STRIPE_PUBLISHABLE_KEY = "{{ config.get('STRIPE_PUBLISHABLE_KEY', '') }}";
+const STRIPE_AVAILABLE = {{ stripe_available|lower }};
 
 function validateEmail(email) {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -206,6 +218,12 @@ function validateEmail(email) {
 }
 
 async function createSubscription() {
+    // Check if Stripe is available
+    if (!STRIPE_AVAILABLE) {
+        showError('Payment processing is currently unavailable. Please contact support for assistance.');
+        return;
+    }
+    
     const emailInput = document.getElementById('emailInput');
     const subscribeBtn = document.getElementById('subscribeBtn');
     const errorMessage = document.getElementById('errorMessage');
@@ -243,7 +261,13 @@ async function createSubscription() {
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.error || 'Failed to create checkout session');
+            // Check if Stripe is disabled
+            if (data.disabled || response.status === 503) {
+                showError(data.message || data.error || 'Payment processing is currently unavailable. Please contact support for assistance.');
+            } else {
+                throw new Error(data.error || 'Failed to create checkout session');
+            }
+            return;
         }
 
         // Redirect to Stripe Checkout

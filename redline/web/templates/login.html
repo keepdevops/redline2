@@ -140,23 +140,82 @@
 
         // Wait for VARIOSYNC to be available, then proceed with login
         waitForVariosync(function() {
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('🚀 Starting login process from Login page');
+            console.log('   Email:', email);
+            console.log('   VARIOSYNC available:', !!window.VARIOSYNC);
+            console.log('   updateUserMenu available:', typeof updateUserMenu === 'function');
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            
             loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Logging in...';
             
             // Use the authHelper from main.js
             window.VARIOSYNC.login(email, password)
                 .then(function(data) {
+                    console.log('✅ Login promise resolved successfully');
+                    console.log('   User data received:', {
+                        id: data.user?.id,
+                        email: data.user?.email,
+                        name: data.user?.name
+                    });
+                    
                     showMessage('Login successful! Redirecting...', 'success');
+                    
+                    // Verify data was saved to localStorage
+                    const savedToken = localStorage.getItem('variosync_auth_token');
+                    const savedUser = localStorage.getItem('variosync_user_data');
+                    console.log('💾 Verification after save:');
+                    console.log('   Token saved:', !!savedToken, savedToken ? `(length: ${savedToken.length})` : '');
+                    console.log('   User data saved:', !!savedUser, savedUser ? `(length: ${savedUser.length})` : '');
+                    
+                    if (savedUser) {
+                        try {
+                            const parsedUser = JSON.parse(savedUser);
+                            console.log('   User data parsed:', {
+                                id: parsedUser.id,
+                                email: parsedUser.email,
+                                name: parsedUser.name
+                            });
+                        } catch (e) {
+                            console.error('   Failed to parse saved user data:', e);
+                        }
+                    }
+
+                    // Ensure navbar is updated before redirect
+                    if (typeof updateUserMenu === 'function') {
+                        console.log('🔄 Calling updateUserMenu after successful login (first call)');
+                        updateUserMenu();
+                    } else {
+                        console.warn('⚠️ updateUserMenu not available after login');
+                    }
 
                     // Get redirect URL from query parameter or default to dashboard
                     const urlParams = new URLSearchParams(window.location.search);
                     const redirect = urlParams.get('redirect') || '/dashboard';
+                    console.log('📍 Redirecting to:', redirect);
 
+                    // Longer delay to ensure localStorage is saved and navbar updates
+                    // Also add a flag to the redirect URL to trigger navbar update on new page
                     setTimeout(function() {
-                        window.location.href = redirect;
+                        console.log('⏱️ Pre-redirect delay completed, updating navbar one final time');
+                        // Update navbar one more time before redirect
+                        if (typeof updateUserMenu === 'function') {
+                            updateUserMenu();
+                        }
+                        
+                        // Add a query parameter to trigger navbar update on the new page
+                        const separator = redirect.includes('?') ? '&' : '?';
+                        const redirectWithFlag = redirect + separator + '_login=success&_t=' + Date.now();
+                        console.log('🚀 Navigating to:', redirectWithFlag);
+                        window.location.href = redirectWithFlag;
                     }, 1000);
                 })
                 .catch(function(error) {
-                    console.error('Login error:', error);
+                    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                    console.error('❌ LOGIN FAILED on Login page');
+                    console.error('   Error message:', error.message);
+                    console.error('   Error stack:', error.stack);
+                    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
                     showMessage(error.message || 'Login failed. Please check your credentials.', 'danger');
                     loginBtn.disabled = false;
                     loginBtn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Login';

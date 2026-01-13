@@ -39,19 +39,66 @@ def create_checkout():
 @payments_checkout_bp.route('/create-subscription-checkout', methods=['POST'])
 def create_subscription_checkout():
     """Create Stripe checkout session for subscription with metered billing"""
+    # Check if Stripe is explicitly disabled via environment variable
+    stripe_disabled = os.environ.get('STRIPE_DISABLED', 'false').lower() in ('true', '1', 'yes')
+    
+    # Check if Stripe is not configured (missing keys or invalid price ID)
+    metered_price_id = os.environ.get('STRIPE_PRICE_ID_METERED', '').strip()
+    if '#' in metered_price_id:
+        metered_price_id = metered_price_id.split('#')[0].strip()
+    
+    # Price ID is invalid if it doesn't start with 'price_'
+    price_id_invalid = metered_price_id and not metered_price_id.startswith('price_')
+    
+    stripe_not_configured = (
+        not PaymentConfig.STRIPE_SECRET_KEY or 
+        not PaymentConfig.STRIPE_PUBLISHABLE_KEY or
+        not metered_price_id or
+        price_id_invalid
+    )
+    
+    # If Stripe is disabled or not configured, return friendly message
+    if stripe_disabled or stripe_not_configured:
+        if stripe_disabled:
+            logger.info("Checkout request received but Stripe is disabled (STRIPE_DISABLED=true)")
+            return jsonify({
+                'error': 'Stripe payments are currently disabled',
+                'message': 'Payment processing is temporarily unavailable. Please contact support for assistance.',
+                'disabled': True
+            }), 503
+        else:
+            logger.info("Checkout request received but Stripe is not configured")
+            return jsonify({
+                'error': 'Stripe payments are not configured',
+                'message': 'Payment processing is not available. Please contact support for assistance.',
+                'disabled': True
+            }), 503
+    
     # Validate Stripe availability
     if not STRIPE_AVAILABLE:
         logger.error("Checkout request received but Stripe library not available")
-        return jsonify({'error': 'Stripe is not available. Please install stripe package.'}), 503
+        return jsonify({
+            'error': 'Stripe is not available',
+            'message': 'Payment processing is temporarily unavailable. Please contact support for assistance.',
+            'disabled': True
+        }), 503
 
     if not stripe:
         logger.error("Checkout request received but stripe module is None")
-        return jsonify({'error': 'Stripe is not available.'}), 503
+        return jsonify({
+            'error': 'Stripe is not available',
+            'message': 'Payment processing is temporarily unavailable. Please contact support for assistance.',
+            'disabled': True
+        }), 503
 
     # Validate payment configuration
     if not PaymentConfig.validate():
         logger.error("Checkout request received but PaymentConfig validation failed")
-        return jsonify({'error': 'Payment configuration is invalid. Please set STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY.'}), 500
+        return jsonify({
+            'error': 'Payment configuration is invalid',
+            'message': 'Payment processing is not properly configured. Please contact support for assistance.',
+            'disabled': True
+        }), 503
 
     # Get request data
     data = request.get_json()
@@ -81,20 +128,8 @@ def create_subscription_checkout():
 
     logger.info(f"Processing subscription checkout for email: {email}")
 
-    # Get metered price ID from environment
-    metered_price_id = os.environ.get('STRIPE_PRICE_ID_METERED')
-
-    if not metered_price_id:
-        logger.error("STRIPE_PRICE_ID_METERED not configured in environment")
-        return jsonify({'error': 'Subscription pricing not configured. Please set STRIPE_PRICE_ID_METERED.'}), 500
-
-    if not isinstance(metered_price_id, str):
-        logger.error(f"STRIPE_PRICE_ID_METERED has invalid type: {type(metered_price_id)}")
-        return jsonify({'error': 'Subscription pricing configuration is invalid'}), 500
-
-    if not metered_price_id.startswith('price_'):
-        logger.error(f"STRIPE_PRICE_ID_METERED has invalid format: {metered_price_id} (expected 'price_' prefix)")
-        return jsonify({'error': 'Subscription pricing configuration is invalid'}), 500
+    # metered_price_id was already retrieved and validated above
+    # At this point, we know it's valid (starts with 'price_') because we checked earlier
 
     logger.debug(f"Using metered price ID: {metered_price_id}")
 

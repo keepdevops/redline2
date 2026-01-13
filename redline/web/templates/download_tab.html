@@ -211,7 +211,13 @@ if (typeof VARIOSYNC === 'undefined') {
 
                 return fetch(url, options)
                     .then(response => {
-                        if (response.status === 401) {
+                        // Don't clear auth for download-related endpoints (they're public or optional auth)
+                        const isDownloadEndpoint = url.includes('/download/download') || 
+                                                  url.includes('/download/batch-download') ||
+                                                  url.includes('/download/history') ||
+                                                  url.includes('/download/sources') ||
+                                                  url.includes('/download/validate-ticker');
+                        if (response.status === 401 && !isDownloadEndpoint) {
                             localStorage.removeItem('variosync_auth_token');
                             localStorage.removeItem('variosync_user_data');
                             window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
@@ -236,7 +242,13 @@ if (typeof VARIOSYNC === 'undefined') {
 
                 return fetch(url, options)
                     .then(response => {
-                        if (response.status === 401) {
+                        // Don't clear auth for download-related endpoints (they're public or optional auth)
+                        const isDownloadEndpoint = url.includes('/download/download') || 
+                                                  url.includes('/download/batch-download') ||
+                                                  url.includes('/download/history') ||
+                                                  url.includes('/download/sources') ||
+                                                  url.includes('/download/validate-ticker');
+                        if (response.status === 401 && !isDownloadEndpoint) {
                             localStorage.removeItem('variosync_auth_token');
                             localStorage.removeItem('variosync_user_data');
                             window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
@@ -481,13 +493,13 @@ function downloadData() {
         return;
     }
 
-    // Get JWT auth token
+    // Get JWT auth token (optional - guest downloads allowed)
     const authToken = localStorage.getItem('variosync_auth_token');
-    if (!authToken) {
-        VARIOSYNC.ui.showToast('Please log in to download data.', 'error');
-        return;
+    if (authToken) {
+        console.log('Downloading with JWT authentication');
+    } else {
+        console.log('Downloading as guest (no authentication)');
     }
-    console.log('Downloading with JWT authentication');
     
     // Set Stooq download flag if source is Stooq
     if (source === 'stooq') {
@@ -617,13 +629,13 @@ function batchDownload() {
         return;
     }
     
-    // Get JWT auth token
+    // Get JWT auth token (optional - guest downloads allowed)
     const authToken = localStorage.getItem('variosync_auth_token');
-    if (!authToken) {
-        VARIOSYNC.ui.showToast('Please log in to download data.', 'error');
-        return;
+    if (authToken) {
+        console.log('Downloading batch with JWT authentication');
+    } else {
+        console.log('Downloading batch as guest (no authentication)');
     }
-    console.log('Downloading batch with JWT authentication');
 
     const startDate = $('#startDate').val();
     const endDate = $('#endDate').val();
@@ -800,7 +812,12 @@ function loadDownloadHistory() {
             }
         })
         .catch(error => {
-            $('#downloadHistory').html('<small class="text-danger">Error loading history</small>');
+            // Don't show error if it's just a 401 (user might not be logged in, which is OK for history)
+            if (error.status === 401) {
+                $('#downloadHistory').html('<small class="text-muted">No download history available</small>');
+            } else {
+                $('#downloadHistory').html('<small class="text-danger">Error loading history</small>');
+            }
         });
 }
 </script>

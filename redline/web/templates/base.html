@@ -153,6 +153,17 @@
 
     <!-- Main Content -->
     <div class="container-fluid">
+        <!-- User Status Banner (shown when logged in) -->
+        <div id="userStatusBanner" class="alert alert-info mb-3" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas fa-user-circle me-2"></i>
+                    <strong>Logged in as:</strong> <span id="userStatusName">User</span>
+                    <span class="text-muted ms-2" id="userStatusEmail"></span>
+                </div>
+                <button type="button" class="btn-close" aria-label="Close" onclick="document.getElementById('userStatusBanner').style.display='none';"></button>
+            </div>
+        </div>
         <div class="row">
             <!-- Sidebar -->
             <div class="col-md-2 sidebar">
@@ -230,26 +241,114 @@
                 // Initialize VARIOSYNC global object (will be extended by main.js)
                 window.VARIOSYNC = window.VARIOSYNC || {};
 
-                // Function to update user menu in navbar
-                function updateUserMenu() {
+                // Function to update user menu in navbar (exposed globally)
+                window.updateUserMenu = function updateUserMenu() {
+                    // Get current page/panel information for debugging
+                    const currentPath = window.location.pathname;
+                    const currentPage = currentPath.split('/').filter(p => p).join('/') || 'home';
+                    const pageName = currentPath.includes('/data/') ? 'DATA' :
+                                    currentPath.includes('/analysis/') ? 'Analysis' :
+                                    currentPath.includes('/ml/') ? 'ML' :
+                                    currentPath.includes('/download/') ? 'Download' :
+                                    currentPath.includes('/converter/') ? 'Converter' :
+                                    currentPath.includes('/api-keys/') ? 'API Keys' :
+                                    currentPath.includes('/help') ? 'Help' :
+                                    currentPath.includes('/settings/') ? 'Settings' :
+                                    currentPath.includes('/dashboard') ? 'Dashboard' :
+                                    currentPath.includes('/auth/login') ? 'Login' :
+                                    currentPath.includes('/auth/signup') ? 'Signup' :
+                                    'Unknown';
+                    
+                    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                    console.log('🔵 NAVBAR UPDATE - Panel:', pageName, '| Path:', currentPath);
+                    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                    
                     const container = document.getElementById('userMenuContainer');
-                    if (!container) return;
+                    if (!container) {
+                        console.error('❌ userMenuContainer not found on', pageName, 'panel');
+                        return;
+                    }
+                    console.log('✅ userMenuContainer found on', pageName, 'panel');
 
                     // Check if user is authenticated (via localStorage check)
-                    const token = localStorage.getItem('variosync_auth_token');
-                    const userDataStr = localStorage.getItem('variosync_user_data');
+                    // Check all possible storage key variations for compatibility
+                    const token = localStorage.getItem('variosync_auth_token') || 
+                                 localStorage.getItem('supabase.auth.token') ||
+                                 localStorage.getItem('sb-access-token') ||
+                                 localStorage.getItem('supabase-auth-token');
+                    const userDataStr = localStorage.getItem('variosync_user_data') || 
+                                       localStorage.getItem('supabase.auth.user') ||
+                                       localStorage.getItem('sb-user-data') ||
+                                       localStorage.getItem('supabase-user-data');
+                    
+                    // Debug: log all localStorage keys related to auth
+                    const allKeys = Object.keys(localStorage).filter(k => 
+                        k.includes('auth') || k.includes('token') || k.includes('user') || k.includes('supabase')
+                    );
+                    console.log('📦 localStorage auth-related keys found:', allKeys.length > 0 ? allKeys : 'none');
+                    
+                    console.log('🔑 Authentication check on', pageName, 'panel:');
+                    console.log('   Token present:', !!token, token ? `(length: ${token.length})` : '(missing)');
+                    console.log('   User data present:', !!userDataStr, userDataStr ? `(length: ${userDataStr.length})` : '(missing)');
+                    
+                    if (token) {
+                        // Show first and last few characters of token for debugging (without exposing full token)
+                        const tokenPreview = token.length > 20 ? 
+                            token.substring(0, 10) + '...' + token.substring(token.length - 10) : 
+                            token.substring(0, Math.min(20, token.length)) + '...';
+                        console.log('   Token preview:', tokenPreview);
+                    }
+                    
+                    if (userDataStr) {
+                        try {
+                            const testParse = JSON.parse(userDataStr);
+                            console.log('   User data parsed successfully:', {
+                                id: testParse.id || 'missing',
+                                email: testParse.email || 'missing',
+                                name: testParse.name || 'missing'
+                            });
+                        } catch (e) {
+                            console.error('   ❌ Failed to parse user data:', e);
+                            console.error('   Raw data (first 100 chars):', userDataStr.substring(0, 100));
+                        }
+                    }
 
                     if (token && userDataStr) {
                         try {
                             const user = JSON.parse(userDataStr);
                             const userName = user.name || user.email || 'User';
                             const userEmail = user.email || '';
+                            const userId = user.id || 'unknown';
+                            
+                            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                            console.log('✅ USER AUTHENTICATED on', pageName, 'panel:');
+                            console.log('   👤 Name:', userName);
+                            console.log('   📧 Email:', userEmail);
+                            console.log('   🆔 User ID:', userId);
+                            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+                            // Show user status banner
+                            const banner = document.getElementById('userStatusBanner');
+                            const bannerName = document.getElementById('userStatusName');
+                            const bannerEmail = document.getElementById('userStatusEmail');
+                            if (banner && bannerName && bannerEmail) {
+                                bannerName.textContent = userName;
+                                bannerEmail.textContent = userEmail ? `(${userEmail})` : '';
+                                banner.style.display = 'block';
+                                console.log('✅ User status banner updated on', pageName, 'panel');
+                            } else {
+                                console.warn('⚠️ User status banner elements not found on', pageName, 'panel');
+                            }
 
                             // User is authenticated - show user menu
+                            console.log('🎨 Updating navbar dropdown menu on', pageName, 'panel for:', userName);
                             container.innerHTML = `
-                                <div class="dropdown">
+                                <div class="dropdown d-flex align-items-center">
+                                    <span class="navbar-text text-light me-2">
+                                        <i class="fas fa-user-circle me-1"></i><span class="d-none d-sm-inline">${userName}</span>
+                                    </span>
                                     <button class="btn btn-outline-light dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                        <i class="fas fa-user-circle me-1"></i>${userName}
+                                        <span class="d-sm-none">${userName}</span><i class="fas fa-chevron-down ms-1"></i>
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                                         <li><h6 class="dropdown-header">${userEmail}</h6></li>
@@ -263,71 +362,333 @@
                                 </div>
                             `;
 
+                            // Re-initialize Bootstrap dropdown if available
+                            if (typeof bootstrap !== 'undefined' && bootstrap.Dropdown) {
+                                const dropdownElement = document.getElementById('userDropdown');
+                                if (dropdownElement) {
+                                    // Dispose existing dropdown instance if any
+                                    const existingDropdown = bootstrap.Dropdown.getInstance(dropdownElement);
+                                    if (existingDropdown) {
+                                        existingDropdown.dispose();
+                                    }
+                                    // Initialize new dropdown
+                                    new bootstrap.Dropdown(dropdownElement);
+                                    console.log('✅ Bootstrap dropdown initialized for user menu on', pageName, 'panel');
+                                }
+                            }
+
                             // Add logout handler
                             const logoutBtn = document.getElementById('logoutBtn');
                             if (logoutBtn) {
-                                logoutBtn.addEventListener('click', function(e) {
+                                // Remove any existing listeners by cloning
+                                const newLogoutBtn = logoutBtn.cloneNode(true);
+                                logoutBtn.parentNode.replaceChild(newLogoutBtn, logoutBtn);
+                                
+                                newLogoutBtn.addEventListener('click', function(e) {
                                     e.preventDefault();
+                                    console.log('🚪 Logout clicked on', pageName, 'panel');
                                     if (window.VARIOSYNC && window.VARIOSYNC.logout) {
                                         window.VARIOSYNC.logout();
                                     } else {
                                         // Fallback logout
+                                        console.log('Using fallback logout on', pageName, 'panel');
                                         localStorage.removeItem('variosync_auth_token');
                                         localStorage.removeItem('variosync_user_data');
                                         window.location.href = '/auth/login';
                                     }
                                 });
+                                console.log('✅ Logout button handler attached on', pageName, 'panel');
+                            } else {
+                                console.error('❌ logoutBtn not found after setting innerHTML on', pageName, 'panel');
                             }
+                            
+                            console.log('✅ Navbar dropdown menu updated successfully on', pageName, 'panel');
+                            
+                            // Force a re-check after a short delay to ensure everything is displayed
+                            setTimeout(function() {
+                                const checkContainer = document.getElementById('userMenuContainer');
+                                if (checkContainer && checkContainer.innerHTML.trim() === '') {
+                                    console.warn('⚠️ userMenuContainer became empty after update - re-updating');
+                                    updateUserMenu();
+                                }
+                            }, 100);
+                            
+                            console.log('✅ Navbar successfully updated on', pageName, 'panel - showing user:', userName);
                         } catch (e) {
-                            console.error('Failed to parse user data:', e);
+                            console.error('❌ Failed to parse user data on', pageName, 'panel:', e);
+                            console.error('   Error details:', e.message, e.stack);
                             showLoginButton();
                         }
                     } else {
                         // User is not authenticated - show login button
+                        console.log('⚠️ User NOT authenticated on', pageName, 'panel - showing login button');
                         showLoginButton();
                     }
                 }
 
                 function showLoginButton() {
+                    const currentPath = window.location.pathname;
+                    const pageName = currentPath.includes('/data/') ? 'DATA' :
+                                    currentPath.includes('/analysis/') ? 'Analysis' :
+                                    currentPath.includes('/ml/') ? 'ML' :
+                                    currentPath.includes('/download/') ? 'Download' :
+                                    currentPath.includes('/converter/') ? 'Converter' :
+                                    currentPath.includes('/api-keys/') ? 'API Keys' :
+                                    currentPath.includes('/help') ? 'Help' :
+                                    currentPath.includes('/settings/') ? 'Settings' :
+                                    currentPath.includes('/dashboard') ? 'Dashboard' :
+                                    'Unknown';
+                    
                     const container = document.getElementById('userMenuContainer');
-                    if (!container) return;
+                    if (!container) {
+                        console.warn('❌ userMenuContainer not found in showLoginButton on', pageName, 'panel');
+                        return;
+                    }
 
+                    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                    console.log('⚠️ SHOWING LOGIN BUTTON on', pageName, 'panel');
+                    console.log('   Token check:', !!localStorage.getItem('variosync_auth_token'));
+                    console.log('   User data check:', !!localStorage.getItem('variosync_user_data'));
+                    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                    
                     container.innerHTML = `
                         <a href="/auth/login" class="btn btn-outline-light">
                             <i class="fas fa-sign-in-alt me-1"></i>Login
                         </a>
                     `;
+                    
+                    // Hide user status banner
+                    const banner = document.getElementById('userStatusBanner');
+                    if (banner) {
+                        banner.style.display = 'none';
+                        console.log('✅ User status banner hidden on', pageName, 'panel');
+                    }
                 }
 
                 // Update user menu on page load
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', updateUserMenu);
-                } else {
+                function initializeUserMenu() {
+                    const currentPath = window.location.pathname;
+                    const pageName = currentPath.includes('/data/') ? 'DATA' :
+                                    currentPath.includes('/analysis/') ? 'Analysis' :
+                                    currentPath.includes('/ml/') ? 'ML' :
+                                    currentPath.includes('/download/') ? 'Download' :
+                                    currentPath.includes('/converter/') ? 'Converter' :
+                                    currentPath.includes('/api-keys/') ? 'API Keys' :
+                                    currentPath.includes('/help') ? 'Help' :
+                                    currentPath.includes('/settings/') ? 'Settings' :
+                                    currentPath.includes('/dashboard') ? 'Dashboard' :
+                                    'Unknown';
+                    
+                    console.log('🔧 Initializing user menu on', pageName, 'panel, readyState:', document.readyState);
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', function() {
+                            console.log('📄 DOMContentLoaded event on', pageName, 'panel - calling updateUserMenu');
+                            updateUserMenu();
+                        });
+                    } else {
+                        console.log('⚡ DOM already loaded on', pageName, 'panel - calling updateUserMenu immediately');
+                        updateUserMenu();
+                    }
+                }
+                
+                // Initialize immediately
+                initializeUserMenu();
+                
+                // Check if we're coming from a login redirect
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.has('_login')) {
+                    console.log('🔐 Detected login redirect - forcing navbar update');
+                    // Force immediate update
+                    setTimeout(function() {
+                        updateUserMenu();
+                    }, 50);
+                    // Clean up URL
+                    const newUrl = window.location.pathname;
+                    window.history.replaceState({}, '', newUrl);
+                }
+                
+                // Also call immediately after short delays to catch any race conditions
+                setTimeout(function() {
+                    console.log('⏱️ Delayed updateUserMenu call (100ms)');
                     updateUserMenu();
+                }, 100);
+                
+                setTimeout(function() {
+                    console.log('⏱️ Delayed updateUserMenu call (500ms)');
+                    updateUserMenu();
+                }, 500);
+                
+                // And again after 1 second
+                setTimeout(function() {
+                    console.log('⏱️ Delayed updateUserMenu call (1s)');
+                    updateUserMenu();
+                }, 1000);
+                
+                // And after 2 seconds to catch any late-loading content
+                setTimeout(function() {
+                    console.log('⏱️ Delayed updateUserMenu call (2s)');
+                    updateUserMenu();
+                }, 2000);
+                
+                // And after 3 seconds as a final check
+                setTimeout(function() {
+                    console.log('⏱️ Delayed updateUserMenu call (3s) - final check');
+                    updateUserMenu();
+                }, 3000);
+                
+                // Watch for localStorage changes (works across tabs/windows)
+                window.addEventListener('storage', function(e) {
+                    if (e.key === 'variosync_auth_token' || e.key === 'variosync_user_data' ||
+                        e.key === 'supabase.auth.token' || e.key === 'supabase.auth.user') {
+                        console.log('localStorage changed for key:', e.key, '- updating user menu');
+                        updateUserMenu();
+                    }
+                });
+                
+                // Use MutationObserver to watch for navbar container becoming empty (indicates page navigation)
+                let updateTimeout = null;
+                const observer = new MutationObserver(function(mutations) {
+                    const container = document.getElementById('userMenuContainer');
+                    if (container && container.innerHTML.trim() === '') {
+                        // Debounce to avoid multiple rapid calls
+                        if (updateTimeout) {
+                            clearTimeout(updateTimeout);
+                        }
+                        updateTimeout = setTimeout(function() {
+                            console.log('userMenuContainer became empty - updating user menu');
+                            updateUserMenu();
+                        }, 100);
+                    }
+                });
+                
+                // Start observing when DOM is ready
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const container = document.getElementById('userMenuContainer');
+                        if (container) {
+                            observer.observe(container, { childList: true });
+                        }
+                    });
+                } else {
+                    const container = document.getElementById('userMenuContainer');
+                    if (container) {
+                        observer.observe(container, { childList: true });
+                    }
                 }
 
                 // Listen for auth updates
-                window.addEventListener('authTokenUpdated', updateUserMenu);
-                window.addEventListener('userDataUpdated', updateUserMenu);
+                window.addEventListener('authTokenUpdated', function(e) {
+                    const currentPath = window.location.pathname;
+                    const pageName = currentPath.includes('/data/') ? 'DATA' :
+                                    currentPath.includes('/analysis/') ? 'Analysis' :
+                                    currentPath.includes('/ml/') ? 'ML' :
+                                    currentPath.includes('/download/') ? 'Download' :
+                                    currentPath.includes('/converter/') ? 'Converter' :
+                                    currentPath.includes('/api-keys/') ? 'API Keys' :
+                                    currentPath.includes('/help') ? 'Help' :
+                                    currentPath.includes('/settings/') ? 'Settings' :
+                                    currentPath.includes('/dashboard') ? 'Dashboard' :
+                                    'Unknown';
+                    console.log('🔔 authTokenUpdated event received on', pageName, 'panel', e.detail ? '(token present)' : '(token cleared)');
+                    updateUserMenu();
+                });
+                window.addEventListener('userDataUpdated', function(e) {
+                    const currentPath = window.location.pathname;
+                    const pageName = currentPath.includes('/data/') ? 'DATA' :
+                                    currentPath.includes('/analysis/') ? 'Analysis' :
+                                    currentPath.includes('/ml/') ? 'ML' :
+                                    currentPath.includes('/download/') ? 'Download' :
+                                    currentPath.includes('/converter/') ? 'Converter' :
+                                    currentPath.includes('/api-keys/') ? 'API Keys' :
+                                    currentPath.includes('/help') ? 'Help' :
+                                    currentPath.includes('/settings/') ? 'Settings' :
+                                    currentPath.includes('/dashboard') ? 'Dashboard' :
+                                    'Unknown';
+                    const userInfo = e.detail && e.detail.user ? 
+                        `(${e.detail.user.email || e.detail.user.name || 'user'})` : 
+                        '(cleared)';
+                    console.log('🔔 userDataUpdated event received on', pageName, 'panel', userInfo);
+                    updateUserMenu();
+                });
+                
+                // Also update on visibility change (when switching tabs/panels)
+                document.addEventListener('visibilitychange', function() {
+                    if (!document.hidden) {
+                        const currentPath = window.location.pathname;
+                        const pageName = currentPath.includes('/data/') ? 'DATA' :
+                                        currentPath.includes('/analysis/') ? 'Analysis' :
+                                        currentPath.includes('/ml/') ? 'ML' :
+                                        currentPath.includes('/download/') ? 'Download' :
+                                        currentPath.includes('/converter/') ? 'Converter' :
+                                        currentPath.includes('/api-keys/') ? 'API Keys' :
+                                        currentPath.includes('/help') ? 'Help' :
+                                        currentPath.includes('/settings/') ? 'Settings' :
+                                        currentPath.includes('/dashboard') ? 'Dashboard' :
+                                        'Unknown';
+                        console.log('👁️ Page became visible on', pageName, 'panel - updating user menu');
+                        updateUserMenu();
+                    }
+                });
+                
+                // Periodically check auth state (every 2 seconds) to ensure menu stays updated
+                setInterval(function() {
+                    updateUserMenu();
+                }, 2000);
+                
+                // Also update when page becomes visible (handles tab switching and navigation)
+                document.addEventListener('visibilitychange', function() {
+                    if (!document.hidden) {
+                        console.log('Page became visible - updating user menu');
+                        setTimeout(updateUserMenu, 100);
+                    }
+                });
+                
+                // Update on hashchange (SPA navigation)
+                window.addEventListener('hashchange', function() {
+                    console.log('Hash changed - updating user menu');
+                    setTimeout(updateUserMenu, 100);
+                });
+                
+                // Update on popstate (browser back/forward)
+                window.addEventListener('popstate', function() {
+                    console.log('Popstate - updating user menu');
+                    setTimeout(updateUserMenu, 100);
+                });
 
                 console.log('✅ VarioSync JWT auth initialized');
             })();
             </script>
     
-            <!-- Custom JS (use minified in production) -->
-            {% if config.get('ENV') == 'production' %}
-            <script src="{{ url_for('static', filename='js/main.min.js') }}"></script>
-            <script src="{{ url_for('static', filename='js/virtual-scroll.min.js') }}"></script>
-            <script src="{{ url_for('static', filename='js/color-customizer.min.js') }}"></script>
-            <script src="{{ url_for('static', filename='js/date-formatter.min.js') }}"></script>
-            <script src="{{ url_for('static', filename='js/balance_tracker.min.js') }}"></script>
-            {% else %}
+            <!-- Custom JS (always use non-minified to ensure VARIOSYNC is available) -->
             <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+            
+            <!-- Ensure updateUserMenu is called after main.js loads -->
+            <script>
+            (function() {
+                // Wait for main.js to load, then ensure updateUserMenu is called
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', function() {
+                        setTimeout(function() {
+                            if (typeof updateUserMenu === 'function') {
+                                console.log('Calling updateUserMenu after DOMContentLoaded (post-main.js)');
+                                updateUserMenu();
+                            }
+                        }, 100);
+                    });
+                } else {
+                    setTimeout(function() {
+                        if (typeof updateUserMenu === 'function') {
+                            console.log('Calling updateUserMenu immediately (post-main.js, DOM already loaded)');
+                            updateUserMenu();
+                        }
+                    }, 100);
+                }
+            })();
+            </script>
             <script src="{{ url_for('static', filename='js/virtual-scroll.js') }}"></script>
             <script src="{{ url_for('static', filename='js/color-customizer.js') }}"></script>
             <script src="{{ url_for('static', filename='js/date-formatter.js') }}"></script>
             <script src="{{ url_for('static', filename='js/balance_tracker.js') }}"></script>
-            {% endif %}
     
     {% block extra_js %}{% endblock %}
     

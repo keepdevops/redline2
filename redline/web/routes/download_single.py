@@ -20,22 +20,21 @@ logger = logging.getLogger(__name__)
 @download_single_bp.route('/download', methods=['POST'])
 def download_data():
     """Download data from specified source."""
-    # Get authenticated user
+    # Get authenticated user (optional - allow guest downloads)
     user_id = getattr(g, 'user_id', None)
-
-    if not user_id:
-        logger.warning("Download request without authenticated user")
-        return jsonify({'error': 'Authentication required'}), 401
-
-    if not isinstance(user_id, str):
-        logger.error(f"Download request with invalid user_id type: {type(user_id)}")
-        return jsonify({'error': 'Invalid authentication data'}), 401
+    
+    # Log whether user is authenticated or using guest access
+    if user_id:
+        logger.info(f"Download request from authenticated user: {user_id}")
+    else:
+        logger.info("Download request from guest user (no authentication)")
 
     # Get and validate request data
+    user_label = user_id or "guest"
     data = request.get_json()
 
     if not data:
-        logger.warning(f"Download request from {user_id} with empty body")
+        logger.warning(f"Download request from {user_label} with empty body")
         return jsonify({'error': 'Request body is required'}), 400
 
     if not isinstance(data, dict):
@@ -46,33 +45,33 @@ def download_data():
     ticker = data.get('ticker')
 
     if not ticker:
-        logger.warning(f"Download request from {user_id} missing ticker field")
+        logger.warning(f"Download request from {user_label} missing ticker field")
         return jsonify({'error': 'Ticker symbol is required'}), 400
 
     if not isinstance(ticker, str):
-        logger.error(f"Download request from {user_id} has invalid ticker type: {type(ticker)}")
+        logger.error(f"Download request from {user_label} has invalid ticker type: {type(ticker)}")
         return jsonify({'error': 'Ticker must be a string'}), 400
 
     ticker = ticker.strip().upper()
 
     if len(ticker) == 0:
-        logger.warning(f"Download request from {user_id} with empty ticker")
+        logger.warning(f"Download request from {user_label} with empty ticker")
         return jsonify({'error': 'Ticker symbol cannot be empty'}), 400
 
     if len(ticker) > 20:
-        logger.warning(f"Download request from {user_id} with unusually long ticker: {ticker}")
+        logger.warning(f"Download request from {user_label} with unusually long ticker: {ticker}")
         return jsonify({'error': 'Ticker symbol too long (max 20 characters)'}), 400
 
     # Validate source
     source = data.get('source', 'yahoo')
 
     if not isinstance(source, str):
-        logger.error(f"Download request from {user_id} has invalid source type: {type(source)}")
+        logger.error(f"Download request from {user_label} has invalid source type: {type(source)}")
         return jsonify({'error': 'Source must be a string'}), 400
 
     valid_sources = ['yahoo', 'stooq', 'alpha_vantage', 'finnhub', 'massive']
     if source not in valid_sources:
-        logger.warning(f"Download request from {user_id} has invalid source: {source}")
+        logger.warning(f"Download request from {user_label} has invalid source: {source}")
         return jsonify({'error': f'Invalid source. Must be one of: {", ".join(valid_sources)}'}), 400
 
     # Get date parameters
@@ -92,16 +91,16 @@ def download_data():
     # Validate dates format
     for date_str, date_name in [(start_date, 'start_date'), (end_date, 'end_date')]:
         if not isinstance(date_str, str):
-            logger.error(f"Download request from {user_id} has invalid {date_name} type: {type(date_str)}")
+            logger.error(f"Download request from {user_label} has invalid {date_name} type: {type(date_str)}")
             return jsonify({'error': f'{date_name} must be a string'}), 400
 
         try:
             datetime.strptime(date_str, '%Y-%m-%d')
         except ValueError:
-            logger.warning(f"Download request from {user_id} has invalid {date_name} format: {date_str}")
+            logger.warning(f"Download request from {user_label} has invalid {date_name} format: {date_str}")
             return jsonify({'error': f'Invalid {date_name} format. Use YYYY-MM-DD'}), 400
 
-    logger.info(f"Processing download request from {user_id}: ticker={ticker}, source={source}, dates={start_date} to {end_date}")
+    logger.info(f"Processing download request from {user_label}: ticker={ticker}, source={source}, dates={start_date} to {end_date}")
 
     try:
         result = None

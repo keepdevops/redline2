@@ -53,126 +53,135 @@ def batch_convert():
         overwrite = False
 
     logger.info(f"Processing batch conversion request: {len(files)} file(s), overwrite={overwrite}")
-
+    
     # Validate data directory
     data_dir = os.path.join(os.getcwd(), 'data')
     if not os.path.exists(data_dir):
         logger.error(f"Data directory not found: {data_dir}")
-        return jsonify({'error': 'Data directory not configured', 'code': 'DATA_DIR_NOT_FOUND'}), 500
+        return jsonify({'error': 'Data directory not configured'}), 500
 
     results = []
     errors = []
 
     for idx, file_config in enumerate(files, 1):
-        # Validate file_config is a dict
-        if not isinstance(file_config, dict):
-            logger.error(f"File {idx}/{len(files)} has invalid type: {type(file_config)}")
-            errors.append({
-                'index': idx,
-                'error': 'File configuration must be an object',
-                'error_type': 'invalid_config_type'
-            })
-            continue
-
-        # Extract and validate fields
-        input_file = file_config.get('input_file')
-        output_format = file_config.get('output_format')
-        output_filename = file_config.get('output_filename')
-
-        # Validate required fields presence
-        if not input_file:
-            logger.warning(f"File {idx}/{len(files)} missing input_file field")
-            errors.append({
-                'index': idx,
-                'error': 'input_file is required',
-                'error_type': 'missing_input_file'
-            })
-            continue
-
-        if not output_format:
-            logger.warning(f"File {idx}/{len(files)} ({input_file}) missing output_format field")
-            errors.append({
-                'index': idx,
-                'input_file': input_file,
-                'error': 'output_format is required',
-                'error_type': 'missing_output_format'
-            })
-            continue
-
-        if not output_filename:
-            logger.warning(f"File {idx}/{len(files)} ({input_file}) missing output_filename field")
-            errors.append({
-                'index': idx,
-                'input_file': input_file,
-                'error': 'output_filename is required',
-                'error_type': 'missing_output_filename'
-            })
-            continue
-
-        # Validate field types
-        if not isinstance(input_file, str):
-            logger.error(f"File {idx}/{len(files)} input_file has invalid type: {type(input_file)}")
-            errors.append({
-                'index': idx,
-                'input_file': str(input_file),
-                'error': 'input_file must be a string',
-                'error_type': 'invalid_input_file_type'
-            })
-            continue
-
-        if not isinstance(output_format, str):
-            logger.error(f"File {idx}/{len(files)} ({input_file}) output_format has invalid type: {type(output_format)}")
-            errors.append({
-                'index': idx,
-                'input_file': input_file,
-                'error': 'output_format must be a string',
-                'error_type': 'invalid_output_format_type'
-            })
-            continue
-
-        if not isinstance(output_filename, str):
-            logger.error(f"File {idx}/{len(files)} ({input_file}) output_filename has invalid type: {type(output_filename)}")
-            errors.append({
-                'index': idx,
-                'input_file': input_file,
-                'error': 'output_filename must be a string',
-                'error_type': 'invalid_output_filename_type'
-            })
-            continue
-
-        # Validate output format
-        valid_formats = ['csv', 'json', 'parquet', 'feather', 'excel', 'txt', 'duckdb']
-        if output_format not in valid_formats:
-            logger.warning(f"File {idx}/{len(files)} ({input_file}) has invalid output_format: {output_format}")
-            errors.append({
-                'index': idx,
-                'input_file': input_file,
-                'error': f'Invalid output_format. Must be one of: {", ".join(valid_formats)}',
-                'error_type': 'invalid_output_format'
-            })
-            continue
-
-        # Security check: prevent path traversal
-        for filename, field_name in [(input_file, 'input_file'), (output_filename, 'output_filename')]:
-            if '..' in filename or filename.startswith('/') or filename.startswith('\\'):
-                logger.warning(f"File {idx}/{len(files)} has suspicious {field_name}: {filename}")
+        try:
+            # Validate file_config is a dict
+            if not isinstance(file_config, dict):
+                logger.error(f"File {idx}/{len(files)} has invalid type: {type(file_config)}")
                 errors.append({
                     'index': idx,
-                    'input_file': input_file,
-                    'error': f'Invalid {field_name} format (path traversal detected)',
-                    'error_type': 'path_traversal'
+                    'error': 'File configuration must be an object',
+                    'error_type': 'invalid_config_type'
                 })
                 continue
 
-        logger.info(f"Processing file {idx}/{len(files)}: {input_file} -> {output_format}")
+            # Extract and validate fields
+            input_file = file_config.get('input_file')
+            output_format = file_config.get('output_format')
+            output_filename = file_config.get('output_filename')
 
-        try:
+            # Validate required fields presence
+            if not input_file:
+                continue
+
+            # Extract and validate fields
+            input_file = file_config.get('input_file')
+            output_format = file_config.get('output_format')
+            output_filename = file_config.get('output_filename')
+
+            # Validate required fields presence
+            if not input_file:
+                logger.warning(f"File {idx}/{len(files)} missing input_file field")
+                errors.append({
+                    'index': idx,
+                    'error': 'input_file is required',
+                    'error_type': 'missing_input_file'
+                })
+                continue
+
+            if not output_format:
+                logger.warning(f"File {idx}/{len(files)} ({input_file}) missing output_format field")
+                errors.append({
+                    'index': idx,
+                    'input_file': input_file,
+                    'error': 'output_format is required',
+                    'error_type': 'missing_output_format'
+                })
+                continue
+
+            if not output_filename:
+                logger.warning(f"File {idx}/{len(files)} ({input_file}) missing output_filename field")
+                errors.append({
+                    'index': idx,
+                    'input_file': input_file,
+                    'error': 'output_filename is required',
+                    'error_type': 'missing_output_filename'
+                })
+                continue
+
+            # Validate field types
+            if not isinstance(input_file, str):
+                logger.error(f"File {idx}/{len(files)} input_file has invalid type: {type(input_file)}")
+                errors.append({
+                    'index': idx,
+                    'input_file': str(input_file),
+                    'error': 'input_file must be a string',
+                    'error_type': 'invalid_input_file_type'
+                })
+                continue
+
+            if not isinstance(output_format, str):
+                logger.error(f"File {idx}/{len(files)} ({input_file}) output_format has invalid type: {type(output_format)}")
+                errors.append({
+                    'index': idx,
+                    'input_file': input_file,
+                    'error': 'output_format must be a string',
+                    'error_type': 'invalid_output_format_type'
+                })
+                continue
+
+            if not isinstance(output_filename, str):
+                logger.error(f"File {idx}/{len(files)} ({input_file}) output_filename has invalid type: {type(output_filename)}")
+                errors.append({
+                    'index': idx,
+                    'input_file': input_file,
+                    'error': 'output_filename must be a string',
+                    'error_type': 'invalid_output_filename_type'
+                })
+                continue
+
+            # Validate output format
+            valid_formats = ['csv', 'json', 'parquet', 'feather', 'excel', 'txt', 'duckdb']
+            if output_format not in valid_formats:
+                logger.warning(f"File {idx}/{len(files)} ({input_file}) has invalid output_format: {output_format}")
+                errors.append({
+                    'index': idx,
+                    'input_file': input_file,
+                    'error': f'Invalid output_format. Must be one of: {", ".join(valid_formats)}',
+                    'error_type': 'invalid_output_format'
+                })
+                continue
+
+            # Security check: prevent path traversal
+            for filename, field_name in [(input_file, 'input_file'), (output_filename, 'output_filename')]:
+                if '..' in filename or filename.startswith('/') or filename.startswith('\\'):
+                    logger.warning(f"File {idx}/{len(files)} has suspicious {field_name}: {filename}")
+                    errors.append({
+                        'index': idx,
+                        'input_file': input_file,
+                        'error': f'Invalid {field_name} format (path traversal detected)',
+                        'error_type': 'path_traversal'
+                    })
+                    continue
+
+            logger.info(f"Processing file {idx}/{len(files)}: {input_file} -> {output_format}")
+            
             # Adjust output filename extension
             output_filename = adjust_output_filename(output_filename, output_format)
-                
+            
             # Check if output file exists
             output_path = os.path.join(data_dir, 'converted', output_filename)
-                
+            
             if os.path.exists(output_path) and not overwrite:
                 errors.append({
                     'input_file': input_file,
@@ -180,13 +189,13 @@ def batch_convert():
                     'error': 'Output file already exists'
                 })
                 continue
-                
+            
             # Find input file path
             input_path = find_input_file_path(input_file, data_dir)
-                
+            
             # Log debugging info
             logger.debug(f"Input file search: {input_file}")
-                
+            
             if not input_path or not os.path.exists(input_path):
                 # Check if it's a system file
                 from ..utils.converter_helpers import is_system_file
@@ -212,18 +221,18 @@ def batch_convert():
                         ]
                     })
                 continue
-                
+            
             # Detect format from file extension
             from redline.core.schema import EXT_TO_FORMAT
             ext = os.path.splitext(input_path)[1].lower()
             format_type = EXT_TO_FORMAT.get(ext, 'csv')
-                
+            
             # Validate file before conversion attempt
             logger.info(f"Validating file {input_file} before conversion...")
             is_valid, validation_error, validation_details = validate_file_before_conversion(
                 input_path, expected_format=format_type
             )
-                
+            
             if not is_valid:
                 error_msg = validation_error or 'File validation failed'
                 logger.error(f"File validation failed for {input_file}: {error_msg}")
@@ -235,17 +244,17 @@ def batch_convert():
                     'validation_details': validation_details
                 })
                 continue
-                
+            
             # Log validation success with details
             if validation_details.get('file_size'):
                 logger.info(f"File validation passed: {input_file} "
                           f"(size: {validation_details['file_size']} bytes, "
                           f"format: {format_type}, "
                           f"encoding: {validation_details.get('encoding', 'N/A')})")
-                
+            
             from redline.core.format_converter import FormatConverter
             converter = FormatConverter()
-                
+            
             # Load and convert
             logger.info(f"Loading file {input_file} as {format_type} format...")
             try:
@@ -263,7 +272,7 @@ def batch_convert():
                     'file_size': validation_details.get('file_size', 'unknown')
                 })
                 continue
-                
+            
             if data_obj is None:
                 error_msg = f"File loaded but returned None: {input_file}"
                 logger.error(error_msg)
@@ -276,7 +285,7 @@ def batch_convert():
                     'file_size': validation_details.get('file_size', 'unknown')
                 })
                 continue
-                
+            
             if hasattr(data_obj, 'empty') and data_obj.empty:
                 error_msg = f"File loaded but contains no data: {input_file}"
                 logger.warning(error_msg)
@@ -290,16 +299,16 @@ def batch_convert():
                     'file_size': validation_details.get('file_size', 'unknown')
                 })
                 continue
-                
+            
             logger.info(f"Successfully loaded {input_file}: {len(data_obj)} rows")
-                
+            
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
             logger.info(f"Saving converted file to {output_path}...")
             converter.save_file_by_type(data_obj, output_path, output_format)
-                
+            
             file_stat = os.stat(output_path)
             logger.info(f"Successfully converted {input_file} to {output_filename} ({file_stat.st_size} bytes)")
-                
+            
             results.append({
                 'input_file': input_file,
                 'output_file': output_filename,
@@ -308,59 +317,20 @@ def batch_convert():
                 'records': len(data_obj) if isinstance(data_obj, pd.DataFrame) else 0,
                 'success': True
             })
-
-        except ImportError as e:
-            logger.error(f"Import error processing {input_file}: {str(e)}")
-            errors.append({
-                'input_file': input_file,
-                'error': f'Import error: {str(e)}',
-                'error_type': 'import_error',
-                'exception_type': type(e).__name__
-            })
-        except PermissionError as e:
-            logger.error(f"Permission denied processing {input_file}: {str(e)}")
-            errors.append({
-                'input_file': input_file,
-                'error': f'Permission denied: {str(e)}',
-                'error_type': 'permission_denied',
-                'exception_type': type(e).__name__
-            })
-        except OSError as e:
-            logger.error(f"OS error processing {input_file}: {str(e)}")
-            errors.append({
-                'input_file': input_file,
-                'error': f'File system error: {str(e)}',
-                'error_type': 'os_error',
-                'exception_type': type(e).__name__
-            })
-        except KeyError as e:
-            logger.error(f"Missing key processing {input_file}: {str(e)}")
-            errors.append({
-                'input_file': input_file,
-                'error': f'Missing data: {str(e)}',
-                'error_type': 'key_error',
-                'exception_type': type(e).__name__
-            })
-        except ValueError as e:
-            logger.error(f"Value error processing {input_file}: {str(e)}")
-            errors.append({
-                'input_file': input_file,
-                'error': f'Invalid data: {str(e)}',
-                'error_type': 'value_error',
-                'exception_type': type(e).__name__
-            })
+        
         except Exception as e:
-            logger.error(f"Unexpected error processing {input_file}: {str(e)}")
+            error_msg = str(e)
+            logger.error(f"Unexpected error processing {file_config.get('input_file', 'unknown')}: {error_msg}")
             logger.debug(f"Exception traceback:\n{traceback.format_exc()}")
             errors.append({
-                'input_file': input_file,
-                'error': f'Unexpected error: {str(e)}',
+                'input_file': file_config.get('input_file', 'unknown'),
+                'error': error_msg,
                 'error_type': 'unexpected_error',
                 'exception_type': type(e).__name__
             })
-
+    
     logger.info(f"Batch conversion completed: {len(results)} successful, {len(errors)} failed")
-
+    
     return jsonify({
         'message': f'Batch conversion completed. {len(results)} successful, {len(errors)} failed.',
         'results': results,

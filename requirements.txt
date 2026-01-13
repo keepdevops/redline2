@@ -87,6 +87,7 @@ stripe>=14.0.1
 # Authentication and User Management
 supabase>=2.3.0  # Supabase client for authentication and database
 PyJWT>=2.8.0  # JWT token handling (imported as 'jwt')
+cryptography>=43.0.0  # Required for ECC P-256 (ES256) JWT verification
 
 # Cloud Storage (optional)
 # Updated for security vulnerabilities (Jan 2025) - using latest available version

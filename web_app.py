@@ -237,12 +237,16 @@ def create_app():
         if request.path in ['/health', '/tasks/health', '/api/status', '/status']:
             return
 
+        # Public download endpoints (allow guest access)
+        public_download_paths = ['/download/download', '/download/batch-download']
+        if request.path in public_download_paths:
+            return  # Allow downloads without authentication
+        
         # Check if this is an API endpoint that requires authentication
         api_endpoints_requiring_auth = [
             '/api/files', '/api/upload', '/api/data',
             '/data/load', '/data/filter', '/data/files',
             '/analysis/analyze',
-            '/download/download', '/download/batch-download',
             '/user-data/',
             '/converter/convert', '/converter/batch-convert',
             '/tasks/list', '/tasks/queue', '/tasks/submit', '/tasks/cleanup', '/tasks/cancel',
@@ -297,17 +301,37 @@ def create_app():
                 'code': 'INVALID_TOKEN'
             }), 401
 
-        # Check subscription status
+        # Check subscription status (skip if Stripe is disabled)
         subscription_status = user.get('subscription_status', 'inactive')
-
-        if subscription_status not in ['active', 'trialing']:
-            logger.warning(f"User {user.get('email')} has inactive subscription: {subscription_status}")
-            return jsonify({
-                'error': 'No active subscription',
-                'message': 'Please subscribe to access VarioSync',
-                'code': 'INACTIVE_SUBSCRIPTION',
-                'subscription_status': subscription_status
-            }), 403
+        
+        # Check if Stripe is disabled or not configured
+        stripe_disabled = os.environ.get('STRIPE_DISABLED', 'false').lower() in ('true', '1', 'yes')
+        
+        # Check Price ID validity
+        metered_price_id = os.environ.get('STRIPE_PRICE_ID_METERED', '').strip()
+        if '#' in metered_price_id:
+            metered_price_id = metered_price_id.split('#')[0].strip()
+        price_id_invalid = metered_price_id and not metered_price_id.startswith('price_')
+        
+        stripe_not_configured = (
+            not os.environ.get('STRIPE_SECRET_KEY') or
+            not metered_price_id or
+            price_id_invalid
+        )
+        
+        # Only enforce subscription requirement if Stripe is enabled and configured
+        if not stripe_disabled and not stripe_not_configured:
+            if subscription_status not in ['active', 'trialing']:
+                logger.warning(f"User {user.get('email')} has inactive subscription: {subscription_status}")
+                return jsonify({
+                    'error': 'No active subscription',
+                    'message': 'Please subscribe to access VarioSync',
+                    'code': 'INACTIVE_SUBSCRIPTION',
+                    'subscription_status': subscription_status
+                }), 403
+        else:
+            # Stripe is disabled - allow access without subscription
+            logger.debug(f"Stripe disabled/not configured - allowing access for user {user.get('email')} without subscription check")
 
         # Store user context in g for use in routes
         g.user_id = user['id']
@@ -371,6 +395,14 @@ def create_app():
     
     # Apply rate limits to specific routes after blueprint registration
     if limiter:
+        # Exempt health check endpoints from rate limiting (Docker health checks are frequent)
+        from redline.web.routes.main_index import health, status
+        from redline.web.routes.tasks_status import health_check
+        limiter.exempt(health)
+        limiter.exempt(status)
+        limiter.exempt(health_check)
+        logger.info("Health check endpoints (/health, /status, /tasks/health) exempted from rate limiting")
+        
         from redline.web.routes.payments_balance import get_balance
         # Apply custom rate limit to balance endpoint
         get_balance = limiter.limit("1000 per hour")(get_balance)
@@ -392,14 +424,8 @@ def create_app():
     def internal_error(error):
         return render_template('500.html'), 500
     
-    # Health check endpoint - very high rate limit (health checks are frequent)
-    @app.route('/health')
-    def health():
-        return jsonify({'status': 'healthy', 'service': 'redline-web'})
-    
-    # Apply high rate limit to health endpoint if limiter exists
-    if limiter:
-        health = limiter.limit("10000 per hour")(health)
+    # Health check endpoint - exempted from rate limiting (defined in main_index blueprint)
+    # The actual route is in redline.web.routes.main_index and is exempted above
     
     logger.info("VarioSync Web application created successfully")
     

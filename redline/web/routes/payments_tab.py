@@ -28,7 +28,30 @@ if STRIPE_AVAILABLE and PaymentConfig.STRIPE_SECRET_KEY:
 @payments_tab_bp.route('/subscription', methods=['GET'])
 def subscription_page():
     """Render subscription management page"""
-    return render_template('subscription.html')
+    # Check if Stripe is disabled or not configured
+    stripe_disabled = os.environ.get('STRIPE_DISABLED', 'false').lower() in ('true', '1', 'yes')
+    
+    # Check Price ID validity
+    metered_price_id = os.environ.get('STRIPE_PRICE_ID_METERED', '').strip()
+    if '#' in metered_price_id:
+        metered_price_id = metered_price_id.split('#')[0].strip()
+    price_id_invalid = metered_price_id and not metered_price_id.startswith('price_')
+    
+    stripe_not_configured = (
+        not PaymentConfig.STRIPE_SECRET_KEY or 
+        not PaymentConfig.STRIPE_PUBLISHABLE_KEY or
+        not metered_price_id or
+        price_id_invalid
+    )
+    
+    stripe_available = (
+        STRIPE_AVAILABLE and 
+        not stripe_disabled and 
+        not stripe_not_configured and
+        PaymentConfig.validate()
+    )
+    
+    return render_template('subscription.html', stripe_available=stripe_available)
 
 
 @payments_tab_bp.route('/success', methods=['GET'])

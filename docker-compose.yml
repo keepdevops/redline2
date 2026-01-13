@@ -22,8 +22,8 @@ services:
   
   # VarioSync Web App (using pre-built image)
   variosync-web:
-    image: keepdevops/variosync1:latest
-    container_name: variosync-web
+    image: variosync_2026:dev
+    container_name: variosync-2026
     restart: unless-stopped
     depends_on:
       redis:
@@ -34,6 +34,8 @@ services:
       - "8080:8080"    # Flask web app
     
     # Environment variables
+    env_file:
+      - .env
     environment:
       - FLASK_APP=web_app.py
       - FLASK_ENV=production
@@ -42,6 +44,11 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      # Supabase configuration (with defaults if not in .env)
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY:-}
+      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET:-}
     
     # Volumes
     volumes:

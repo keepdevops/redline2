@@ -11,6 +11,17 @@ import stripe
 import os
 import logging
 
+# Import Supabase exception types for proper error handling
+try:
+    from supabase_auth.errors import AuthApiError
+except ImportError:
+    AuthApiError = None
+
+try:
+    from httpx import HTTPStatusError
+except ImportError:
+    HTTPStatusError = None
+
 logger = logging.getLogger(__name__)
 
 # Initialize Stripe
@@ -207,10 +218,86 @@ def login():
 
     # Authenticate with Supabase
     logger.debug(f"Calling Supabase Auth API for email: {email}")
-    auth_response = supabase_client.client.auth.sign_in_with_password({
-        "email": email,
-        "password": password
-    })
+    try:
+        auth_response = supabase_client.client.auth.sign_in_with_password({
+            "email": email,
+            "password": password
+        })
+    except AuthApiError as e:
+        # Supabase Auth API error (e.g., invalid credentials)
+        error_message = str(e)
+        logger.warning(f"Supabase AuthApiError for email {email}: {error_message}")
+        
+        if 'Invalid login credentials' in error_message or 'invalid' in error_message.lower():
+            return jsonify({
+                'error': 'Invalid email or password',
+                'code': 'INVALID_CREDENTIALS'
+            }), 401
+        elif 'Email not confirmed' in error_message:
+            return jsonify({
+                'error': 'Email not confirmed. Please check your inbox.',
+                'code': 'EMAIL_NOT_CONFIRMED'
+            }), 403
+        elif 'rate limit' in error_message.lower() or '429' in error_message:
+            return jsonify({
+                'error': 'Too many login attempts. Please try again later.',
+                'code': 'RATE_LIMITED'
+            }), 429
+        else:
+            return jsonify({
+                'error': 'Authentication failed. Please try again.',
+                'code': 'AUTH_API_ERROR'
+            }), 400
+    except HTTPStatusError as e:
+        # HTTP status error from httpx (used by Supabase client)
+        status_code = e.response.status_code if hasattr(e, 'response') and e.response else None
+        error_message = str(e)
+        logger.error(f"HTTPStatusError during Supabase authentication for email {email}: {status_code} - {error_message}")
+        
+        if status_code == 400:
+            error_detail = None
+            try:
+                if hasattr(e, 'response') and e.response:
+                    error_detail = e.response.json().get('error_description', e.response.json().get('msg', 'Bad Request'))
+            except:
+                pass
+            
+            return jsonify({
+                'error': f'Supabase API error: {error_detail or "Bad Request"}',
+                'code': 'SUPABASE_BAD_REQUEST'
+            }), 400
+        elif status_code == 429:
+            return jsonify({
+                'error': 'Too many login attempts. Please try again later.',
+                'code': 'RATE_LIMITED'
+            }), 429
+        else:
+            return jsonify({
+                'error': f'Supabase API error: {status_code} {error_message}',
+                'code': 'SUPABASE_HTTP_ERROR'
+            }), 500
+    except Exception as e:
+        # Catch any other unexpected exceptions
+        error_type = type(e).__name__
+        error_message = str(e)
+        logger.exception(f"Unexpected error during login for email {email}: {error_type} - {error_message}")
+        
+        # Check error message for common patterns
+        if 'Invalid login credentials' in error_message or 'invalid' in error_message.lower():
+            return jsonify({
+                'error': 'Invalid email or password',
+                'code': 'INVALID_CREDENTIALS'
+            }), 401
+        elif 'rate limit' in error_message.lower() or '429' in error_message:
+            return jsonify({
+                'error': 'Too many login attempts. Please try again later.',
+                'code': 'RATE_LIMITED'
+            }), 429
+        else:
+            return jsonify({
+                'error': f'An unexpected error occurred: {error_message}',
+                'code': 'UNEXPECTED_ERROR'
+            }), 500
 
     # Validate auth response
     if not auth_response:
@@ -238,7 +325,11 @@ def login():
     logger.debug(f"User authenticated successfully: {user_id}")
 
     # Get user profile from database
-    user_profile = supabase_client.get_user_by_id(user_id)
+    try:
+        user_profile = supabase_client.get_user_by_id(user_id)
+    except Exception as e:
+        logger.warning(f"Failed to get user profile for {user_id}: {str(e)}")
+        user_profile = None
 
     if not user_profile:
         logger.warning(f"User {user_id} authenticated but profile not found in database")
