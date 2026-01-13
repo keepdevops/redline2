@@ -112,6 +112,11 @@ WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
+# Patch TensorFlow 2.20.0 bug on ARM64 where docstrings can be None
+# This fixes: TypeError: expected string or bytes-like object, got 'NoneType'
+COPY patch_tensorflow.py /tmp/patch_tensorflow.py
+RUN python3 /tmp/patch_tensorflow.py && rm /tmp/patch_tensorflow.py && echo "✅ TensorFlow patch applied"
+
 # Copy application code with proper ownership
 COPY --chown=appuser:appuser --from=builder /app /app
 

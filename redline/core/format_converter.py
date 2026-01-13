@@ -36,7 +36,59 @@ except ImportError:
     DUCKDB_AVAILABLE = False
 
 try:
+    # Workaround for TensorFlow 2.20.0 bug on ARM64 where docstrings can be None
+    # The error occurs during import, so we need to patch the source code before import
+    # We'll use a monkey-patch approach by modifying the function at runtime
+    import sys
+    import re
+    
+    # Patch the function in TensorFlow's util module before it's used
+    # We need to do this by intercepting the module import
+    _tensorflow_patched = False
+    
+    def patch_tf_all_util():
+        """Patch TensorFlow's all_util.make_all to handle None docstrings."""
+        global _tensorflow_patched
+        if _tensorflow_patched:
+            return
+        
+        try:
+            # Import the module that will be used
+            import tensorflow.python.util.all_util as all_util
+            
+            # Create patched version
+            _reference_pattern = re.compile(r'^([A-Z][a-zA-Z0-9_]*):', re.MULTILINE)
+            
+            def patched_make_all(module_name, doc_string_modules):
+                """Patched version that handles None docstrings."""
+                should_have = set()
+                for doc_module in doc_string_modules:
+                    doc_string = getattr(doc_module, '__doc__', None)
+                    if doc_string is None:
+                        continue
+                    try:
+                        for m in _reference_pattern.finditer(doc_string):
+                            should_have.add(m.group(1))
+                    except (TypeError, AttributeError):
+                        continue
+                return should_have
+            
+            # Replace the function
+            all_util.make_all = patched_make_all
+            _tensorflow_patched = True
+            logger.debug("Applied TensorFlow docstring patch")
+        except (ImportError, AttributeError) as e:
+            logger.debug(f"Could not patch TensorFlow: {e}")
+    
+    # Try to import TensorFlow
     import tensorflow as tf
+    
+    # Apply patch after import (in case it's needed for subsequent imports)
+    try:
+        patch_tf_all_util()
+    except Exception:
+        pass
+    
     TENSORFLOW_AVAILABLE = True
 except (ImportError, TypeError, AttributeError, Exception) as e:
     # Catch all exceptions during tensorflow import, including initialization errors

@@ -1,64 +1,88 @@
-# version: '3.8'
+# REDLINE Docker Compose Configuration (Fixed)
+# Simple web app + web GUI setup without dependency cycles
 
 services:
+  # Redis service for Celery broker and rate limiting storage
+  redis:
+    image: redis:7-alpine
+    container_name: redline-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - redline-network
+  
+  # VarioSync Web App (using pre-built image)
   variosync-web:
     image: keepdevops/variosync1:latest
-    build:
-      context: .
-      dockerfile: Dockerfile.webgui.bytecode
     container_name: variosync-web
-    ports:
-      - "8080:8080"
-    volumes:
-      # Persistent data storage for custom APIs and user files
-      - variosync-data:/app/data
-      - variosync-logs:/app/logs
-      - variosync-config:/app/config
-    environment:
-      - FLASK_ENV=production
-      - VARIOSYNC_ENV=production
-      - GUNICORN_WORKERS=1
-      - GUNICORN_THREADS=4
-      # Stripe Configuration (load from .env file or set directly)
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
-      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-}
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
-      - HOURS_PER_DOLLAR=${HOURS_PER_DOLLAR:-5}
-      - PAYMENT_CURRENCY=${PAYMENT_CURRENCY:-usd}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    
+    # Ports
+    ports:
+      - "8080:8080"    # Flask web app
+    
+    # Environment variables
+    environment:
+      - FLASK_APP=web_app.py
+      - FLASK_ENV=production
+      - HOST=0.0.0.0
+      - PORT=8080
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    
+    # Volumes
+    volumes:
+      - ./data:/opt/redline/data
+      - ./logs:/var/log/redline
+      - ./config:/opt/redline/config
+    
+    # Working directory
+    working_dir: /app
+    
+    # Health check
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 60s
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
 
-  # Optional Redis for enhanced performance (if using Celery)
-  redis:
-    image: redis:7-alpine
-    container_name: variosync-redis
-    volumes:
-      - redis-data:/data
-    restart: unless-stopped
-    profiles:
-      - full  # Only start with: docker-compose --profile full up
+    # Networks
+    networks:
+      - redline-network
 
+# Volumes
 volumes:
-  variosync-data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ./data
-  variosync-logs:
-    driver: local
-  variosync-config:
-    driver: local
-  redis-data:
+  redis_data:
     driver: local
 
+# Networks
 networks:
+  redline-network:
+    driver: bridge
   default:
-    name: variosync-network
+    driver: bridge
+    external: false

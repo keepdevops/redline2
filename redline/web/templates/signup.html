@@ -185,10 +185,31 @@
 
         // Disable form
         signupBtn.disabled = true;
-        signupBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Creating account...';
+        signupBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Loading...';
 
-        // Use the authHelper from main.js
-        if (window.VARIOSYNC && window.VARIOSYNC.signup) {
+        // Wait for VARIOSYNC to be available
+        function waitForVariosync(callback, maxAttempts = 50, attempt = 0) {
+            if (window.VARIOSYNC && window.VARIOSYNC.signup) {
+                callback();
+            } else if (attempt < maxAttempts) {
+                setTimeout(function() {
+                    waitForVariosync(callback, maxAttempts, attempt + 1);
+                }, 100);
+            } else {
+                console.error('VARIOSYNC.signup not available after waiting');
+                showMessage('Authentication system not loaded. Please refresh the page.', 'danger');
+                if (signupBtn) {
+                    signupBtn.disabled = false;
+                    signupBtn.innerHTML = '<i class="fas fa-user-plus me-2"></i>Create Account';
+                }
+            }
+        }
+
+        // Wait for VARIOSYNC, then proceed with signup
+        waitForVariosync(function() {
+            signupBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Creating account...';
+            
+            // Use the authHelper from main.js
             window.VARIOSYNC.signup(email, password, name)
                 .then(function(data) {
                     showMessage('Account created successfully! Redirecting...', 'success');
@@ -212,12 +233,7 @@
                     signupBtn.disabled = false;
                     signupBtn.innerHTML = '<i class="fas fa-user-plus me-2"></i>Create Account';
                 });
-        } else {
-            console.error('VARIOSYNC.signup not available');
-            showMessage('Authentication system not loaded. Please refresh the page.', 'danger');
-            signupBtn.disabled = false;
-            signupBtn.innerHTML = '<i class="fas fa-user-plus me-2"></i>Create Account';
-        }
+        });
     });
 
     function showMessage(message, type) {

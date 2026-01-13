@@ -104,6 +104,24 @@
         });
     }
 
+    // Wait for VARIOSYNC to be available
+    function waitForVariosync(callback, maxAttempts = 50, attempt = 0) {
+        if (window.VARIOSYNC && window.VARIOSYNC.login) {
+            callback();
+        } else if (attempt < maxAttempts) {
+            setTimeout(function() {
+                waitForVariosync(callback, maxAttempts, attempt + 1);
+            }, 100);
+        } else {
+            console.error('VARIOSYNC.login not available after waiting');
+            showMessage('Authentication system not loaded. Please refresh the page.', 'danger');
+            if (loginBtn) {
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Login';
+            }
+        }
+    }
+
     // Handle form submission
     loginForm.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -118,10 +136,13 @@
 
         // Disable form
         loginBtn.disabled = true;
-        loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Logging in...';
+        loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Loading...';
 
-        // Use the authHelper from main.js
-        if (window.VARIOSYNC && window.VARIOSYNC.login) {
+        // Wait for VARIOSYNC to be available, then proceed with login
+        waitForVariosync(function() {
+            loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Logging in...';
+            
+            // Use the authHelper from main.js
             window.VARIOSYNC.login(email, password)
                 .then(function(data) {
                     showMessage('Login successful! Redirecting...', 'success');
@@ -140,12 +161,7 @@
                     loginBtn.disabled = false;
                     loginBtn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Login';
                 });
-        } else {
-            console.error('VARIOSYNC.login not available');
-            showMessage('Authentication system not loaded. Please refresh the page.', 'danger');
-            loginBtn.disabled = false;
-            loginBtn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Login';
-        }
+        });
     });
 
     function showMessage(message, type) {
