@@ -3,8 +3,19 @@ Helper functions for download routes.
 """
 
 import os
+import logging
 from datetime import datetime, timedelta
 from flask import request
+
+logger = logging.getLogger(__name__)
+
+# Import S3 manager for cloud storage
+try:
+    from redline.storage.s3_manager import s3_manager
+    S3_AVAILABLE = s3_manager.is_available()
+except ImportError:
+    s3_manager = None
+    S3_AVAILABLE = False
 
 
 def extract_license_key():
@@ -50,16 +61,53 @@ def get_download_directory(source):
         return "data/downloaded"
 
 
-def save_downloaded_data(result, ticker, source, start_date, end_date):
-    """Save downloaded data to file and return filepath."""
+def save_downloaded_data(result, ticker, source, start_date, end_date, user_id=None):
+    """
+    Save downloaded data to file and optionally upload to S3.
+
+    Args:
+        result: DataFrame with downloaded data
+        ticker: Ticker symbol
+        source: Data source name
+        start_date: Start date string
+        end_date: End date string
+        user_id: Optional user ID for S3 storage (uses user-specific path)
+
+    Returns:
+        tuple: (filename, filepath, s3_uri) - s3_uri is None if S3 upload failed or not available
+    """
     filename = f"{ticker}_{source}_{start_date}_to_{end_date}.csv"
     downloaded_dir = get_download_directory(source)
-    
+
     # Ensure downloaded directory exists
     os.makedirs(downloaded_dir, exist_ok=True)
-    
+
     filepath = os.path.join(downloaded_dir, filename)
     result.to_csv(filepath, index=True)
-    
-    return filename, filepath
+
+    # Upload to S3 if available
+    s3_uri = None
+    if S3_AVAILABLE and s3_manager:
+        try:
+            # Determine S3 path based on user_id
+            if user_id:
+                # User-specific path: users/{user_id}/downloads/{filename}
+                s3_key = s3_manager.get_file_path(user_id, filename, folder='downloads')
+            else:
+                # Guest/public path: public/downloads/{filename}
+                s3_key = f"public/downloads/{filename}"
+
+            # Upload to S3
+            s3_uri = s3_manager.upload_file(filepath, s3_key)
+
+            if s3_uri:
+                logger.info(f"Uploaded {filename} to S3: {s3_uri}")
+            else:
+                logger.warning(f"S3 upload failed for {filename}")
+
+        except Exception as e:
+            logger.error(f"Error uploading {filename} to S3: {str(e)}")
+            s3_uri = None
+
+    return filename, filepath, s3_uri
 

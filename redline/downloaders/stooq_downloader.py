@@ -180,8 +180,40 @@ class StooqDownloader(BaseDownloader):
                 except Exception as e:
                     self.logger.warning(f"Failed to access {url}: {str(e)}")
                     continue
-            
-            # If all direct methods fail, suggest manual download
+
+            # Try pandas_datareader as fallback (most reliable method)
+            try:
+                import pandas_datareader as pdr
+                from datetime import datetime, timedelta
+
+                self.logger.info(f"Trying pandas_datareader for {ticker}")
+
+                # Parse dates or use defaults
+                if end_date:
+                    end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+                else:
+                    end_dt = datetime.now()
+
+                if start_date:
+                    start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+                else:
+                    start_dt = end_dt - timedelta(days=365)
+
+                data = pdr.data.DataReader(ticker, 'stooq', start_dt, end_dt)
+
+                if data is not None and not data.empty:
+                    self.logger.info(f"Successfully downloaded {ticker} via pandas_datareader ({len(data)} rows)")
+                    # Reset index to make Date a column and standardize column names
+                    data = data.reset_index()
+                    data.columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
+                    return data
+
+            except ImportError:
+                self.logger.warning("pandas_datareader not available, skipping fallback")
+            except Exception as e:
+                self.logger.warning(f"pandas_datareader fallback failed: {str(e)}")
+
+            # If all methods fail, suggest manual download
             self._suggest_manual_download(ticker)
             return pd.DataFrame()
             

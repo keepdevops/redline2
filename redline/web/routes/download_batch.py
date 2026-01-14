@@ -297,14 +297,22 @@ def batch_download():
                 result = None
             
             if result is not None and not result.empty:
-                filename, filepath = save_downloaded_data(result, ticker, source, start_date, end_date)
-                
-                results.append({
+                filename, filepath, s3_uri = save_downloaded_data(
+                    result, ticker, source, start_date, end_date, user_id=user_id
+                )
+
+                result_info = {
                     'ticker': ticker,
                     'success': True,
                     'records': len(result),
                     'filename': filename
-                })
+                }
+
+                # Include S3 URI if upload was successful
+                if s3_uri:
+                    result_info['s3_uri'] = s3_uri
+
+                results.append(result_info)
             else:
                 # No data found - not a rate limit issue
                 error_msg = 'No data found'
@@ -370,6 +378,9 @@ def batch_download():
         else:
             message += f' {rate_limit_count} failure(s) due to rate limiting. Please wait a few minutes before retrying.'
     
+    # Count S3 uploads
+    s3_upload_count = sum(1 for r in results if r.get('s3_uri'))
+
     response_data = {
         'message': message,
         'results': results,
@@ -377,7 +388,9 @@ def batch_download():
         'total_requested': len(tickers),
         'successful': len(results),
         'failed': len(errors),
-        'rate_limit_failures': rate_limit_count
+        'rate_limit_failures': rate_limit_count,
+        's3_uploads': s3_upload_count,
+        's3_enabled': s3_upload_count > 0 or len(results) == 0
     }
     
     # Add retry_after if there are rate limit errors

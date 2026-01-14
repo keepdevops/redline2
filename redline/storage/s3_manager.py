@@ -779,7 +779,7 @@ class S3Manager:
             True if successful, False otherwise
         """
         folders = ['raw', 'processed', 'cleaned', 'merged',
-                  'analytics', 'aggregated', 'cache', 'exports']
+                  'analytics', 'aggregated', 'cache', 'exports', 'downloads']
 
         success = True
         for folder in folders:

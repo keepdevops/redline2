@@ -44,16 +44,31 @@ class SupabaseClient:
             self.client = None
             return
 
+        # Improved URL validation - check for supabase.co domain or localhost (for dev)
+        if 'supabase.co' not in self.url and 'localhost' not in self.url and '127.0.0.1' not in self.url:
+            logger.warning(f"SUPABASE_URL does not contain 'supabase.co' domain: {self.url}. This might be incorrect.")
+
         # Validate service key
         if not self.service_key:
             logger.warning("SUPABASE_SERVICE_KEY not set in environment variables")
             self.client = None
             return
 
-        if len(self.service_key) < 20:
-            logger.error(f"SUPABASE_SERVICE_KEY appears invalid (too short: {len(self.service_key)} chars)")
-            self.client = None
-            return
+        # Improved service key validation - check for JWT-like format instead of arbitrary length
+        if len(self.service_key) < 50:
+            logger.warning(f"SUPABASE_SERVICE_KEY appears short ({len(self.service_key)} chars). Supabase keys are typically 100+ characters.")
+
+        # Basic JWT format check (should have two dots for header.payload.signature)
+        if self.service_key.count('.') != 2:
+            logger.warning(f"SUPABASE_SERVICE_KEY does not appear to be a valid JWT format (expected 2 dots, found {self.service_key.count('.')})")
+
+        # Validate anon key (optional but recommended)
+        if not self.anon_key:
+            logger.info("SUPABASE_ANON_KEY not set. This is optional but recommended for client-side operations.")
+        elif len(self.anon_key) < 50:
+            logger.warning(f"SUPABASE_ANON_KEY appears short ({len(self.anon_key)} chars). Supabase keys are typically 100+ characters.")
+        elif self.anon_key.count('.') != 2:
+            logger.warning(f"SUPABASE_ANON_KEY does not appear to be a valid JWT format")
 
         # Attempt to create client
         logger.info(f"Initializing Supabase client with URL: {self.url}")

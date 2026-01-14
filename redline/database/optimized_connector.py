@@ -62,15 +62,21 @@ class ConnectionPool:
             self.logger.info(f"Initialized connection pool with {self.active_connections} connections")
         except Exception as e:
             self.logger.error(f"Failed to initialize connection pool: {str(e)}")
+            # Raise the exception so connector initialization fails immediately
+            # rather than continuing with an empty pool
+            raise RuntimeError(f"Connection pool initialization failed: {str(e)}") from e
     
     def _create_connection(self):
         """Create a new database connection."""
         if not DUCKDB_AVAILABLE:
             raise ImportError("duckdb not available. Please install duckdb to use database features.")
-        
+
         try:
             import os
-            os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+            # Fix for empty dirname
+            parent_dir = os.path.dirname(self.db_path)
+            if parent_dir:  # Only create if parent_dir is not empty
+                os.makedirs(parent_dir, exist_ok=True)
             conn = duckdb.connect(self.db_path)
             return conn
         except Exception as e:

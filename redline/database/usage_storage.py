@@ -432,6 +432,7 @@ class UsageStorage:
     
     def get_payment_history(self, license_key: str, limit: int = 50) -> List[Dict]:
         """Get payment history for a license"""
+        conn = None
         try:
             conn = duckdb.connect(self.db_path)
             result = conn.execute("""
@@ -440,22 +441,28 @@ class UsageStorage:
                 ORDER BY payment_date DESC
                 LIMIT ?
             """, [license_key, limit]).fetchall()
-            
+
             columns = ['id', 'license_key', 'stripe_session_id', 'payment_id', 'hours_purchased',
                       'amount_paid', 'currency', 'payment_status', 'payment_date', 'created_at']
-            
+
             history = []
             for row in result:
                 history.append(dict(zip(columns, row)))
-            
-            conn.close()
+
             return history
         except Exception as e:
             logger.error(f"Error getting payment history: {str(e)}")
             return []
+        finally:
+            if conn:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
     
     def get_session_history(self, license_key: str, limit: int = 50) -> List[Dict]:
         """Get session history for a license"""
+        conn = None
         try:
             conn = duckdb.connect(self.db_path)
             result = conn.execute("""
@@ -464,37 +471,43 @@ class UsageStorage:
                 ORDER BY start_time DESC
                 LIMIT ?
             """, [license_key, limit]).fetchall()
-            
+
             columns = ['session_id', 'license_key', 'user_id', 'start_time', 'end_time',
                       'total_hours', 'total_seconds', 'api_endpoints', 'status', 'created_at']
-            
+
             sessions = []
             for row in result:
                 sessions.append(dict(zip(columns, row)))
-            
-            conn.close()
+
             return sessions
         except Exception as e:
             logger.error(f"Error getting session history: {str(e)}")
             return []
+        finally:
+            if conn:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
     
     def get_access_stats(self, license_key: str, days: int = 30) -> Dict:
         """Get access statistics for a license"""
+        conn = None
         try:
             conn = duckdb.connect(self.db_path)
-            
+
             # Total API calls (DuckDB doesn't support parameterized INTERVAL, use string formatting)
             total_calls = conn.execute(f"""
                 SELECT COUNT(*) FROM access_logs
                 WHERE license_key = ? AND access_time >= CURRENT_TIMESTAMP - INTERVAL '{days}' DAYS
             """, [license_key]).fetchone()[0]
-            
+
             # Total hours used
             total_hours = conn.execute(f"""
                 SELECT COALESCE(SUM(hours_deducted), 0) FROM usage_history
                 WHERE license_key = ? AND deduction_time >= CURRENT_TIMESTAMP - INTERVAL '{days}' DAYS
             """, [license_key]).fetchone()[0]
-            
+
             # Most used endpoints
             top_endpoints = conn.execute(f"""
                 SELECT endpoint, COUNT(*) as count
@@ -504,9 +517,7 @@ class UsageStorage:
                 ORDER BY count DESC
                 LIMIT 10
             """, [license_key]).fetchall()
-            
-            conn.close()
-            
+
             return {
                 'total_api_calls': total_calls,
                 'total_hours_used': total_hours or 0.0,
@@ -516,7 +527,44 @@ class UsageStorage:
         except Exception as e:
             logger.error(f"Error getting access stats: {str(e)}")
             return {}
+        finally:
+            if conn:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
 
-# Global usage storage instance
-usage_storage = UsageStorage()
+# Global usage storage instance (lazy initialization to prevent import-time crashes)
+_usage_storage_instance = None
+
+def get_usage_storage() -> UsageStorage:
+    """
+    Get the global usage storage instance (lazy initialization).
+
+    This function creates the UsageStorage instance on first call to prevent
+    the application from crashing if the database is locked during module import.
+
+    Returns:
+        UsageStorage instance
+
+    Raises:
+        RuntimeError: If initialization fails
+    """
+    global _usage_storage_instance
+    if _usage_storage_instance is None:
+        try:
+            _usage_storage_instance = UsageStorage()
+        except Exception as e:
+            logger.error(f"Failed to initialize usage storage: {str(e)}")
+            raise RuntimeError(f"Usage storage initialization failed: {str(e)}") from e
+    return _usage_storage_instance
+
+# For backward compatibility - code can still use usage_storage.method()
+# but it will call get_usage_storage() lazily
+class _UsageStorageProxy:
+    """Proxy class to provide lazy initialization for usage_storage"""
+    def __getattr__(self, name):
+        return getattr(get_usage_storage(), name)
+
+usage_storage = _UsageStorageProxy()
 

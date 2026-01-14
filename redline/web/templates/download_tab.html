@@ -32,8 +32,8 @@
                             <div class="mb-3">
                                 <label for="source" class="form-label">Data Source</label>
                                 <select class="form-select" id="source" required>
-                                    <option value="yahoo">Yahoo Finance (Free) - Recommended</option>
-                                    <option value="stooq">Stooq (Free) - Manual Download Required</option>
+                                    <option value="stooq">Stooq (Free) - Recommended</option>
+                                    <option value="yahoo">Yahoo Finance (Free)</option>
                                     <option value="alpha_vantage">Alpha Vantage (API Key Required)</option>
                                     <option value="finnhub">Finnhub (API Key Required)</option>
                                     <optgroup label="Custom APIs" id="customApisGroup"></optgroup>
@@ -311,20 +311,16 @@ $(document).ready(function() {
     // Load saved API keys on page load
     loadSavedApiKeys();
     
-    // Show/hide Stooq browser helper and API key selection based on source selection
+    // Show/hide API key selection based on source selection
     $('#source').on('change', function() {
         const source = $(this).val();
-        
-        // Show/hide Stooq browser help
-        if (source === 'stooq') {
-            $('#stooqBrowserCard').show();
-            $('#stooqBrowserHelp').show();
-        } else {
-            $('#stooqBrowserCard').hide();
-            $('#stooqBrowserHelp').hide();
-            $('#stooqInstructions').hide();
-        }
-        
+
+        // Stooq now works automatically via pandas_datareader
+        // Hide manual download instructions (kept for fallback if needed)
+        $('#stooqBrowserCard').hide();
+        $('#stooqBrowserHelp').hide();
+        $('#stooqInstructions').hide();
+
         // Show/hide API key selection for sources that require it
         const sourcesRequiringApiKey = ['alpha_vantage', 'finnhub'];
         const isCustomApi = source && source.startsWith('custom_');
@@ -339,12 +335,9 @@ $(document).ready(function() {
         }
     });
     
-    // Trigger on page load if Stooq is already selected
-    if ($('#source').val() === 'stooq') {
-        $('#stooqBrowserCard').show();
-        $('#stooqBrowserHelp').show();
-    }
-    
+    // Note: Stooq automatic download now works via pandas_datareader
+    // No need to show manual download instructions by default
+
     // Trigger on page load if API key source is selected
     const initialSource = $('#source').val();
     if (['alpha_vantage', 'finnhub'].includes(initialSource)) {

@@ -97,19 +97,20 @@ class DuckDBUserManager:
             logger.error("User ID and email are required")
             return False
         
+        conn = None
         try:
             conn = duckdb.connect(self.db_path)
-            
+
             # Check if user exists
             result = conn.execute(
                 "SELECT id FROM users WHERE id = ?",
                 [user_id]
             ).fetchone()
-            
+
             if result:
                 # Update existing user
                 update_sql = """
-                    UPDATE users 
+                    UPDATE users
                     SET email = ?,
                         name = ?,
                         email_verified = ?,
@@ -139,13 +140,18 @@ class DuckDBUserManager:
                     str(metadata) if metadata else None
                 ])
                 logger.debug(f"Created user in DuckDB: {user_id}")
-            
-            conn.close()
+
             return True
-            
+
         except Exception as e:
             logger.error(f"Error creating/updating user {user_id}: {str(e)}")
             return False
+        finally:
+            if conn:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
     
     def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -165,25 +171,24 @@ class DuckDBUserManager:
             logger.error("User ID is required")
             return None
         
+        conn = None
         try:
             conn = duckdb.connect(self.db_path)
-            
+
             result = conn.execute(
                 "SELECT * FROM users WHERE id = ?",
                 [user_id]
             ).fetchone()
-            
-            conn.close()
-            
+
             if not result:
                 logger.debug(f"User not found in DuckDB: {user_id}")
                 return None
-            
+
             # Convert to dict
-            columns = ['id', 'email', 'name', 'created_at', 'updated_at', 
+            columns = ['id', 'email', 'name', 'created_at', 'updated_at',
                       'last_login', 'email_verified', 'metadata']
             user = dict(zip(columns, result))
-            
+
             # Parse JSON metadata if present
             if user.get('metadata') and isinstance(user['metadata'], str):
                 try:
@@ -191,12 +196,18 @@ class DuckDBUserManager:
                     user['metadata'] = json.loads(user['metadata'])
                 except Exception:
                     pass
-            
+
             return user
-            
+
         except Exception as e:
             logger.error(f"Error getting user {user_id}: {str(e)}")
             return None
+        finally:
+            if conn:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
     
     def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
         """
@@ -216,25 +227,24 @@ class DuckDBUserManager:
             logger.error("Email is required")
             return None
         
+        conn = None
         try:
             conn = duckdb.connect(self.db_path)
-            
+
             result = conn.execute(
                 "SELECT * FROM users WHERE email = ?",
                 [email]
             ).fetchone()
-            
-            conn.close()
-            
+
             if not result:
                 logger.debug(f"User not found in DuckDB: {email}")
                 return None
-            
+
             # Convert to dict
-            columns = ['id', 'email', 'name', 'created_at', 'updated_at', 
+            columns = ['id', 'email', 'name', 'created_at', 'updated_at',
                       'last_login', 'email_verified', 'metadata']
             user = dict(zip(columns, result))
-            
+
             # Parse JSON metadata if present
             if user.get('metadata') and isinstance(user['metadata'], str):
                 try:
@@ -242,12 +252,18 @@ class DuckDBUserManager:
                     user['metadata'] = json.loads(user['metadata'])
                 except Exception:
                     pass
-            
+
             return user
-            
+
         except Exception as e:
             logger.error(f"Error getting user by email {email}: {str(e)}")
             return None
+        finally:
+            if conn:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
     
     def update_last_login(self, user_id: str) -> bool:
         """Update last login timestamp"""
@@ -257,17 +273,23 @@ class DuckDBUserManager:
         if not user_id:
             return False
         
+        conn = None
         try:
             conn = duckdb.connect(self.db_path)
             conn.execute(
                 "UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?",
                 [user_id]
             )
-            conn.close()
             return True
         except Exception as e:
             logger.error(f"Error updating last login for {user_id}: {str(e)}")
             return False
+        finally:
+            if conn:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
     
     def update_user(self, user_id: str, updates: Dict[str, Any]) -> bool:
         """
@@ -286,38 +308,74 @@ class DuckDBUserManager:
         if not user_id or not updates:
             return False
         
+        conn = None
         try:
             conn = duckdb.connect(self.db_path)
-            
+
             # Build UPDATE statement dynamically
             set_clauses = []
             values = []
-            
+
             allowed_fields = ['name', 'email_verified', 'metadata']
             for field, value in updates.items():
                 if field in allowed_fields:
                     set_clauses.append(f"{field} = ?")
                     values.append(value)
-            
+
             if not set_clauses:
                 logger.warning(f"No valid fields to update for user {user_id}")
-                conn.close()
                 return False
-            
+
             set_clauses.append("updated_at = CURRENT_TIMESTAMP")
             values.append(user_id)
-            
+
             update_sql = f"UPDATE users SET {', '.join(set_clauses)} WHERE id = ?"
             conn.execute(update_sql, values)
-            conn.close()
-            
+
             logger.debug(f"Updated user {user_id} with fields: {list(updates.keys())}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error updating user {user_id}: {str(e)}")
             return False
+        finally:
+            if conn:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
 
 
-# Global instance
-user_manager = DuckDBUserManager()
+# Global instance (lazy initialization to prevent import-time crashes)
+_user_manager_instance = None
+
+def get_user_manager() -> DuckDBUserManager:
+    """
+    Get the global user manager instance (lazy initialization).
+
+    This function creates the DuckDBUserManager instance on first call to prevent
+    the application from crashing if the database is locked during module import.
+
+    Returns:
+        DuckDBUserManager instance
+
+    Raises:
+        RuntimeError: If initialization fails
+    """
+    global _user_manager_instance
+    if _user_manager_instance is None:
+        try:
+            _user_manager_instance = DuckDBUserManager()
+        except Exception as e:
+            logger.error(f"Failed to initialize user manager: {str(e)}")
+            raise RuntimeError(f"User manager initialization failed: {str(e)}") from e
+    return _user_manager_instance
+
+# For backward compatibility - code can still use user_manager.method()
+# but it will call get_user_manager() lazily
+class _UserManagerProxy:
+    """Proxy class to provide lazy initialization for user_manager"""
+    def __getattr__(self, name):
+        return getattr(get_user_manager(), name)
+
+user_manager = _UserManagerProxy()
