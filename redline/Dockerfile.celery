@@ -1,0 +1,56 @@
+# REDLINE Celery Worker Dockerfile
+# For async task processing (downloads, ML, etc.)
+FROM python:3.11-slim as builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy requirements
+COPY requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+# Production stage
+FROM python:3.11-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -m -u 1000 celery && \
+    mkdir -p /app /data && \
+    chown -R celery:celery /app /data
+
+WORKDIR /app
+
+# Copy Python dependencies from builder
+COPY --from=builder /root/.local /home/celery/.local
+
+# Copy application code
+COPY --chown=celery:celery . .
+
+# Set environment variables
+ENV PATH=/home/celery/.local/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    C_FORCE_ROOT=1
+
+# Create necessary directories
+RUN mkdir -p /app/data/tasks /app/logs && \
+    chown -R celery:celery /app/data /app/logs
+
+USER celery
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD celery -A background.tasks inspect ping || exit 1
+
+# Default command (override with CELERY_COMMAND env var)
+CMD ["celery", "-A", "background.tasks", "worker", "--loglevel=info", "--concurrency=4"]

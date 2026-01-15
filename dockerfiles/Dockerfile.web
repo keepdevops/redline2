@@ -1,0 +1,91 @@
+# REDLINE Web Application Dockerfile
+# Production-ready container for the Flask web application
+# Supports Redis, Stripe, License Server, and Wasabi/S3 storage
+
+FROM python:3.11-slim
+
+# Build arguments
+ARG BUILD_DATE
+ARG VERSION=1.0.0
+
+# Labels
+LABEL maintainer="REDLINE Team"
+LABEL version="${VERSION}"
+LABEL description="REDLINE Financial Data Platform - Web Application"
+LABEL build-date="${BUILD_DATE}"
+
+# Environment variables
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app \
+    # Flask settings
+    FLASK_APP=web_app.py \
+    FLASK_ENV=production \
+    # Gunicorn settings
+    GUNICORN_WORKERS=1 \
+    GUNICORN_THREADS=4 \
+    GUNICORN_BIND=0.0.0.0:8080 \
+    GUNICORN_WORKER_CLASS=gthread \
+    GUNICORN_TIMEOUT=120 \
+    # Application defaults
+    PORT=8080 \
+    # Disable license server by default for containerized deployment
+    REQUIRE_LICENSE_SERVER=false \
+    # Redis disabled by default (enable with REDIS_URL)
+    REDIS_URL="" \
+    # S3/Wasabi storage disabled by default
+    USE_S3_STORAGE=false
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    wget \
+    ca-certificates \
+    libpq-dev \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements first for better layer caching
+COPY requirements.txt /app/
+COPY requirements-conservative.txt /app/
+
+# Install Python dependencies
+# Use conservative requirements for stability, fall back to main requirements
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt || \
+    pip install --no-cache-dir -r requirements-conservative.txt
+
+# Copy application code
+COPY . /app/
+
+# Create necessary directories
+RUN mkdir -p /app/data /app/logs /app/config /app/data/users
+
+# Create non-root user for security
+RUN useradd -m -u 1000 redline && \
+    chown -R redline:redline /app
+USER redline
+
+# Expose port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Start application with Gunicorn
+CMD gunicorn \
+    --bind ${GUNICORN_BIND} \
+    --workers ${GUNICORN_WORKERS} \
+    --threads ${GUNICORN_THREADS} \
+    --worker-class ${GUNICORN_WORKER_CLASS} \
+    --timeout ${GUNICORN_TIMEOUT} \
+    --access-logfile - \
+    --error-logfile - \
+    --capture-output \
+    web_app:app

@@ -1,0 +1,103 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Documentation
+*.md
+docs/
+
+# Data (don't copy large data files into image)
+data/
+*.duckdb
+*.parquet
+*.csv
+*.json
+*.feather
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS
+Thumbs.db
+
+# Local development
+.local/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Database migrations (keep schema SQL)
+# database/supabase_schema.sql  # Keep this
+
+# Tests
+tests/
+test_*.py
+
+# Scripts (optional, keep if needed)
+scripts/
+
+# GUI (not needed in web container)
+gui/
+
+# Legacy
+legacy/

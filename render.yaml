@@ -1,27 +1,132 @@
+# REDLINE Render.com Deployment Configuration
+# Deploy to Render.com with: Connect GitHub repo and select this render.yaml
+#
+# Services:
+#   - redline-backend: Main Flask web application
+#   - redline-redis: Redis for caching and rate limiting
+#   - redline-license-server: License management server
+#
+# Note: For full deployment, you'll need to set the environment variables
+# in the Render dashboard under each service's settings.
+
 services:
+  # ============================================
+  # Main Web Application
+  # ============================================
   - type: web
     name: redline-backend
-    env: docker
-    # Use bytecode-optimized Docker image
-    image: keepdevops/redline:latest
-    dockerCommand: gunicorn --bind 0.0.0.0:$PORT --workers ${GUNICORN_WORKERS:-1} --threads ${GUNICORN_THREADS:-4} --timeout ${GUNICORN_TIMEOUT:-120} --worker-class gthread --access-logfile - --error-logfile - web_app:create_app()
+    runtime: docker
+    dockerfilePath: ./dockerfiles/Dockerfile.web
     plan: starter
+    healthCheckPath: /health
     envVars:
+      # Flask Configuration
       - key: FLASK_ENV
         value: production
       - key: FLASK_APP
         value: web_app.py
       - key: PORT
         value: "8080"
-      - key: HOST
-        value: 0.0.0.0
+      - key: SECRET_KEY
+        generateValue: true
+
+      # Gunicorn Configuration
       - key: GUNICORN_WORKERS
         value: "1"
       - key: GUNICORN_THREADS
         value: "4"
       - key: GUNICORN_TIMEOUT
         value: "120"
-    # Healthcheck disabled - causes issues with DuckDB single-worker constraint
-    # healthCheckPath: /health
-    # healthCheckTimeout: 100
+      - key: GUNICORN_WORKER_CLASS
+        value: gthread
 
+      # Redis Configuration (uses Render Redis)
+      - key: REDIS_URL
+        fromService:
+          name: redline-redis
+          type: redis
+          property: connectionString
+
+      # License Server (internal service URL)
+      - key: REQUIRE_LICENSE_SERVER
+        value: "true"
+      - key: LICENSE_SERVER_URL
+        fromService:
+          name: redline-license-server
+          type: web
+          property: hostport
+      - key: ENFORCE_PAYMENT
+        value: "true"
+
+      # Stripe Configuration (set in Render dashboard)
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: HOURS_PER_DOLLAR
+        value: "0.2"
+      - key: PAYMENT_CURRENCY
+        value: usd
+
+      # Wasabi/S3 Storage (set in Render dashboard)
+      - key: USE_S3_STORAGE
+        value: "false"
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: S3_REGION
+        value: us-east-1
+
+      # User Storage
+      - key: USER_STORAGE_BASE_PATH
+        value: /app/data/users
+      - key: MAX_UPLOAD_SIZE
+        value: "104857600"
+
+    disk:
+      name: redline-data
+      mountPath: /app/data
+      sizeGB: 10
+
+  # ============================================
+  # License Server
+  # ============================================
+  - type: web
+    name: redline-license-server
+    runtime: docker
+    dockerfilePath: ./dockerfiles/Dockerfile.license-server
+    plan: starter
+    healthCheckPath: /api/health
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: LICENSE_SERVER_PORT
+        value: "5001"
+      - key: LICENSE_SECRET_KEY
+        generateValue: true
+      # Stripe for payment verification
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+
+    disk:
+      name: license-data
+      mountPath: /app/data/licenses
+      sizeGB: 1
+
+  # ============================================
+  # Redis (Managed by Render)
+  # ============================================
+  - type: redis
+    name: redline-redis
+    plan: starter
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []  # Only allow internal access

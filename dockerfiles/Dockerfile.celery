@@ -1,0 +1,65 @@
+# REDLINE Celery Worker Dockerfile
+# Background task processing with Redis broker
+
+FROM python:3.11-slim
+
+# Build arguments
+ARG BUILD_DATE
+ARG VERSION=1.0.0
+
+# Labels
+LABEL maintainer="REDLINE Team"
+LABEL version="${VERSION}"
+LABEL description="REDLINE Celery Worker - Background Task Processing"
+LABEL build-date="${BUILD_DATE}"
+
+# Environment variables
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app \
+    # Celery settings
+    CELERY_BROKER_URL=redis://redis:6379/0 \
+    CELERY_RESULT_BACKEND=redis://redis:6379/0 \
+    CELERY_WORKER_CONCURRENCY=2 \
+    CELERY_WORKER_LOGLEVEL=info
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements first for better layer caching
+COPY requirements.txt /app/
+COPY requirements-conservative.txt /app/
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt || \
+    pip install --no-cache-dir -r requirements-conservative.txt
+
+# Copy application code
+COPY . /app/
+
+# Create necessary directories
+RUN mkdir -p /app/data /app/logs
+
+# Create non-root user for security
+RUN useradd -m -u 1000 redline && \
+    chown -R redline:redline /app
+USER redline
+
+# Health check - verify celery worker is responding
+HEALTHCHECK --interval=60s --timeout=30s --start-period=30s --retries=3 \
+    CMD celery -A redline.background.celery_app inspect ping -d celery@$HOSTNAME || exit 1
+
+# Start Celery worker
+CMD celery -A redline.background.celery_app worker \
+    --loglevel=${CELERY_WORKER_LOGLEVEL} \
+    --concurrency=${CELERY_WORKER_CONCURRENCY}

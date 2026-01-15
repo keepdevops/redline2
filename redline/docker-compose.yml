@@ -1,0 +1,168 @@
+services:
+  # Redis for Celery broker and caching
+  redis:
+    image: redis:7-alpine
+    container_name: redline-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - redline-network
+
+  # PostgreSQL (for local development, Supabase in production)
+  postgres:
+    image: postgres:15-alpine
+    container_name: redline-postgres
+    environment:
+      POSTGRES_DB: redline
+      POSTGRES_USER: redline
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-redline_dev_password}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/supabase_schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U redline"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - redline-network
+
+  # Flask Web Application
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: redline-web
+    ports:
+      - "5000:5000"
+    environment:
+      # Flask
+      FLASK_ENV: ${FLASK_ENV:-development}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      PORT: 5000
+      
+      # Supabase (use local postgres in dev, Supabase URL in prod)
+      SUPABASE_URL: ${SUPABASE_URL:-http://postgres:5432}
+      SUPABASE_KEY: ${SUPABASE_KEY:-dev-key}
+      
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      
+      # Celery
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      
+      # Stripe (optional)
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      
+      # Object Storage (Wasabi/S3)
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_ENDPOINT_URL: ${AWS_ENDPOINT_URL:-}
+      AWS_BUCKET_NAME: ${AWS_BUCKET_NAME:-redline-data}
+      
+      # CORS
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}
+    volumes:
+      - ./data/uploads:/app/data/uploads
+      - ./data/cache:/app/data/cache
+      - ./logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - redline-network
+    restart: unless-stopped
+
+  # Celery Worker
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.celery
+    container_name: redline-celery-worker
+    environment:
+      # Same as web service
+      SUPABASE_URL: ${SUPABASE_URL:-http://postgres:5432}
+      SUPABASE_KEY: ${SUPABASE_KEY:-dev-key}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_ENDPOINT_URL: ${AWS_ENDPOINT_URL:-}
+      AWS_BUCKET_NAME: ${AWS_BUCKET_NAME:-redline-data}
+    volumes:
+      - ./data/tasks:/app/data/tasks
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - redline-network
+    restart: unless-stopped
+    command: celery -A background.tasks worker --loglevel=info --concurrency=4
+
+  # Celery Beat (for scheduled tasks)
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.celery
+    container_name: redline-celery-beat
+    environment:
+      SUPABASE_URL: ${SUPABASE_URL:-http://postgres:5432}
+      SUPABASE_KEY: ${SUPABASE_KEY:-dev-key}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - redline-network
+    restart: unless-stopped
+    command: celery -A background.tasks beat --loglevel=info
+
+  # Flower (Celery monitoring UI)
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile.celery
+    container_name: redline-flower
+    ports:
+      - "5555:5555"
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      - redis
+    networks:
+      - redline-network
+    restart: unless-stopped
+    command: celery -A background.tasks flower --port=5555
+
+volumes:
+  redis_data:
+    driver: local
+  postgres_data:
+    driver: local
+
+networks:
+  redline-network:
+    driver: bridge

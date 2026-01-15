@@ -1,0 +1,47 @@
+# Production docker-compose override
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
+
+services:
+  web:
+    # Override for production
+    environment:
+      FLASK_ENV: production
+      # Use Supabase in production (not local postgres)
+      # SUPABASE_URL and SUPABASE_KEY should be set via environment/secrets
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  celery-worker:
+    deploy:
+      replicas: 3
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  celery-beat:
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  # Remove local postgres in production (use Supabase)
+  postgres:
+    deploy:
+      replicas: 0

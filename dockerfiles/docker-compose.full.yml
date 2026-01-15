@@ -1,0 +1,246 @@
+# REDLINE Full Stack Docker Compose
+# Complete deployment with Redis, License Server, Celery, Stripe, and Wasabi/S3 support
+#
+# Services:
+#   - redline-web: Main Flask web application
+#   - redis: Redis for caching, rate limiting, and Celery broker
+#   - license-server: User license management and access control
+#   - celery-worker: Background task processing
+#   - celery-beat: Scheduled task runner (optional)
+#
+# Usage:
+#   docker-compose -f dockerfiles/docker-compose.full.yml up -d
+#
+# With specific profiles:
+#   docker-compose -f dockerfiles/docker-compose.full.yml --profile celery up -d
+
+version: '3.8'
+
+services:
+  # ============================================
+  # Redis - Caching, Rate Limiting, Celery Broker
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: redline-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      - redline-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # License Server - User License Management
+  # ============================================
+  license-server:
+    build:
+      context: ..
+      dockerfile: dockerfiles/Dockerfile.license-server
+      args:
+        BUILD_DATE: ${BUILD_DATE:-}
+        VERSION: ${VERSION:-1.0.0}
+    image: redline-license-server:${VERSION:-latest}
+    container_name: redline-license-server
+    ports:
+      - "5001:5001"
+    environment:
+      # License Server Configuration
+      - LICENSE_SERVER_PORT=5001
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - LICENSE_SECRET_KEY=${LICENSE_SECRET_KEY:-change-me-in-production}
+      # Stripe Integration for Payment Verification
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      # Database
+      - DATABASE_URL=${LICENSE_DATABASE_URL:-sqlite:///data/licenses/licenses.db}
+    volumes:
+      - license-data:/app/data/licenses
+      - license-logs:/app/logs
+    networks:
+      - redline-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ============================================
+  # REDLINE Web Application - Main Flask App
+  # ============================================
+  redline-web:
+    build:
+      context: ..
+      dockerfile: dockerfiles/Dockerfile.web
+      args:
+        BUILD_DATE: ${BUILD_DATE:-}
+        VERSION: ${VERSION:-1.0.0}
+    image: redline-web:${VERSION:-latest}
+    container_name: redline-web
+    ports:
+      - "8080:8080"
+    environment:
+      # Flask Configuration
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}
+
+      # Gunicorn Configuration
+      - GUNICORN_WORKERS=${GUNICORN_WORKERS:-1}
+      - GUNICORN_THREADS=${GUNICORN_THREADS:-4}
+      - GUNICORN_WORKER_CLASS=${GUNICORN_WORKER_CLASS:-gthread}
+      - GUNICORN_TIMEOUT=${GUNICORN_TIMEOUT:-120}
+
+      # Redis Configuration
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+
+      # License Server Configuration
+      - REQUIRE_LICENSE_SERVER=${REQUIRE_LICENSE_SERVER:-true}
+      - LICENSE_SERVER_URL=http://license-server:5001
+      - ENFORCE_PAYMENT=${ENFORCE_PAYMENT:-true}
+
+      # Stripe Payment Configuration
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - HOURS_PER_DOLLAR=${HOURS_PER_DOLLAR:-0.2}
+      - PAYMENT_CURRENCY=${PAYMENT_CURRENCY:-usd}
+
+      # Wasabi / S3 Storage Configuration
+      - USE_S3_STORAGE=${USE_S3_STORAGE:-false}
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL:-https://s3.wasabisys.com}
+      - S3_BUCKET=${S3_BUCKET:-}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY:-}
+      - S3_SECRET_KEY=${S3_SECRET_KEY:-}
+      - S3_REGION=${S3_REGION:-us-east-1}
+
+      # User Storage
+      - USER_STORAGE_BASE_PATH=/app/data/users
+      - MAX_UPLOAD_SIZE=${MAX_UPLOAD_SIZE:-104857600}
+
+      # API Keys (Optional)
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY:-}
+      - FINNHUB_API_KEY=${FINNHUB_API_KEY:-}
+      - IEX_CLOUD_API_KEY=${IEX_CLOUD_API_KEY:-}
+    volumes:
+      - redline-data:/app/data
+      - redline-logs:/app/logs
+      - redline-config:/app/config
+    networks:
+      - redline-network
+    depends_on:
+      redis:
+        condition: service_healthy
+      license-server:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ============================================
+  # Celery Worker - Background Task Processing
+  # ============================================
+  celery-worker:
+    build:
+      context: ..
+      dockerfile: dockerfiles/Dockerfile.celery
+      args:
+        BUILD_DATE: ${BUILD_DATE:-}
+        VERSION: ${VERSION:-1.0.0}
+    image: redline-celery:${VERSION:-latest}
+    container_name: redline-celery-worker
+    environment:
+      # Celery Configuration
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CELERY_WORKER_CONCURRENCY=${CELERY_WORKER_CONCURRENCY:-2}
+      - CELERY_WORKER_LOGLEVEL=${CELERY_WORKER_LOGLEVEL:-info}
+
+      # Application Configuration (for tasks that need it)
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - USE_S3_STORAGE=${USE_S3_STORAGE:-false}
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL:-https://s3.wasabisys.com}
+      - S3_BUCKET=${S3_BUCKET:-}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY:-}
+      - S3_SECRET_KEY=${S3_SECRET_KEY:-}
+      - S3_REGION=${S3_REGION:-us-east-1}
+    volumes:
+      - redline-data:/app/data
+      - celery-logs:/app/logs
+    networks:
+      - redline-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles:
+      - celery
+
+  # ============================================
+  # Celery Beat - Scheduled Tasks (Optional)
+  # ============================================
+  celery-beat:
+    build:
+      context: ..
+      dockerfile: dockerfiles/Dockerfile.celery
+      args:
+        BUILD_DATE: ${BUILD_DATE:-}
+        VERSION: ${VERSION:-1.0.0}
+    image: redline-celery:${VERSION:-latest}
+    container_name: redline-celery-beat
+    command: celery -A redline.background.celery_app beat --loglevel=info
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - celery-beat-data:/app/data
+    networks:
+      - redline-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles:
+      - celery
+
+# ============================================
+# Volumes
+# ============================================
+volumes:
+  redis-data:
+    driver: local
+  license-data:
+    driver: local
+  license-logs:
+    driver: local
+  redline-data:
+    driver: local
+  redline-logs:
+    driver: local
+  redline-config:
+    driver: local
+  celery-logs:
+    driver: local
+  celery-beat-data:
+    driver: local
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  redline-network:
+    name: redline-network
+    driver: bridge
