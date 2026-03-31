@@ -83,6 +83,35 @@ class SupabaseClient:
     def is_available(self) -> bool:
         """Check if Supabase client is available and configured"""
         return self.client is not None
+    
+    def get_configuration_status(self) -> Dict[str, Any]:
+        """
+        Get detailed configuration status for debugging.
+        
+        Returns:
+            Dictionary with configuration status and missing requirements
+        """
+        status = {
+            'available': self.client is not None,
+            'supabase_package_installed': SUPABASE_AVAILABLE,
+            'url_configured': bool(self.url),
+            'service_key_configured': bool(self.service_key),
+            'anon_key_configured': bool(self.anon_key),
+            'missing_requirements': []
+        }
+        
+        if not SUPABASE_AVAILABLE:
+            status['missing_requirements'].append('supabase package (install with: pip install supabase)')
+        
+        if not self.url:
+            status['missing_requirements'].append('SUPABASE_URL environment variable')
+        elif not self.url.startswith('https://'):
+            status['missing_requirements'].append('SUPABASE_URL must start with https://')
+        
+        if not self.service_key:
+            status['missing_requirements'].append('SUPABASE_SERVICE_KEY environment variable')
+        
+        return status
 
     # ========================================================================
     # USER MANAGEMENT

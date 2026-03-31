@@ -31,6 +31,38 @@ stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 
+def get_auth_error_response():
+    """
+    Get a detailed error response when authentication service is not configured.
+    
+    Returns:
+        Tuple of (jsonify response, status_code)
+    """
+    config_status = supabase_client.get_configuration_status()
+    missing = config_status.get('missing_requirements', [])
+    
+    if missing:
+        error_message = 'Authentication service is not configured. Missing: ' + ', '.join(missing)
+        error_details = {
+            'error': error_message,
+            'code': 'SERVICE_UNAVAILABLE',
+            'missing_requirements': missing,
+            'setup_instructions': [
+                'Set SUPABASE_URL environment variable (e.g., https://your-project.supabase.co)',
+                'Set SUPABASE_SERVICE_KEY environment variable (found in Supabase dashboard)',
+                'Optionally set SUPABASE_ANON_KEY for client-side operations'
+            ]
+        }
+    else:
+        error_message = 'Authentication service is not configured'
+        error_details = {
+            'error': error_message,
+            'code': 'SERVICE_UNAVAILABLE'
+        }
+    
+    return jsonify(error_details), 503
+
+
 @auth_bp.route('/reset-password', methods=['GET'])
 def reset_password_page():
     """
@@ -96,17 +128,11 @@ def reset_password():
     # Check if Supabase is available
     if not supabase_client.is_available():
         logger.error("Password reset failed: Supabase client not available")
-        return jsonify({
-            'error': 'Authentication service is not configured',
-            'code': 'SERVICE_UNAVAILABLE'
-        }), 503
+        return get_auth_error_response()
 
     if not supabase_client.client:
         logger.error("Password reset failed: Supabase client is None")
-        return jsonify({
-            'error': 'Authentication service is not configured',
-            'code': 'SERVICE_UNAVAILABLE'
-        }), 503
+        return get_auth_error_response()
 
     # Send password reset email via Supabase
     logger.debug(f"Calling Supabase Auth API to send reset email to {email}")
@@ -451,17 +477,11 @@ def signup():
     # Check if Supabase is available
     if not supabase_client.is_available():
         logger.error("Signup failed: Supabase client not available")
-        return jsonify({
-            'error': 'Authentication service is not configured',
-            'code': 'SERVICE_UNAVAILABLE'
-        }), 503
+        return get_auth_error_response()
 
     if not supabase_client.client:
         logger.error("Signup failed: Supabase client is None")
-        return jsonify({
-            'error': 'Authentication service is not configured',
-            'code': 'SERVICE_UNAVAILABLE'
-        }), 503
+        return get_auth_error_response()
 
     # Step 1: Create user in Supabase Auth
     logger.debug(f"Creating Supabase Auth user for email: {email}")
